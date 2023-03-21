@@ -69,8 +69,8 @@ public:
 
 private:
 	HINSTANCE             d3dDLL;
-	LPDIRECT3D9           pD3D;
-	LPDIRECT3DDEVICE9     pDevice;
+	LPDIRECT3D9EX         pD3D;
+	LPDIRECT3DDEVICE9EX   pDevice;
 	LPDIRECT3DTEXTURE9    pTexture;
 	D3DSURFACE_DESC       dsdBackBuffer;
 	D3DPRESENT_PARAMETERS dpp;
@@ -162,9 +162,7 @@ bool Direct3DDisplay::initialize()
 		return FALSE;
 	}
 
-	pD3D = Direct3DCreate9(D3D_SDK_VERSION);
-
-	if (pD3D == NULL)
+	if (!SUCCEEDED(Direct3DCreate9Ex(D3D_SDK_VERSION, &pD3D)))
 	{
 		winlog("Error creating Direct3D object\n");
 		return FALSE;
@@ -230,12 +228,13 @@ bool Direct3DDisplay::initialize()
 	dpp.BackBufferWidth  = theApp.surfaceSizeX;
 	dpp.BackBufferHeight = theApp.surfaceSizeY;
 
-	HRESULT hret = pD3D->CreateDevice(D3DADAPTER_DEFAULT,
-	                                  D3DDEVTYPE_HAL,
-	                                  pWnd->GetSafeHwnd(),
-	                                  D3DCREATE_SOFTWARE_VERTEXPROCESSING | D3DCREATE_FPU_PRESERVE,
-	                                  &dpp,
-	                                  &pDevice);
+	HRESULT hret = pD3D->CreateDeviceEx(D3DADAPTER_DEFAULT,
+	                                    D3DDEVTYPE_HAL,
+	                                    pWnd->GetSafeHwnd(),
+	                                    D3DCREATE_SOFTWARE_VERTEXPROCESSING | D3DCREATE_FPU_PRESERVE,
+	                                    &dpp,
+										NULL,
+	                                    &pDevice);
 	if (!SUCCEEDED(hret))
 	{
 		winlog("Error creating Direct3DDevice %08x\n", hret);
@@ -292,14 +291,13 @@ bool Direct3DDisplay::initializeOffscreen(int w, int h)
 	UINT      ww     = size;
 	UINT      hh     = size;
 	D3DFORMAT format = screenFormat;
-
 	if (SUCCEEDED(D3DXCheckTextureRequirements(pDevice,
 	                                           &ww,
 	                                           &hh,
 	                                           NULL,
 	                                           0,
 	                                           &format,
-	                                           D3DPOOL_MANAGED)))
+											   D3DPOOL_DEFAULT)))
 	{
 		if ((int)ww < w || (int)hh < h)
 		{
@@ -318,7 +316,7 @@ bool Direct3DDisplay::initializeOffscreen(int w, int h)
 		                                0,
 		                                0,
 		                                format,
-		                                D3DPOOL_MANAGED,
+										D3DPOOL_DEFAULT,
 		                                &pTexture)))
 		{
 			width  = w;
@@ -606,7 +604,7 @@ gbaLoopEnd:
 			{
 				if (theApp.screenMessage[slot])
 				{
-					if ((theApp.screenMessageDuration[slot] < 0 || 
+					if ((theApp.screenMessageDuration[slot] < 0 ||
 						(int)(GetTickCount() - theApp.screenMessageTime[slot]) < theApp.screenMessageDuration[slot]) &&
 					    (!theApp.disableStatusMessage || slot == 1 || slot == 2) && pFont != NULL && pFontSprite != NULL)
 					{
@@ -753,4 +751,3 @@ IDisplay *newDirect3DDisplay()
 {
 	return new Direct3DDisplay();
 }
-
