@@ -22,6 +22,8 @@ extern void systemRefreshScreen();
 extern void systemRenderFrame();
 extern void systemRedrawScreen();
 extern void systemUpdateListeners();
+// rebuilds systemColorMap16/32, applying the selected LCD color filter
+extern void systemUpdateColorMaps();
 // updates the motion sensor
 extern void systemSetSensorX(int32);
 extern void systemSetSensorY(int32);

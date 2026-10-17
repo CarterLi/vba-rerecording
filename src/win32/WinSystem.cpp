@@ -20,6 +20,7 @@
 #include "../common/movie.h"
 #include "../common/nesvideos-piece.h"
 #include "../common/vbalua.h"
+#include "../filters/lcdfilter.h"
 #include "../version.h"
 #include "Dialogs/ram_search.h"
 #include <cassert>
@@ -239,6 +240,157 @@ void systemRefreshScreen()
 	}
 }
 
+// Nearest-neighbour source index for every destination index along one axis.
+// The map is built incrementally, so the per-pixel work in the scaling loop is
+// a table lookup instead of a 64-bit multiply/divide (which compiles to a
+// helper call in this 32-bit build and dominated the frame time).
+struct ScaleAxisMap
+{
+	int  srcSize;
+	int  dstSize;
+	int *map;
+
+	ScaleAxisMap() : srcSize(0), dstSize(0), map(NULL) {}
+	~ScaleAxisMap() { delete[] map; }
+
+	void ensure(int src, int dst)
+	{
+		if (map && src == srcSize && dst == dstSize)
+			return;
+
+		delete[] map;
+		map		= new int[dst > 0 ? dst : 1];
+		srcSize = src;
+		dstSize = dst;
+
+		// map[i] = floor(i * src / dst)
+		int acc = 0;
+		int si	= 0;
+		for (int i = 0; i < dst; i++)
+		{
+			map[i] = si;
+			acc += src;
+			while (acc >= dst)
+			{
+				acc -= dst;
+				si++;
+			}
+		}
+	}
+};
+
+// Records the current frame at the size the AVI was opened with, applying the
+// active pixel filter and scaling up to the window magnification.  The raw
+// frame carries the emulator's border padding and is 16 or 32 bpp; an AVI
+// frame is a bottom-up 24-bit DIB without padding, so convert and scale in a
+// single pass (nearest neighbour, matching what the GDI renderer shows).
+static void systemRecordScaledAviFrame()
+{
+	const int depth = systemColorDepth / 8;
+
+	const int outWidth  = theApp.aviRecorder->videoWidth();
+	const int outHeight = theApp.aviRecorder->videoHeight();
+
+	const int rectWidth  = theApp.rect.right  - theApp.rect.left;
+	const int rectHeight = theApp.rect.bottom - theApp.rect.top;
+
+	if (outWidth <= 0 || outHeight <= 0 || rectWidth <= 0 || rectHeight <= 0)
+		return;
+
+	const int srcPitch  = theApp.filterWidth * depth + 4;
+	const int filtPitch = rectWidth * depth;
+
+	// Filtered frame, only produced when a pixel filter is active.
+	static u8 *filtered		= NULL;
+	static int filteredSize = 0;
+	const int filteredBytes = filtPitch * rectHeight;
+	if (filteredSize < filteredBytes)
+	{
+		delete[] filtered;
+		filtered	 = new u8[filteredBytes];
+		filteredSize = filteredBytes;
+	}
+
+	// Row 0 of the raw buffer is the filter's over-read border; the LCD image
+	// starts one row in (this matches how the renderers call the filters).
+	const u8 *frame		= pix + srcPitch;
+	int		  framePitch = srcPitch;
+	if (theApp.filterFunction && filtered)
+	{
+		(*theApp.filterFunction)(pix + srcPitch, srcPitch, (u8 *)theApp.delta,
+		                         filtered, filtPitch, theApp.filterWidth, theApp.filterHeight);
+		frame	   = filtered;
+		framePitch = filtPitch;
+	}
+
+	static u8 *bmpScaled	 = NULL;
+	static int bmpScaledSize = 0;
+	const int outPitch = outWidth * 3;
+	const int outBytes = outPitch * outHeight;
+	if (bmpScaledSize < outBytes)
+	{
+		delete[] bmpScaled;
+		bmpScaled	  = new u8[outBytes];
+		bmpScaledSize = outBytes;
+	}
+
+	if (!bmpScaled)
+		return;
+
+	static ScaleAxisMap xMap;
+	static ScaleAxisMap yMap;
+	xMap.ensure(rectWidth, outWidth);
+	yMap.ensure(rectHeight, outHeight);
+
+	const int	*rx		= xMap.map;
+	const int	*ry		= yMap.map;
+	const int	 rShift = systemRedShift;
+	const int	 gShift = systemGreenShift;
+	const int	 bShift = systemBlueShift;
+	const size_t rowStep = (size_t)framePitch;
+
+	u8 *dst = bmpScaled + outPitch * (outHeight - 1);
+
+	if (depth == 2)
+	{
+		for (int y = 0; y < outHeight; y++)
+		{
+			const u16 *srcRow = (const u16 *)(frame + ry[y] * rowStep);
+			u8 *d			  = dst;
+
+			for (int x = 0; x < outWidth; x++)
+			{
+				const u32 v = srcRow[rx[x]];
+				*d++ = (u8)(((v >> bShift) & 0x1f) << 3);
+				*d++ = (u8)(((v >> gShift) & 0x1f) << 3);
+				*d++ = (u8)(((v >> rShift) & 0x1f) << 3);
+			}
+
+			dst -= outPitch;
+		}
+	}
+	else
+	{
+		for (int y = 0; y < outHeight; y++)
+		{
+			const u32 *srcRow = (const u32 *)(frame + ry[y] * rowStep);
+			u8 *d			  = dst;
+
+			for (int x = 0; x < outWidth; x++)
+			{
+				const u32 v = srcRow[rx[x]];
+				*d++ = (u8)(((v >> bShift) & 0x1f) << 3);
+				*d++ = (u8)(((v >> gShift) & 0x1f) << 3);
+				*d++ = (u8)(((v >> rShift) & 0x1f) << 3);
+			}
+
+			dst -= outPitch;
+		}
+	}
+
+	theApp.aviRecorder->AddFrame(bmpScaled);
+}
+
 static void systemRecordAviFrame(int width, int height)
 {
 	extern u32 linearSoundFrameCount;
@@ -267,6 +419,14 @@ static void systemRecordAviFrame(int width, int height)
 			{
 				theApp.aviRecorder = new AVIWrite();
 
+				// When recording the filtered window contents the frame is the
+				// size the emulator is displayed at, not the raw LCD resolution.
+				if (theApp.aviRecordScaled && theApp.surfaceSizeX > 0 && theApp.surfaceSizeY > 0)
+				{
+					width  = theApp.surfaceSizeX;
+					height = theApp.surfaceSizeY;
+				}
+
 				BITMAPINFOHEADER bi;
 				memset(&bi, 0, sizeof(bi));
 				bi.biSize	   = 0x28;
@@ -286,11 +446,19 @@ static void systemRecordAviFrame(int width, int height)
 
 			if (theApp.aviRecorder != NULL && !theApp.aviRecorder->IsPaused())
 			{
-				assert(
-					width <= BMP_BUFFER_MAX_WIDTH && height <= BMP_BUFFER_MAX_HEIGHT
-					&& systemColorDepth <= BMP_BUFFER_MAX_DEPTH * 8);
-				utilWriteBMP(bmpBuffer, width, height, systemColorDepth, pix);
-				theApp.aviRecorder->AddFrame(bmpBuffer);
+				if (theApp.aviRecordScaled &&
+				    (systemColorDepth == 16 || systemColorDepth == 32))
+				{
+					systemRecordScaledAviFrame();
+				}
+				else
+				{
+					assert(
+						width <= BMP_BUFFER_MAX_WIDTH && height <= BMP_BUFFER_MAX_HEIGHT
+						&& systemColorDepth <= BMP_BUFFER_MAX_DEPTH * 8);
+					utilWriteBMP(bmpBuffer, width, height, systemColorDepth, pix);
+					theApp.aviRecorder->AddFrame(bmpBuffer);
+				}
 			}
 		}
 
@@ -725,6 +893,13 @@ void systemGbBorderOn()
 bool systemIsRunningGBA()
 {
 	return (systemCartridgeType == IMAGE_GBA);
+}
+
+void systemUpdateColorMaps()
+{
+	lcdFilterUpdateSystemColorMaps(theApp.lcdFilterGba, theApp.lcdFilterGbc,
+	                               theApp.lcdFilterColorMode,
+	                               systemIsRunningGBA());
 }
 
 bool systemIsSpedUp()

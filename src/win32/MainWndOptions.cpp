@@ -1785,6 +1785,88 @@ void MainWnd::OnUpdateOptionsFilterDisablemmx(CCmdUI*pCmdUI)
 	pCmdUI->SetCheck(theApp.disableMMX);
 }
 
+BOOL MainWnd::OnOptionsVideoLcdFilter(UINT nID)
+{
+	switch (nID)
+	{
+	case ID_OPTIONS_VIDEO_LCDFILTER_GBA_NONE:
+		theApp.lcdFilterGba = LCD_FILTER_OFF;
+		break;
+	case ID_OPTIONS_VIDEO_LCDFILTER_GBA_GBA:
+		theApp.lcdFilterGba = kLcdGbaGba;
+		break;
+	case ID_OPTIONS_VIDEO_LCDFILTER_GBA_SP:
+		theApp.lcdFilterGba = kLcdGbaGbaSpBacklit;
+		break;
+	case ID_OPTIONS_VIDEO_LCDFILTER_GBA_MICRO:
+		theApp.lcdFilterGba = kLcdGbaMicro;
+		break;
+	case ID_OPTIONS_VIDEO_LCDFILTER_GBA_NDS:
+		theApp.lcdFilterGba = kLcdGbaDs;
+		break;
+	case ID_OPTIONS_VIDEO_LCDFILTER_GBA_DSLITE:
+		theApp.lcdFilterGba = kLcdGbaDsLite;
+		break;
+	case ID_OPTIONS_VIDEO_LCDFILTER_GBA_NSO:
+		theApp.lcdFilterGba = kLcdGbaNso;
+		break;
+	case ID_OPTIONS_VIDEO_LCDFILTER_GBC_NONE:
+		theApp.lcdFilterGbc = LCD_FILTER_OFF;
+		break;
+	case ID_OPTIONS_VIDEO_LCDFILTER_GBC_CGB:
+		theApp.lcdFilterGbc = kLcdGbcCgb;
+		break;
+	case ID_OPTIONS_VIDEO_LCDFILTER_GBC_NSO:
+		theApp.lcdFilterGbc = kLcdGbcNso;
+		break;
+	default:
+		return FALSE;
+	}
+
+	// The correction is baked into the palette translation tables, so rebuild
+	// them and repaint; it takes effect from the next emulated frame on.
+	systemUpdateColorMaps();
+	systemRefreshScreen();
+	return TRUE;
+}
+
+void MainWnd::OnUpdateOptionsVideoLcdFilter(CCmdUI *pCmdUI)
+{
+	switch (pCmdUI->m_nID)
+	{
+	case ID_OPTIONS_VIDEO_LCDFILTER_GBA_NONE:
+		pCmdUI->SetCheck(theApp.lcdFilterGba == LCD_FILTER_OFF);
+		break;
+	case ID_OPTIONS_VIDEO_LCDFILTER_GBA_GBA:
+		pCmdUI->SetCheck(theApp.lcdFilterGba == kLcdGbaGba);
+		break;
+	case ID_OPTIONS_VIDEO_LCDFILTER_GBA_SP:
+		pCmdUI->SetCheck(theApp.lcdFilterGba == kLcdGbaGbaSpBacklit);
+		break;
+	case ID_OPTIONS_VIDEO_LCDFILTER_GBA_MICRO:
+		pCmdUI->SetCheck(theApp.lcdFilterGba == kLcdGbaMicro);
+		break;
+	case ID_OPTIONS_VIDEO_LCDFILTER_GBA_NDS:
+		pCmdUI->SetCheck(theApp.lcdFilterGba == kLcdGbaDs);
+		break;
+	case ID_OPTIONS_VIDEO_LCDFILTER_GBA_DSLITE:
+		pCmdUI->SetCheck(theApp.lcdFilterGba == kLcdGbaDsLite);
+		break;
+	case ID_OPTIONS_VIDEO_LCDFILTER_GBA_NSO:
+		pCmdUI->SetCheck(theApp.lcdFilterGba == kLcdGbaNso);
+		break;
+	case ID_OPTIONS_VIDEO_LCDFILTER_GBC_NONE:
+		pCmdUI->SetCheck(theApp.lcdFilterGbc == LCD_FILTER_OFF);
+		break;
+	case ID_OPTIONS_VIDEO_LCDFILTER_GBC_CGB:
+		pCmdUI->SetCheck(theApp.lcdFilterGbc == kLcdGbcCgb);
+		break;
+	case ID_OPTIONS_VIDEO_LCDFILTER_GBC_NSO:
+		pCmdUI->SetCheck(theApp.lcdFilterGbc == kLcdGbcNso);
+		break;
+	}
+}
+
 void MainWnd::OnOptionsLanguageSystem()
 {
 	theApp.winSetLanguageOption(0, false);

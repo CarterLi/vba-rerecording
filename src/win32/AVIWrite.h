@@ -19,6 +19,8 @@ class AVIWrite {
   void SetSoundFormat(WAVEFORMATEX *);
   bool AddSound(const u8 *sound, u32 len);
   int videoFrames();
+  int videoWidth() const { return m_bitmap.biWidth; }
+  int videoHeight() const { return m_bitmap.biHeight; }
   void Pause(bool pause);
   bool IsPaused();
 

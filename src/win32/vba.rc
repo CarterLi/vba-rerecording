@@ -1985,6 +1985,27 @@ BEGIN
             MENUITEM SEPARATOR
             MENUITEM "&Disable MMX Optimizations",  ID_OPTIONS_FILTER_DISABLEMMX
         END
+        POPUP "LCD Color &Filter"
+        BEGIN
+            POPUP "&GBA"
+            BEGIN
+                MENUITEM "&None",                       ID_OPTIONS_VIDEO_LCDFILTER_GBA_NONE, CHECKED
+                MENUITEM SEPARATOR
+                MENUITEM "G&BA",                        ID_OPTIONS_VIDEO_LCDFILTER_GBA_GBA
+                MENUITEM "GBA &SP (Backlit)",           ID_OPTIONS_VIDEO_LCDFILTER_GBA_SP
+                MENUITEM "Game Boy &Micro",             ID_OPTIONS_VIDEO_LCDFILTER_GBA_MICRO
+                MENUITEM "Nintendo &DS",                ID_OPTIONS_VIDEO_LCDFILTER_GBA_NDS
+                MENUITEM "Nintendo DS &Lite",           ID_OPTIONS_VIDEO_LCDFILTER_GBA_DSLITE
+                MENUITEM "&NSO GBA",                    ID_OPTIONS_VIDEO_LCDFILTER_GBA_NSO
+            END
+            POPUP "&GB/GBC"
+            BEGIN
+                MENUITEM "&None",                       ID_OPTIONS_VIDEO_LCDFILTER_GBC_NONE, CHECKED
+                MENUITEM SEPARATOR
+                MENUITEM "&Game Boy Color",             ID_OPTIONS_VIDEO_LCDFILTER_GBC_CGB
+                MENUITEM "&NSO GBC",                    ID_OPTIONS_VIDEO_LCDFILTER_GBC_NSO
+            END
+        END
         POPUP "&Audio"
         BEGIN
             MENUITEM "&Disable",                    ID_OPTIONS_SOUND_DISABLE
@@ -2223,6 +2244,7 @@ BEGIN
         END
         MENUITEM "Pause/Resume AVI &Recording", ID_TOOLS_PAUSEAVIRECORDING
         MENUITEM "Start/Stop &AVI Recording...", ID_TOOLS_AVIRECORDING
+        MENUITEM "Record AVI at &Window Size and Filter", ID_TOOLS_AVIRECORDSCALED
         MENUITEM "Start/Stop &WAV Recording...", ID_TOOLS_SOUNDRECORDING
         MENUITEM SEPARATOR
         MENUITEM "Screenshot &Capture...",      ID_FILE_SCREENCAPTURE

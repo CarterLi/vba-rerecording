@@ -17,6 +17,7 @@
 #include "AVIWrite.h"
 #include "Display.h"
 #include "../common/System.h"
+#include "../filters/lcdfilter.h"
 
 /////////////////////////////////////////////////////////////////////////////
 // VBA:
@@ -68,6 +69,9 @@ public:
 	int		  filterType;
 	int		  filterWidth;
 	int		  filterHeight;
+	int		  lcdFilterGba;      // LCD color filter variant for GBA (-1 = off)
+	int		  lcdFilterGbc;      // LCD color filter variant for GB/GBC (-1 = off)
+	int		  lcdFilterColorMode;
 	int		  fsWidth;
 	int		  fsHeight;
 	int		  fsColorDepth;
@@ -179,6 +183,7 @@ public:
 	AVIWrite *	 aviRecorder;
 	CString		 aviRecordName;
 	bool		 altAviRecordMethod;
+	bool		 aviRecordScaled;  // record AVI at the window size, with filters
 	bool		 nvVideoLog;
 	bool		 nvAudioLog;
 	bool		 painting;  // for systemDrawScreen()

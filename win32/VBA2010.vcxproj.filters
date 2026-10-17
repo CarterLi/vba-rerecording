@@ -153,6 +153,9 @@
     <ClCompile Include="..\src\filters\scalefx_pass4.cpp">
       <Filter>Source Files\Filters</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\filters\lcdfilter.cpp">
+      <Filter>Source Files\Filters</Filter>
+    </ClCompile>
     <ClCompile Include="..\src\gba\agbprint.cpp">
       <Filter>Source Files\GBA</Filter>
     </ClCompile>
@@ -802,6 +805,9 @@
       <Filter>Header Files\Win32</Filter>
     </ClInclude>
     <ClInclude Include="..\src\filters\filters.h">
+      <Filter>Header Files\Filters</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\filters\lcdfilter.h">
       <Filter>Header Files\Filters</Filter>
     </ClInclude>
     <ClInclude Include="..\src\win32\WinMiscUtil.h">

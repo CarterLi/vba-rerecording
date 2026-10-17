@@ -511,6 +511,7 @@
     <ClCompile Include="..\src\filters\scalefx_pass2.cpp" />
     <ClCompile Include="..\src\filters\scalefx_pass3.cpp" />
     <ClCompile Include="..\src\filters\scalefx_pass4.cpp" />
+    <ClCompile Include="..\src\filters\lcdfilter.cpp" />
     <ClCompile Include="..\src\win32\AcceleratorManager.cpp" />
     <ClCompile Include="..\src\win32\AVIWrite.cpp" />
     <ClCompile Include="..\src\win32\CmdAccelOb.cpp" />
@@ -599,6 +600,7 @@
     <ClInclude Include="..\src\filters\scalefx.h" />
     <ClInclude Include="..\src\filters\scalefx_manager.h" />
     <ClInclude Include="..\src\filters\scalefx_simd.h" />
+    <ClInclude Include="..\src\filters\lcdfilter.h" />
     <ClInclude Include="..\src\gba\agbprint.h" />
     <ClInclude Include="..\src\gba\armdis.h" />
     <ClInclude Include="..\src\gba\bios.h" />

@@ -387,26 +387,7 @@ bool Direct3D11Display::initialize()
 	if (filterMode < 0 || filterMode > 3)
 		filterMode = 0;
 
-	switch (systemColorDepth)
-	{
-	case 16:
-		for (int i = 0; i < 0x10000; i++)
-		{
-			systemColorMap16[i] = ((i & 0x1f) << systemRedShift) |
-			                      (((i & 0x3e0) >> 5) << systemGreenShift) |
-			                      (((i & 0x7c00) >> 10) << systemBlueShift);
-		}
-		break;
-	case 24:
-	case 32:
-		for (int i = 0; i < 0x10000; i++)
-		{
-			systemColorMap32[i] = ((i & 0x1f) << systemRedShift) |
-			                      (((i & 0x3e0) >> 5) << systemGreenShift) |
-			                      (((i & 0x7c00) >> 10) << systemBlueShift);
-		}
-		break;
-	}
+	systemUpdateColorMaps();
 
 	theApp.updateFilter();
 	theApp.updateIFB();

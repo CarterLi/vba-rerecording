@@ -73,6 +73,8 @@ protected:
 	afx_msg BOOL OnOptionsFilterIFB(UINT nID);
 	afx_msg void OnUpdateOptionsFilter(CCmdUI *pCmdUI);
 	afx_msg BOOL OnOptionsFilter(UINT nID);
+	afx_msg void OnUpdateOptionsVideoLcdFilter(CCmdUI *pCmdUI);
+	afx_msg BOOL OnOptionsVideoLcdFilter(UINT nID);
 	afx_msg void OnUpdateOptionsPriority(CCmdUI *pCmdUI);
 	afx_msg BOOL OnOptionsPriority(UINT nID);
 	afx_msg void OnUpdateOptionsSoundVolume(CCmdUI *pCmdUI);
@@ -441,6 +443,8 @@ protected:
 	afx_msg void OnToolsStopAVIRecording();
 	afx_msg void OnToolsAVIRecording();
 	afx_msg void OnUpdateToolsAVIRecording(CCmdUI*pCmdUI);
+	afx_msg void OnToolsRecordAviScaled();
+	afx_msg void OnUpdateToolsRecordAviScaled(CCmdUI*pCmdUI);
 	afx_msg void OnUpdateToolsPauseAVIRecording(CCmdUI*pCmdUI);
 
 	afx_msg void OnToolsRecordMovie();

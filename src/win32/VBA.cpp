@@ -268,6 +268,9 @@ VBA::VBA() : emulator(::theEmulator)
 	filterType			 = 0;
 	filterWidth			 = 0;
 	filterHeight		 = 0;
+	lcdFilterGba		 = LCD_FILTER_OFF;
+	lcdFilterGbc		 = LCD_FILTER_OFF;
+	lcdFilterColorMode	 = 0;
 	fsWidth				 = 0;
 	fsHeight			 = 0;
 	fsColorDepth		 = 0;
@@ -1943,6 +1946,15 @@ void VBA::loadSettings()
 	filterType = regQueryDwordValue("filter", 0);
 	if (filterType < 0 || filterType > 26)
 		filterType = 0;
+	lcdFilterGba = (int)regQueryDwordValue("lcdFilterGba", (DWORD)LCD_FILTER_OFF);
+	if (lcdFilterGba < LCD_FILTER_OFF || lcdFilterGba >= kLcdGbaVariantCount)
+		lcdFilterGba = LCD_FILTER_OFF;
+	lcdFilterGbc = (int)regQueryDwordValue("lcdFilterGbc", (DWORD)LCD_FILTER_OFF);
+	if (lcdFilterGbc < LCD_FILTER_OFF || lcdFilterGbc >= kLcdGbcVariantCount)
+		lcdFilterGbc = LCD_FILTER_OFF;
+	lcdFilterColorMode = (int)regQueryDwordValue("lcdFilterColorMode", 0);
+	if (lcdFilterColorMode < 0 || lcdFilterColorMode > 2)
+		lcdFilterColorMode = 0;
 	disableMMX = regQueryDwordValue("disableMMX", 0) ? true : false;
 	ifbType	   = regQueryDwordValue("ifbType", 0);
 	if (ifbType < 0 || ifbType > 2)
@@ -2094,6 +2106,7 @@ void VBA::loadSettings()
 
 	filenamePreference = regQueryDwordValue("filenamePreference", 0);
 	altAviRecordMethod = regQueryDwordValue("altAviRecordMethod", false) ? true : false;
+	aviRecordScaled = regQueryDwordValue("aviRecordScaled", false) ? true : false;
 	captureFormat	   = regQueryDwordValue("captureFormat", 0);
 
 	rewindTimer = regQueryDwordValue("rewindTimer", 0);
@@ -2193,6 +2206,9 @@ void VBA::saveSettings()
 
 	// pixel filter & ifb
 	regSetDwordValue("filter", filterType);
+	regSetDwordValue("lcdFilterGba", lcdFilterGba);
+	regSetDwordValue("lcdFilterGbc", lcdFilterGbc);
+	regSetDwordValue("lcdFilterColorMode", lcdFilterColorMode);
 	regSetDwordValue("ifbType", ifbType);
 	regSetDwordValue("disableMMX", disableMMX);
 
@@ -2295,6 +2311,7 @@ void VBA::saveSettings()
 
 	regSetDwordValue("filenamePreference", filenamePreference);
 	regSetDwordValue("altAviRecordMethod", altAviRecordMethod);
+	regSetDwordValue("aviRecordScaled", aviRecordScaled);
 	regSetDwordValue("captureFormat", captureFormat);
 
 	regSetDwordValue("cheatsEnabled", cheatsEnabled);
