@@ -123,6 +123,36 @@
     <ClCompile Include="..\src\filters\simple2x.cpp">
       <Filter>Source Files\Filters</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\filters\xbrz.cpp">
+      <Filter>Source Files\Filters</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\filters\xbrzfilter.cpp">
+      <Filter>Source Files\Filters</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\filters\hq4x.cpp">
+      <Filter>Source Files\Filters</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\filters\scalefx.cpp">
+      <Filter>Source Files\Filters</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\filters\scalefx_manager.cpp">
+      <Filter>Source Files\Filters</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\filters\scalefx_pass0.cpp">
+      <Filter>Source Files\Filters</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\filters\scalefx_pass1.cpp">
+      <Filter>Source Files\Filters</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\filters\scalefx_pass2.cpp">
+      <Filter>Source Files\Filters</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\filters\scalefx_pass3.cpp">
+      <Filter>Source Files\Filters</Filter>
+    </ClCompile>
+    <ClCompile Include="..\src\filters\scalefx_pass4.cpp">
+      <Filter>Source Files\Filters</Filter>
+    </ClCompile>
     <ClCompile Include="..\src\gba\agbprint.cpp">
       <Filter>Source Files\GBA</Filter>
     </ClCompile>
@@ -619,6 +649,36 @@
       <Filter>Header Files\Filters</Filter>
     </ClInclude>
     <ClInclude Include="..\src\filters\lq2x.h">
+      <Filter>Header Files\Filters</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\filters\xbrz.h">
+      <Filter>Header Files\Filters</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\filters\xbrz_config.h">
+      <Filter>Header Files\Filters</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\filters\xbrz_tools.h">
+      <Filter>Header Files\Filters</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\filters\simd_common.h">
+      <Filter>Header Files\Filters</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\filters\hq_base.h">
+      <Filter>Header Files\Filters</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\filters\hq_shared.h">
+      <Filter>Header Files\Filters</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\filters\hq4x_pattern.h">
+      <Filter>Header Files\Filters</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\filters\scalefx.h">
+      <Filter>Header Files\Filters</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\filters\scalefx_manager.h">
+      <Filter>Header Files\Filters</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\filters\scalefx_simd.h">
       <Filter>Header Files\Filters</Filter>
     </ClInclude>
     <ClInclude Include="..\src\gba\agbprint.h">

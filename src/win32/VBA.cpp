@@ -910,10 +910,25 @@ void VBA::updateFilter()
 		case 20:
 			filterFunction = Pixelate4x16;
 			break;
+		case 21: // xBRZ is 32-bit only
+		case 22:
+		case 23:
+		case 24: // xBRZ 5x is 32-bit only
+		case 26: // ScaleFX is 32-bit only
+			filterFunction = NULL;
+			break;
+		case 25:
+			filterFunction = hq4x;
+			break;
 		}
 		switch (filterType)
 		{
 		case 0: // normal -> 1x texture
+		case 21: // xBRZ has no 16-bit variant -> no filter
+		case 22:
+		case 23:
+		case 24:
+		case 26:
 			rect.right	= sizeX;
 			rect.bottom = sizeY;
 			break;
@@ -932,6 +947,7 @@ void VBA::updateFilter()
 			break;
 		case 18: // Simple4x -> 4x texture
 		case 20:
+		case 25: // hq4x -> 4x texture
 			rect.right	= sizeX * 4;
 			rect.bottom = sizeY * 4;
 			memset(delta, 255, sizeof(delta));
@@ -1009,6 +1025,24 @@ void VBA::updateFilter()
 			case 20:
 				filterFunction = Pixelate4x32;
 				break;
+			case 21:
+				filterFunction = xbrz2x32;
+				break;
+			case 22:
+				filterFunction = xbrz3x32;
+				break;
+			case 23:
+				filterFunction = xbrz4x32;
+				break;
+			case 24:
+				filterFunction = xbrz5x32;
+				break;
+			case 25:
+				filterFunction = hq4x32;
+				break;
+			case 26:
+				filterFunction = scalefx3x32;
+				break;
 			}
 			switch (filterType)
 			{
@@ -1026,14 +1060,23 @@ void VBA::updateFilter()
 			case 16:
 			case 17:
 			case 19:
+			case 22: // xBRZ 3x
+			case 26: // ScaleFX 3x
 				rect.right	= sizeX * 3;
 				rect.bottom = sizeY * 3;
 				memset(delta, 255, sizeof(delta));
 				break;
 			case 18: // Simple4x -> 4x texture
 			case 20:
+			case 23: // xBRZ 4x
+			case 25: // hq4x
 				rect.right	= sizeX * 4;
 				rect.bottom = sizeY * 4;
+				memset(delta, 255, sizeof(delta));
+				break;
+			case 24: // xBRZ 5x -> 5x texture
+				rect.right	= sizeX * 5;
+				rect.bottom = sizeY * 5;
 				memset(delta, 255, sizeof(delta));
 				break;
 			}
@@ -1898,7 +1941,7 @@ void VBA::loadSettings()
 
 	// pixel filter & ifb
 	filterType = regQueryDwordValue("filter", 0);
-	if (filterType < 0 || filterType > 20)
+	if (filterType < 0 || filterType > 26)
 		filterType = 0;
 	disableMMX = regQueryDwordValue("disableMMX", 0) ? true : false;
 	ifbType	   = regQueryDwordValue("ifbType", 0);

@@ -1955,6 +1955,8 @@ BEGIN
                 MENUITEM "LQ2x",                        ID_OPTIONS_FILTER_LQ2X
                 MENUITEM "HQ2x",                        ID_OPTIONS_FILTER_HQ2X
                 MENUITEM "HQ2xS",                       ID_OPTIONS_FILTER_HQ2X2
+                MENUITEM SEPARATOR
+                MENUITEM "xBRZ 2x",                     ID_OPTIONS_FILTER_XBRZ2X
             END
             POPUP "&3x Magnification"
             BEGIN
@@ -1963,11 +1965,22 @@ BEGIN
                 MENUITEM SEPARATOR
                 MENUITEM "HQ3x",                        ID_OPTIONS_FILTER_HQ3X
                 MENUITEM "HQ3xS",                       ID_OPTIONS_FILTER_HQ3X2
+                MENUITEM SEPARATOR
+                MENUITEM "xBRZ 3x",                     ID_OPTIONS_FILTER_XBRZ3X
+                MENUITEM "ScaleFX 3x",                  ID_OPTIONS_FILTER_SCALEFX3X
             END
             POPUP "&4x Magnification"
             BEGIN
                 MENUITEM "Simple 4&x",                  ID_OPTIONS_FILTER16BIT_SIMPLE4X
                 MENUITEM "&Pixelate 4x",                ID_OPTIONS_FILTER16BIT_PIXELATEEXPERIMENTAL4X
+                MENUITEM SEPARATOR
+                MENUITEM "HQ4x",                        ID_OPTIONS_FILTER_HQ4X
+                MENUITEM SEPARATOR
+                MENUITEM "xBRZ 4x",                     ID_OPTIONS_FILTER_XBRZ4X
+            END
+            POPUP "&5x Magnification"
+            BEGIN
+                MENUITEM "xBRZ 5x",                     ID_OPTIONS_FILTER_XBRZ5X
             END
             MENUITEM SEPARATOR
             MENUITEM "&Disable MMX Optimizations",  ID_OPTIONS_FILTER_DISABLEMMX

@@ -1616,6 +1616,24 @@ BOOL MainWnd::OnOptionsFilter(UINT nID)
 	case ID_OPTIONS_FILTER16BIT_PIXELATEEXPERIMENTAL4X:
 		theApp.filterType = 20;
 		break;
+	case ID_OPTIONS_FILTER_XBRZ2X:
+		theApp.filterType = 21;
+		break;
+	case ID_OPTIONS_FILTER_XBRZ3X:
+		theApp.filterType = 22;
+		break;
+	case ID_OPTIONS_FILTER_XBRZ4X:
+		theApp.filterType = 23;
+		break;
+	case ID_OPTIONS_FILTER_XBRZ5X:
+		theApp.filterType = 24;
+		break;
+	case ID_OPTIONS_FILTER_HQ4X:
+		theApp.filterType = 25;
+		break;
+	case ID_OPTIONS_FILTER_SCALEFX3X:
+		theApp.filterType = 26;
+		break;
 	default:
 		return FALSE;
 	}
@@ -1690,6 +1708,29 @@ void MainWnd::OnUpdateOptionsFilter(CCmdUI *pCmdUI)
 		break;
 	case ID_OPTIONS_FILTER16BIT_PIXELATEEXPERIMENTAL4X:
 		pCmdUI->SetCheck(theApp.filterType == 20);
+		break;
+	case ID_OPTIONS_FILTER_XBRZ2X:
+		pCmdUI->Enable(systemColorDepth == 32); // xBRZ has no 16-bit variant
+		pCmdUI->SetCheck(theApp.filterType == 21);
+		break;
+	case ID_OPTIONS_FILTER_XBRZ3X:
+		pCmdUI->Enable(systemColorDepth == 32);
+		pCmdUI->SetCheck(theApp.filterType == 22);
+		break;
+	case ID_OPTIONS_FILTER_XBRZ4X:
+		pCmdUI->Enable(systemColorDepth == 32);
+		pCmdUI->SetCheck(theApp.filterType == 23);
+		break;
+	case ID_OPTIONS_FILTER_XBRZ5X:
+		pCmdUI->Enable(systemColorDepth == 32);
+		pCmdUI->SetCheck(theApp.filterType == 24);
+		break;
+	case ID_OPTIONS_FILTER_HQ4X:
+		pCmdUI->SetCheck(theApp.filterType == 25);
+		break;
+	case ID_OPTIONS_FILTER_SCALEFX3X:
+		pCmdUI->Enable(systemColorDepth == 32); // ScaleFX has no 16-bit variant
+		pCmdUI->SetCheck(theApp.filterType == 26);
 		break;
 	}
 }
