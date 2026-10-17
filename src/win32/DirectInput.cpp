@@ -9,6 +9,7 @@
 #include "Input.h"
 #include "Reg.h"
 #include "WinResUtil.h"
+#include "VBA.h"
 
 // master keyboard translation table
 static const struct {
@@ -169,6 +170,11 @@ public:
 	virtual bool readDevices();
 	virtual u32 readDevice(int which, bool sensor);
 	virtual CString getKeyName(LONG_PTR key);
+	// Driven by the Auto-Fire keys; uses VBAToggleAutoFireButton(), the same
+	// routine the Auto-Fire menu commands (Alt+0-9) use.
+	void updateAutoFire();
+	u32 readAutoFireBound(int i);
+	u32 readAutoFireHeld(int i);
 	virtual void checkKeys();
 	virtual void activate();
 	virtual void loadSettings();
@@ -215,6 +221,15 @@ USHORT joypad[4][13] = {
 		DIK_SPACE, DIK_F12,
 		DIK_C
 	},
+	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
+	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }
+};
+
+// Auto-Fire keys: while one of these is held the matching button toggles every
+// other frame.  Zero means "not assigned".
+USHORT autoFireKeys[4][13] = {
+	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
 	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
 	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 },
 	{ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }
@@ -278,6 +293,36 @@ void winReadKeys()
 		key = winReadKey("GS", i);
 		if (key != -1)
 			joypad[i][KEY_BUTTON_GS] = key;
+		key = winReadKey("AF_Up", i);
+		if (key != -1)
+			autoFireKeys[i][KEY_UP] = key;
+		key = winReadKey("AF_Down", i);
+		if (key != -1)
+			autoFireKeys[i][KEY_DOWN] = key;
+		key = winReadKey("AF_Left", i);
+		if (key != -1)
+			autoFireKeys[i][KEY_LEFT] = key;
+		key = winReadKey("AF_Right", i);
+		if (key != -1)
+			autoFireKeys[i][KEY_RIGHT] = key;
+		key = winReadKey("AF_A", i);
+		if (key != -1)
+			autoFireKeys[i][KEY_BUTTON_A] = key;
+		key = winReadKey("AF_B", i);
+		if (key != -1)
+			autoFireKeys[i][KEY_BUTTON_B] = key;
+		key = winReadKey("AF_L", i);
+		if (key != -1)
+			autoFireKeys[i][KEY_BUTTON_L] = key;
+		key = winReadKey("AF_R", i);
+		if (key != -1)
+			autoFireKeys[i][KEY_BUTTON_R] = key;
+		key = winReadKey("AF_Select", i);
+		if (key != -1)
+			autoFireKeys[i][KEY_BUTTON_SELECT] = key;
+		key = winReadKey("AF_Start", i);
+		if (key != -1)
+			autoFireKeys[i][KEY_BUTTON_START] = key;
 	}
 	key = regQueryDwordValue("Motion_Left", (DWORD)-1);
 	if (key != -1)
@@ -319,6 +364,16 @@ void winSaveKeys()
 		winSaveKey("R", i, joypad[i][KEY_BUTTON_R]);
 		winSaveKey("Start", i, joypad[i][KEY_BUTTON_START]);
 		winSaveKey("Select", i, joypad[i][KEY_BUTTON_SELECT]);
+		winSaveKey("AF_Up", i, autoFireKeys[i][KEY_UP]);
+		winSaveKey("AF_Down", i, autoFireKeys[i][KEY_DOWN]);
+		winSaveKey("AF_Left", i, autoFireKeys[i][KEY_LEFT]);
+		winSaveKey("AF_Right", i, autoFireKeys[i][KEY_RIGHT]);
+		winSaveKey("AF_A", i, autoFireKeys[i][KEY_BUTTON_A]);
+		winSaveKey("AF_B", i, autoFireKeys[i][KEY_BUTTON_B]);
+		winSaveKey("AF_L", i, autoFireKeys[i][KEY_BUTTON_L]);
+		winSaveKey("AF_R", i, autoFireKeys[i][KEY_BUTTON_R]);
+		winSaveKey("AF_Select", i, autoFireKeys[i][KEY_BUTTON_SELECT]);
+		winSaveKey("AF_Start", i, autoFireKeys[i][KEY_BUTTON_START]);
 	}
 	regSetDwordValue("joyVersion", 1);
 
@@ -1044,6 +1099,8 @@ bool DirectInput::initialize()
 
 bool DirectInput::readDevices()
 {
+	updateAutoFire();
+
 	bool ok = true;
 	for (int i = 0; i < numDevices; i++)
 	{
@@ -1056,6 +1113,124 @@ bool DirectInput::readDevices()
 }
 
 bool inputActive = true; // used to disable all input when the window is inactive
+
+static const USHORT s_autoFireMaskOrder[13] = {
+	BUTTON_MASK_LEFT, BUTTON_MASK_RIGHT,
+	BUTTON_MASK_UP, BUTTON_MASK_DOWN,
+	BUTTON_MASK_A, BUTTON_MASK_B,
+	BUTTON_MASK_START, BUTTON_MASK_SELECT,
+	BUTTON_MASK_L, BUTTON_MASK_R,
+	0, 0, 0
+};
+
+// Auto-Fire keys that were down during the previous poll, used to detect the
+// key transitions that switch autofire on and off.
+static u32 s_autoFireKeyLatch = 0;
+
+// Keyboard Auto-Fire keys are polled through GetAsyncKeyState: the DirectInput
+// device state is only refreshed while the window is active, and the Auto-Fire
+// key is frequently a key that is not bound to any game button.
+static bool isAutoFireKeyDown(USHORT key)
+{
+	LONG_PTR dev = (key >> 8);
+	LONG_PTR dik = (key & 255);
+
+	if (dev == 0)
+	{
+		for (int i = 0; i < sizeof(win_key_trans_table) / sizeof(win_key_trans_table[0]); i++)
+		{
+			if (win_key_trans_table[i].dik == dik)
+				return IsKeyDownAsync((WORD)win_key_trans_table[i].vk);
+		}
+		return false;
+	}
+	return checkKey(key) != FALSE;
+}
+
+u32 DirectInput::readAutoFireBound(int i)
+{
+	extern int systemGetDefaultJoypad();
+	extern int gbSgbMode, gbSgbMultiplayer;
+	if (!(gbSgbMode && gbSgbMultiplayer))
+		i = systemGetDefaultJoypad();
+
+	u32 res = 0;
+	for (int k = 0; k < 13; k++)
+	{
+		if (autoFireKeys[i][k] != 0)
+			res |= s_autoFireMaskOrder[k];
+	}
+	return res;
+}
+
+u32 DirectInput::readAutoFireHeld(int i)
+{
+	extern int systemGetDefaultJoypad();
+	extern int gbSgbMode, gbSgbMultiplayer;
+	if (!(gbSgbMode && gbSgbMultiplayer))
+		i = systemGetDefaultJoypad();
+
+	if (!inputActive)
+		return 0;
+
+	u32 res = 0;
+	for (int k = 0; k < 13; k++)
+	{
+		USHORT key = autoFireKeys[i][k];
+		if (key != 0 && isAutoFireKeyDown(key))
+			res |= s_autoFireMaskOrder[k];
+	}
+	return res;
+}
+
+// Drives the configurable Auto-Fire keys.  Pressing such a key switches
+// autofire on for its button, releasing it switches it off again -- exactly what
+// the Auto-Fire menu commands do for Alt+0-9.
+// If the button already fires because Alt+? enabled it, the key inverts it
+// while it is held: pressing it temporarily disables the autofire.
+// Only key transitions are handled: keeping the mask in the active half on
+// every poll re-armed it on every frame, so the button was XORed on each frame
+// and stayed held down instead of alternating.
+void DirectInput::updateAutoFire()
+{
+	extern int gbSgbMode, gbSgbMultiplayer;
+	extern int systemGetDefaultJoypad();
+
+	if (gbSgbMode && gbSgbMultiplayer)
+	{
+		s_autoFireKeyLatch = 0;
+		return;
+	}
+
+	u32 bound = 0;
+	for (int i = 0; i < 4; i++)
+		bound |= readAutoFireBound(i);
+
+	if (bound == 0)
+	{
+		s_autoFireKeyLatch = 0;
+		return;
+	}
+
+	// readAutoFireHeld() returns 0 while the window is inactive
+	u32 held     = readAutoFireHeld(systemGetDefaultJoypad());
+	u32 pressed  = (held & ~s_autoFireKeyLatch) & bound;
+	u32 released = (~held & s_autoFireKeyLatch) & bound;
+	s_autoFireKeyLatch = held;
+
+	if ((pressed | released) == 0)
+		return;
+
+	for (int k = 0; k < 13; k++)
+	{
+		u32 mask = s_autoFireMaskOrder[k];
+		if (mask == 0)
+			continue;
+
+		if ((pressed ^ released) & mask)
+			VBAToggleAutoFireButton(mask);
+	}
+}
 
 u32 DirectInput::readDevice(int i, bool sensor)
 {

@@ -14,6 +14,7 @@
 #include "Dialogs/RewindInterval.h"
 #include "Dialogs/Throttle.h"
 #include "Dialogs/TextOptions.h"
+#include "Input.h"
 
 #include "../gba/GBA.h"
 #include "../gba/GBAGlobals.h"
@@ -1865,156 +1866,38 @@ void MainWnd::OnUpdateOptionsJoypadAutofireAccountForLag(CCmdUI*pCmdUI)
 	pCmdUI->SetCheck(theApp.autofireAccountForLag);
 }
 
-BOOL MainWnd::OnOptionsJoypadAutofire(UINT nID)
+// Toggle the auto-fire state of one button, exactly the way the
+// "Auto-Fire <button>" menu commands have always done it: the bit is placed in
+// the half of the auto-fire state that is active during the current frame and
+// cleared in the other half.  systemGetOriginalJoypad() XORs the active half
+// into the input and alternates the halves once per frame, which makes the
+// button press every other frame.
+// The configurable Auto-Fire keys in DirectInput use this as well, so a held
+// key enables autofire and, if the button already fires because of Alt+?,
+// disables it while it is held.
+void VBAToggleAutoFireButton(u32 mask)
 {
+	int bit = (int)mask;
+
 	int & autoFire  = (theApp.autoFireToggle ? theApp.autoFire : theApp.autoFire2);
 	int & autoFire2 = (theApp.autoFireToggle ? theApp.autoFire2 : theApp.autoFire);
-	int   autoFires = (theApp.autoFire | theApp.autoFire2);
 
-	switch (nID)
+	if ((theApp.autoFire | theApp.autoFire2) & bit)
+		autoFire &= ~bit;
+	else
+		autoFire |= bit;
+
+	autoFire2       &= ~bit;
+	theApp.autoHold &= ~bit;
+
+	extern void VBAUpdateButtonPressDisplay(); VBAUpdateButtonPressDisplay();
+}
+
+BOOL MainWnd::OnOptionsJoypadAutofire(UINT nID)
+{
+	if (nID == ID_OPTIONS_JOYPAD_AUTOFIRE_CLEAR)
 	{
-	case ID_OPTIONS_JOYPAD_AUTOFIRE_A:
-		if (autoFires & BUTTON_MASK_A)
-		{
-			autoFire &= ~BUTTON_MASK_A;
-///      systemScreenMessage(winResLoadString(IDS_AUTOFIRE_A_DISABLED));
-		}
-		else
-		{
-			autoFire |= BUTTON_MASK_A;
-///      systemScreenMessage(winResLoadString(IDS_AUTOFIRE_A));
-		}
-		autoFire2       &= ~BUTTON_MASK_A;
-		theApp.autoHold &= ~BUTTON_MASK_A;
-		break;
-	case ID_OPTIONS_JOYPAD_AUTOFIRE_B:
-		if (autoFires & BUTTON_MASK_B)
-		{
-			autoFire &= ~BUTTON_MASK_B;
-///      systemScreenMessage(winResLoadString(IDS_AUTOFIRE_B_DISABLED));
-		}
-		else
-		{
-			autoFire |= BUTTON_MASK_B;
-///      systemScreenMessage(winResLoadString(IDS_AUTOFIRE_B));
-		}
-		autoFire2       &= ~BUTTON_MASK_B;
-		theApp.autoHold &= ~BUTTON_MASK_B;
-		break;
-	case ID_OPTIONS_JOYPAD_AUTOFIRE_L:
-		if (autoFires & BUTTON_MASK_L)
-		{
-			autoFire &= ~BUTTON_MASK_L;
-///      systemScreenMessage(winResLoadString(IDS_AUTOFIRE_L_DISABLED));
-		}
-		else
-		{
-			autoFire |= BUTTON_MASK_L;
-///      systemScreenMessage(winResLoadString(IDS_AUTOFIRE_L));
-		}
-		autoFire2       &= ~BUTTON_MASK_L;
-		theApp.autoHold &= ~BUTTON_MASK_L;
-		break;
-	case ID_OPTIONS_JOYPAD_AUTOFIRE_R:
-		if (autoFires & BUTTON_MASK_R)
-		{
-			autoFire &= ~BUTTON_MASK_R;
-///      systemScreenMessage(winResLoadString(IDS_AUTOFIRE_R_DISABLED));
-		}
-		else
-		{
-			autoFire |= BUTTON_MASK_R;
-///      systemScreenMessage(winResLoadString(IDS_AUTOFIRE_R));
-		}
-		autoFire2       &= ~BUTTON_MASK_R;
-		theApp.autoHold &= ~BUTTON_MASK_R;
-		break;
-	case ID_OPTIONS_JOYPAD_AUTOFIRE_START:
-		if (autoFires & BUTTON_MASK_START)
-		{
-			autoFire &= ~BUTTON_MASK_START;
-///      systemScreenMessage(winResLoadString(IDS_AUTOFIRE_START_DISABLED));
-		}
-		else
-		{
-			autoFire |= BUTTON_MASK_START;
-///      systemScreenMessage(winResLoadString(IDS_AUTOFIRE_START));
-		}
-		autoFire2       &= ~BUTTON_MASK_START;
-		theApp.autoHold &= ~BUTTON_MASK_START;
-		break;
-	case ID_OPTIONS_JOYPAD_AUTOFIRE_SELECT:
-		if (autoFires & BUTTON_MASK_SELECT)
-		{
-			autoFire &= ~BUTTON_MASK_SELECT;
-///      systemScreenMessage(winResLoadString(IDS_AUTOFIRE_SELECT_DISABLED));
-		}
-		else
-		{
-			autoFire |= BUTTON_MASK_SELECT;
-///      systemScreenMessage(winResLoadString(IDS_AUTOFIRE_SELECT));
-		}
-		autoFire2       &= ~BUTTON_MASK_SELECT;
-		theApp.autoHold &= ~BUTTON_MASK_SELECT;
-		break;
-	case ID_OPTIONS_JOYPAD_AUTOFIRE_UP:
-		if (autoFires & BUTTON_MASK_UP)
-		{
-			autoFire &= ~BUTTON_MASK_UP;
-///      systemScreenMessage(winResLoadString(IDS_AUTOFIRE_UP_DISABLED));
-		}
-		else
-		{
-			autoFire |= BUTTON_MASK_UP;
-///      systemScreenMessage(winResLoadString(IDS_AUTOFIRE_UP));
-		}
-		autoFire2       &= ~BUTTON_MASK_UP;
-		theApp.autoHold &= ~BUTTON_MASK_UP;
-		break;
-	case ID_OPTIONS_JOYPAD_AUTOFIRE_DOWN:
-		if (autoFires & BUTTON_MASK_DOWN)
-		{
-			autoFire &= ~BUTTON_MASK_DOWN;
-///      systemScreenMessage(winResLoadString(IDS_AUTOFIRE_DOWN_DISABLED));
-		}
-		else
-		{
-			autoFire |= BUTTON_MASK_DOWN;
-///      systemScreenMessage(winResLoadString(IDS_AUTOFIRE_DOWN));
-		}
-		autoFire2       &= ~BUTTON_MASK_DOWN;
-		theApp.autoHold &= ~BUTTON_MASK_DOWN;
-		break;
-	case ID_OPTIONS_JOYPAD_AUTOFIRE_LEFT:
-		if (autoFires & BUTTON_MASK_LEFT)
-		{
-			autoFire &= ~BUTTON_MASK_LEFT;
-///      systemScreenMessage(winResLoadString(IDS_AUTOFIRE_LEFT_DISABLED));
-		}
-		else
-		{
-			autoFire |= BUTTON_MASK_LEFT;
-///      systemScreenMessage(winResLoadString(IDS_AUTOFIRE_LEFT));
-		}
-		autoFire2       &= ~BUTTON_MASK_LEFT;
-		theApp.autoHold &= ~BUTTON_MASK_LEFT;
-		break;
-	case ID_OPTIONS_JOYPAD_AUTOFIRE_RIGHT:
-		if (autoFires & BUTTON_MASK_RIGHT)
-		{
-			autoFire &= ~BUTTON_MASK_RIGHT;
-///      systemScreenMessage(winResLoadString(IDS_AUTOFIRE_RIGHT_DISABLED));
-		}
-		else
-		{
-			autoFire |= BUTTON_MASK_RIGHT;
-///      systemScreenMessage(winResLoadString(IDS_AUTOFIRE_RIGHT));
-		}
-		autoFire2       &= ~BUTTON_MASK_RIGHT;
-		theApp.autoHold &= ~BUTTON_MASK_RIGHT;
-		break;
-	case ID_OPTIONS_JOYPAD_AUTOFIRE_CLEAR:
-		if (autoFires != 0)
+		if (theApp.autoFire | theApp.autoFire2)
 		{
 			theApp.autoFire = theApp.autoFire2 = 0;
 ///      systemScreenMessage(winResLoadString(IDS_AUTOFIRE_DISABLED));
@@ -2024,12 +1907,31 @@ BOOL MainWnd::OnOptionsJoypadAutofire(UINT nID)
 ///      systemScreenMessage(winResLoadString(IDS_AUTOFIRE_ALREADY_DISABLED));
 			systemScreenMessage("already cleared");
 		}
-		break;
+
+		extern void VBAUpdateButtonPressDisplay(); VBAUpdateButtonPressDisplay();
+
+		return TRUE;
+	}
+
+	u32 mask;
+
+	switch (nID)
+	{
+	case ID_OPTIONS_JOYPAD_AUTOFIRE_A:      mask = BUTTON_MASK_A;      break;
+	case ID_OPTIONS_JOYPAD_AUTOFIRE_B:      mask = BUTTON_MASK_B;      break;
+	case ID_OPTIONS_JOYPAD_AUTOFIRE_L:      mask = BUTTON_MASK_L;      break;
+	case ID_OPTIONS_JOYPAD_AUTOFIRE_R:      mask = BUTTON_MASK_R;      break;
+	case ID_OPTIONS_JOYPAD_AUTOFIRE_START:  mask = BUTTON_MASK_START;  break;
+	case ID_OPTIONS_JOYPAD_AUTOFIRE_SELECT: mask = BUTTON_MASK_SELECT; break;
+	case ID_OPTIONS_JOYPAD_AUTOFIRE_UP:     mask = BUTTON_MASK_UP;     break;
+	case ID_OPTIONS_JOYPAD_AUTOFIRE_DOWN:   mask = BUTTON_MASK_DOWN;   break;
+	case ID_OPTIONS_JOYPAD_AUTOFIRE_LEFT:   mask = BUTTON_MASK_LEFT;   break;
+	case ID_OPTIONS_JOYPAD_AUTOFIRE_RIGHT:  mask = BUTTON_MASK_RIGHT;  break;
 	default:
 		return FALSE;
 	}
 
-	extern void VBAUpdateButtonPressDisplay(); VBAUpdateButtonPressDisplay();
+	VBAToggleAutoFireButton(mask);
 
 	return TRUE;
 }

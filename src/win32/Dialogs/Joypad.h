@@ -1,4 +1,4 @@
-#if !defined(AFX_JOYPAD_H__FFFB2470_9EEC_4D2D_A5F0_3BF31579999A__INCLUDED_)
+﻿#if !defined(AFX_JOYPAD_H__FFFB2470_9EEC_4D2D_A5F0_3BF31579999A__INCLUDED_)
 #define AFX_JOYPAD_H__FFFB2470_9EEC_4D2D_A5F0_3BF31579999A__INCLUDED_
 
 #if _MSC_VER > 1000
@@ -70,6 +70,17 @@ public:
 	JoypadEditControl buttonGS;
 	JoypadEditControl buttonB;
 	JoypadEditControl buttonA;
+	CTabCtrl           tab;
+	JoypadEditControl afUp;
+	JoypadEditControl afDown;
+	JoypadEditControl afLeft;
+	JoypadEditControl afRight;
+	JoypadEditControl afA;
+	JoypadEditControl afB;
+	JoypadEditControl afL;
+	JoypadEditControl afR;
+	JoypadEditControl afSelect;
+	JoypadEditControl afStart;
 	//}}AFX_DATA
 
 	// Overrides
@@ -84,6 +95,8 @@ protected:
 	UINT timerId;
 	int  which;
 
+	void showPage(int page);
+
 	// Generated message map functions
 	//{{AFX_MSG(JoypadConfig)
 	afx_msg void OnCancel();
@@ -92,6 +105,7 @@ protected:
 	afx_msg void OnDestroy();
 	afx_msg void OnTimer(UINT nIDEvent);
 	afx_msg void OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags);
+	afx_msg void OnSelChangeTab(NMHDR *pNMHDR, LRESULT *pResult);
 	virtual BOOL OnInitDialog();
 	//}}AFX_MSG
 	DECLARE_MESSAGE_MAP()

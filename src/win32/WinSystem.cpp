@@ -164,7 +164,12 @@ u32 systemGetOriginalJoypad(int i, bool sensor)
 	if (theApp.autoFire || theApp.autoFire2)
 	{
 		res ^= (theApp.autoFireToggle ? theApp.autoFire : theApp.autoFire2);
-		if (!theApp.autofireAccountForLag || !systemCounters.laggedLast)
+		// systemUpdateJoypads() calls this once for each of the four joypads,
+		// but the phase may only advance once per frame.  Flipping it on every
+		// call made it flip an even number of times per frame, i.e. never, so
+		// the same half was XORed in on every frame and the button was held
+		// down instead of being pressed every other frame.
+		if (i == 0 && (!theApp.autofireAccountForLag || !systemCounters.laggedLast))
 		{
 			theApp.autoFireToggle = !theApp.autoFireToggle;
 		}

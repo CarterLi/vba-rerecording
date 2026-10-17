@@ -9,6 +9,10 @@
 
 #define JOYCONFIG_MESSAGE (WM_USER + 1000)
 
+// Toggle the auto-fire state of a single button.  Used by the Auto-Fire menu
+// commands (Alt+0-9) and by the configurable Auto-Fire keys in DirectInput.
+extern void VBAToggleAutoFireButton(u32 mask);
+
 class Input
 {
 public:
