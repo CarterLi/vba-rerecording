@@ -1,50 +1,65 @@
 // MultiStream.h
 
-#ifndef __MULTISTREAM_H
-#define __MULTISTREAM_H
+#ifndef ZIP7_INC_MULTI_STREAM_H
+#define ZIP7_INC_MULTI_STREAM_H
 
 #include "../../../Common/MyCom.h"
 #include "../../../Common/MyVector.h"
+
+#include "../../IStream.h"
 #include "../../Archive/IArchive.h"
 
-class CMultiStream:
-  public IInStream,
-  public CMyUnknownImp
-{
-  int _streamIndex;
+Z7_CLASS_IMP_IInStream(
+  CMultiStream
+)
+
+  unsigned _streamIndex;
   UInt64 _pos;
-  UInt64 _seekPos;
   UInt64 _totalLength;
+
 public:
+
   struct CSubStreamInfo
   {
     CMyComPtr<IInStream> Stream;
-    UInt64 Pos;
     UInt64 Size;
+    UInt64 GlobalOffset;
+    UInt64 LocalPos;
+    CSubStreamInfo(): Size(0), GlobalOffset(0), LocalPos(0) {}
   };
+
+  CMyComPtr<IArchiveUpdateCallbackFile> updateCallbackFile;
   CObjectVector<CSubStreamInfo> Streams;
-  void Init()
+ 
+  HRESULT Init()
   {
-    _streamIndex = 0;
+    UInt64 total = 0;
+    FOR_VECTOR (i, Streams)
+    {
+      CSubStreamInfo &s = Streams[i];
+      s.GlobalOffset = total;
+      total += s.Size;
+      s.LocalPos = 0;
+      {
+        // it was already set to start
+        // RINOK(InStream_GetPos(s.Stream, s.LocalPos));
+      }
+    }
+    _totalLength = total;
     _pos = 0;
-    _seekPos = 0;
-    _totalLength = 0;
-    for (int i = 0; i < Streams.Size(); i++)
-      _totalLength += Streams[i].Size;
+    _streamIndex = 0;
+    return S_OK;
   }
-
-  MY_UNKNOWN_IMP1(IInStream)
-
-  STDMETHOD(Read)(void *data, UInt32 size, UInt32 *processedSize);
-  STDMETHOD(Seek)(Int64 offset, UInt32 seekOrigin, UInt64 *newPosition);
 };
 
 /*
-class COutMultiStream:
-  public IOutStream,
-  public CMyUnknownImp
-{
-  int _streamIndex; // required stream
+Z7_CLASS_IMP_COM_1(
+  COutMultiStream,
+  IOutStream
+)
+  Z7_IFACE_COM7_IMP(ISequentialOutStream)
+
+  unsigned _streamIndex; // required stream
   UInt64 _offsetPos; // offset from start of _streamIndex index
   UInt64 _absPos;
   UInt64 _length;
@@ -65,11 +80,6 @@ public:
     _absPos = 0;
     _length = 0;
   }
-
-  MY_UNKNOWN_IMP1(IOutStream)
-
-  STDMETHOD(Write)(const void *data, UInt32 size, UInt32 *processedSize);
-  STDMETHOD(Seek)(Int64 offset, UInt32 seekOrigin, UInt64 *newPosition);
 };
 */
 

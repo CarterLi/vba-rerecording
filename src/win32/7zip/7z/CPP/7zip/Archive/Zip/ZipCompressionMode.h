@@ -1,37 +1,60 @@
 // CompressionMode.h
 
-#ifndef __ZIP_COMPRESSIONMETHOD_H
-#define __ZIP_COMPRESSIONMETHOD_H
+#ifndef ZIP7_INC_ZIP_COMPRESSION_MODE_H
+#define ZIP7_INC_ZIP_COMPRESSION_MODE_H
 
 #include "../../../Common/MyString.h"
+
+#ifndef Z7_ST
+#include "../../../Windows/System.h"
+#endif
+
+#include "../Common/HandlerOut.h"
 
 namespace NArchive {
 namespace NZip {
 
-struct CCompressionMethodMode
+const CMethodId kMethodId_ZipBase = 0x040100;
+const CMethodId kMethodId_BZip2   = 0x040202;
+
+struct CBaseProps: public CMultiMethodProps
 {
-  CRecordVector<Byte> MethodSequence;
-  UString MatchFinder;
-  UInt32 Algo;
-  UInt32 NumPasses;
-  UInt32 NumFastBytes;
-  bool NumMatchFinderCyclesDefined;
-  UInt32 NumMatchFinderCycles;
-  UInt32 DicSize;
-  #ifdef COMPRESS_MT
-  UInt32 NumThreads;
-  #endif
-  bool PasswordIsDefined;
-  AString Password;
   bool IsAesMode;
   Byte AesKeyMode;
-  
-  CCompressionMethodMode():
-      NumMatchFinderCyclesDefined(false),
-      PasswordIsDefined(false),
-      IsAesMode(false),
-      AesKeyMode(3)
-      {}
+
+  void Init()
+  {
+    CMultiMethodProps::Init();
+    
+    IsAesMode = false;
+    AesKeyMode = 3;
+  }
+};
+
+struct CCompressionMethodMode: public CBaseProps
+{
+  CRecordVector<Byte> MethodSequence;
+  AString Password; // _Wipe
+  bool Password_Defined;
+  bool Force_SeqOutMode;
+  bool DataSizeReduce_Defined;
+  UInt64 DataSizeReduce;
+
+  bool IsRealAesMode() const { return Password_Defined && IsAesMode; }
+
+  CCompressionMethodMode()
+  {
+    Password_Defined = false;
+    Force_SeqOutMode = false;
+    DataSizeReduce_Defined = false;
+    DataSizeReduce = 0;
+  }
+
+#ifdef Z7_CPP_IS_SUPPORTED_default
+  CCompressionMethodMode(const CCompressionMethodMode &) = default;
+  CCompressionMethodMode& operator =(const CCompressionMethodMode &) = default;
+#endif
+  ~CCompressionMethodMode() { Password.Wipe_and_Empty(); }
 };
 
 }}

@@ -2,8 +2,12 @@
 // According to unRAR license, this code may not be used to develop
 // a program that creates RAR archives
 
-#ifndef __COMPRESS_RAR3_DECODER_H
-#define __COMPRESS_RAR3_DECODER_H
+/* This code uses Carryless rangecoder (1999): Dmitry Subbotin : Public domain */
+
+#ifndef ZIP7_INC_COMPRESS_RAR3_DECODER_H
+#define ZIP7_INC_COMPRESS_RAR3_DECODER_H
+
+#include "../../../C/Ppmd7.h"
 
 #include "../../Common/MyCom.h"
 
@@ -13,148 +17,124 @@
 
 #include "BitmDecoder.h"
 #include "HuffmanDecoder.h"
-#include "PpmdDecode.h"
 #include "Rar3Vm.h"
 
 namespace NCompress {
 namespace NRar3 {
 
+const unsigned kNumHuffmanBits = 15;
+
 const UInt32 kWindowSize = 1 << 22;
-const UInt32 kWindowMask = (kWindowSize - 1);
+const UInt32 kWindowMask = kWindowSize - 1;
 
-const UInt32 kNumReps = 4;
-const UInt32 kNumLen2Symbols = 8;
-const UInt32 kLenTableSize = 28;
-const UInt32 kMainTableSize = 256 + 1 + 1 + 1 + kNumReps + kNumLen2Symbols + kLenTableSize;
-const UInt32 kDistTableSize = 60;
+const unsigned kNumReps = 4;
+const unsigned kNumLen2Symbols = 8;
+const unsigned kLenTableSize = 28;
+const unsigned kMainTableSize = 256 + 3 + kNumReps + kNumLen2Symbols + kLenTableSize;
+const unsigned kDistTableSize = 60;
 
-const int kNumAlignBits = 4;
-const UInt32 kAlignTableSize = (1 << kNumAlignBits) + 1;
+const unsigned kNumAlignBits = 4;
+const unsigned kAlignTableSize = (1 << kNumAlignBits) + 1;
 
-const UInt32 kLevelTableSize = 20;
-
-const UInt32 kTablesSizesSum = kMainTableSize + kDistTableSize + kAlignTableSize + kLenTableSize;
+const unsigned kTablesSizesSum = kMainTableSize + kDistTableSize + kAlignTableSize + kLenTableSize;
 
 class CBitDecoder
 {
-  UInt32 m_Value;
+  UInt32 _value;
+  unsigned _bitPos;
 public:
-  UInt32 m_BitPos;
-  CInBuffer m_Stream;
-  bool Create(UInt32 bufferSize) { return m_Stream.Create(bufferSize); }
-  void SetStream(ISequentialInStream *inStream) { m_Stream.SetStream(inStream);}
-  void ReleaseStream() { m_Stream.ReleaseStream();}
+  CInBuffer Stream;
+
+  bool Create(UInt32 bufSize) { return Stream.Create(bufSize); }
+  void SetStream(ISequentialInStream *inStream) { Stream.SetStream(inStream);}
 
   void Init()
   {
-    m_Stream.Init();
-    m_BitPos = 0;
-    m_Value = 0;
-    // m_BitPos = kNumBigValueBits;
-    // Normalize();
+    Stream.Init();
+    _bitPos = 0;
+    _value = 0;
   }
   
-  UInt64 GetProcessedSize() const
-    { return m_Stream.GetProcessedSize() - (m_BitPos) / 8; }
-  UInt32 GetBitPosition() const { return ((8 - m_BitPos) & 7); }
-  
-  /*
-  void Normalize()
+  bool ExtraBitsWereRead() const
   {
-    for (;m_BitPos >= 8; m_BitPos -= 8)
-      m_Value = (m_Value << 8) | m_Stream.ReadByte();
+    return (Stream.NumExtraBytes > 4 || _bitPos < (Stream.NumExtraBytes << 3));
   }
-  */
 
-  UInt32 GetValue(UInt32 numBits)
+  UInt64 GetProcessedSize() const { return Stream.GetProcessedSize() - (_bitPos >> 3); }
+
+  void AlignToByte()
   {
-    // return (m_Value << m_BitPos) >> (kNumBigValueBits - numBits);
-    // return ((m_Value >> (8 - m_BitPos)) & kMask) >> (kNumValueBits - numBits);
-    if (m_BitPos < numBits)
+    _bitPos &= ~(unsigned)7;
+    _value = _value & ((1 << _bitPos) - 1);
+  }
+  
+  Z7_FORCE_INLINE
+  UInt32 GetValue(unsigned numBits)
+  {
+    if (_bitPos < numBits)
     {
-      m_BitPos += 8;
-      m_Value = (m_Value << 8) | m_Stream.ReadByte();
-      if (m_BitPos < numBits)
+      _bitPos += 8;
+      _value = (_value << 8) | Stream.ReadByte();
+      if (_bitPos < numBits)
       {
-        m_BitPos += 8;
-        m_Value = (m_Value << 8) | m_Stream.ReadByte();
+        _bitPos += 8;
+        _value = (_value << 8) | Stream.ReadByte();
       }
     }
-    return m_Value >> (m_BitPos - numBits);
+    return _value >> (_bitPos - numBits);
+  }
+
+  Z7_FORCE_INLINE
+  UInt32 GetValue_InHigh32bits()
+  {
+    return GetValue(kNumHuffmanBits) << (32 - kNumHuffmanBits);
+  }
+
+  
+  Z7_FORCE_INLINE
+  void MovePos(unsigned numBits)
+  {
+    _bitPos -= numBits;
+    _value = _value & ((1 << _bitPos) - 1);
   }
   
-  void MovePos(UInt32 numBits)
+  UInt32 ReadBits(unsigned numBits)
   {
-    m_BitPos -= numBits;
-    m_Value = m_Value & ((1 << m_BitPos) - 1);
-  }
-  
-  UInt32 ReadBits(UInt32 numBits)
-  {
-    UInt32 res = GetValue(numBits);
+    const UInt32 res = GetValue(numBits);
     MovePos(numBits);
     return res;
   }
+
+  UInt32 ReadBits_upto8(unsigned numBits)
+  {
+    if (_bitPos < numBits)
+    {
+      _bitPos += 8;
+      _value = (_value << 8) | Stream.ReadByte();
+    }
+    _bitPos -= numBits;
+    const UInt32 res = _value >> _bitPos;
+    _value = _value & ((1 << _bitPos) - 1);
+    return res;
+  }
+
+  Byte ReadByteFromAligned()
+  {
+    if (_bitPos == 0)
+      return Stream.ReadByte();
+    const unsigned bitsPos = _bitPos - 8;
+    const Byte b = (Byte)(_value >> bitsPos);
+    _value = _value & ((1 << bitsPos) - 1);
+    _bitPos = bitsPos;
+    return b;
+  }
 };
 
-const int kNumTopBits = 24;
-const UInt32 kTopValue = (1 << kNumTopBits);
-const UInt32 kBot = (1 << 15);
 
-class CRangeDecoder:public NPpmd::CRangeDecoderVirt, public CBitDecoder
+struct CByteIn
 {
-public:
-  UInt32 Range;
-  UInt32 Low;
-  UInt32 Code;
-
-  void Normalize()
-  {
-    while ((Low ^ (Low + Range)) < kTopValue ||
-       Range < kBot && ((Range = (0 - Low) & (kBot - 1)), 1))
-    {
-      Code = (Code << 8) | m_Stream.ReadByte();
-      Range <<= 8;
-      Low <<= 8;
-    }
-  }
-  
-  void InitRangeCoder()
-  {
-    Code = 0;
-    Low = 0;
-    Range = 0xFFFFFFFF;
-    for(int i = 0; i < 4; i++)
-      Code = (Code << 8) | ReadBits(8);
-  }
-
-  virtual UInt32 GetThreshold(UInt32 total)
-  {
-    return (Code - Low) / ( Range /= total);
-  }
-
-  virtual void Decode(UInt32 start, UInt32 size)
-  {
-    Low += start * Range;
-    Range *= size;
-    Normalize();
-  }
-
-  virtual UInt32 DecodeBit(UInt32 size0, UInt32 numTotalBits)
-  {
-    if (((Code - Low) / (Range >>= numTotalBits)) < size0)
-    {
-      Decode(0, size0);
-      return 0;
-    }
-    else
-    {
-      Decode(size0, (1 << numTotalBits) - size0);
-      return 1;
-    }
-  }
-
-  // UInt64 GetProcessedSizeRangeCoder() {return Stream.GetProcessedSize(); }
+  IByteIn IByteIn_obj;
+  CBitDecoder BitDecoder;
 };
 
 
@@ -164,6 +144,7 @@ struct CFilter: public NVm::CProgram
   UInt32 BlockStart;
   UInt32 BlockSize;
   UInt32 ExecCount;
+  
   CFilter(): BlockStart(0), BlockSize(0), ExecCount(0) {}
 };
 
@@ -171,32 +152,44 @@ struct CTempFilter: public NVm::CProgramInitState
 {
   UInt32 BlockStart;
   UInt32 BlockSize;
-  UInt32 ExecCount;
   bool NextWindow;
   
   UInt32 FilterIndex;
+
+  CTempFilter()
+  {
+    // all filters must contain at least FixedGlobal block
+    AllocateEmptyFixedGlobal();
+  }
 };
 
-const int kNumHuffmanBits = 15;
 
-class CDecoder:
-  public ICompressCoder,
-  public ICompressSetDecoderProperties2,
-  public CMyUnknownImp
-{
-  CRangeDecoder m_InBitStream;
+Z7_CLASS_IMP_NOQIB_2(
+  CDecoder
+  , ICompressCoder
+  , ICompressSetDecoderProperties2
+)
+  bool _isSolid;
+  bool _solidAllowed;
+  // bool _errorMode;
+
+  bool _lzMode;
+  bool _unsupportedFilter;
+
+  CByteIn m_InBitStream;
   Byte *_window;
   UInt32 _winPos;
   UInt32 _wrPtr;
   UInt64 _lzSize;
   UInt64 _unpackSize;
   UInt64 _writtenFileSize; // if it's > _unpackSize, then _unpackSize only written
-  CMyComPtr<ISequentialOutStream> _outStream;
-  NHuffman::CDecoder<kNumHuffmanBits, kMainTableSize> m_MainDecoder;
-  NHuffman::CDecoder<kNumHuffmanBits, kDistTableSize> m_DistDecoder;
-  NHuffman::CDecoder<kNumHuffmanBits, kAlignTableSize> m_AlignDecoder;
-  NHuffman::CDecoder<kNumHuffmanBits, kLenTableSize> m_LenDecoder;
-  NHuffman::CDecoder<kNumHuffmanBits, kLevelTableSize> m_LevelDecoder;
+  ISequentialOutStream *_outStream;
+
+  NHuffman::CDecoder<kNumHuffmanBits, kMainTableSize, 9> m_MainDecoder;
+  UInt32 kDistStart[kDistTableSize];
+  NHuffman::CDecoder256<kNumHuffmanBits, kDistTableSize, 7> m_DistDecoder;
+  NHuffman::CDecoder256<kNumHuffmanBits, kAlignTableSize, 6> m_AlignDecoder;
+  NHuffman::CDecoder256<kNumHuffmanBits, kLenTableSize, 7> m_LenDecoder;
 
   UInt32 _reps[kNumReps];
   UInt32 _lastLength;
@@ -208,24 +201,23 @@ class CDecoder:
   NVm::CVm _vm;
   CRecordVector<CFilter *> _filters;
   CRecordVector<CTempFilter *>  _tempFilters;
+  unsigned _numEmptyTempFilters;
   UInt32 _lastFilter;
-
-  bool m_IsSolid;
-
-  bool _lzMode;
 
   UInt32 PrevAlignBits;
   UInt32 PrevAlignCount;
 
   bool TablesRead;
+  bool TablesOK;
+  bool PpmError;
 
-  NPpmd::CDecodeInfo _ppm;
   int PpmEscChar;
+  CPpmd7 _ppmd;
   
   HRESULT WriteDataToStream(const Byte *data, UInt32 size);
   HRESULT WriteData(const Byte *data, UInt32 size);
   HRESULT WriteArea(UInt32 startPtr, UInt32 endPtr);
-  void ExecuteFilter(int tempFilterIndex, NVm::CBlockRef &outBlockRef);
+  void ExecuteFilter(unsigned tempFilterIndex, NVm::CBlockRef &outBlockRef);
   HRESULT WriteBuf();
 
   void InitFilters();
@@ -233,37 +225,24 @@ class CDecoder:
   bool ReadVmCodeLZ();
   bool ReadVmCodePPM();
   
-  UInt32 ReadBits(int numBits);
+  UInt32 ReadBits(unsigned numBits);
 
   HRESULT InitPPM();
-  int DecodePpmSymbol();
+  // int DecodePpmSymbol();
   HRESULT DecodePPM(Int32 num, bool &keepDecompressing);
 
   HRESULT ReadTables(bool &keepDecompressing);
   HRESULT ReadEndOfBlock(bool &keepDecompressing);
   HRESULT DecodeLZ(bool &keepDecompressing);
   HRESULT CodeReal(ICompressProgressInfo *progress);
-public:
-  CDecoder();
-  ~CDecoder();
+  
+  bool InputEofError() const { return m_InBitStream.BitDecoder.ExtraBitsWereRead(); }
+  bool InputEofError_Fast() const { return (m_InBitStream.BitDecoder.Stream.NumExtraBytes > 2); }
 
-  MY_UNKNOWN_IMP1(ICompressSetDecoderProperties2)
-
-  void ReleaseStreams()
-  {
-    _outStream.Release();
-    m_InBitStream.ReleaseStream();
-  }
-
-  STDMETHOD(Code)(ISequentialInStream *inStream, ISequentialOutStream *outStream,
-      const UInt64 *inSize, const UInt64 *outSize, ICompressProgressInfo *progress);
-
-  STDMETHOD(SetDecoderProperties2)(const Byte *data, UInt32 size);
-
-  void CopyBlock(UInt32 distance, UInt32 len)
+  void CopyBlock(UInt32 dist, UInt32 len)
   {
     _lzSize += len;
-    UInt32 pos = (_winPos - distance - 1) & kWindowMask;
+    UInt32 pos = (_winPos - dist - 1) & kWindowMask;
     Byte *window = _window;
     UInt32 winPos = _winPos;
     if (kWindowSize - winPos > len && kWindowSize - pos > len)
@@ -273,7 +252,7 @@ public:
       _winPos += len;
       do
         *dest++ = *src++;
-      while(--len != 0);
+      while (--len != 0);
       return;
     }
     do
@@ -282,18 +261,21 @@ public:
       winPos = (winPos + 1) & kWindowMask;
       pos = (pos + 1) & kWindowMask;
     }
-    while(--len != 0);
+    while (--len != 0);
     _winPos = winPos;
   }
   
   void PutByte(Byte b)
   {
-    _window[_winPos] = b;
-    _winPos = (_winPos + 1) & kWindowMask;
+    const UInt32 wp = _winPos;
+    _window[wp] = b;
+    _winPos = (wp + 1) & kWindowMask;
     _lzSize++;
   }
 
-
+public:
+  CDecoder();
+  ~CDecoder();
 };
 
 }}

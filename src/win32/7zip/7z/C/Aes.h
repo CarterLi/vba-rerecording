@@ -1,48 +1,60 @@
 /* Aes.h -- AES encryption / decryption
-2008-08-05
-Igor Pavlov
-Public domain */
+2023-04-02 : Igor Pavlov : Public domain */
 
-#ifndef __AES_H
-#define __AES_H
+#ifndef ZIP7_INC_AES_H
+#define ZIP7_INC_AES_H
 
-#include "Types.h"
+#include "7zTypes.h"
+
+EXTERN_C_BEGIN
 
 #define AES_BLOCK_SIZE 16
-
-typedef struct
-{
-  unsigned numRounds2; /* = numRounds / 2 */
-  UInt32 rkey[(14 + 1) * 4];
-} CAes;
 
 /* Call AesGenTables one time before other AES functions */
 void AesGenTables(void);
 
+/* UInt32 pointers must be 16-byte aligned */
+
+/* 16-byte (4 * 32-bit words) blocks: 1 (IV) + 1 (keyMode) + 15 (AES-256 roundKeys) */
+#define AES_NUM_IVMRK_WORDS ((1 + 1 + 15) * 4)
+
+/* aes - 16-byte aligned pointer to keyMode+roundKeys sequence */
 /* keySize = 16 or 24 or 32 (bytes) */
-void Aes_SetKeyEncode(CAes *p, const Byte *key, unsigned keySize);
-void Aes_SetKeyDecode(CAes *p, const Byte *key, unsigned keySize);
+typedef void (Z7_FASTCALL *AES_SET_KEY_FUNC)(UInt32 *aes, const Byte *key, unsigned keySize);
+void Z7_FASTCALL Aes_SetKey_Enc(UInt32 *aes, const Byte *key, unsigned keySize);
+void Z7_FASTCALL Aes_SetKey_Dec(UInt32 *aes, const Byte *key, unsigned keySize);
 
-/* Aes_Encode32 and Aes_Decode32 functions work with little-endian words.
-  src and dest are pointers to 4 UInt32 words.
-  arc and dest can point to same block */
-void Aes_Encode32(const CAes *p, UInt32 *dest, const UInt32 *src);
-void Aes_Decode32(const CAes *p, UInt32 *dest, const UInt32 *src);
+/* ivAes - 16-byte aligned pointer to iv+keyMode+roundKeys sequence: UInt32[AES_NUM_IVMRK_WORDS] */
+void AesCbc_Init(UInt32 *ivAes, const Byte *iv); /* iv size is AES_BLOCK_SIZE */
 
-typedef struct
-{
-  UInt32 prev[4];
-  CAes aes;
-} CAesCbc;
+/* data - 16-byte aligned pointer to data */
+/* numBlocks - the number of 16-byte blocks in data array */
+typedef void (Z7_FASTCALL *AES_CODE_FUNC)(UInt32 *ivAes, Byte *data, size_t numBlocks);
 
-void AesCbc_Init(CAesCbc *p, const Byte *iv); /* iv size is AES_BLOCK_SIZE */
+extern AES_CODE_FUNC g_AesCbc_Decode;
+#ifndef Z7_SFX
+extern AES_CODE_FUNC g_AesCbc_Encode;
+extern AES_CODE_FUNC g_AesCtr_Code;
+#define k_Aes_SupportedFunctions_HW     (1 << 2)
+#define k_Aes_SupportedFunctions_HW_256 (1 << 3)
+extern UInt32 g_Aes_SupportedFunctions_Flags;
+#endif
 
-/* AesCbc_Encode and AesCbc_Decode:
-  if (res <= size): Filter have converted res bytes
-  if (res > size):  Filter have not converted anything. And it needs at
-                    least res = AES_BLOCK_SIZE bytes to convert one block */
 
-SizeT AesCbc_Encode(CAesCbc *p, Byte *data, SizeT size);
-SizeT AesCbc_Decode(CAesCbc *p, Byte *data, SizeT size);
+#define Z7_DECLARE_AES_CODE_FUNC(funcName) \
+    void Z7_FASTCALL funcName(UInt32 *ivAes, Byte *data, size_t numBlocks);
+
+Z7_DECLARE_AES_CODE_FUNC (AesCbc_Encode)
+Z7_DECLARE_AES_CODE_FUNC (AesCbc_Decode)
+Z7_DECLARE_AES_CODE_FUNC (AesCtr_Code)
+
+Z7_DECLARE_AES_CODE_FUNC (AesCbc_Encode_HW)
+Z7_DECLARE_AES_CODE_FUNC (AesCbc_Decode_HW)
+Z7_DECLARE_AES_CODE_FUNC (AesCtr_Code_HW)
+
+Z7_DECLARE_AES_CODE_FUNC (AesCbc_Decode_HW_256)
+Z7_DECLARE_AES_CODE_FUNC (AesCtr_Code_HW_256)
+
+EXTERN_C_END
 
 #endif

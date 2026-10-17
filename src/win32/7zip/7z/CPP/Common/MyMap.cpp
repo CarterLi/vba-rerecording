@@ -6,7 +6,7 @@
 
 static const unsigned kNumBitsMax = sizeof(UInt32) * 8;
 
-static UInt32 GetSubBits(UInt32 value, unsigned startPos, unsigned numBits)
+static UInt32 GetSubBits(UInt32 value, unsigned startPos, unsigned numBits) throw()
 {
   if (startPos == sizeof(value) * 8)
     return 0;
@@ -18,7 +18,7 @@ static UInt32 GetSubBits(UInt32 value, unsigned startPos, unsigned numBits)
 
 static inline unsigned GetSubBit(UInt32 v, unsigned n) { return (unsigned)(v >> n) & 1; }
 
-bool CMap32::Find(UInt32 key, UInt32 &valueRes) const
+bool CMap32::Find(UInt32 key, UInt32 &valueRes) const throw()
 {
   valueRes = (UInt32)(Int32)-1;
   if (Nodes.Size() == 0)
@@ -33,7 +33,7 @@ bool CMap32::Find(UInt32 key, UInt32 &valueRes) const
     }
   }
 
-  int cur = 0;
+  unsigned cur = 0;
   unsigned bitPos = kNumBitsMax;
   for (;;)
   {
@@ -47,7 +47,7 @@ bool CMap32::Find(UInt32 key, UInt32 &valueRes) const
       valueRes = n.Values[bit];
       return (key == n.Keys[bit]);
     }
-    cur = (int)n.Keys[bit];
+    cur = (unsigned)n.Keys[bit];
   }
 }
 
@@ -74,16 +74,16 @@ bool CMap32::Set(UInt32 key, UInt32 value)
         return true;
       }
       unsigned i = kNumBitsMax - 1;
-      for (;GetSubBit(key, i) == GetSubBit(n.Key, i); i--);
+      for (; GetSubBit(key, i) == GetSubBit(n.Key, i); i--);
       n.Len = (UInt16)(kNumBitsMax - (1 + i));
-      unsigned newBit = GetSubBit(key, i);
+      const unsigned newBit = GetSubBit(key, i);
       n.Values[newBit] = value;
       n.Keys[newBit] = key;
       return false;
     }
   }
 
-  int cur = 0;
+  unsigned cur = 0;
   unsigned bitPos = kNumBitsMax;
   for (;;)
   {
@@ -91,7 +91,7 @@ bool CMap32::Set(UInt32 key, UInt32 value)
     bitPos -= n.Len;
     if (GetSubBits(key, bitPos, n.Len) != GetSubBits(n.Key, bitPos, n.Len))
     {
-      unsigned i = n.Len - 1;
+      unsigned i = (unsigned)n.Len - 1;
       for (; GetSubBit(key, bitPos + i) == GetSubBit(n.Key, bitPos + i); i--);
       
       CNode e2(n);
@@ -103,11 +103,11 @@ bool CMap32::Set(UInt32 key, UInt32 value)
       n.IsLeaf[newBit] = 1;
       n.IsLeaf[1 - newBit] = 0;
       n.Keys[newBit] = key;
-      n.Keys[1 - newBit] = Nodes.Size();
+      n.Keys[1 - newBit] = (UInt32)Nodes.Size();
       Nodes.Add(e2);
       return false;
     }
-    unsigned bit = GetSubBit(key, --bitPos);
+    const unsigned bit = GetSubBit(key, --bitPos);
 
     if (n.IsLeaf[bit])
     {
@@ -117,11 +117,11 @@ bool CMap32::Set(UInt32 key, UInt32 value)
         return true;
       }
       unsigned i = bitPos - 1;
-      for (;GetSubBit(key, i) == GetSubBit(n.Keys[bit], i); i--);
+      for (; GetSubBit(key, i) == GetSubBit(n.Keys[bit], i); i--);
      
       CNode e2;
       
-      unsigned newBit = GetSubBit(key, i);
+      const unsigned newBit = GetSubBit(key, i);
       e2.Values[newBit] = value;
       e2.Values[1 - newBit] = n.Values[bit];
       e2.IsLeaf[newBit] = e2.IsLeaf[1 - newBit] = 1;
@@ -130,11 +130,11 @@ bool CMap32::Set(UInt32 key, UInt32 value)
       e2.Len = (UInt16)(bitPos - (1 + i));
 
       n.IsLeaf[bit] = 0;
-      n.Keys[bit] = Nodes.Size();
+      n.Keys[bit] = (UInt32)Nodes.Size();
 
       Nodes.Add(e2);
       return false;
     }
-    cur = (int)n.Keys[bit];
+    cur = (unsigned)n.Keys[bit];
   }
 }

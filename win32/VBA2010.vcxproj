@@ -59,6 +59,7 @@
   <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='V72XR|Win32'">
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <UseOfMfc>Static</UseOfMfc>
+    <PlatformToolset>v145</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Template|Win32'">
     <CharacterSet>MultiByte</CharacterSet>
@@ -132,7 +133,8 @@
       <UndefinePreprocessorDefinitions>USE_GB_CORE_V7;USE_GBA_CORE_V7</UndefinePreprocessorDefinitions>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>d3d9.lib;wsock32.lib;ddraw.lib;dxguid.lib;winmm.lib;dinput8.lib;vfw32.lib;opengl32.lib;nafxcw.lib;libcmt.lib;lua51.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalOptions>/WHOLEARCHIVE:wlib7zip.lib %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalDependencies>d3d9.lib;wsock32.lib;mpr.lib;ddraw.lib;dxguid.lib;winmm.lib;dinput8.lib;vfw32.lib;opengl32.lib;nafxcw.lib;libcmt.lib;lua51.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <OutputFile>$(TargetPath)</OutputFile>
       <AdditionalLibraryDirectories>lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <IgnoreSpecificDefaultLibraries>libci.lib;nafxcw.lib;libcmt.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
@@ -180,7 +182,8 @@
       <EnableFiberSafeOptimizations>true</EnableFiberSafeOptimizations>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>d3d9.lib;wsock32.lib;ddraw.lib;dxguid.lib;winmm.lib;dinput8.lib;vfw32.lib;opengl32.lib;nafxcw.lib;libcmt.lib;lua51.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalOptions>/WHOLEARCHIVE:wlib7zip.lib %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalDependencies>d3d9.lib;wsock32.lib;mpr.lib;ddraw.lib;dxguid.lib;winmm.lib;dinput8.lib;vfw32.lib;opengl32.lib;nafxcw.lib;libcmt.lib;lua51.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <OutputFile>$(OutDir)$(ProjectName)_release.exe</OutputFile>
       <AdditionalLibraryDirectories>lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <IgnoreSpecificDefaultLibraries>libci.lib;nafxcw.lib;libcmt.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
@@ -221,7 +224,8 @@
       <UndefinePreprocessorDefinitions>USE_GB_CORE_V7;USE_GBA_CORE_V7</UndefinePreprocessorDefinitions>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>d3d9.lib;wsock32.lib;ddraw.lib;dxguid.lib;winmm.lib;dinput8.lib;vfw32.lib;opengl32.lib;nafxcwd.lib;libcmtd.lib;lua51.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalOptions>/WHOLEARCHIVE:wlib7zip.lib %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalDependencies>d3d9.lib;wsock32.lib;mpr.lib;ddraw.lib;dxguid.lib;winmm.lib;dinput8.lib;vfw32.lib;opengl32.lib;nafxcwd.lib;libcmtd.lib;lua51.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <OutputFile>$(TargetPath)</OutputFile>
       <AdditionalLibraryDirectories>lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <IgnoreSpecificDefaultLibraries>libci.lib;nafxcwd.lib;libcmtd.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
@@ -261,7 +265,8 @@
       <Optimization>Disabled</Optimization>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>d3d9.lib;wsock32.lib;ddraw.lib;dxguid.lib;winmm.lib;dinput8.lib;vfw32.lib;opengl32.lib;nafxcwd.lib;libcmtd.lib;lua51.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalOptions>/WHOLEARCHIVE:wlib7zip.lib %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalDependencies>d3d9.lib;wsock32.lib;mpr.lib;ddraw.lib;dxguid.lib;winmm.lib;dinput8.lib;vfw32.lib;opengl32.lib;nafxcwd.lib;libcmtd.lib;lua51.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <OutputFile>$(TargetPath)</OutputFile>
       <AdditionalLibraryDirectories>lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <IgnoreSpecificDefaultLibraries>libci.lib;nafxcwd.lib;libcmtd.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
@@ -305,7 +310,8 @@
     <Link>
       <OutputFile>$(TargetPath)</OutputFile>
       <AdditionalLibraryDirectories>lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>d3d9.lib;wsock32.lib;ddraw.lib;dxguid.lib;winmm.lib;dinput8.lib;vfw32.lib;opengl32.lib;nafxcw.lib;libcmt.lib;lua51.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalOptions>/WHOLEARCHIVE:wlib7zip.lib %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalDependencies>d3d9.lib;wsock32.lib;mpr.lib;ddraw.lib;dxguid.lib;winmm.lib;dinput8.lib;vfw32.lib;opengl32.lib;nafxcw.lib;libcmt.lib;lua51.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <IgnoreSpecificDefaultLibraries>libci.lib;nafxcw.lib;libcmt.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
       <SubSystem>Windows</SubSystem>
       <OptimizeReferences>true</OptimizeReferences>

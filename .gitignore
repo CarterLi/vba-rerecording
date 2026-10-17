@@ -20,7 +20,8 @@ win32/x64/
 win32/__bins/
 win32/__V72Xbins/
 win32/__V82Xbins/
-win32/.probe
+
+.probe
 
 # ---------------------------------------------------------------------------
 # Compiler / linker intermediates

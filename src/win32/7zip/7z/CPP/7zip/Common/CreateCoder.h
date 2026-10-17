@@ -1,98 +1,200 @@
 // CreateCoder.h
 
-#ifndef __CREATECODER_H
-#define __CREATECODER_H
+#ifndef ZIP7_INC_CREATE_CODER_H
+#define ZIP7_INC_CREATE_CODER_H
 
 #include "../../Common/MyCom.h"
 #include "../../Common/MyString.h"
+
 #include "../ICoder.h"
 
 #include "MethodId.h"
 
-#ifdef EXTERNAL_CODECS
+/*
+  if Z7_EXTERNAL_CODECS is not defined, the code supports only codecs that
+      are statically linked at compile-time and link-time.
+
+  if Z7_EXTERNAL_CODECS is defined, the code supports also codecs from another
+      executable modules, that can be linked dynamically at run-time:
+        - EXE module can use codecs from external DLL files.
+        - DLL module can use codecs from external EXE and DLL files.
+     
+      CExternalCodecs contains information about codecs and interfaces to create them.
+  
+  The order of codecs:
+    1) Internal codecs
+    2) External codecs
+*/
+
+#ifdef Z7_EXTERNAL_CODECS
 
 struct CCodecInfoEx
 {
-  UString Name;
   CMethodId Id;
-  UInt32 NumInStreams;
-  UInt32 NumOutStreams;
+  AString Name;
+  UInt32 NumStreams;
   bool EncoderIsAssigned;
   bool DecoderIsAssigned;
-  bool IsSimpleCodec() const { return NumOutStreams == 1 && NumInStreams == 1; }
-  CCodecInfoEx(): EncoderIsAssigned(false), DecoderIsAssigned(false) {}
+  bool IsFilter; // it's unused
+  
+  CCodecInfoEx(): EncoderIsAssigned(false), DecoderIsAssigned(false), IsFilter(false) {}
 };
 
-HRESULT LoadExternalCodecs(ICompressCodecsInfo *codecsInfo, CObjectVector<CCodecInfoEx> &externalCodecs);
+struct CHasherInfoEx
+{
+  CMethodId Id;
+  AString Name;
+};
 
-#define PUBLIC_ISetCompressCodecsInfo public ISetCompressCodecsInfo,
-#define QUERY_ENTRY_ISetCompressCodecsInfo MY_QUERYINTERFACE_ENTRY(ISetCompressCodecsInfo)
-#define DECL_ISetCompressCodecsInfo STDMETHOD(SetCompressCodecsInfo)(ICompressCodecsInfo *compressCodecsInfo);
-#define IMPL_ISetCompressCodecsInfo2(x) \
-STDMETHODIMP x::SetCompressCodecsInfo(ICompressCodecsInfo *compressCodecsInfo) { \
-  COM_TRY_BEGIN _codecsInfo = compressCodecsInfo;  return LoadExternalCodecs(_codecsInfo, _externalCodecs); COM_TRY_END }
-#define IMPL_ISetCompressCodecsInfo IMPL_ISetCompressCodecsInfo2(CHandler)
+#define Z7_PUBLIC_ISetCompressCodecsInfo_IFEC \
+    public ISetCompressCodecsInfo,
+#define Z7_COM_QI_ENTRY_ISetCompressCodecsInfo_IFEC \
+    Z7_COM_QI_ENTRY(ISetCompressCodecsInfo)
+#define DECL_ISetCompressCodecsInfo \
+    Z7_COM7F_IMP(SetCompressCodecsInfo(ICompressCodecsInfo *compressCodecsInfo))
+#define IMPL_ISetCompressCodecsInfo2(cls) \
+    Z7_COM7F_IMF(cls::SetCompressCodecsInfo(ICompressCodecsInfo *compressCodecsInfo)) \
+    { COM_TRY_BEGIN _externalCodecs.GetCodecs = compressCodecsInfo; \
+    return _externalCodecs.Load(); COM_TRY_END }
+#define IMPL_ISetCompressCodecsInfo  IMPL_ISetCompressCodecsInfo2(CHandler)
 
-#define EXTERNAL_CODECS_VARS2 _codecsInfo, &_externalCodecs
+struct CExternalCodecs
+{
+  CMyComPtr<ICompressCodecsInfo> GetCodecs;
+  CMyComPtr<IHashers> GetHashers;
 
-#define DECL_EXTERNAL_CODECS_VARS CMyComPtr<ICompressCodecsInfo> _codecsInfo; CObjectVector<CCodecInfoEx> _externalCodecs;
-#define EXTERNAL_CODECS_VARS EXTERNAL_CODECS_VARS2,
+  CObjectVector<CCodecInfoEx> Codecs;
+  CObjectVector<CHasherInfoEx> Hashers;
 
-#define DECL_EXTERNAL_CODECS_LOC_VARS2 ICompressCodecsInfo *codecsInfo, const CObjectVector<CCodecInfoEx> *externalCodecs
-#define EXTERNAL_CODECS_LOC_VARS2 codecsInfo, externalCodecs
+  bool IsSet() const { return GetCodecs != NULL || GetHashers != NULL; }
 
-#define DECL_EXTERNAL_CODECS_LOC_VARS DECL_EXTERNAL_CODECS_LOC_VARS2,
-#define EXTERNAL_CODECS_LOC_VARS EXTERNAL_CODECS_LOC_VARS2,
+  HRESULT Load();
+
+  void ClearAndRelease()
+  {
+    Hashers.Clear();
+    Codecs.Clear();
+    GetHashers.Release();
+    GetCodecs.Release();
+  }
+
+  ~CExternalCodecs()
+  {
+    GetHashers.Release();
+    GetCodecs.Release();
+  }
+};
+
+extern CExternalCodecs g_ExternalCodecs;
+
+#define EXTERNAL_CODECS_VARS2   (_externalCodecs.IsSet() ? &_externalCodecs : &g_ExternalCodecs)
+#define EXTERNAL_CODECS_VARS2_L (&_externalCodecs)
+#define EXTERNAL_CODECS_VARS2_G (&g_ExternalCodecs)
+
+#define DECL_EXTERNAL_CODECS_VARS CExternalCodecs _externalCodecs;
+
+#define EXTERNAL_CODECS_VARS   EXTERNAL_CODECS_VARS2,
+#define EXTERNAL_CODECS_VARS_L EXTERNAL_CODECS_VARS2_L,
+#define EXTERNAL_CODECS_VARS_G EXTERNAL_CODECS_VARS2_G,
+
+#define DECL_EXTERNAL_CODECS_LOC_VARS2      const CExternalCodecs *_externalCodecs
+#define DECL_EXTERNAL_CODECS_LOC_VARS       DECL_EXTERNAL_CODECS_LOC_VARS2,
+#define DECL_EXTERNAL_CODECS_LOC_VARS_DECL  DECL_EXTERNAL_CODECS_LOC_VARS2;
+
+#define EXTERNAL_CODECS_LOC_VARS2   _externalCodecs
+#define EXTERNAL_CODECS_LOC_VARS    EXTERNAL_CODECS_LOC_VARS2,
 
 #else
 
-#define PUBLIC_ISetCompressCodecsInfo
-#define QUERY_ENTRY_ISetCompressCodecsInfo
+#define Z7_PUBLIC_ISetCompressCodecsInfo_IFEC
+#define Z7_COM_QI_ENTRY_ISetCompressCodecsInfo_IFEC
 #define DECL_ISetCompressCodecsInfo
 #define IMPL_ISetCompressCodecsInfo
 #define EXTERNAL_CODECS_VARS2
 #define DECL_EXTERNAL_CODECS_VARS
-#define EXTERNAL_CODECS_VARS EXTERNAL_CODECS_VARS2
+#define EXTERNAL_CODECS_VARS
+#define EXTERNAL_CODECS_VARS_L
+#define EXTERNAL_CODECS_VARS_G
 #define DECL_EXTERNAL_CODECS_LOC_VARS2
-#define EXTERNAL_CODECS_LOC_VARS2
 #define DECL_EXTERNAL_CODECS_LOC_VARS
+#define DECL_EXTERNAL_CODECS_LOC_VARS_DECL
+#define EXTERNAL_CODECS_LOC_VARS2
 #define EXTERNAL_CODECS_LOC_VARS
 
 #endif
 
-bool FindMethod(
-  DECL_EXTERNAL_CODECS_LOC_VARS
-  const UString &name, CMethodId &methodId, UInt32 &numInStreams, UInt32 &numOutStreams);
+int FindMethod_Index(
+    DECL_EXTERNAL_CODECS_LOC_VARS
+    const AString &name,
+    bool encode,
+    CMethodId &methodId,
+    UInt32 &numStreams,
+    bool &isFilter);
 
 bool FindMethod(
-  DECL_EXTERNAL_CODECS_LOC_VARS
-  CMethodId methodId, UString &name);
+    DECL_EXTERNAL_CODECS_LOC_VARS
+    CMethodId methodId,
+    AString &name);
+
+bool FindHashMethod(
+    DECL_EXTERNAL_CODECS_LOC_VARS
+    const AString &name,
+    CMethodId &methodId);
+
+void GetHashMethods(
+    DECL_EXTERNAL_CODECS_LOC_VARS
+    CRecordVector<CMethodId> &methods);
 
 
-HRESULT CreateCoder(
-  DECL_EXTERNAL_CODECS_LOC_VARS
-  CMethodId methodId,
-  CMyComPtr<ICompressFilter> &filter,
-  CMyComPtr<ICompressCoder> &coder,
-  CMyComPtr<ICompressCoder2> &coder2,
-  bool encode, bool onlyCoder);
+struct CCreatedCoder
+{
+  CMyComPtr<ICompressCoder> Coder;
+  CMyComPtr<ICompressCoder2> Coder2;
+  
+  bool IsExternal;
+  bool IsFilter; // = true, if Coder was created from filter
+  UInt32 NumStreams;
 
-HRESULT CreateCoder(
-  DECL_EXTERNAL_CODECS_LOC_VARS
-  CMethodId methodId,
-  CMyComPtr<ICompressCoder> &coder,
-  CMyComPtr<ICompressCoder2> &coder2,
-  bool encode);
+  // CCreatedCoder(): IsExternal(false), IsFilter(false), NumStreams(1) {}
+};
 
-HRESULT CreateCoder(
-  DECL_EXTERNAL_CODECS_LOC_VARS
-  CMethodId methodId,
-  CMyComPtr<ICompressCoder> &coder, bool encode);
+
+HRESULT CreateCoder_Index(
+    DECL_EXTERNAL_CODECS_LOC_VARS
+    unsigned codecIndex, bool encode,
+    CMyComPtr<ICompressFilter> &filter,
+    CCreatedCoder &cod);
+
+HRESULT CreateCoder_Index(
+    DECL_EXTERNAL_CODECS_LOC_VARS
+    unsigned index, bool encode,
+    CCreatedCoder &cod);
+
+HRESULT CreateCoder_Id(
+    DECL_EXTERNAL_CODECS_LOC_VARS
+    CMethodId methodId, bool encode,
+    CMyComPtr<ICompressFilter> &filter,
+    CCreatedCoder &cod);
+
+HRESULT CreateCoder_Id(
+    DECL_EXTERNAL_CODECS_LOC_VARS
+    CMethodId methodId, bool encode,
+    CCreatedCoder &cod);
+
+HRESULT CreateCoder_Id(
+    DECL_EXTERNAL_CODECS_LOC_VARS
+    CMethodId methodId, bool encode,
+    CMyComPtr<ICompressCoder> &coder);
 
 HRESULT CreateFilter(
-  DECL_EXTERNAL_CODECS_LOC_VARS
-  CMethodId methodId,
-  CMyComPtr<ICompressFilter> &filter,
-  bool encode);
+    DECL_EXTERNAL_CODECS_LOC_VARS
+    CMethodId methodId, bool encode,
+    CMyComPtr<ICompressFilter> &filter);
+
+HRESULT CreateHasher(
+    DECL_EXTERNAL_CODECS_LOC_VARS
+    CMethodId methodId,
+    AString &name,
+    CMyComPtr<IHasher> &hasher);
 
 #endif

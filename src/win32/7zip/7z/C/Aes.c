@@ -1,13 +1,22 @@
 /* Aes.c -- AES encryption / decryption
-2008-08-05
-Igor Pavlov
-Public domain */
+2024-03-01 : Igor Pavlov : Public domain */
 
-#include "Aes.h"
+#include "Precomp.h"
+
 #include "CpuArch.h"
+#include "Aes.h"
 
+AES_CODE_FUNC g_AesCbc_Decode;
+#ifndef Z7_SFX
+AES_CODE_FUNC g_AesCbc_Encode;
+AES_CODE_FUNC g_AesCtr_Code;
+UInt32 g_Aes_SupportedFunctions_Flags;
+#endif
+
+MY_ALIGN(64)
 static UInt32 T[256 * 4];
-static Byte Sbox[256] = {
+MY_ALIGN(64)
+static const Byte Sbox[256] = {
   0x63, 0x7c, 0x77, 0x7b, 0xf2, 0x6b, 0x6f, 0xc5, 0x30, 0x01, 0x67, 0x2b, 0xfe, 0xd7, 0xab, 0x76,
   0xca, 0x82, 0xc9, 0x7d, 0xfa, 0x59, 0x47, 0xf0, 0xad, 0xd4, 0xa2, 0xaf, 0x9c, 0xa4, 0x72, 0xc0,
   0xb7, 0xfd, 0x93, 0x26, 0x36, 0x3f, 0xf7, 0xcc, 0x34, 0xa5, 0xe5, 0xf1, 0x71, 0xd8, 0x31, 0x15,
@@ -25,10 +34,11 @@ static Byte Sbox[256] = {
   0xe1, 0xf8, 0x98, 0x11, 0x69, 0xd9, 0x8e, 0x94, 0x9b, 0x1e, 0x87, 0xe9, 0xce, 0x55, 0x28, 0xdf,
   0x8c, 0xa1, 0x89, 0x0d, 0xbf, 0xe6, 0x42, 0x68, 0x41, 0x99, 0x2d, 0x0f, 0xb0, 0x54, 0xbb, 0x16};
 
-static UInt32 D[256 * 4];
-static Byte InvS[256];
 
-static Byte Rcon[11] = { 0x00, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0x1b, 0x36 };
+MY_ALIGN(64)
+static UInt32 D[256 * 4];
+MY_ALIGN(64)
+static Byte InvS[256];
 
 #define xtime(x) ((((x) << 1) ^ (((x) & 0x80) != 0 ? 0x1B : 0)) & 0xFF)
 
@@ -37,120 +47,253 @@ static Byte Rcon[11] = { 0x00, 0x01, 0x02, 0x04, 0x08, 0x10, 0x20, 0x40, 0x80, 0
 #define gb0(x) ( (x)          & 0xFF)
 #define gb1(x) (((x) >> ( 8)) & 0xFF)
 #define gb2(x) (((x) >> (16)) & 0xFF)
-#define gb3(x) (((x) >> (24)) & 0xFF)
+#define gb3(x) (((x) >> (24)))
+
+#define gb(n, x) gb ## n(x)
+
+#define TT(x) (T + (x << 8))
+#define DD(x) (D + (x << 8))
+
+
+// #define Z7_SHOW_AES_STATUS
+
+#ifdef MY_CPU_X86_OR_AMD64
+
+  #if defined(__INTEL_COMPILER)
+    #if (__INTEL_COMPILER >= 1110)
+      #define USE_HW_AES
+      #if (__INTEL_COMPILER >= 1900)
+        #define USE_HW_VAES
+      #endif
+    #endif
+  #elif defined(Z7_CLANG_VERSION) && (Z7_CLANG_VERSION >= 30800) \
+     || defined(Z7_GCC_VERSION)   && (Z7_GCC_VERSION   >= 40400)
+    #define USE_HW_AES
+      #if defined(__clang__) && (__clang_major__ >= 8) \
+          || defined(__GNUC__) && (__GNUC__ >= 8)
+        #define USE_HW_VAES
+      #endif
+  #elif defined(_MSC_VER)
+    #define USE_HW_AES
+    #define USE_HW_VAES
+  #endif
+
+#elif defined(MY_CPU_ARM_OR_ARM64) && defined(MY_CPU_LE)
+  
+  #if   defined(__ARM_FEATURE_AES) \
+     || defined(__ARM_FEATURE_CRYPTO)
+    #define USE_HW_AES
+  #else
+    #if  defined(MY_CPU_ARM64) \
+      || defined(__ARM_ARCH) && (__ARM_ARCH >= 4) \
+      || defined(Z7_MSC_VER_ORIGINAL)
+    #if  defined(__ARM_FP) && \
+          (   defined(Z7_CLANG_VERSION) && (Z7_CLANG_VERSION >= 30800) \
+           || defined(__GNUC__) && (__GNUC__ >= 6) \
+          ) \
+      || defined(Z7_MSC_VER_ORIGINAL) && (_MSC_VER >= 1910)
+    #if  defined(MY_CPU_ARM64) \
+      || !defined(Z7_CLANG_VERSION) \
+      || defined(__ARM_NEON) && \
+          (Z7_CLANG_VERSION < 170000 || \
+           Z7_CLANG_VERSION > 170001)
+      #define USE_HW_AES
+    #endif
+    #endif
+    #endif
+  #endif
+#endif
+
+#ifdef USE_HW_AES
+// #pragma message("=== Aes.c USE_HW_AES === ")
+#ifdef Z7_SHOW_AES_STATUS
+#include <stdio.h>
+#define PRF(x) x
+#else
+#define PRF(x)
+#endif
+#endif
+
 
 void AesGenTables(void)
 {
   unsigned i;
   for (i = 0; i < 256; i++)
     InvS[Sbox[i]] = (Byte)i;
+  
   for (i = 0; i < 256; i++)
   {
     {
-      UInt32 a1 = Sbox[i];
-      UInt32 a2 = xtime(a1);
-      UInt32 a3 = xtime(a1) ^ a1;
-      T[        i] = Ui32(a2, a1, a1, a3);
-      T[0x100 + i] = Ui32(a3, a2, a1, a1);
-      T[0x200 + i] = Ui32(a1, a3, a2, a1);
-      T[0x300 + i] = Ui32(a1, a1, a3, a2);
+      const UInt32 a1 = Sbox[i];
+      const UInt32 a2 = xtime(a1);
+      const UInt32 a3 = a2 ^ a1;
+      TT(0)[i] = Ui32(a2, a1, a1, a3);
+      TT(1)[i] = Ui32(a3, a2, a1, a1);
+      TT(2)[i] = Ui32(a1, a3, a2, a1);
+      TT(3)[i] = Ui32(a1, a1, a3, a2);
     }
     {
-      UInt32 a1 = InvS[i];
-      UInt32 a2 = xtime(a1);
-      UInt32 a4 = xtime(a2);
-      UInt32 a8 = xtime(a4);
-      UInt32 a9 = a8 ^ a1;
-      UInt32 aB = a8 ^ a2 ^ a1;
-      UInt32 aD = a8 ^ a4 ^ a1;
-      UInt32 aE = a8 ^ a4 ^ a2;
-      D[        i] = Ui32(aE, a9, aD, aB);
-      D[0x100 + i] = Ui32(aB, aE, a9, aD);
-      D[0x200 + i] = Ui32(aD, aB, aE, a9);
-      D[0x300 + i] = Ui32(a9, aD, aB, aE);
+      const UInt32 a1 = InvS[i];
+      const UInt32 a2 = xtime(a1);
+      const UInt32 a4 = xtime(a2);
+      const UInt32 a8 = xtime(a4);
+      const UInt32 a9 = a8 ^ a1;
+      const UInt32 aB = a8 ^ a2 ^ a1;
+      const UInt32 aD = a8 ^ a4 ^ a1;
+      const UInt32 aE = a8 ^ a4 ^ a2;
+      DD(0)[i] = Ui32(aE, a9, aD, aB);
+      DD(1)[i] = Ui32(aB, aE, a9, aD);
+      DD(2)[i] = Ui32(aD, aB, aE, a9);
+      DD(3)[i] = Ui32(a9, aD, aB, aE);
     }
+  }
+  
+  {
+  AES_CODE_FUNC d = AesCbc_Decode;
+  #ifndef Z7_SFX
+  AES_CODE_FUNC e = AesCbc_Encode;
+  AES_CODE_FUNC c = AesCtr_Code;
+  UInt32 flags = 0;
+  #endif
+  
+  #ifdef USE_HW_AES
+  if (CPU_IsSupported_AES())
+  {
+    // #pragma message ("AES HW")
+    PRF(printf("\n===AES HW\n"));
+    d = AesCbc_Decode_HW;
+
+    #ifndef Z7_SFX
+    e = AesCbc_Encode_HW;
+    c = AesCtr_Code_HW;
+    flags = k_Aes_SupportedFunctions_HW;
+    #endif
+
+    #ifdef MY_CPU_X86_OR_AMD64
+    #ifdef USE_HW_VAES
+    if (CPU_IsSupported_VAES_AVX2())
+    {
+      PRF(printf("\n===vaes avx2\n"));
+      d = AesCbc_Decode_HW_256;
+      #ifndef Z7_SFX
+      c = AesCtr_Code_HW_256;
+      flags |= k_Aes_SupportedFunctions_HW_256;
+      #endif
+    }
+    #endif
+    #endif
+  }
+  #endif
+
+  g_AesCbc_Decode = d;
+  #ifndef Z7_SFX
+  g_AesCbc_Encode = e;
+  g_AesCtr_Code = c;
+  g_Aes_SupportedFunctions_Flags = flags;
+  #endif
   }
 }
 
-#define HT(i, x, s) (T + (x << 8))[gb ## x(s[(i + x) & 3])]
+
+#define HT(i, x, s) TT(x)[gb(x, s[(i + x) & 3])]
+
 #define HT4(m, i, s, p) m[i] = \
     HT(i, 0, s) ^ \
     HT(i, 1, s) ^ \
     HT(i, 2, s) ^ \
     HT(i, 3, s) ^ w[p + i]
-/* such order (2031) in HT16 is for VC6/K8 speed optimization) */
-#define HT16(m, s, p) \
-    HT4(m, 2, s, p); \
-    HT4(m, 0, s, p); \
-    HT4(m, 3, s, p); \
-    HT4(m, 1, s, p); \
 
-#define FT(i, x) Sbox[gb ## x(m[(i + x) & 3])]
+#define HT16(m, s, p) \
+    HT4(m, 0, s, p); \
+    HT4(m, 1, s, p); \
+    HT4(m, 2, s, p); \
+    HT4(m, 3, s, p); \
+
+#define FT(i, x) Sbox[gb(x, m[(i + x) & 3])]
 #define FT4(i) dest[i] = Ui32(FT(i, 0), FT(i, 1), FT(i, 2), FT(i, 3)) ^ w[i];
 
-#define HD(i, x, s) (D + (x << 8))[gb ## x(s[(i - x) & 3])]
+
+#define HD(i, x, s) DD(x)[gb(x, s[(i - x) & 3])]
+
 #define HD4(m, i, s, p) m[i] = \
     HD(i, 0, s) ^ \
     HD(i, 1, s) ^ \
     HD(i, 2, s) ^ \
     HD(i, 3, s) ^ w[p + i];
-/* such order (0231) in HD16 is for VC6/K8 speed optimization) */
+
 #define HD16(m, s, p) \
     HD4(m, 0, s, p); \
+    HD4(m, 1, s, p); \
     HD4(m, 2, s, p); \
     HD4(m, 3, s, p); \
-    HD4(m, 1, s, p); \
 
-#define FD(i, x) InvS[gb ## x(m[(i - x) & 3])]
+#define FD(i, x) InvS[gb(x, m[(i - x) & 3])]
 #define FD4(i) dest[i] = Ui32(FD(i, 0), FD(i, 1), FD(i, 2), FD(i, 3)) ^ w[i];
 
-void Aes_SetKeyEncode(CAes *p, const Byte *key, unsigned keySize)
+void Z7_FASTCALL Aes_SetKey_Enc(UInt32 *w, const Byte *key, unsigned keySize)
 {
-  unsigned i, wSize;
-  UInt32 *w;
+  unsigned i, m;
+  const UInt32 *wLim;
+  UInt32 t;
+  UInt32 rcon = 1;
+  
   keySize /= 4;
-  p->numRounds2 = keySize / 2 + 3;
-
-  wSize = (p->numRounds2 * 2 + 1) * 4;
-  w = p->rkey;
+  w[0] = ((UInt32)keySize / 2) + 3;
+  w += 4;
 
   for (i = 0; i < keySize; i++, key += 4)
-    w[i] = Ui32(key[0], key[1], key[2], key[3]);
+    w[i] = GetUi32(key);
 
-  for (; i < wSize; i++)
+  t = w[(size_t)keySize - 1];
+  wLim = w + (size_t)keySize * 3 + 28;
+  m = 0;
+  do
   {
-    UInt32 t = w[i - 1];
-    unsigned rem = i % keySize;
-    if (rem == 0)
-      t = Ui32(Sbox[gb1(t)] ^ Rcon[i / keySize], Sbox[gb2(t)], Sbox[gb3(t)], Sbox[gb0(t)]);
-    else if (keySize > 6 && rem == 4)
+    if (m == 0)
+    {
+      t = Ui32(Sbox[gb1(t)] ^ rcon, Sbox[gb2(t)], Sbox[gb3(t)], Sbox[gb0(t)]);
+      rcon <<= 1;
+      if (rcon & 0x100)
+        rcon = 0x1b;
+      m = keySize;
+    }
+    else if (m == 4 && keySize > 6)
       t = Ui32(Sbox[gb0(t)], Sbox[gb1(t)], Sbox[gb2(t)], Sbox[gb3(t)]);
-    w[i] = w[i - keySize] ^ t;
+    m--;
+    t ^= w[0];
+    w[keySize] = t;
   }
+  while (++w != wLim);
 }
 
-void Aes_SetKeyDecode(CAes *p, const Byte *key, unsigned keySize)
+void Z7_FASTCALL Aes_SetKey_Dec(UInt32 *w, const Byte *key, unsigned keySize)
 {
   unsigned i, num;
-  UInt32 *w;
-  Aes_SetKeyEncode(p, key, keySize);
-  num = p->numRounds2 * 8 - 4;
-  w = p->rkey + 4;
+  Aes_SetKey_Enc(w, key, keySize);
+  num = keySize + 20;
+  w += 8;
   for (i = 0; i < num; i++)
   {
     UInt32 r = w[i];
     w[i] =
-      D[        Sbox[gb0(r)]] ^
-      D[0x100 + Sbox[gb1(r)]] ^
-      D[0x200 + Sbox[gb2(r)]] ^
-      D[0x300 + Sbox[gb3(r)]];
+      DD(0)[Sbox[gb0(r)]] ^
+      DD(1)[Sbox[gb1(r)]] ^
+      DD(2)[Sbox[gb2(r)]] ^
+      DD(3)[Sbox[gb3(r)]];
   }
 }
 
-static void AesEncode32(UInt32 *dest, const UInt32 *src, const UInt32 *w, unsigned numRounds2)
+/* Aes_Encode and Aes_Decode functions work with little-endian words.
+  src and dest are pointers to 4 UInt32 words.
+  src and dest can point to same block */
+
+// Z7_FORCE_INLINE
+static void Aes_Encode(const UInt32 *w, UInt32 *dest, const UInt32 *src)
 {
   UInt32 s[4];
   UInt32 m[4];
+  UInt32 numRounds2 = w[0];
+  w += 4;
   s[0] = src[0] ^ w[0];
   s[1] = src[1] ^ w[1];
   s[2] = src[2] ^ w[2];
@@ -158,21 +301,26 @@ static void AesEncode32(UInt32 *dest, const UInt32 *src, const UInt32 *w, unsign
   w += 4;
   for (;;)
   {
-    HT16(m, s, 0);
+    HT16(m, s, 0)
     if (--numRounds2 == 0)
       break;
-    HT16(s, m, 4);
+    HT16(s, m, 4)
     w += 8;
   }
   w += 4;
-  FT4(0); FT4(1); FT4(2); FT4(3);
+  FT4(0)
+  FT4(1)
+  FT4(2)
+  FT4(3)
 }
 
-static void AesDecode32(UInt32 *dest, const UInt32 *src, const UInt32 *w, unsigned numRounds2)
+Z7_FORCE_INLINE
+static void Aes_Decode(const UInt32 *w, UInt32 *dest, const UInt32 *src)
 {
   UInt32 s[4];
   UInt32 m[4];
-  w += numRounds2 * 8;
+  UInt32 numRounds2 = w[0];
+  w += 4 + numRounds2 * 8;
   s[0] = src[0] ^ w[0];
   s[1] = src[1] ^ w[1];
   s[2] = src[2] ^ w[2];
@@ -180,83 +328,102 @@ static void AesDecode32(UInt32 *dest, const UInt32 *src, const UInt32 *w, unsign
   for (;;)
   {
     w -= 8;
-    HD16(m, s, 4);
+    HD16(m, s, 4)
     if (--numRounds2 == 0)
       break;
-    HD16(s, m, 0);
+    HD16(s, m, 0)
   }
-  FD4(0); FD4(1); FD4(2); FD4(3);
+  FD4(0)
+  FD4(1)
+  FD4(2)
+  FD4(3)
 }
 
-void Aes_Encode32(const CAes *p, UInt32 *dest, const UInt32 *src)
-{
-  AesEncode32(dest, src, p->rkey, p->numRounds2);
-}
-
-void Aes_Decode32(const CAes *p, UInt32 *dest, const UInt32 *src)
-{
-  AesDecode32(dest, src, p->rkey, p->numRounds2);
-}
-
-void AesCbc_Init(CAesCbc *p, const Byte *iv)
+void AesCbc_Init(UInt32 *p, const Byte *iv)
 {
   unsigned i;
   for (i = 0; i < 4; i++)
-    p->prev[i] = GetUi32(iv + i * 4);
+    p[i] = GetUi32(iv + i * 4);
 }
 
-SizeT AesCbc_Encode(CAesCbc *p, Byte *data, SizeT size)
+void Z7_FASTCALL AesCbc_Encode(UInt32 *p, Byte *data, size_t numBlocks)
 {
-  SizeT i;
-  if (size == 0)
-    return 0;
-  if (size < AES_BLOCK_SIZE)
-    return AES_BLOCK_SIZE;
-  size -= AES_BLOCK_SIZE;
-  for (i = 0; i <= size; i += AES_BLOCK_SIZE, data += AES_BLOCK_SIZE)
+  for (; numBlocks != 0; numBlocks--, data += AES_BLOCK_SIZE)
   {
-    p->prev[0] ^= GetUi32(data);
-    p->prev[1] ^= GetUi32(data + 4);
-    p->prev[2] ^= GetUi32(data + 8);
-    p->prev[3] ^= GetUi32(data + 12);
+    p[0] ^= GetUi32(data);
+    p[1] ^= GetUi32(data + 4);
+    p[2] ^= GetUi32(data + 8);
+    p[3] ^= GetUi32(data + 12);
     
-    AesEncode32(p->prev, p->prev, p->aes.rkey, p->aes.numRounds2);
+    Aes_Encode(p + 4, p, p);
     
-    SetUi32(data,      p->prev[0]);
-    SetUi32(data + 4,  p->prev[1]);
-    SetUi32(data + 8,  p->prev[2]);
-    SetUi32(data + 12, p->prev[3]);
+    SetUi32(data,      p[0])
+    SetUi32(data + 4,  p[1])
+    SetUi32(data + 8,  p[2])
+    SetUi32(data + 12, p[3])
   }
-  return i;
 }
 
-SizeT AesCbc_Decode(CAesCbc *p, Byte *data, SizeT size)
+void Z7_FASTCALL AesCbc_Decode(UInt32 *p, Byte *data, size_t numBlocks)
 {
-  SizeT i;
   UInt32 in[4], out[4];
-  if (size == 0)
-    return 0;
-  if (size < AES_BLOCK_SIZE)
-    return AES_BLOCK_SIZE;
-  size -= AES_BLOCK_SIZE;
-  for (i = 0; i <= size; i += AES_BLOCK_SIZE, data += AES_BLOCK_SIZE)
+  for (; numBlocks != 0; numBlocks--, data += AES_BLOCK_SIZE)
   {
     in[0] = GetUi32(data);
     in[1] = GetUi32(data + 4);
     in[2] = GetUi32(data + 8);
     in[3] = GetUi32(data + 12);
+
+    Aes_Decode(p + 4, out, in);
+
+    SetUi32(data,      p[0] ^ out[0])
+    SetUi32(data + 4,  p[1] ^ out[1])
+    SetUi32(data + 8,  p[2] ^ out[2])
+    SetUi32(data + 12, p[3] ^ out[3])
     
-    AesDecode32(out, in, p->aes.rkey, p->aes.numRounds2);
-    
-    SetUi32(data,      p->prev[0] ^ out[0]);
-    SetUi32(data + 4,  p->prev[1] ^ out[1]);
-    SetUi32(data + 8,  p->prev[2] ^ out[2]);
-    SetUi32(data + 12, p->prev[3] ^ out[3]);
-    
-    p->prev[0] = in[0];
-    p->prev[1] = in[1];
-    p->prev[2] = in[2];
-    p->prev[3] = in[3];
+    p[0] = in[0];
+    p[1] = in[1];
+    p[2] = in[2];
+    p[3] = in[3];
   }
-  return i;
 }
+
+void Z7_FASTCALL AesCtr_Code(UInt32 *p, Byte *data, size_t numBlocks)
+{
+  for (; numBlocks != 0; numBlocks--)
+  {
+    UInt32 temp[4];
+    unsigned i;
+
+    if (++p[0] == 0)
+      p[1]++;
+    
+    Aes_Encode(p + 4, temp, p);
+    
+    for (i = 0; i < 4; i++, data += 4)
+    {
+      const UInt32 t = temp[i];
+
+      #ifdef MY_CPU_LE_UNALIGN
+        *((UInt32 *)(void *)data) ^= t;
+      #else
+        data[0] = (Byte)(data[0] ^ (t & 0xFF));
+        data[1] = (Byte)(data[1] ^ ((t >> 8) & 0xFF));
+        data[2] = (Byte)(data[2] ^ ((t >> 16) & 0xFF));
+        data[3] = (Byte)(data[3] ^ ((t >> 24)));
+      #endif
+    }
+  }
+}
+
+#undef xtime
+#undef Ui32
+#undef gb0
+#undef gb1
+#undef gb2
+#undef gb3
+#undef gb
+#undef TT
+#undef DD
+#undef USE_HW_AES
+#undef PRF

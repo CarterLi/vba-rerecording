@@ -1,7 +1,7 @@
 // Zip/Handler.h
 
-#ifndef __ZIP_HANDLER_H
-#define __ZIP_HANDLER_H
+#ifndef ZIP7_INC_ZIP_HANDLER_H
+#define ZIP7_INC_ZIP_HANDLER_H
 
 #include "../../../Common/DynamicBuffer.h"
 #include "../../ICoder.h"
@@ -9,90 +9,84 @@
 
 #include "../../Common/CreateCoder.h"
 
-#include "ZipIn.h"
 #include "ZipCompressionMode.h"
-
-#ifdef COMPRESS_MT
-#include "../../../Windows/System.h"
-#endif
+#include "ZipIn.h"
 
 namespace NArchive {
 namespace NZip {
 
-class CHandler:
+const unsigned kNumMethodNames1 = NFileHeader::NCompressionMethod::kZstdPk + 1;
+const unsigned kMethodNames2Start = NFileHeader::NCompressionMethod::kZstdWz;
+const unsigned kNumMethodNames2 = NFileHeader::NCompressionMethod::kWzAES + 1 - kMethodNames2Start;
+
+extern const char * const kMethodNames1[kNumMethodNames1];
+extern const char * const kMethodNames2[kNumMethodNames2];
+
+
+class CHandler Z7_final:
   public IInArchive,
-#ifndef EXTRACT_ONLY
+  // public IArchiveGetRawProps,
   public IOutArchive,
   public ISetProperties,
-  PUBLIC_ISetCompressCodecsInfo
-#endif
+  Z7_PUBLIC_ISetCompressCodecsInfo_IFEC
   public CMyUnknownImp
 {
-public:
-  MY_QUERYINTERFACE_BEGIN2(IInArchive)
-#ifndef EXTRACT_ONLY
-  MY_QUERYINTERFACE_ENTRY(IOutArchive)
-  MY_QUERYINTERFACE_ENTRY(ISetProperties)
-  QUERY_ENTRY_ISetCompressCodecsInfo
-#endif
-  MY_QUERYINTERFACE_END
-  MY_ADDREF_RELEASE
+  Z7_COM_QI_BEGIN2(IInArchive)
+  // Z7_COM_QI_ENTRY(IArchiveGetRawProps)
+  Z7_COM_QI_ENTRY(IOutArchive)
+  Z7_COM_QI_ENTRY(ISetProperties)
+  Z7_COM_QI_ENTRY_ISetCompressCodecsInfo_IFEC
+  Z7_COM_QI_END
+  Z7_COM_ADDREF_RELEASE
 
-  INTERFACE_IInArchive(;)
-#ifndef EXTRACT_ONLY
-  INTERFACE_IOutArchive(;)
-
-  STDMETHOD(SetProperties)(const wchar_t **names, const PROPVARIANT *values, Int32 numProperties);
-
+  Z7_IFACE_COM7_IMP(IInArchive)
+  // Z7_IFACE_COM7_IMP(IArchiveGetRawProps)
+  Z7_IFACE_COM7_IMP(IOutArchive)
+  Z7_IFACE_COM7_IMP(ISetProperties)
   DECL_ISetCompressCodecsInfo
-#endif
 
-  CHandler();
 private:
   CObjectVector<CItemEx> m_Items;
   CInArchive m_Archive;
 
-  int m_Level;
+  CBaseProps _props;
+  CHandlerTimeOptions TimeOptions;
+
   int m_MainMethod;
-  UInt32 m_DicSize;
-  UInt32 m_Algo;
-  UInt32 m_NumPasses;
-  UInt32 m_NumFastBytes;
-  UInt32 m_NumMatchFinderCycles;
-  bool m_NumMatchFinderCyclesDefined;
+  bool m_ForceAesMode;
 
-  bool m_IsAesMode;
-  Byte m_AesKeyMode;
-
-  bool m_WriteNtfsTimeExtra;
-  bool m_ForseLocal;
-  bool m_ForseUtf8;
-
-  #ifdef COMPRESS_MT
-  UInt32 _numThreads;
-  #endif
+  bool _removeSfxBlock;
+  bool m_ForceLocal;
+  bool m_ForceUtf8;
+  bool _force_SeqOutMode; // for creation
+  bool _force_OpenSeq;
+  bool _forceCodePage;
+  UInt32 _specifiedCodePage;
 
   DECL_EXTERNAL_CODECS_VARS
 
-  void InitMethodProperties()
+  void InitMethodProps()
   {
-    m_Level = -1;
+    _props.Init();
+    TimeOptions.Init();
+    TimeOptions.Prec = k_PropVar_TimePrec_0;
     m_MainMethod = -1;
-    m_Algo =
-    m_DicSize =
-    m_NumPasses =
-    m_NumFastBytes =
-    m_NumMatchFinderCycles = 0xFFFFFFFF;
-    m_NumMatchFinderCyclesDefined = false;
-    m_IsAesMode = false;
-    m_AesKeyMode = 3; // aes-256
-    m_WriteNtfsTimeExtra = false;
-    m_ForseLocal = false;
-    m_ForseUtf8 = false;
-    #ifdef COMPRESS_MT
-    _numThreads = NWindows::NSystem::GetNumberOfProcessors();;
-    #endif
+    m_ForceAesMode = false;
+    _removeSfxBlock = false;
+    m_ForceLocal = false;
+    m_ForceUtf8 = false;
+    _force_SeqOutMode = false;
+    _force_OpenSeq = false;
+    _forceCodePage = false;
+    _specifiedCodePage = CP_OEMCP;
   }
+
+  // void MarkAltStreams(CObjectVector<CItemEx> &items);
+
+  HRESULT GetOutProperty(IArchiveUpdateCallback *callback, UInt32 callbackIndex, Int32 arcIndex, PROPID propID, PROPVARIANT *value);
+
+public:
+  CHandler();
 };
 
 }}

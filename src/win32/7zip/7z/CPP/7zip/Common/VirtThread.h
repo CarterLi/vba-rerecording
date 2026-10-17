@@ -1,7 +1,7 @@
 // VirtThread.h
 
-#ifndef __VIRTTHREAD_H
-#define __VIRTTHREAD_H
+#ifndef ZIP7_INC_VIRT_THREAD_H
+#define ZIP7_INC_VIRT_THREAD_H
 
 #include "../../Windows/Synchronization.h"
 #include "../../Windows/Thread.h"
@@ -11,13 +11,14 @@ struct CVirtThread
   NWindows::NSynchronization::CAutoResetEvent StartEvent;
   NWindows::NSynchronization::CAutoResetEvent FinishedEvent;
   NWindows::CThread Thread;
-  bool ExitEvent;
+  bool Exit;
 
-  ~CVirtThread();
+  virtual ~CVirtThread() { WaitThreadFinish(); }
+  void WaitThreadFinish(); // call it in destructor of child class !
   WRes Create();
-  void Start();
-  void WaitFinish() { FinishedEvent.Lock(); }
+  WRes Start();
   virtual void Execute() = 0;
+  WRes WaitExecuteFinish() { return FinishedEvent.Lock(); }
 };
 
 #endif

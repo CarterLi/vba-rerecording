@@ -1,143 +1,201 @@
 // FilterCoder.h
 
-#ifndef __FILTERCODER_H
-#define __FILTERCODER_H
+#ifndef ZIP7_INC_FILTER_CODER_H
+#define ZIP7_INC_FILTER_CODER_H
+
+#include "../../../C/Alloc.h"
 
 #include "../../Common/MyCom.h"
 #include "../ICoder.h"
+
+#ifndef Z7_NO_CRYPTO
 #include "../IPassword.h"
+#endif
 
-#define MY_QUERYINTERFACE_ENTRY_AG(i, sub0, sub) if (iid == IID_ ## i) \
-{ if (!sub) RINOK(sub0->QueryInterface(IID_ ## i, (void **)&sub)) \
-*outObject = (void *)(i *)this; AddRef(); return S_OK; }
+#define Z7_COM_QI_ENTRY_AG(i, sub0, sub) else if (iid == IID_ ## i) \
+  { if (!sub) RINOK(sub0->QueryInterface(IID_ ## i, (void **)&sub)) \
+    *outObject = (void *)(i *)this; }
 
-class CFilterCoder:
+
+struct CAlignedMidBuffer
+{
+  Byte *_buf;
+
+  CAlignedMidBuffer(): _buf(NULL) {}
+  ~CAlignedMidBuffer();
+  void AllocAligned(size_t size);
+};
+
+
+class CFilterCoder Z7_final :
   public ICompressCoder,
-  // #ifdef _ST_MODE
+  
+  public ICompressSetOutStreamSize,
+  public ICompressInitEncoder,
+ 
   public ICompressSetInStream,
   public ISequentialInStream,
+  
   public ICompressSetOutStream,
   public ISequentialOutStream,
-  public IOutStreamFlush,
-  // #endif
+  public IOutStreamFinish,
+  
+  public ICompressSetBufSize,
 
-  #ifndef _NO_CRYPTO
+  #ifndef Z7_NO_CRYPTO
   public ICryptoSetPassword,
+  public ICryptoProperties,
   #endif
-  #ifndef EXTRACT_ONLY
+  
+  #ifndef Z7_EXTRACT_ONLY
   public ICompressSetCoderProperties,
   public ICompressWriteCoderProperties,
+  public ICompressSetCoderPropertiesOpt,
   // public ICryptoResetSalt,
   public ICryptoResetInitVector,
   #endif
+  
   public ICompressSetDecoderProperties2,
-  public CMyUnknownImp
+  public CMyUnknownImp,
+  public CAlignedMidBuffer
 {
-protected:
-  Byte *_buffer;
-  // #ifdef _ST_MODE
-  CMyComPtr<ISequentialInStream> _inStream;
-  CMyComPtr<ISequentialOutStream> _outStream;
-  UInt32 _bufferPos;
-  UInt32 _convertedPosBegin;
-  UInt32 _convertedPosEnd;
-  // #endif
-  bool _outSizeIsDefined;
+  UInt32 _bufSize;
+  UInt32 _inBufSize;
+  UInt32 _outBufSize;
+
+  bool _encodeMode;
+  bool _outSize_Defined;
   UInt64 _outSize;
   UInt64 _nowPos64;
 
-  HRESULT Init()
+  CMyComPtr<ISequentialInStream> _inStream;
+  CMyComPtr<ISequentialOutStream> _outStream;
+  UInt32 _bufPos;
+  UInt32 _convPos;    // current pos in buffer for converted data
+  UInt32 _convSize;   // size of converted data starting from _convPos
+  
+  void InitSpecVars()
   {
+    _bufPos = 0;
+    _convPos = 0;
+    _convSize = 0;
+
+    _outSize_Defined = false;
+    _outSize = 0;
     _nowPos64 = 0;
-    _outSizeIsDefined = false;
-    return Filter->Init();
   }
 
+  HRESULT Alloc();
+  HRESULT Init_and_Alloc();
+  HRESULT Flush2();
+
+  #ifndef Z7_NO_CRYPTO
   CMyComPtr<ICryptoSetPassword> _setPassword;
-  #ifndef EXTRACT_ONLY
-  CMyComPtr<ICompressSetCoderProperties> _SetCoderProperties;
-  CMyComPtr<ICompressWriteCoderProperties> _writeCoderProperties;
-  // CMyComPtr<ICryptoResetSalt> _CryptoResetSalt;
-  CMyComPtr<ICryptoResetInitVector> _CryptoResetInitVector;
+  CMyComPtr<ICryptoProperties> _cryptoProperties;
   #endif
-  CMyComPtr<ICompressSetDecoderProperties2> _setDecoderProperties;
+
+  #ifndef Z7_EXTRACT_ONLY
+  CMyComPtr<ICompressSetCoderProperties> _setCoderProperties;
+  CMyComPtr<ICompressWriteCoderProperties> _writeCoderProperties;
+  CMyComPtr<ICompressSetCoderPropertiesOpt> _setCoderPropertiesOpt;
+  // CMyComPtr<ICryptoResetSalt> _cryptoResetSalt;
+  CMyComPtr<ICryptoResetInitVector> _cryptoResetInitVector;
+  #endif
+
+  CMyComPtr<ICompressSetDecoderProperties2> _setDecoderProperties2;
+
 public:
   CMyComPtr<ICompressFilter> Filter;
 
-  CFilterCoder();
-  ~CFilterCoder();
-  HRESULT WriteWithLimit(ISequentialOutStream *outStream, UInt32 size);
-  bool NeedMore() const
-    { return (!_outSizeIsDefined || (_nowPos64 < _outSize)); }
+  CFilterCoder(bool encodeMode);
 
-public:
-  MY_QUERYINTERFACE_BEGIN
-    MY_QUERYINTERFACE_ENTRY(ICompressCoder)
-    // #ifdef _ST_MODE
-    MY_QUERYINTERFACE_ENTRY(ICompressSetInStream)
-    MY_QUERYINTERFACE_ENTRY(ISequentialInStream)
+  struct C_InStream_Releaser
+  {
+    CFilterCoder *FilterCoder;
+    C_InStream_Releaser(): FilterCoder(NULL) {}
+    ~C_InStream_Releaser() { if (FilterCoder) FilterCoder->ReleaseInStream(); }
+  };
+  
+  struct C_OutStream_Releaser
+  {
+    CFilterCoder *FilterCoder;
+    C_OutStream_Releaser(): FilterCoder(NULL) {}
+    ~C_OutStream_Releaser() { if (FilterCoder) FilterCoder->ReleaseOutStream(); }
+  };
 
-    MY_QUERYINTERFACE_ENTRY(ICompressSetOutStream)
-    MY_QUERYINTERFACE_ENTRY(ISequentialOutStream)
-    MY_QUERYINTERFACE_ENTRY(IOutStreamFlush)
-    // #endif
+  struct C_Filter_Releaser
+  {
+    CFilterCoder *FilterCoder;
+    C_Filter_Releaser(): FilterCoder(NULL) {}
+    ~C_Filter_Releaser() { if (FilterCoder) FilterCoder->Filter.Release(); }
+  };
+  
+private:
+  Z7_COM_QI_BEGIN2(ICompressCoder)
 
-    #ifndef _NO_CRYPTO
-    MY_QUERYINTERFACE_ENTRY_AG(ICryptoSetPassword, Filter, _setPassword)
+    Z7_COM_QI_ENTRY(ICompressSetOutStreamSize)
+    Z7_COM_QI_ENTRY(ICompressInitEncoder)
+    
+    Z7_COM_QI_ENTRY(ICompressSetInStream)
+    Z7_COM_QI_ENTRY(ISequentialInStream)
+    
+    Z7_COM_QI_ENTRY(ICompressSetOutStream)
+    Z7_COM_QI_ENTRY(ISequentialOutStream)
+    Z7_COM_QI_ENTRY(IOutStreamFinish)
+    
+    Z7_COM_QI_ENTRY(ICompressSetBufSize)
+
+    #ifndef Z7_NO_CRYPTO
+    Z7_COM_QI_ENTRY_AG(ICryptoSetPassword, Filter, _setPassword)
+    Z7_COM_QI_ENTRY_AG(ICryptoProperties, Filter, _cryptoProperties)
     #endif
 
-    #ifndef EXTRACT_ONLY
-    MY_QUERYINTERFACE_ENTRY_AG(ICompressSetCoderProperties, Filter, _SetCoderProperties)
-    MY_QUERYINTERFACE_ENTRY_AG(ICompressWriteCoderProperties, Filter, _writeCoderProperties)
-    // MY_QUERYINTERFACE_ENTRY_AG(ICryptoResetSalt, Filter, _CryptoResetSalt)
-    MY_QUERYINTERFACE_ENTRY_AG(ICryptoResetInitVector, Filter, _CryptoResetInitVector)
+    #ifndef Z7_EXTRACT_ONLY
+    Z7_COM_QI_ENTRY_AG(ICompressSetCoderProperties, Filter, _setCoderProperties)
+    Z7_COM_QI_ENTRY_AG(ICompressWriteCoderProperties, Filter, _writeCoderProperties)
+    Z7_COM_QI_ENTRY_AG(ICompressSetCoderPropertiesOpt, Filter, _setCoderPropertiesOpt)
+    // Z7_COM_QI_ENTRY_AG(ICryptoResetSalt, Filter, _cryptoResetSalt)
+    Z7_COM_QI_ENTRY_AG(ICryptoResetInitVector, Filter, _cryptoResetInitVector)
     #endif
 
-    MY_QUERYINTERFACE_ENTRY_AG(ICompressSetDecoderProperties2, Filter, _setDecoderProperties)
-  MY_QUERYINTERFACE_END
-  MY_ADDREF_RELEASE
-  STDMETHOD(Code)(ISequentialInStream *inStream,
-      ISequentialOutStream *outStream, const UInt64 *inSize, const UInt64 *outSize,
-      ICompressProgressInfo *progress);
-  // #ifdef _ST_MODE
-  STDMETHOD(ReleaseInStream)();
-  STDMETHOD(SetInStream)(ISequentialInStream *inStream);
-  STDMETHOD(Read)(void *data, UInt32 size, UInt32 *processedSize); \
-  STDMETHOD(SetOutStream)(ISequentialOutStream *outStream);
-  STDMETHOD(ReleaseOutStream)();
-  STDMETHOD(Write)(const void *data, UInt32 size, UInt32 *processedSize);
-  STDMETHOD(Flush)();
-  // #endif
-
-  #ifndef _NO_CRYPTO
-  STDMETHOD(CryptoSetPassword)(const Byte *data, UInt32 size);
-  #endif
-  #ifndef EXTRACT_ONLY
-  STDMETHOD(SetCoderProperties)(const PROPID *propIDs,
-      const PROPVARIANT *properties, UInt32 numProperties);
-  STDMETHOD(WriteCoderProperties)(ISequentialOutStream *outStream);
-  // STDMETHOD(ResetSalt)();
-  STDMETHOD(ResetInitVector)();
-  #endif
-  STDMETHOD(SetDecoderProperties2)(const Byte *data, UInt32 size);
-};
-
-// #ifdef _ST_MODE
-class CInStreamReleaser
-{
+    Z7_COM_QI_ENTRY_AG(ICompressSetDecoderProperties2, Filter, _setDecoderProperties2)
+  Z7_COM_QI_END
+  Z7_COM_ADDREF_RELEASE
+  
 public:
-  CFilterCoder *FilterCoder;
-  CInStreamReleaser(): FilterCoder(0) {}
-  ~CInStreamReleaser() { if (FilterCoder) FilterCoder->ReleaseInStream(); }
-};
-
-class COutStreamReleaser
-{
+  Z7_IFACE_COM7_IMP(ICompressCoder)
+  Z7_IFACE_COM7_IMP(ICompressSetOutStreamSize)
+  Z7_IFACE_COM7_IMP(ICompressInitEncoder)
+  Z7_IFACE_COM7_IMP(ICompressSetInStream)
+private:
+  Z7_IFACE_COM7_IMP(ISequentialInStream)
 public:
-  CFilterCoder *FilterCoder;
-  COutStreamReleaser(): FilterCoder(0) {}
-  ~COutStreamReleaser() { if (FilterCoder) FilterCoder->ReleaseOutStream(); }
+  Z7_IFACE_COM7_IMP(ICompressSetOutStream)
+private:
+  Z7_IFACE_COM7_IMP(ISequentialOutStream)
+public:
+  Z7_IFACE_COM7_IMP(IOutStreamFinish)
+private:
+  
+  Z7_IFACE_COM7_IMP(ICompressSetBufSize)
+
+  #ifndef Z7_NO_CRYPTO
+  Z7_IFACE_COM7_IMP(ICryptoSetPassword)
+  Z7_IFACE_COM7_IMP(ICryptoProperties)
+  #endif
+  
+  #ifndef Z7_EXTRACT_ONLY
+  Z7_IFACE_COM7_IMP(ICompressSetCoderProperties)
+  Z7_IFACE_COM7_IMP(ICompressWriteCoderProperties)
+  Z7_IFACE_COM7_IMP(ICompressSetCoderPropertiesOpt)
+  // Z7_IFACE_COM7_IMP(ICryptoResetSalt)
+  Z7_IFACE_COM7_IMP(ICryptoResetInitVector)
+  #endif
+  
+public:
+  Z7_IFACE_COM7_IMP(ICompressSetDecoderProperties2)
+  
+  HRESULT Init_NoSubFilterInit();
 };
-// #endif
 
 #endif

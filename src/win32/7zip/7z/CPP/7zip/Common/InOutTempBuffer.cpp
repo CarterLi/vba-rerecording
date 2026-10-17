@@ -2,121 +2,236 @@
 
 #include "StdAfx.h"
 
+#include "../../../C/Alloc.h"
+
 #include "InOutTempBuffer.h"
-#include "../../Common/Defs.h"
-// #include "Windows/Defs.h"
 
 #include "StreamUtils.h"
 
-using namespace NWindows;
-using namespace NFile;
-using namespace NDirectory;
+#ifdef USE_InOutTempBuffer_FILE
 
-static UInt32 kTmpBufferMemorySize = (1 << 20);
+#include "../../../C/7zCrc.h"
 
-static LPCTSTR kTempFilePrefixString = TEXT("iot");
+#define kTempFilePrefixString FTEXT("7zt")
+/*
+  Total buffer size limit, if we use temp file scheme:
+    32-bit:  16 MiB = 1 MiB *   16 buffers
+    64-bit:   4 GiB = 1 MiB * 4096 buffers
+*/
+static const size_t kNumBufsMax = (size_t)1 << (sizeof(size_t) * 2 - 4);
+
+#endif
+
+static const size_t kBufSize = (size_t)1 << 20;
+
 
 CInOutTempBuffer::CInOutTempBuffer():
-  _buffer(NULL)
+    _size(0),
+    _bufs(NULL),
+    _numBufs(0),
+    _numFilled(0)
 {
-}
-
-void CInOutTempBuffer::Create()
-{
-  _buffer = new Byte[kTmpBufferMemorySize];
+ #ifdef USE_InOutTempBuffer_FILE
+  _tempFile_Created = false;
+  _useMemOnly = false;
+  _crc = CRC_INIT_VAL;
+ #endif
 }
 
 CInOutTempBuffer::~CInOutTempBuffer()
 {
-  delete []_buffer;
-}
-void CInOutTempBuffer::InitWriting()
-{
-  _bufferPosition = 0;
-  _tmpFileCreated = false;
-  _fileSize = 0;
+  for (size_t i = 0; i < _numBufs; i++)
+    MyFree(_bufs[i]);
+  MyFree(_bufs);
 }
 
-bool CInOutTempBuffer::WriteToFile(const void *data, UInt32 size)
+
+void *CInOutTempBuffer::GetBuf(size_t index)
+{
+  if (index >= _numBufs)
+  {
+    const size_t num = (_numBufs == 0 ? 16 : _numBufs * 2);
+    void **p = (void **)MyRealloc(_bufs, num * sizeof(void *));
+    if (!p)
+      return NULL;
+    _bufs = p;
+    memset(p + _numBufs, 0, (num - _numBufs) * sizeof(void *));
+    _numBufs = num;
+  }
+  
+  void *buf = _bufs[index];
+  if (!buf)
+  {
+    buf = MyAlloc(kBufSize);
+    if (buf)
+      _bufs[index] = buf;
+  }
+  return buf;
+}
+
+
+HRESULT CInOutTempBuffer::Write_HRESULT(const void *data, UInt32 size)
 {
   if (size == 0)
-    return true;
-  if(!_tmpFileCreated)
+    return S_OK;
+  
+ #ifdef USE_InOutTempBuffer_FILE
+  if (!_tempFile_Created)
+ #endif
+  for (;;)  // loop for additional attemp to allocate memory after file creation error
   {
-    CSysString tempDirPath;
-    if(!MyGetTempPath(tempDirPath))
-      return false;
-    if (_tempFile.Create(tempDirPath, kTempFilePrefixString, _tmpFileName) == 0)
-      return false;
-    // _outFile.SetOpenCreationDispositionCreateAlways();
-    if(!_outFile.Create(_tmpFileName, true))
-      return false;
-    _tmpFileCreated = true;
+   #ifdef USE_InOutTempBuffer_FILE
+    bool allocError = false;
+   #endif
+  
+    for (;;)  // loop for writing to buffers
+    {
+      const size_t index = (size_t)(_size / kBufSize);
+      
+     #ifdef USE_InOutTempBuffer_FILE
+      if (index >= kNumBufsMax && !_useMemOnly)
+        break;
+     #endif
+    
+      void *buf = GetBuf(index);
+      if (!buf)
+      {
+       #ifdef USE_InOutTempBuffer_FILE
+        if (!_useMemOnly)
+        {
+          allocError = true;
+          break;
+        }
+       #endif
+        return E_OUTOFMEMORY;
+      }
+      
+      const size_t offset = (size_t)(_size) & (kBufSize - 1);
+      size_t cur = kBufSize - offset;
+      if (cur > size)
+        cur = size;
+      memcpy((Byte *)buf + offset, data, cur);
+      _size += cur;
+      if (index >= _numFilled)
+        _numFilled = index + 1;
+      data = (const void *)((const Byte *)data + cur);
+      size -= (UInt32)cur;
+      if (size == 0)
+        return S_OK;
+    }
+
+   #ifdef USE_InOutTempBuffer_FILE
+   #ifndef _WIN32
+    _outFile.mode_for_Create = 0600;  // only owner will have the rights to access this file
+   #endif
+    if (_tempFile.CreateRandomInTempFolder(kTempFilePrefixString, &_outFile))
+    {
+      _tempFile_Created = true;
+      break;
+    }
+    _useMemOnly = true;
+    if (allocError)
+      return GetLastError_noZero_HRESULT();
+   #endif
   }
-  UInt32 processedSize;
-  if(!_outFile.Write(data, size, processedSize))
-    return false;
-  _fileSize += processedSize;
-  return (processedSize == size);
+
+ #ifdef USE_InOutTempBuffer_FILE
+  if (!_outFile.WriteFull(data, size))
+    return GetLastError_noZero_HRESULT();
+  _crc = CrcUpdate(_crc, data, size);
+  _size += size;
+  return S_OK;
+ #endif
 }
 
-bool CInOutTempBuffer::FlushWrite()
-{
-  return _outFile.Close();
-}
-
-bool CInOutTempBuffer::Write(const void *data, UInt32 size)
-{
-  if(_bufferPosition < kTmpBufferMemorySize)
-  {
-    UInt32 curSize = MyMin(kTmpBufferMemorySize - _bufferPosition, size);
-    memmove(_buffer + _bufferPosition, (const Byte *)data, curSize);
-    _bufferPosition += curSize;
-    size -= curSize;
-    data = ((const Byte *)data) + curSize;
-    _fileSize += curSize;
-  }
-  return WriteToFile(data, size);
-}
-
-bool CInOutTempBuffer::InitReading()
-{
-  _currentPositionInBuffer = 0;
-  if(_tmpFileCreated)
-    return _inFile.Open(_tmpFileName);
-  return true;
-}
 
 HRESULT CInOutTempBuffer::WriteToStream(ISequentialOutStream *stream)
 {
-  if (_currentPositionInBuffer < _bufferPosition)
-  {
-    UInt32 sizeToWrite = _bufferPosition - _currentPositionInBuffer;
-    RINOK(WriteStream(stream, _buffer + _currentPositionInBuffer, sizeToWrite));
-    _currentPositionInBuffer += sizeToWrite;
-  }
-  if (!_tmpFileCreated)
-    return true;
-  for (;;)
-  {
-    UInt32 localProcessedSize;
-    if (!_inFile.ReadPart(_buffer, kTmpBufferMemorySize, localProcessedSize))
-      return E_FAIL;
-    if (localProcessedSize == 0)
-      return S_OK;
-    RINOK(WriteStream(stream, _buffer, localProcessedSize));
-  }
-}
+  UInt64 rem = _size;
+  // if (rem == 0) return S_OK;
 
-STDMETHODIMP CSequentialOutTempBufferImp::Write(const void *data, UInt32 size, UInt32 *processedSize)
-{
-  if (!_buffer->Write(data, size))
+  const size_t numFilled = _numFilled;
+  _numFilled = 0;
+
+  for (size_t i = 0; i < numFilled; i++)
   {
-    if (processedSize != NULL)
-      *processedSize = 0;
-    return E_FAIL;
+    if (rem == 0)
+      return E_FAIL;
+    size_t cur = kBufSize;
+    if (cur > rem)
+      cur = (size_t)rem;
+    RINOK(WriteStream(stream, _bufs[i], cur))
+    rem -= cur;
+   #ifdef USE_InOutTempBuffer_FILE
+    // we will use _bufs[0] later for writing from temp file
+    if (i != 0 || !_tempFile_Created)
+   #endif
+    {
+      MyFree(_bufs[i]);
+      _bufs[i] = NULL;
+    }
   }
-  if (processedSize != NULL)
-    *processedSize = size;
-  return S_OK;
+
+
+ #ifdef USE_InOutTempBuffer_FILE
+
+  if (rem == 0)
+    return _tempFile_Created ? E_FAIL : S_OK;
+
+  if (!_tempFile_Created)
+    return E_FAIL;
+
+  if (!_outFile.Close())
+    return GetLastError_noZero_HRESULT();
+
+  HRESULT hres;
+  void *buf = GetBuf(0); // index
+  if (!buf)
+    hres = E_OUTOFMEMORY;
+  else
+  {
+    NWindows::NFile::NIO::CInFile inFile;
+    if (!inFile.Open(_tempFile.GetPath()))
+      hres = GetLastError_noZero_HRESULT();
+    else
+    {
+      UInt32 crc = CRC_INIT_VAL;
+      for (;;)
+      {
+        size_t processed;
+        if (!inFile.ReadFull(buf, kBufSize, processed))
+        {
+          hres = GetLastError_noZero_HRESULT();
+          break;
+        }
+        if (processed == 0)
+        {
+          // we compare crc without CRC_GET_DIGEST
+          hres = (_crc == crc ? S_OK : E_FAIL);
+          break;
+        }
+        size_t n = processed;
+        if (n > rem)
+          n = (size_t)rem;
+        hres = WriteStream(stream, buf, n);
+        if (hres != S_OK)
+          break;
+        crc = CrcUpdate(crc, buf, n);
+        rem -= n;
+        if (n != processed)
+        {
+          hres = E_FAIL;
+          break;
+        }
+      }
+    }
+  }
+
+  // _tempFile.DisableDeleting(); // for debug
+  _tempFile.Remove();
+  RINOK(hres)
+
+ #endif
+
+  return rem == 0 ? S_OK : E_FAIL;
 }

@@ -1,35 +1,55 @@
-// Tar/Handler.h
+// TarHandler.h
 
-#ifndef __TAR_HANDLER_H
-#define __TAR_HANDLER_H
+#ifndef ZIP7_INC_TAR_HANDLER_H
+#define ZIP7_INC_TAR_HANDLER_H
 
-#include "Common/MyCom.h"
-#include "../IArchive.h"
+#include "../../../Common/MyCom.h"
 
-#include "TarItem.h"
+#include "../../Compress/CopyCoder.h"
+
+#include "../Common/HandlerOut.h"
+
+#include "TarIn.h"
 
 namespace NArchive {
 namespace NTar {
 
-class CHandler:
-  public IInArchive,
-  public IOutArchive,
-  public CMyUnknownImp
-{
+Z7_CLASS_IMP_CHandler_IInArchive_4(
+    IArchiveOpenSeq
+  , IInArchiveGetStream
+  , ISetProperties
+  , IOutArchive
+)
 public:
-  MY_UNKNOWN_IMP2(
-    IInArchive,
-    IOutArchive
-  )
+  CObjectVector<CItemEx> _items;
+  CMyComPtr<IInStream> _stream;
+  CMyComPtr<ISequentialInStream> _seqStream;
+private:
+  bool _isArc;
+  bool _posixMode_WasForced;
+  bool _posixMode;
+  bool _forceCodePage;
+  UInt32 _specifiedCodePage;
+  UInt32 _curCodePage;
+  UInt32 _openCodePage;
+  // CTimeOptions TimeOptions;
+  CHandlerTimeOptions _handlerTimeOptions;
+  CEncodingCharacts _encodingCharacts;
 
-  INTERFACE_IInArchive(;)
-  INTERFACE_IOutArchive(;)
+  UInt32 _curIndex;
+  bool _latestIsRead;
+  CItemEx _latestItem;
+
+  CArchive _arc;
+
+  CMyComPtr2_Create<ICompressCoder, NCompress::CCopyCoder> copyCoder;
 
   HRESULT Open2(IInStream *stream, IArchiveOpenCallback *callback);
-
-private:
-  CObjectVector<CItemEx> _items;
-  CMyComPtr<IInStream> _inStream;
+  HRESULT SkipTo(UInt32 index);
+  void TarStringToUnicode(const AString &s, NWindows::NCOM::CPropVariant &prop, bool toOs = false) const;
+public:
+  void Init();
+  CHandler();
 };
 
 }}

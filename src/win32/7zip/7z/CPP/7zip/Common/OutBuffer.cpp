@@ -1,106 +1,98 @@
-// OutByte.cpp
+// OutBuffer.cpp
 
 #include "StdAfx.h"
 
+#include "../../../C/Alloc.h"
+
 #include "OutBuffer.h"
 
-extern "C"
-{
-  #include "../../../C/Alloc.h"
-}
-
-bool COutBuffer::Create(UInt32 bufferSize)
+bool COutBuffer::Create(UInt32 bufSize) throw()
 {
   const UInt32 kMinBlockSize = 1;
-  if (bufferSize < kMinBlockSize)
-    bufferSize = kMinBlockSize;
-  if (_buffer != 0 && _bufferSize == bufferSize)
+  if (bufSize < kMinBlockSize)
+    bufSize = kMinBlockSize;
+  if (_buf && _bufSize == bufSize)
     return true;
   Free();
-  _bufferSize = bufferSize;
-  _buffer = (Byte *)::MidAlloc(bufferSize);
-  return (_buffer != 0);
+  _bufSize = bufSize;
+  _buf = (Byte *)::MidAlloc(bufSize);
+  return (_buf != NULL);
 }
 
-void COutBuffer::Free()
+void COutBuffer::Free() throw()
 {
-  ::MidFree(_buffer);
-  _buffer = 0;
+  ::MidFree(_buf);
+  _buf = NULL;
 }
 
-void COutBuffer::SetStream(ISequentialOutStream *stream)
-{
-  _stream = stream;
-}
-
-void COutBuffer::Init()
+void COutBuffer::Init() throw()
 {
   _streamPos = 0;
-  _limitPos = _bufferSize;
+  _limitPos = _bufSize;
   _pos = 0;
   _processedSize = 0;
   _overDict = false;
-  #ifdef _NO_EXCEPTIONS
+  #ifdef Z7_NO_EXCEPTIONS
   ErrorCode = S_OK;
   #endif
 }
 
-UInt64 COutBuffer::GetProcessedSize() const
+UInt64 COutBuffer::GetProcessedSize() const throw()
 {
   UInt64 res = _processedSize + _pos - _streamPos;
   if (_streamPos > _pos)
-    res += _bufferSize;
+    res += _bufSize;
   return res;
 }
 
 
-HRESULT COutBuffer::FlushPart()
+HRESULT COutBuffer::FlushPart() throw()
 {
-  // _streamPos < _bufferSize
-  UInt32 size = (_streamPos >= _pos) ? (_bufferSize - _streamPos) : (_pos - _streamPos);
+  // _streamPos < _bufSize
+  UInt32 size = (_streamPos >= _pos) ? (_bufSize - _streamPos) : (_pos - _streamPos);
   HRESULT result = S_OK;
-  #ifdef _NO_EXCEPTIONS
+  #ifdef Z7_NO_EXCEPTIONS
   result = ErrorCode;
   #endif
-  if (_buffer2 != 0)
+  if (_buf2)
   {
-    memmove(_buffer2, _buffer + _streamPos, size);
-    _buffer2 += size;
+    memcpy(_buf2, _buf + _streamPos, size);
+    _buf2 += size;
   }
 
-  if (_stream != 0
-      #ifdef _NO_EXCEPTIONS
+  if (_stream
+      #ifdef Z7_NO_EXCEPTIONS
       && (ErrorCode == S_OK)
       #endif
      )
   {
     UInt32 processedSize = 0;
-    result = _stream->Write(_buffer + _streamPos, size, &processedSize);
+    result = _stream->Write(_buf + _streamPos, size, &processedSize);
     size = processedSize;
   }
   _streamPos += size;
-  if (_streamPos == _bufferSize)
+  if (_streamPos == _bufSize)
     _streamPos = 0;
-  if (_pos == _bufferSize)
+  if (_pos == _bufSize)
   {
     _overDict = true;
     _pos = 0;
   }
-  _limitPos = (_streamPos > _pos) ? _streamPos : _bufferSize;
+  _limitPos = (_streamPos > _pos) ? _streamPos : _bufSize;
   _processedSize += size;
   return result;
 }
 
-HRESULT COutBuffer::Flush()
+HRESULT COutBuffer::Flush() throw()
 {
-  #ifdef _NO_EXCEPTIONS
+  #ifdef Z7_NO_EXCEPTIONS
   if (ErrorCode != S_OK)
     return ErrorCode;
   #endif
 
-  while(_streamPos != _pos)
+  while (_streamPos != _pos)
   {
-    HRESULT result = FlushPart();
+    const HRESULT result = FlushPart();
     if (result != S_OK)
       return result;
   }
@@ -109,8 +101,8 @@ HRESULT COutBuffer::Flush()
 
 void COutBuffer::FlushWithCheck()
 {
-  HRESULT result = Flush();
-  #ifdef _NO_EXCEPTIONS
+  const HRESULT result = Flush();
+  #ifdef Z7_NO_EXCEPTIONS
   ErrorCode = result;
   #else
   if (result != S_OK)

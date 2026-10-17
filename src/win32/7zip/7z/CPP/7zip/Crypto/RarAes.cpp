@@ -1,39 +1,46 @@
 // Crypto/RarAes.cpp
-// Note: you must include MyAes.cpp to project to initialize AES tables
 
 #include "StdAfx.h"
 
+#include "../../../C/CpuArch.h"
+#include "../../../C/RotateDefs.h"
+
 #include "RarAes.h"
-#include "Sha1.h"
+#include "Sha1Cls.h"
 
 namespace NCrypto {
-namespace NRar29 {
+namespace NRar3 {
 
 CDecoder::CDecoder():
-  _thereIsSalt(false),
-  _needCalculate(true),
-  _rar350Mode(false)
+    CAesCbcDecoder(kAesKeySize),
+    _thereIsSalt(false),
+    _needCalc(true)
+    // _rar350Mode(false)
 {
-  for (int i = 0; i < sizeof(_salt); i++)
+  for (unsigned i = 0; i < sizeof(_salt); i++)
     _salt[i] = 0;
 }
 
-STDMETHODIMP CDecoder::SetDecoderProperties2(const Byte *data, UInt32 size)
+HRESULT CDecoder::SetDecoderProperties2(const Byte *data, UInt32 size)
 {
-  bool thereIsSaltPrev = _thereIsSalt;
+  bool prev = _thereIsSalt;
   _thereIsSalt = false;
   if (size == 0)
+  {
+    if (!_needCalc && prev)
+      _needCalc = true;
     return S_OK;
+  }
   if (size < 8)
     return E_INVALIDARG;
   _thereIsSalt = true;
   bool same = false;
-  if (_thereIsSalt == thereIsSaltPrev)
+  if (_thereIsSalt == prev)
   {
     same = true;
     if (_thereIsSalt)
     {
-      for (int i = 0; i < sizeof(_salt); i++)
+      for (unsigned i = 0; i < sizeof(_salt); i++)
         if (_salt[i] != data[i])
         {
           same = false;
@@ -41,99 +48,155 @@ STDMETHODIMP CDecoder::SetDecoderProperties2(const Byte *data, UInt32 size)
         }
     }
   }
-  for (int i = 0; i < sizeof(_salt); i++)
+  for (unsigned i = 0; i < sizeof(_salt); i++)
     _salt[i] = data[i];
-  if (!_needCalculate && !same)
-    _needCalculate = true;
+  if (!_needCalc && !same)
+    _needCalc = true;
   return S_OK;
 }
 
-static const int kMaxPasswordLength = 127 * 2;
+static const unsigned kPasswordLen_Bytes_MAX = 127 * 2;
 
-STDMETHODIMP CDecoder::CryptoSetPassword(const Byte *data, UInt32 size)
+void CDecoder::SetPassword(const Byte *data, unsigned size)
 {
-  if (size > kMaxPasswordLength)
-    size = kMaxPasswordLength;
+  if (size > kPasswordLen_Bytes_MAX)
+    size = kPasswordLen_Bytes_MAX;
   bool same = false;
-  if (size == buffer.GetCapacity())
+  if (size == _password.Size())
   {
     same = true;
     for (UInt32 i = 0; i < size; i++)
-      if (data[i] != buffer[i])
+      if (data[i] != _password[i])
       {
         same = false;
         break;
       }
   }
-  if (!_needCalculate && !same)
-    _needCalculate = true;
-  buffer.SetCapacity(size);
-  memcpy(buffer, data, size);
-  return S_OK;
+  if (!_needCalc && !same)
+    _needCalc = true;
+  _password.Wipe();
+  _password.CopyFrom(data, (size_t)size);
 }
 
-STDMETHODIMP CDecoder::Init()
+Z7_COM7F_IMF(CDecoder::Init())
 {
-  Calculate();
-  Aes_SetKeyDecode(&Aes.aes, aesKey, kRarAesKeySize);
-  AesCbc_Init(&Aes, aesInit);
-  return S_OK;
+  CalcKey();
+  RINOK(SetKey(_key, kAesKeySize))
+  RINOK(SetInitVector(_iv, AES_BLOCK_SIZE))
+  return CAesCoder::Init();
 }
 
-STDMETHODIMP_(UInt32) CDecoder::Filter(Byte *data, UInt32 size)
-{
-  return (UInt32)AesCbc_Decode(&Aes, data, size);
-}
 
-void CDecoder::Calculate()
+// if (password_size_in_bytes + SaltSize > 64),
+// the original rar code updates password_with_salt buffer
+// with some generated data from SHA1 code.
+ 
+// #define RAR_SHA1_REDUCE
+
+#ifdef RAR_SHA1_REDUCE
+  #define kNumW 16
+  #define WW(i) W[(i)&15]
+#else
+  #define kNumW 80
+  #define WW(i) W[i]
+#endif
+
+static void UpdatePswDataSha1(Byte *data)
 {
-  if (_needCalculate)
+  UInt32 W[kNumW];
+  size_t i;
+  
+  for (i = 0; i < SHA1_NUM_BLOCK_WORDS; i++)
+    W[i] = GetBe32(data + i * 4);
+  
+  for (i = 16; i < 80; i++)
   {
-    const int kSaltSize = 8;
-    
-    Byte rawPassword[kMaxPasswordLength + kSaltSize];
-    
-    memcpy(rawPassword, buffer, buffer.GetCapacity());
-    
-    size_t rawLength = buffer.GetCapacity();
-    
-    if (_thereIsSalt)
-    {
-      memcpy(rawPassword + rawLength, _salt, kSaltSize);
-      rawLength += kSaltSize;
-    }
-    
-    NSha1::CContext sha;
-    sha.Init();
+    const UInt32 t = WW((i)-3) ^ WW((i)-8) ^ WW((i)-14) ^ WW((i)-16);
+    WW(i) = rotlFixed(t, 1);
+  }
+  
+  for (i = 0; i < SHA1_NUM_BLOCK_WORDS; i++)
+  {
+    SetUi32(data + i * 4, W[kNumW - SHA1_NUM_BLOCK_WORDS + i])
+  }
+}
 
-    // seems rar reverts hash for sha.
-    const int hashRounds = 0x40000;
-    int i;
-    for (i = 0; i < hashRounds; i++)
+
+void CDecoder::CalcKey()
+{
+  if (!_needCalc)
+    return;
+
+  const unsigned kSaltSize = 8;
+  
+  MY_ALIGN (16)
+  Byte buf[kPasswordLen_Bytes_MAX + kSaltSize];
+  
+  if (_password.Size() != 0)
+    memcpy(buf, _password, _password.Size());
+  
+  size_t rawSize = _password.Size();
+  
+  if (_thereIsSalt)
+  {
+    memcpy(buf + rawSize, _salt, kSaltSize);
+    rawSize += kSaltSize;
+  }
+  
+  MY_ALIGN (16)
+  NSha1::CContext sha;
+  sha.Init();
+  
+  MY_ALIGN (16)
+  Byte digest[NSha1::kDigestSize];
+  // rar reverts hash for sha.
+  const UInt32 kNumRounds = (UInt32)1 << 18;
+  UInt32 pos = 0;
+  UInt32 i;
+  for (i = 0; i < kNumRounds; i++)
+  {
+    sha.Update(buf, rawSize);
+    // if (_rar350Mode)
     {
-      sha.Update(rawPassword, rawLength, _rar350Mode);
-      Byte pswNum[3] = { (Byte)i, (Byte)(i >> 8), (Byte)(i >> 16) };
-      sha.Update(pswNum, 3, _rar350Mode);
-      if (i % (hashRounds / 16) == 0)
+      const UInt32 kBlockSize = 64;
+      const UInt32 endPos = (pos + (UInt32)rawSize) & ~(kBlockSize - 1);
+      if (endPos > pos + kBlockSize)
       {
-        NSha1::CContext shaTemp = sha;
-        Byte digest[NSha1::kDigestSize];
-        shaTemp.Final(digest);
-        aesInit[i / (hashRounds / 16)] = (Byte)digest[4 * 4 + 3];
+        UInt32 curPos = pos & ~(kBlockSize - 1);
+        curPos += kBlockSize;
+        do
+        {
+          UpdatePswDataSha1(buf + (curPos - pos));
+          curPos += kBlockSize;
+        }
+        while (curPos != endPos);
       }
     }
-    /*
-    // it's test message for sha
-    const char *message = "abcdbcdecdefdefgefghfghighijhijkijkljklmklmnlmnomnopnopq";
-    sha.Update((const Byte *)message, strlen(message));
-    */
-    Byte digest[20];
-    sha.Final(digest);
-    for (i = 0; i < 4; i++)
-      for (int j = 0; j < 4; j++)
-        aesKey[i * 4 + j] = (digest[i * 4 + 3 - j]);
+    pos += (UInt32)rawSize;
+#if 1
+    UInt32 pswNum;
+    SetUi32a(&pswNum, i)
+    sha.Update((const Byte *)&pswNum, 3);
+#else
+    Byte pswNum[3] = { (Byte)i, (Byte)(i >> 8), (Byte)(i >> 16) };
+    sha.Update(pswNum, 3);
+#endif
+    pos += 3;
+    if (i % (kNumRounds / 16) == 0)
+    {
+      MY_ALIGN (16)
+      NSha1::CContext shaTemp = sha;
+      shaTemp.Final(digest);
+      _iv[i / (kNumRounds / 16)] = (Byte)digest[4 * 4 + 3];
+    }
   }
-  _needCalculate = false;
+  
+  sha.Final(digest);
+  for (i = 0; i < 4; i++)
+    for (unsigned j = 0; j < 4; j++)
+      _key[i * 4 + j] = (digest[i * 4 + 3 - j]);
+    
+  _needCalc = false;
 }
 
 }}

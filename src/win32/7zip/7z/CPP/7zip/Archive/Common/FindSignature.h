@@ -1,7 +1,7 @@
 // FindSignature.h
 
-#ifndef __FINDSIGNATURE_H
-#define __FINDSIGNATURE_H
+#ifndef ZIP7_INC_FIND_SIGNATURE_H
+#define ZIP7_INC_FIND_SIGNATURE_H
 
 #include "../../IStream.h"
 

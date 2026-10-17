@@ -1,8 +1,7 @@
-#include "7zip.h"
+﻿#include "7zip.h"
 
-#include "7z/C/Types.h"
+#include "7z/C/7zTypes.h"
 #include "7z/CPP/7zip/Archive/IArchive.h"
-#include "7z/CPP/Common/InitializeStaticLib.h" // important! (if using a static lib)
 
 #include <string>
 #include <vector>
@@ -95,19 +94,19 @@ void InitDecoder()
 		PROPVARIANT var = {VT_EMPTY};
 		ArchiveFormatInfo info;
 
-		GetHandlerProperty2(i, NArchive::kName, &var);
+		GetHandlerProperty2(i, NArchive::NHandlerPropID::kName, &var);
 		if(var.vt == VT_BSTR)
 			info.name = wstrToStr(var.bstrVal);
 
-		GetHandlerProperty2(i, NArchive::kExtension, &var);
+		GetHandlerProperty2(i, NArchive::NHandlerPropID::kExtension, &var);
 		if(var.vt == VT_BSTR)
 			info.extensions = tokenize(wstrToStr(var.bstrVal), " ");
 
-		GetHandlerProperty2(i, NArchive::kStartSignature, &var);
+		GetHandlerProperty2(i, NArchive::NHandlerPropID::kSignature, &var);
 		if(var.vt == VT_BSTR)
 			info.signature = (const char*)var.bstrVal; // note: there's no 100% correct way of doing this with the existing 7-zip interface, but this is much better than using SysStringLen() in any way (it would return 1 for the signature "BZh", for example)
 
-		GetHandlerProperty2(i,NArchive::kClassID,&var);
+		GetHandlerProperty2(i,NArchive::NHandlerPropID::kClassID,&var);
 		if(var.vt == VT_BSTR)
 			memcpy(&info.guid, var.bstrVal, 16);
 		else
@@ -124,8 +123,6 @@ void CleanupDecoder()
 	s_formatInfos.clear();
 	s_supportedFormatsFilter.clear();
 }
-
-#include "7z/CPP/7zip/Archive/Zip/ZipHandler.h"
 
 
 ArchiveFile::ArchiveFile(const char* filename, const char* displayFilename)

@@ -1,51 +1,67 @@
 // 7zAes.h
 
-#ifndef __CRYPTO_7Z_AES_H
-#define __CRYPTO_7Z_AES_H
+#ifndef ZIP7_INC_CRYPTO_7Z_AES_H
+#define ZIP7_INC_CRYPTO_7Z_AES_H
 
-#include "Common/Buffer.h"
-#include "Common/MyCom.h"
-#include "Common/MyVector.h"
+#include "../../Common/MyBuffer.h"
+#include "../../Common/MyCom.h"
+#include "../../Common/MyVector.h"
 
 #include "../ICoder.h"
 #include "../IPassword.h"
 
 namespace NCrypto {
-namespace NSevenZ {
+namespace N7z {
 
-const int kKeySize = 32;
+const unsigned kKeySize = 32;
+const unsigned kSaltSizeMax = 16;
+const unsigned kIvSizeMax = 16; // AES_BLOCK_SIZE;
 
 class CKeyInfo
 {
 public:
-  int NumCyclesPower;
-  UInt32 SaltSize;
-  Byte Salt[16];
+  unsigned NumCyclesPower;
+  unsigned SaltSize;
+  Byte Salt[kSaltSizeMax];
   CByteBuffer Password;
   Byte Key[kKeySize];
 
   bool IsEqualTo(const CKeyInfo &a) const;
-  void CalculateDigest();
+  void CalcKey();
 
-  CKeyInfo() { Init(); }
-  void Init()
+  CKeyInfo() { ClearProps(); }
+  void ClearProps()
   {
     NumCyclesPower = 0;
     SaltSize = 0;
-    for (int i = 0; i < sizeof(Salt); i++)
+    for (unsigned i = 0; i < sizeof(Salt); i++)
       Salt[i] = 0;
   }
+
+  void Wipe()
+  {
+    Password.Wipe();
+    NumCyclesPower = 0;
+    SaltSize = 0;
+    Z7_memset_0_ARRAY(Salt);
+    Z7_memset_0_ARRAY(Key);
+  }
+
+#ifdef Z7_CPP_IS_SUPPORTED_default
+  CKeyInfo(const CKeyInfo &) = default;
+#endif
+  ~CKeyInfo() { Wipe(); }
 };
 
 class CKeyInfoCache
 {
-  int Size;
+  unsigned Size;
   CObjectVector<CKeyInfo> Keys;
 public:
-  CKeyInfoCache(int size): Size(size) {}
-  bool Find(CKeyInfo &key);
-  // HRESULT Calculate(CKeyInfo &key);
-  void Add(CKeyInfo &key);
+  CKeyInfoCache(unsigned size): Size(size) {}
+  bool GetKey(CKeyInfo &key);
+  void Add(const CKeyInfo &key);
+  void FindAndAdd(const CKeyInfo &key);
 };
 
 class CBase
@@ -53,9 +69,10 @@ class CBase
   CKeyInfoCache _cachedKeys;
 protected:
   CKeyInfo _key;
-  Byte _iv[16];
-  UInt32 _ivSize;
-  void CalculateDigest();
+  Byte _iv[kIvSizeMax];
+  unsigned _ivSize;
+  
+  void PrepareKey();
   CBase();
 };
 
@@ -65,51 +82,47 @@ class CBaseCoder:
   public CMyUnknownImp,
   public CBase
 {
+  Z7_IFACE_COM7_IMP(ICompressFilter)
+  Z7_IFACE_COM7_IMP(ICryptoSetPassword)
 protected:
+  virtual ~CBaseCoder() {}
   CMyComPtr<ICompressFilter> _aesFilter;
-
-  virtual HRESULT CreateFilter() = 0;
-  #ifndef CRYPTO_AES
-  HRESULT CreateFilterFromDLL(REFCLSID clsID);
-  #endif
-public:
-  STDMETHOD(Init)();
-  STDMETHOD_(UInt32, Filter)(Byte *data, UInt32 size);
-  
-  STDMETHOD(CryptoSetPassword)(const Byte *data, UInt32 size);
 };
 
-#ifndef EXTRACT_ONLY
+#ifndef Z7_EXTRACT_ONLY
 
-class CEncoder:
+class CEncoder Z7_final:
   public CBaseCoder,
   public ICompressWriteCoderProperties,
   // public ICryptoResetSalt,
   public ICryptoResetInitVector
 {
-  virtual HRESULT CreateFilter();
-public:
-  MY_UNKNOWN_IMP3(
+  Z7_COM_UNKNOWN_IMP_4(
+      ICompressFilter,
       ICryptoSetPassword,
       ICompressWriteCoderProperties,
       // ICryptoResetSalt,
       ICryptoResetInitVector)
-  STDMETHOD(WriteCoderProperties)(ISequentialOutStream *outStream);
-  // STDMETHOD(ResetSalt)();
-  STDMETHOD(ResetInitVector)();
+  Z7_IFACE_COM7_IMP(ICompressWriteCoderProperties)
+  // Z7_IFACE_COM7_IMP(ICryptoResetSalt)
+  Z7_IFACE_COM7_IMP(ICryptoResetInitVector)
+public:
+  CEncoder();
 };
+
 #endif
 
-class CDecoder:
+class CDecoder Z7_final:
   public CBaseCoder,
   public ICompressSetDecoderProperties2
 {
-  virtual HRESULT CreateFilter();
-public:
-  MY_UNKNOWN_IMP2(
+  Z7_COM_UNKNOWN_IMP_3(
+      ICompressFilter,
       ICryptoSetPassword,
       ICompressSetDecoderProperties2)
-  STDMETHOD(SetDecoderProperties2)(const Byte *data, UInt32 size);
+  Z7_IFACE_COM7_IMP(ICompressSetDecoderProperties2)
+public:
+  CDecoder();
 };
 
 }}

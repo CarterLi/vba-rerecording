@@ -1,117 +1,146 @@
 // StreamObjects.h
 
-#ifndef __STREAMOBJECTS_H
-#define __STREAMOBJECTS_H
+#ifndef ZIP7_INC_STREAM_OBJECTS_H
+#define ZIP7_INC_STREAM_OBJECTS_H
 
-#include "../../Common/DynamicBuffer.h"
+#include "../../Common/MyBuffer.h"
 #include "../../Common/MyCom.h"
+#include "../../Common/MyVector.h"
+
 #include "../IStream.h"
 
-class CSequentialInStreamImp:
-  public ISequentialInStream,
-  public CMyUnknownImp
-{
-  const Byte *_dataPointer;
-  size_t _size;
-  size_t _pos;
-
+Z7_CLASS_IMP_IInStream(
+  CBufferInStream
+)
+  UInt64 _pos;
 public:
-  void Init(const Byte *dataPointer, size_t size)
+  CByteBuffer Buf;
+  void Init() { _pos = 0; }
+};
+
+
+Z7_CLASS_IMP_COM_0(
+  CReferenceBuf
+)
+public:
+  CByteBuffer Buf;
+};
+
+
+Z7_CLASS_IMP_IInStream(
+  CBufInStream
+)
+  const Byte *_data;
+  UInt64 _pos;
+  size_t _size;
+  CMyComPtr<IUnknown> _ref;
+public:
+  void Init(const Byte *data, size_t size, IUnknown *ref = NULL)
   {
-    _dataPointer = dataPointer;
+    _data = data;
     _size = size;
     _pos = 0;
+    _ref = ref;
   }
+  void Init(CReferenceBuf *ref) { Init(ref->Buf, ref->Buf.Size(), ref); }
 
-  MY_UNKNOWN_IMP
-
-  STDMETHOD(Read)(void *data, UInt32 size, UInt32 *processedSize);
+  // Seek() is allowed here. So reading order could be changed
+  bool WasFinished() const { return _pos == _size; }
 };
 
 
-class CWriteBuffer
+void Create_BufInStream_WithReference(const void *data, size_t size, IUnknown *ref, ISequentialInStream **stream);
+void Create_BufInStream_WithNewBuffer(const void *data, size_t size, ISequentialInStream **stream);
+inline void Create_BufInStream_WithNewBuffer(const CByteBuffer &buf, ISequentialInStream **stream)
+  { Create_BufInStream_WithNewBuffer(buf, buf.Size(), stream); }
+
+
+class CByteDynBuffer Z7_final
 {
-  CByteDynamicBuffer _buffer;
+  size_t _capacity;
+  Byte *_buf;
+  Z7_CLASS_NO_COPY(CByteDynBuffer)
+public:
+  CByteDynBuffer(): _capacity(0), _buf(NULL) {}
+  // there is no copy constructor. So don't copy this object.
+  ~CByteDynBuffer() { Free(); }
+  void Free() throw();
+  size_t GetCapacity() const { return _capacity; }
+  operator Byte*() const { return _buf; }
+  operator const Byte*() const { return _buf; }
+  bool EnsureCapacity(size_t capacity) throw();
+};
+
+
+Z7_CLASS_IMP_COM_1(
+  CDynBufSeqOutStream
+  , ISequentialOutStream
+)
+  CByteDynBuffer _buffer;
   size_t _size;
 public:
-  CWriteBuffer(): _size(0) {}
+  CDynBufSeqOutStream(): _size(0) {}
   void Init() { _size = 0;  }
-  void Write(const void *data, size_t size);
   size_t GetSize() const { return _size; }
-  const CByteDynamicBuffer& GetBuffer() const { return _buffer; }
+  const Byte *GetBuffer() const { return _buffer; }
+  void CopyToBuffer(CByteBuffer &dest) const;
+  Byte *GetBufPtrForWriting(size_t addSize);
+  void UpdateSize(size_t addSize) { _size += addSize; }
 };
 
-class CSequentialOutStreamImp:
-  public ISequentialOutStream,
-  public CMyUnknownImp
-{
-  CWriteBuffer _writeBuffer;
-public:
-  void Init() { _writeBuffer.Init(); }
-  size_t GetSize() const { return _writeBuffer.GetSize(); }
-  const CByteDynamicBuffer& GetBuffer() const { return _writeBuffer.GetBuffer(); }
 
-  MY_UNKNOWN_IMP
-
-  STDMETHOD(Write)(const void *data, UInt32 size, UInt32 *processedSize);
-};
-
-class CSequentialOutStreamImp2:
-  public ISequentialOutStream,
-  public CMyUnknownImp
-{
+Z7_CLASS_IMP_COM_1(
+  CBufPtrSeqOutStream
+  , ISequentialOutStream
+)
   Byte *_buffer;
   size_t _size;
   size_t _pos;
 public:
-
   void Init(Byte *buffer, size_t size)
   {
     _buffer = buffer;
     _pos = 0;
     _size = size;
   }
-
   size_t GetPos() const { return _pos; }
-
-  MY_UNKNOWN_IMP
-
-  STDMETHOD(Write)(const void *data, UInt32 size, UInt32 *processedSize);
 };
 
-class CSequentialInStreamSizeCount:
-  public ISequentialInStream,
-  public CMyUnknownImp
-{
-  CMyComPtr<ISequentialInStream> _stream;
-  UInt64 _size;
-public:
-  void Init(ISequentialInStream *stream)
-  {
-    _stream = stream;
-    _size = 0;
-  }
-  UInt64 GetSize() const { return _size; }
 
-  MY_UNKNOWN_IMP
-
-  STDMETHOD(Read)(void *data, UInt32 size, UInt32 *processedSize);
-};
-
-class CSequentialOutStreamSizeCount:
-  public ISequentialOutStream,
-  public CMyUnknownImp
-{
+Z7_CLASS_IMP_COM_1(
+  CSequentialOutStreamSizeCount
+  , ISequentialOutStream
+)
   CMyComPtr<ISequentialOutStream> _stream;
   UInt64 _size;
 public:
   void SetStream(ISequentialOutStream *stream) { _stream = stream; }
   void Init() { _size = 0; }
   UInt64 GetSize() const { return _size; }
+};
 
-  MY_UNKNOWN_IMP
 
-  STDMETHOD(Write)(const void *data, UInt32 size, UInt32 *processedSize);
+class CCachedInStream:
+  public IInStream,
+  public CMyUnknownImp
+{
+  Z7_IFACES_IMP_UNK_2(ISequentialInStream, IInStream)
+
+  UInt64 *_tags;
+  Byte *_data;
+  size_t _dataSize;
+  unsigned _blockSizeLog;
+  unsigned _numBlocksLog;
+  UInt64 _size;
+  UInt64 _pos;
+protected:
+  virtual HRESULT ReadBlock(UInt64 blockIndex, Byte *dest, size_t blockSize) = 0;
+public:
+  CCachedInStream(): _tags(NULL), _data(NULL) {}
+  virtual ~CCachedInStream() { Free(); } // the destructor must be virtual (Release() calls it) !!!
+  void Free() throw();
+  bool Alloc(unsigned blockSizeLog, unsigned numBlocksLog) throw();
+  void Init(UInt64 size) throw();
 };
 
 #endif

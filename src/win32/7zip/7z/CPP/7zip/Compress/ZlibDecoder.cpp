@@ -2,90 +2,132 @@
 
 #include "StdAfx.h"
 
+#include "../../../C/CpuArch.h"
+
 #include "../Common/StreamUtils.h"
 
-#include "DeflateDecoder.h"
 #include "ZlibDecoder.h"
 
 namespace NCompress {
 namespace NZlib {
 
 #define DEFLATE_TRY_BEGIN try {
-#define DEFLATE_TRY_END } \
-  catch(...) { return S_FALSE; }
+#define DEFLATE_TRY_END } catch(...) { return S_FALSE; }
 
 #define ADLER_MOD 65521
 #define ADLER_LOOP_MAX 5550
 
-static UInt32 Adler32_Update(UInt32 adler, const Byte *buf, size_t size)
+UInt32 Adler32_Update(UInt32 adler, const Byte *data, size_t size);
+UInt32 Adler32_Update(UInt32 adler, const Byte *data, size_t size)
 {
-  UInt32 a = adler & 0xFFFF;
-  UInt32 b = (adler >> 16) & 0xFFFF;
-  while (size > 0)
+  if (size == 0)
+    return adler;
+  UInt32 a = adler & 0xffff;
+  UInt32 b = adler >> 16;
+  do
   {
-    unsigned curSize = (size > ADLER_LOOP_MAX) ? ADLER_LOOP_MAX : (unsigned )size;
-    unsigned i;
-    for (i = 0; i < curSize; i++)
+    size_t cur = size;
+    if (cur > ADLER_LOOP_MAX)
+        cur = ADLER_LOOP_MAX;
+    size -= cur;
+    const Byte *lim = data + cur;
+    if (cur >= 4)
     {
-      a += buf[i];
-      b += a;
+      lim -= 4 - 1;
+      do
+      {
+        a += data[0];  b += a;
+        a += data[1];  b += a;
+        a += data[2];  b += a;
+        a += data[3];  b += a;
+        data += 4;
+      }
+      while (data < lim);
+      lim += 4 - 1;
     }
-    buf += curSize;
-    size -= curSize;
+    if (data != lim) { a += *data++;  b += a;
+    if (data != lim) { a += *data++;  b += a;
+    if (data != lim) { a += *data++;  b += a; }}}
     a %= ADLER_MOD;
     b %= ADLER_MOD;
   }
+  while (size);
   return (b << 16) + a;
 }
 
-STDMETHODIMP COutStreamWithAdler::Write(const void *data, UInt32 size, UInt32 *processedSize)
+Z7_COM7F_IMF(COutStreamWithAdler::Write(const void *data, UInt32 size, UInt32 *processedSize))
 {
-  HRESULT result = _stream->Write(data, size, &size);
+  HRESULT result = S_OK;
+  if (_stream)
+    result = _stream->Write(data, size, &size);
   _adler = Adler32_Update(_adler, (const Byte *)data, size);
-  if (processedSize != NULL)
+  _size += size;
+  if (processedSize)
     *processedSize = size;
   return result;
 }
 
-STDMETHODIMP CDecoder::Code(ISequentialInStream *inStream, ISequentialOutStream *outStream,
-    const UInt64 *inSize, const UInt64 *outSize, ICompressProgressInfo *progress)
+Z7_COM7F_IMF(CDecoder::Code(ISequentialInStream *inStream, ISequentialOutStream *outStream,
+    const UInt64 *inSize, const UInt64 *outSize, ICompressProgressInfo *progress))
 {
   DEFLATE_TRY_BEGIN
-  if (!AdlerStream)
-  {
-    AdlerSpec = new COutStreamWithAdler;
-    AdlerStream = AdlerSpec;
-  }
-  if (!DeflateDecoder)
-  {
-    DeflateDecoderSpec = new NCompress::NDeflate::NDecoder::CCOMCoder;
-    DeflateDecoderSpec->ZlibMode = true;
-    DeflateDecoder = DeflateDecoderSpec;
-  }
+  _inputProcessedSize_Additional = 0;
+  AdlerStream.Create_if_Empty();
+  DeflateDecoder.Create_if_Empty();
+  DeflateDecoder->Set_NeedFinishInput(true);
 
-  Byte buf[2];
-  RINOK(ReadStream_FALSE(inStream, buf, 2));
-  int method = buf[0] & 0xF;
-  if (method != 8)
+  if (inSize && *inSize < 2)
     return S_FALSE;
-  // int dicSize = buf[0] >> 4;
-  if ((((UInt32)buf[0] << 8) + buf[1]) % 31 != 0)
-    return S_FALSE;
-  if ((buf[1] & 0x20) != 0) // dictPresent
-    return S_FALSE;
-  // int level = (buf[1] >> 6);
-
-  AdlerSpec->SetStream(outStream);
-  AdlerSpec->Init();
-  HRESULT res = DeflateDecoder->Code(inStream, AdlerStream, inSize, outSize, progress);
-  AdlerSpec->ReleaseStream();
+  {
+    Byte buf[2];
+    RINOK(ReadStream_FALSE(inStream, buf, 2))
+    if (!IsZlib(buf))
+      return S_FALSE;
+  }
+  _inputProcessedSize_Additional = 2;
+  AdlerStream->SetStream(outStream);
+  AdlerStream->Init();
+  // NDeflate::NDecoder::Code() ignores inSize
+  /*
+  UInt64 inSize2 = 0;
+  if (inSize)
+    inSize2 = *inSize - 2;
+  */
+  const HRESULT res = DeflateDecoder.Interface()->Code(inStream, AdlerStream,
+      /* inSize ? &inSize2 : */ NULL, outSize, progress);
+  AdlerStream->ReleaseStream();
 
   if (res == S_OK)
   {
-    const Byte *p = DeflateDecoderSpec->ZlibFooter;
-    UInt32 adler = ((UInt32)p[0] << 24) | ((UInt32)p[1] << 16) | ((UInt32)p[2] << 8) | p[3];
-    if (adler != AdlerSpec->GetAdler())
-      return S_FALSE;
+    UInt32 footer32[1];
+    UInt32 processedSize;
+    RINOK(DeflateDecoder->ReadUnusedFromInBuf(footer32, 4, &processedSize))
+    if (processedSize != 4)
+    {
+      size_t processedSize2 = 4 - processedSize;
+      RINOK(ReadStream(inStream, (Byte *)(void *)footer32 + processedSize, &processedSize2))
+      _inputProcessedSize_Additional += (Int32)processedSize2;
+      processedSize += (UInt32)processedSize2;
+    }
+    
+    if (processedSize == 4)
+    {
+      const UInt32 adler = GetBe32a(footer32);
+      if (adler != AdlerStream->GetAdler())
+        return S_FALSE; // adler error
+    }
+    else if (!IsAdlerOptional)
+      return S_FALSE; // unexpeced end of stream (can't read adler)
+    else
+    {
+      // IsAdlerOptional == true
+      if (processedSize != 0)
+      {
+         // we exclude adler bytes from processed size:
+        _inputProcessedSize_Additional -= (Int32)processedSize;
+        return S_FALSE;
+      }
+    }
   }
   return res;
   DEFLATE_TRY_END

@@ -2,10 +2,7 @@
 
 #include "StdAfx.h"
 
-extern "C"
-{
 #include "../../../C/7zCrc.h"
-}
 
 #include "../Common/StreamUtils.h"
 
@@ -15,117 +12,103 @@ extern "C"
 namespace NCrypto {
 namespace NZip {
 
-void CCipher::UpdateKeys(Byte b)
-{
-  Keys[0] = CRC_UPDATE_BYTE(Keys[0], b);
-  Keys[1] += Keys[0] & 0xff;
-  Keys[1] = Keys[1] * 134775813L + 1;
-  Keys[2] = CRC_UPDATE_BYTE(Keys[2], (Byte)(Keys[1] >> 24));
-}
+#define UPDATE_KEYS(b) { \
+  key0 = CRC_UPDATE_BYTE(key0, b); \
+  key1 = (key1 + (key0 & 0xFF)) * 0x8088405 + 1; \
+  key2 = CRC_UPDATE_BYTE(key2, (Byte)(key1 >> 24)); } \
 
-void CCipher::SetPassword(const Byte *password, UInt32 passwordLen)
-{
-  Keys[0] = 305419896L;
-  Keys[1] = 591751049L;
-  Keys[2] = 878082192L;
-  for (UInt32 i = 0; i < passwordLen; i++)
-    UpdateKeys(password[i]);
-}
+#define DECRYPT_BYTE_1 UInt32 temp = key2 | 2;
+#define DECRYPT_BYTE_2 ((Byte)((temp * (temp ^ 1)) >> 8))
 
-Byte CCipher::DecryptByteSpec()
+Z7_COM7F_IMF(CCipher::CryptoSetPassword(const Byte *data, UInt32 size))
 {
-  UInt32 temp = Keys[2] | 2;
-  return (Byte)((temp * (temp ^ 1)) >> 8);
-}
+  UInt32 key0 = 0x12345678;
+  UInt32 key1 = 0x23456789;
+  UInt32 key2 = 0x34567890;
+  
+  for (UInt32 i = 0; i < size; i++)
+    UPDATE_KEYS(data[i])
 
-Byte CCipher::DecryptByte(Byte b)
-{
-  Byte c = (Byte)(b ^ DecryptByteSpec());
-  UpdateKeys(c);
-  return c;
-}
-
-Byte CCipher::EncryptByte(Byte b)
-{
-  Byte c = (Byte)(b ^ DecryptByteSpec());
-  UpdateKeys(b);
-  return c;
-}
-
-void CCipher::DecryptHeader(Byte *buf)
-{
-  for (unsigned i = 0; i < kHeaderSize; i++)
-    buf[i] = DecryptByte(buf[i]);
-}
-
-void CCipher::EncryptHeader(Byte *buf)
-{
-  for (unsigned i = 0; i < kHeaderSize; i++)
-    buf[i] = EncryptByte(buf[i]);
-}
-
-STDMETHODIMP CEncoder::CryptoSetPassword(const Byte *data, UInt32 size)
-{
-  _cipher.SetPassword(data, size);
+  KeyMem0 = key0;
+  KeyMem1 = key1;
+  KeyMem2 = key2;
+  
   return S_OK;
 }
 
-STDMETHODIMP CEncoder::CryptoSetCRC(UInt32 crc)
-{
-  _crc = crc;
-  return S_OK;
-}
-
-STDMETHODIMP CEncoder::Init()
+Z7_COM7F_IMF(CCipher::Init())
 {
   return S_OK;
 }
 
-HRESULT CEncoder::WriteHeader(ISequentialOutStream *outStream)
+HRESULT CEncoder::WriteHeader_Check16(ISequentialOutStream *outStream, UInt16 crc)
 {
-  Byte header[kHeaderSize];
-  g_RandomGenerator.Generate(header, kHeaderSize - 2);
+  Byte h[kHeaderSize];
+  
+  /* PKZIP before 2.0 used 2 byte CRC check.
+     PKZIP 2.0+ used 1 byte CRC check. It's more secure.
+     We also use 1 byte CRC. */
 
-  header[kHeaderSize - 1] = Byte(_crc >> 24);
-  header[kHeaderSize - 2] = Byte(_crc >> 16);
-
-  _cipher.EncryptHeader(header);
-  return WriteStream(outStream, header, kHeaderSize);
+  MY_RAND_GEN(h, kHeaderSize - 1);
+  // h[kHeaderSize - 2] = (Byte)(crc);
+  h[kHeaderSize - 1] = (Byte)(crc >> 8);
+  
+  RestoreKeys();
+  Filter(h, kHeaderSize);
+  return WriteStream(outStream, h, kHeaderSize);
 }
 
-STDMETHODIMP_(UInt32) CEncoder::Filter(Byte *data, UInt32 size)
+Z7_COM7F_IMF2(UInt32, CEncoder::Filter(Byte *data, UInt32 size))
 {
-  UInt32 i;
-  for (i = 0; i < size; i++)
-    data[i] = _cipher.EncryptByte(data[i]);
-  return i;
-}
+  UInt32 key0 = this->Key0;
+  UInt32 key1 = this->Key1;
+  UInt32 key2 = this->Key2;
 
-STDMETHODIMP CDecoder::CryptoSetPassword(const Byte *data, UInt32 size)
-{
-  _cipher.SetPassword(data, size);
-  return S_OK;
+  for (UInt32 i = 0; i < size; i++)
+  {
+    Byte b = data[i];
+    DECRYPT_BYTE_1
+    data[i] = (Byte)(b ^ DECRYPT_BYTE_2);
+    UPDATE_KEYS(b)
+  }
+
+  this->Key0 = key0;
+  this->Key1 = key1;
+  this->Key2 = key2;
+
+  return size;
 }
 
 HRESULT CDecoder::ReadHeader(ISequentialInStream *inStream)
 {
-  Byte header[kHeaderSize];
-  RINOK(ReadStream_FAIL(inStream, header, kHeaderSize));
-  _cipher.DecryptHeader(header);
-  return S_OK;
+  return ReadStream_FAIL(inStream, _header, kHeaderSize);
 }
 
-STDMETHODIMP CDecoder::Init()
+void CDecoder::Init_BeforeDecode()
 {
-  return S_OK;
+  RestoreKeys();
+  Filter(_header, kHeaderSize);
 }
 
-STDMETHODIMP_(UInt32) CDecoder::Filter(Byte *data, UInt32 size)
+Z7_COM7F_IMF2(UInt32, CDecoder::Filter(Byte *data, UInt32 size))
 {
-  UInt32 i;
-  for (i = 0; i < size; i++)
-    data[i] = _cipher.DecryptByte(data[i]);
-  return i;
+  UInt32 key0 = this->Key0;
+  UInt32 key1 = this->Key1;
+  UInt32 key2 = this->Key2;
+  
+  for (UInt32 i = 0; i < size; i++)
+  {
+    DECRYPT_BYTE_1
+    Byte b = (Byte)(data[i] ^ DECRYPT_BYTE_2);
+    UPDATE_KEYS(b)
+    data[i] = b;
+  }
+  
+  this->Key0 = key0;
+  this->Key1 = key1;
+  this->Key2 = key2;
+  
+  return size;
 }
 
 }}

@@ -5,14 +5,27 @@
 #include "../../Common/RegisterArc.h"
 
 #include "TarHandler.h"
-static IInArchive *CreateArc() { return new NArchive::NTar::CHandler;  }
-#ifndef EXTRACT_ONLY
-static IOutArchive *CreateArcOut() { return new NArchive::NTar::CHandler;  }
-#else
-#define CreateArcOut 0
-#endif
 
-static CArcInfo g_ArcInfo =
-{ L"Tar", L"tar", 0, 0xEE, { 'u', 's', 't', 'a', 'r' }, 5, false, CreateArc, CreateArcOut };
+namespace NArchive {
+namespace NTar {
 
-REGISTER_ARC(Tar)
+static const Byte k_Signature[] = { 'u', 's', 't', 'a', 'r' };
+
+REGISTER_ARC_IO(
+  "tar", "tar ova", NULL, 0xEE,
+  k_Signature,
+  NFileHeader::kUstarMagic_Offset,
+    NArcInfoFlags::kStartOpen
+  | NArcInfoFlags::kSymLinks
+  | NArcInfoFlags::kHardLinks
+  | NArcInfoFlags::kMTime
+  | NArcInfoFlags::kMTime_Default
+  // | NArcInfoTimeFlags::kCTime
+  // | NArcInfoTimeFlags::kATime
+  , TIME_PREC_TO_ARC_FLAGS_MASK (NFileTimeType::kWindows)
+  | TIME_PREC_TO_ARC_FLAGS_MASK (NFileTimeType::kUnix)
+  | TIME_PREC_TO_ARC_FLAGS_MASK (NFileTimeType::k1ns)
+  | TIME_PREC_TO_ARC_FLAGS_TIME_DEFAULT (NFileTimeType::kUnix)
+  , IsArc_Tar)
+ 
+}}

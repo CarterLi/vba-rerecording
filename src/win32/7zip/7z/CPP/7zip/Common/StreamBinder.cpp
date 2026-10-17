@@ -2,149 +2,150 @@
 
 #include "StdAfx.h"
 
-#include "StreamBinder.h"
-#include "../../Common/Defs.h"
 #include "../../Common/MyCom.h"
 
-using namespace NWindows;
-using namespace NSynchronization;
+#include "StreamBinder.h"
 
-class CSequentialInStreamForBinder:
-  public ISequentialInStream,
-  public CMyUnknownImp
-{
+Z7_CLASS_IMP_COM_1(
+  CBinderInStream
+  , ISequentialInStream
+)
+  CStreamBinder *_binder;
 public:
-  MY_UNKNOWN_IMP
-
-  STDMETHOD(Read)(void *data, UInt32 size, UInt32 *processedSize);
-private:
-  CStreamBinder *m_StreamBinder;
-public:
-  ~CSequentialInStreamForBinder() { m_StreamBinder->CloseRead(); }
-  void SetBinder(CStreamBinder *streamBinder) { m_StreamBinder = streamBinder; }
+  ~CBinderInStream() { _binder->CloseRead_CallOnce(); }
+  CBinderInStream(CStreamBinder *binder Z7_lifetimebound): _binder(binder) {}
 };
 
-STDMETHODIMP CSequentialInStreamForBinder::Read(void *data, UInt32 size, UInt32 *processedSize)
-  { return m_StreamBinder->Read(data, size, processedSize); }
+Z7_COM7F_IMF(CBinderInStream::Read(void *data, UInt32 size, UInt32 *processedSize))
+  { return _binder->Read(data, size, processedSize); }
 
-class CSequentialOutStreamForBinder:
-  public ISequentialOutStream,
-  public CMyUnknownImp
-{
+
+Z7_CLASS_IMP_COM_1(
+  CBinderOutStream
+  , ISequentialOutStream
+)
+  CStreamBinder *_binder;
 public:
-  MY_UNKNOWN_IMP
-
-  STDMETHOD(Write)(const void *data, UInt32 size, UInt32 *processedSize);
-
-private:
-  CStreamBinder *m_StreamBinder;
-public:
-  ~CSequentialOutStreamForBinder() {  m_StreamBinder->CloseWrite(); }
-  void SetBinder(CStreamBinder *streamBinder) { m_StreamBinder = streamBinder; }
+  ~CBinderOutStream() { _binder->CloseWrite(); }
+  CBinderOutStream(CStreamBinder *binder Z7_lifetimebound): _binder(binder) {}
 };
 
-STDMETHODIMP CSequentialOutStreamForBinder::Write(const void *data, UInt32 size, UInt32 *processedSize)
-  { return m_StreamBinder->Write(data, size, processedSize); }
+Z7_COM7F_IMF(CBinderOutStream::Write(const void *data, UInt32 size, UInt32 *processedSize))
+  { return _binder->Write(data, size, processedSize); }
 
 
-//////////////////////////
-// CStreamBinder
-// (_thereAreBytesToReadEvent && _bufferSize == 0) means that stream is finished.
-
-HRes CStreamBinder::CreateEvents()
+static HRESULT Event_Create_or_Reset(NWindows::NSynchronization::CAutoResetEvent &event)
 {
-  RINOK(_allBytesAreWritenEvent.Create(true));
-  RINOK(_thereAreBytesToReadEvent.Create());
-  return _readStreamIsClosedEvent.Create();
+  const WRes wres = event.CreateIfNotCreated_Reset();
+  return HRESULT_FROM_WIN32(wres);
 }
 
-void CStreamBinder::ReInit()
+HRESULT CStreamBinder::Create_ReInit()
 {
-  _thereAreBytesToReadEvent.Reset();
-  _readStreamIsClosedEvent.Reset();
+  RINOK(Event_Create_or_Reset(_canRead_Event))
+  // RINOK(Event_Create_or_Reset(_canWrite_Event))
+
+  // _canWrite_Semaphore.Close();
+  // we need at least 3 items of maxCount: 1 for normal unlock in Read(), 2 items for unlock in CloseRead_CallOnce()
+  _canWrite_Semaphore.OptCreateInit(0, 3);
+
+  // _readingWasClosed = false;
+  _readingWasClosed2 = false;
+
+  _waitWrite = true;
+  _bufSize = 0;
+  _buf = NULL;
   ProcessedSize = 0;
+  // WritingWasCut = false;
+  return S_OK;
 }
 
 
-  
-void CStreamBinder::CreateStreams(ISequentialInStream **inStream,
-      ISequentialOutStream **outStream)
+void CStreamBinder::CreateStreams2(CMyComPtr<ISequentialInStream> &inStream, CMyComPtr<ISequentialOutStream> &outStream)
 {
-  CSequentialInStreamForBinder *inStreamSpec = new
-      CSequentialInStreamForBinder;
-  CMyComPtr<ISequentialInStream> inStreamLoc(inStreamSpec);
-  inStreamSpec->SetBinder(this);
-  *inStream = inStreamLoc.Detach();
-
-  CSequentialOutStreamForBinder *outStreamSpec = new
-      CSequentialOutStreamForBinder;
-  CMyComPtr<ISequentialOutStream> outStreamLoc(outStreamSpec);
-  outStreamSpec->SetBinder(this);
-  *outStream = outStreamLoc.Detach();
-
-  _buffer = NULL;
-  _bufferSize= 0;
-  ProcessedSize = 0;
+  inStream = new CBinderInStream(this);
+  outStream = new CBinderOutStream(this);
 }
+
+// (_canRead_Event && _bufSize == 0) means that stream is finished.
 
 HRESULT CStreamBinder::Read(void *data, UInt32 size, UInt32 *processedSize)
 {
-  UInt32 sizeToRead = size;
-  if (size > 0)
+  if (processedSize)
+    *processedSize = 0;
+  if (size != 0)
   {
-    RINOK(_thereAreBytesToReadEvent.Lock());
-    sizeToRead = MyMin(_bufferSize, size);
-    if (_bufferSize > 0)
+    if (_waitWrite)
     {
-      memcpy(data, _buffer, sizeToRead);
-      _buffer = ((const Byte *)_buffer) + sizeToRead;
-      _bufferSize -= sizeToRead;
-      if (_bufferSize == 0)
+      WRes wres = _canRead_Event.Lock();
+      if (wres != 0)
+        return HRESULT_FROM_WIN32(wres);
+      _waitWrite = false;
+    }
+    if (size > _bufSize)
+      size = _bufSize;
+    if (size != 0)
+    {
+      memcpy(data, _buf, size);
+      _buf = ((const Byte *)_buf) + size;
+      ProcessedSize += size;
+      if (processedSize)
+        *processedSize = size;
+      _bufSize -= size;
+
+      /*
+      if (_bufSize == 0), then we have read whole buffer
+      we have two ways here:
+        - if we       check (_bufSize == 0) here, we unlock Write only after full data Reading - it reduces the number of syncs
+        - if we don't check (_bufSize == 0) here, we unlock Write after partial data Reading
+      */
+      if (_bufSize == 0)
       {
-        _thereAreBytesToReadEvent.Reset();
-        _allBytesAreWritenEvent.Set();
+        _waitWrite = true;
+        // _canWrite_Event.Set();
+        _canWrite_Semaphore.Release();
       }
     }
   }
-  if (processedSize != NULL)
-    *processedSize = sizeToRead;
-  ProcessedSize += sizeToRead;
   return S_OK;
 }
 
-void CStreamBinder::CloseRead()
-{
-  _readStreamIsClosedEvent.Set();
-}
 
 HRESULT CStreamBinder::Write(const void *data, UInt32 size, UInt32 *processedSize)
 {
-  if (size > 0)
+  if (processedSize)
+    *processedSize = 0;
+  if (size == 0)
+    return S_OK;
+
+  if (!_readingWasClosed2)
   {
-    _buffer = data;
-    _bufferSize = size;
-    _allBytesAreWritenEvent.Reset();
-    _thereAreBytesToReadEvent.Set();
+    _buf = data;
+    _bufSize = size;
+    _canRead_Event.Set();
+    
+    /*
+    _canWrite_Event.Lock();
+    if (_readingWasClosed)
+      _readingWasClosed2 = true;
+    */
 
-    HANDLE events[2];
-    events[0] = _allBytesAreWritenEvent;
-    events[1] = _readStreamIsClosedEvent;
-    DWORD waitResult = ::WaitForMultipleObjects(2, events, FALSE, INFINITE);
-    if (waitResult != WAIT_OBJECT_0 + 0)
+    _canWrite_Semaphore.Lock();
+
+    // _bufSize : is remain size that was not read
+    size -= _bufSize;
+
+    // size : is size of data that was read
+    if (size != 0)
     {
-      // ReadingWasClosed = true;
-      return S_FALSE;
+      // if some data was read, then we report that size and return
+      if (processedSize)
+        *processedSize = size;
+      return S_OK;
     }
-    // if(!_allBytesAreWritenEvent.Lock())
-    //   return E_FAIL;
+    _readingWasClosed2 = true;
   }
-  if (processedSize != NULL)
-    *processedSize = size;
-  return S_OK;
-}
 
-void CStreamBinder::CloseWrite()
-{
-  // _bufferSize must be = 0
-  _thereAreBytesToReadEvent.Set();
+  // WritingWasCut = true;
+  return k_My_HRESULT_WritingWasCut;
 }

@@ -1,84 +1,85 @@
 // PpmdDecoder.h
 
-#ifndef __COMPRESS_PPMD_DECODER_H
-#define __COMPRESS_PPMD_DECODER_H
+#ifndef ZIP7_INC_COMPRESS_PPMD_DECODER_H
+#define ZIP7_INC_COMPRESS_PPMD_DECODER_H
+
+#include "../../../C/Ppmd7.h"
 
 #include "../../Common/MyCom.h"
 
 #include "../ICoder.h"
 
-#include "../Common/OutBuffer.h"
-
-#include "PpmdDecode.h"
-#include "RangeCoder.h"
+#include "../Common/CWrappers.h"
 
 namespace NCompress {
 namespace NPpmd {
 
-class CDecoder :
+class CDecoder Z7_final:
   public ICompressCoder,
   public ICompressSetDecoderProperties2,
-  #ifndef NO_READ_FROM_CODER
+  public ICompressSetFinishMode,
+  public ICompressGetInStreamProcessedSize,
+ #ifndef Z7_NO_READ_FROM_CODER
   public ICompressSetInStream,
   public ICompressSetOutStreamSize,
   public ISequentialInStream,
-  #endif
+ #endif
   public CMyUnknownImp
 {
-  CRangeDecoder _rangeDecoder;
+  Z7_COM_QI_BEGIN2(ICompressCoder)
+  Z7_COM_QI_ENTRY(ICompressSetDecoderProperties2)
+  Z7_COM_QI_ENTRY(ICompressSetFinishMode)
+  Z7_COM_QI_ENTRY(ICompressGetInStreamProcessedSize)
+ #ifndef Z7_NO_READ_FROM_CODER
+  Z7_COM_QI_ENTRY(ICompressSetInStream)
+  Z7_COM_QI_ENTRY(ICompressSetOutStreamSize)
+  Z7_COM_QI_ENTRY(ISequentialInStream)
+ #endif
+  Z7_COM_QI_END
+  Z7_COM_ADDREF_RELEASE
 
-  COutBuffer _outStream;
+  Z7_IFACE_COM7_IMP(ICompressCoder)
+  Z7_IFACE_COM7_IMP(ICompressSetDecoderProperties2)
+  Z7_IFACE_COM7_IMP(ICompressSetFinishMode)
+  Z7_IFACE_COM7_IMP(ICompressGetInStreamProcessedSize)
+ #ifndef Z7_NO_READ_FROM_CODER
+  Z7_IFACE_COM7_IMP(ICompressSetOutStreamSize)
+  Z7_IFACE_COM7_IMP(ICompressSetInStream)
+  Z7_IFACE_COM7_IMP(ISequentialInStream)
+ #else
+  Z7_COM7F_IMF(SetOutStreamSize(const UInt64 *outSize));
+ #endif
 
-  CDecodeInfo _info;
+  Byte *_outBuf;
+  CByteInBufWrap _inStream;
+  CPpmd7 _ppmd;
 
   Byte _order;
-  UInt32 _usedMemorySize;
-
-  int _remainLen;
-  UInt64 _outSize;
+  bool  FinishStream;
   bool _outSizeDefined;
+  HRESULT _res;
+  int _status;
+  UInt64 _outSize;
   UInt64 _processedSize;
 
-  HRESULT CodeSpec(UInt32 num, Byte *memStream);
+  HRESULT CodeSpec(Byte *memStream, UInt32 size);
 
 public:
 
-  #ifndef NO_READ_FROM_CODER
-  MY_UNKNOWN_IMP4(
-      ICompressSetDecoderProperties2,
-      ICompressSetInStream,
-      ICompressSetOutStreamSize,
-      ISequentialInStream)
-  #else
-  MY_UNKNOWN_IMP1(
-      ICompressSetDecoderProperties2)
-  #endif
+ #ifndef Z7_NO_READ_FROM_CODER
+  CMyComPtr<ISequentialInStream> InSeqStream;
+ #endif
 
-  void ReleaseStreams()
+  CDecoder():
+      _outBuf(NULL),
+      FinishStream(false),
+      _outSizeDefined(false)
   {
-    ReleaseInStream();
-    _outStream.ReleaseStream();
+    Ppmd7_Construct(&_ppmd);
+    _ppmd.rc.dec.Stream = &_inStream.vt;
   }
 
-  HRESULT Flush() { return _outStream.Flush(); }
-
-  STDMETHOD(CodeReal)(ISequentialInStream *inStream, ISequentialOutStream *outStream,
-      const UInt64 *inSize, const UInt64 *outSize, ICompressProgressInfo *progress);
-
-  STDMETHOD(Code)(ISequentialInStream *inStream, ISequentialOutStream *outStream,
-      const UInt64 *inSize, const UInt64 *outSize, ICompressProgressInfo *progress);
-
-  STDMETHOD(SetDecoderProperties2)(const Byte *data, UInt32 size);
-
-  STDMETHOD(SetInStream)(ISequentialInStream *inStream);
-  STDMETHOD(ReleaseInStream)();
-  STDMETHOD(SetOutStreamSize)(const UInt64 *outSize);
-
-  #ifndef NO_READ_FROM_CODER
-  STDMETHOD(Read)(void *data, UInt32 size, UInt32 *processedSize);
-  #endif
-
-  CDecoder(): _outSizeDefined(false) {}
+  ~CDecoder();
 };
 
 }}

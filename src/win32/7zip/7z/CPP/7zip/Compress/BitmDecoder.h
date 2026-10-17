@@ -1,64 +1,104 @@
 // BitmDecoder.h -- the Most Significant Bit of byte is First
 
-#ifndef __BITM_DECODER_H
-#define __BITM_DECODER_H
+#ifndef ZIP7_INC_BITM_DECODER_H
+#define ZIP7_INC_BITM_DECODER_H
 
 #include "../IStream.h"
 
 namespace NBitm {
 
-const int kNumBigValueBits = 8 * 4;
-const int kNumValueBytes = 3;
-const int kNumValueBits = 8  * kNumValueBytes;
+const unsigned kNumBigValueBits = 8 * 4;
+const unsigned kNumValueBytes = 3;
+const unsigned kNumValueBits = 8 * kNumValueBytes;
 
 const UInt32 kMask = (1 << kNumValueBits) - 1;
+
+// _bitPos - the number of free bits (high bits in _value)
+// (kNumBigValueBits - _bitPos) = (32 - _bitPos) == the number of ready to read bits (low bits of _value)
 
 template<class TInByte>
 class CDecoder
 {
-  UInt32 m_BitPos;
-  UInt32 m_Value;
+  unsigned _bitPos;
+  UInt32 _value;
+  TInByte _stream;
 public:
-  TInByte m_Stream;
-  bool Create(UInt32 bufferSize) { return m_Stream.Create(bufferSize); }
-  void SetStream(ISequentialInStream *inStream) { m_Stream.SetStream(inStream);}
-  void ReleaseStream() { m_Stream.ReleaseStream();}
+  bool Create(UInt32 bufSize) { return _stream.Create(bufSize); }
+  void SetStream(ISequentialInStream *inStream) { _stream.SetStream(inStream);}
 
   void Init()
   {
-    m_Stream.Init();
-    m_BitPos = kNumBigValueBits;
+    _stream.Init();
+    _bitPos = kNumBigValueBits;
+    _value = 0;
     Normalize();
   }
   
-  UInt64 GetProcessedSize() const
-    { return m_Stream.GetProcessedSize() - (kNumBigValueBits - m_BitPos) / 8; }
-  UInt32 GetBitPosition() const { return (m_BitPos & 7); }
-  
-  void Normalize()
+  UInt64 GetStreamSize() const { return _stream.GetStreamSize(); }
+  UInt64 GetProcessedSize() const { return _stream.GetProcessedSize() - ((kNumBigValueBits - _bitPos) >> 3); }
+
+  bool ExtraBitsWereRead() const
   {
-    for (;m_BitPos >= 8; m_BitPos -= 8)
-      m_Value = (m_Value << 8) | m_Stream.ReadByte();
+    return (_stream.NumExtraBytes > 4 || kNumBigValueBits - _bitPos < (_stream.NumExtraBytes << 3));
   }
 
-  UInt32 GetValue(UInt32 numBits) const
+  bool ExtraBitsWereRead_Fast() const
   {
-    // return (m_Value << m_BitPos) >> (kNumBigValueBits - numBits);
-    return ((m_Value >> (8 - m_BitPos)) & kMask) >> (kNumValueBits - numBits);
+    return (_stream.NumExtraBytes > 4);
   }
   
-  void MovePos(UInt32 numBits)
+  Z7_FORCE_INLINE
+  void Normalize()
   {
-    m_BitPos += numBits;
+    for (; _bitPos >= 8; _bitPos -= 8)
+      _value = (_value << 8) | _stream.ReadByte();
+  }
+
+  Z7_FORCE_INLINE
+  UInt32 GetValue(unsigned numBits) const
+  {
+    // return (_value << _bitPos) >> (kNumBigValueBits - numBits);
+    return ((_value >> (8 - _bitPos)) & kMask) >> (kNumValueBits - numBits);
+  }
+
+  Z7_FORCE_INLINE
+  UInt32 GetValue_InHigh32bits() const
+  {
+    return this->_value << this->_bitPos;
+  }
+
+  Z7_FORCE_INLINE
+  void MovePos(unsigned numBits)
+  {
+    _bitPos += numBits;
     Normalize();
   }
-  
-  UInt32 ReadBits(UInt32 numBits)
+
+  Z7_FORCE_INLINE
+  UInt32 ReadBits(unsigned numBits)
   {
     UInt32 res = GetValue(numBits);
     MovePos(numBits);
     return res;
   }
+
+  /*
+  unsigned ReadBit()
+  {
+    UInt32 res = ((_value >> (8 - _bitPos)) & kMask) >> (kNumValueBits - 1);
+    if (++_bitPos >= 8)
+    {
+      _value = (_value << 8) | _stream.ReadByte();
+      _bitPos -= 8;
+    }
+    return (unsigned)res;
+  }
+  */
+
+  void AlignToByte() { MovePos((kNumBigValueBits - _bitPos) & 7); }
+
+  Z7_FORCE_INLINE
+  UInt32 ReadAlignBits() { return ReadBits((kNumBigValueBits - _bitPos) & 7); }
 };
 
 }

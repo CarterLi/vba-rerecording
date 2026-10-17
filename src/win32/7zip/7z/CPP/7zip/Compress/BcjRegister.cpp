@@ -6,14 +6,12 @@
 
 #include "BcjCoder.h"
 
-static void *CreateCodec() { return (void *)(ICompressFilter *)(new CBCJ_x86_Decoder()); }
-#ifndef EXTRACT_ONLY
-static void *CreateCodecOut() { return (void *)(ICompressFilter *)(new CBCJ_x86_Encoder());  }
-#else
-#define CreateCodecOut 0
-#endif
+namespace NCompress {
+namespace NBcj {
 
-static CCodecInfo g_CodecInfo =
-  { CreateCodec, CreateCodecOut, 0x03030103, L"BCJ", 1, true };
+REGISTER_FILTER_E(BCJ,
+    CCoder2(z7_BranchConvSt_X86_Dec),
+    CCoder2(z7_BranchConvSt_X86_Enc),
+    0x3030103, "BCJ")
 
-REGISTER_CODEC(BCJ)
+}}

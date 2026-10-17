@@ -1,4 +1,4 @@
-// This file is (modified) from
+﻿// This file is (modified) from
 // FCEUX (2009)
 // FCE Ultra - NES/Famicom Emulator
 // Copyright (C) 2003 Xodnizel
@@ -22,6 +22,14 @@
 
 #include "7z/CPP/Common/MyCom.h"
 
+// 7-Zip 21+ no longer ships MY_ADDREF_RELEASE; the stream classes below keep
+// their own reference counter, so provide the same behaviour locally.
+#ifndef MY_ADDREF_RELEASE
+#define MY_ADDREF_RELEASE \
+	ULONG STDMETHODCALLTYPE AddRef() noexcept { return ++refCount; } \
+	ULONG STDMETHODCALLTYPE Release() noexcept { if (--refCount == 0) delete this; return 0; }
+#endif
+
 class ICountedSequentialOutStream : public ISequentialOutStream
 {
 public:
@@ -35,12 +43,12 @@ class SeqMemoryOutStream : public ICountedSequentialOutStream, private CMyUnknow
 	const UINT32 size;
 	ULONG refCount;
 
-	HRESULT STDMETHODCALLTYPE QueryInterface(REFGUID, void**)
+	HRESULT STDMETHODCALLTYPE QueryInterface(REFGUID, void**) noexcept
 	{
 		return E_NOINTERFACE;
 	}
 
-	HRESULT STDMETHODCALLTYPE Write(const void* data, UInt32 length, UInt32* bytesWritten)
+	HRESULT STDMETHODCALLTYPE Write(const void* data, UInt32 length, UInt32* bytesWritten) noexcept
 	{
 		if (data != NULL || size == 0)
 		{
@@ -87,12 +95,12 @@ class SeqFileOutStream : public ICountedSequentialOutStream, private CMyUnknownI
 	UINT32 pos;
 	ULONG refCount;
 
-	HRESULT STDMETHODCALLTYPE QueryInterface(REFGUID, void**)
+	HRESULT STDMETHODCALLTYPE QueryInterface(REFGUID, void**) noexcept
 	{
 		return E_NOINTERFACE;
 	}
 
-	HRESULT STDMETHODCALLTYPE Write(const void* data, UInt32 length, UInt32* bytesWritten)
+	HRESULT STDMETHODCALLTYPE Write(const void* data, UInt32 length, UInt32* bytesWritten) noexcept
 	{
 		if(!file)
 			return E_FAIL;
@@ -142,32 +150,32 @@ class OutStream : public IArchiveExtractCallback, private CMyUnknownImp
 	const UINT32 index;
 	ULONG refCount;
 
-	HRESULT STDMETHODCALLTYPE QueryInterface(REFGUID, void**)
+	HRESULT STDMETHODCALLTYPE QueryInterface(REFGUID, void**) noexcept
 	{
 		return E_NOINTERFACE;
 	}
 
-	HRESULT STDMETHODCALLTYPE PrepareOperation(Int32)
+	HRESULT STDMETHODCALLTYPE PrepareOperation(Int32) noexcept
 	{
 		return S_OK;
 	}
 
-	HRESULT STDMETHODCALLTYPE SetTotal(UInt64)
+	HRESULT STDMETHODCALLTYPE SetTotal(UInt64) noexcept
 	{
 		return S_OK;
 	}
 
-	HRESULT STDMETHODCALLTYPE SetCompleted(const UInt64*)
+	HRESULT STDMETHODCALLTYPE SetCompleted(const UInt64*) noexcept
 	{
 		return S_OK;
 	}
 
-	HRESULT STDMETHODCALLTYPE SetOperationResult(Int32)
+	HRESULT STDMETHODCALLTYPE SetOperationResult(Int32) noexcept
 	{
 		return S_OK;
 	}
 
-	HRESULT STDMETHODCALLTYPE GetStream(UInt32 id, ISequentialOutStream** ptr, Int32 mode)
+	HRESULT STDMETHODCALLTYPE GetStream(UInt32 id, ISequentialOutStream** ptr, Int32 mode) noexcept
 	{
 		switch (mode)
 		{
@@ -215,12 +223,12 @@ class InStream : public IInStream, private IStreamGetSize, private CMyUnknownImp
 {
 	ULONG refCount;
 
-	HRESULT STDMETHODCALLTYPE QueryInterface(REFGUID, void**)
+	HRESULT STDMETHODCALLTYPE QueryInterface(REFGUID, void**) noexcept
 	{
 		return E_NOINTERFACE;
 	}
 
-	HRESULT STDMETHODCALLTYPE GetSize(UInt64* outSize)
+	HRESULT STDMETHODCALLTYPE GetSize(UInt64* outSize) noexcept
 	{
 		if (outSize)
 		{
@@ -269,7 +277,7 @@ public:
 		}
 	}
 
-	HRESULT STDMETHODCALLTYPE Read(void* data, UInt32 length, UInt32* bytesRead)
+	HRESULT STDMETHODCALLTYPE Read(void* data, UInt32 length, UInt32* bytesRead) noexcept
 	{
 		if(!file)
 			return E_FAIL;
@@ -289,7 +297,7 @@ public:
 		}
 	}
 
-	HRESULT STDMETHODCALLTYPE Seek(Int64 offset, UInt32 origin, UInt64* pos)
+	HRESULT STDMETHODCALLTYPE Seek(Int64 offset, UInt32 origin, UInt64* pos) noexcept
 	{
 		if(!file)
 			return E_FAIL;

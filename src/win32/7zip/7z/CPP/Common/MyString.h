@@ -1,621 +1,948 @@
-// Common/String.h
+// Common/MyString.h
 
-#ifndef __COMMON_STRING_H
-#define __COMMON_STRING_H
+#ifndef ZIP7_INC_COMMON_MY_STRING_H
+#define ZIP7_INC_COMMON_MY_STRING_H
 
 #include <string.h>
-// #include <wchar.h>
 
-#include "MyVector.h"
-
-#ifdef _WIN32
-#include "MyWindows.h"
+#ifndef _WIN32
+#include <wctype.h>
+#include <wchar.h>
 #endif
 
-template <class T>
-inline int MyStringLen(const T *s)
+#include "Common.h"
+#include "MyWindows.h"
+#include "MyTypes.h"
+#include "MyVector.h"
+
+
+/* if (DEBUG_FSTRING_INHERITS_ASTRING is defined), then
+     FString inherits from AString, so we can find bugs related to FString at compile time.
+   DON'T define DEBUG_FSTRING_INHERITS_ASTRING in release code */
+   
+// #define DEBUG_FSTRING_INHERITS_ASTRING
+
+#ifdef DEBUG_FSTRING_INHERITS_ASTRING
+class FString;
+#endif
+
+
+#ifdef _MSC_VER
+  #ifdef _NATIVE_WCHAR_T_DEFINED
+    #define MY_NATIVE_WCHAR_T_DEFINED
+  #endif
+#else
+    #define MY_NATIVE_WCHAR_T_DEFINED
+#endif
+
+/*
+  native support for wchar_t:
+ _MSC_VER == 1600 : /Zc:wchar_t is not supported
+ _MSC_VER == 1310 (VS2003)
+ ? _MSC_VER == 1400 (VS2005) : wchar_t <- unsigned short
+              /Zc:wchar_t  : wchar_t <- __wchar_t, _WCHAR_T_DEFINED and _NATIVE_WCHAR_T_DEFINED
+ _MSC_VER > 1400 (VS2008+)
+              /Zc:wchar_t[-]
+              /Zc:wchar_t is on by default
+*/
+
+#ifdef _WIN32
+#define IS_PATH_SEPAR(c) ((c) == '\\' || (c) == '/')
+#else
+#define IS_PATH_SEPAR(c) ((c) == CHAR_PATH_SEPARATOR)
+#endif
+
+inline bool IsPathSepar(char    c) { return IS_PATH_SEPAR(c); }
+inline bool IsPathSepar(wchar_t c) { return IS_PATH_SEPAR(c); }
+
+inline unsigned MyStringLen(const char *s)
 {
-  int i;
-  for (i = 0; s[i] != '\0'; i++);
+  unsigned i;
+  for (i = 0; s[i] != 0; i++);
   return i;
 }
 
-template <class T>
-inline T * MyStringCopy(T *dest, const T *src)
+inline void MyStringCopy(char *dest, const char *src)
 {
-  T *destStart = dest;
   while ((*dest++ = *src++) != 0);
-  return destStart;
 }
 
-inline wchar_t* MyStringGetNextCharPointer(wchar_t *p)
-  { return (p + 1); }
-inline const wchar_t* MyStringGetNextCharPointer(const wchar_t *p)
-  { return (p + 1); }
-inline wchar_t* MyStringGetPrevCharPointer(const wchar_t *, wchar_t *p)
-  { return (p - 1); }
-inline const wchar_t* MyStringGetPrevCharPointer(const wchar_t *, const wchar_t *p)
-  { return (p - 1); }
+inline char *MyStpCpy(char *dest Z7_lifetimebound, const char *src)
+{
+  for (;;)
+  {
+    const char c = *src;
+    *dest = c;
+    if (c == 0)
+      return dest;
+    src++;
+    dest++;
+  }
+}
 
-#ifdef _WIN32
+inline void MyStringCat(char *dest, const char *src)
+{
+  for (; *dest != 0; dest++);
+  while ((*dest++ = *src++) != 0);
+  // MyStringCopy(dest + MyStringLen(dest), src);
+}
 
-inline char* MyStringGetNextCharPointer(char *p)
-  { return CharNextA(p); }
-inline const char* MyStringGetNextCharPointer(const char *p)
-  { return CharNextA(p); }
+inline unsigned MyStringLen(const wchar_t *s)
+{
+  unsigned i;
+  for (i = 0; s[i] != 0; i++);
+  return i;
+}
 
-inline char* MyStringGetPrevCharPointer(char *base, char *p)
-  { return CharPrevA(base, p); }
-inline const char* MyStringGetPrevCharPointer(const char *base, const char *p)
-  { return CharPrevA(base, p); }
+inline void MyStringCopy(wchar_t *dest, const wchar_t *src)
+{
+  while ((*dest++ = *src++) != 0);
+}
 
-inline char MyCharUpper(char c)
-  { return (char)(unsigned int)(UINT_PTR)CharUpperA((LPSTR)(UINT_PTR)(unsigned int)(unsigned char)c); }
-#ifdef _UNICODE
-inline wchar_t MyCharUpper(wchar_t c)
-  { return (wchar_t)(unsigned int)(UINT_PTR)CharUpperW((LPWSTR)(UINT_PTR)(unsigned int)c); }
-#else
-wchar_t MyCharUpper(wchar_t c);
-#endif
+inline void MyStringCat(wchar_t *dest, const wchar_t *src)
+{
+  for (; *dest != 0; dest++);
+  while ((*dest++ = *src++) != 0);
+  // MyStringCopy(dest + MyStringLen(dest), src);
+}
 
-inline char MyCharLower(char c)
-  { return (char)(unsigned int)(UINT_PTR)CharLowerA((LPSTR)(UINT_PTR)(unsigned int)(unsigned char)c); }
-#ifdef _UNICODE
-inline wchar_t MyCharLower(wchar_t c)
-  { return (wchar_t)(unsigned int)(UINT_PTR)CharLowerW((LPWSTR)(UINT_PTR)(unsigned int)c); }
-#else
-wchar_t MyCharLower(wchar_t c);
-#endif
-
-inline char * MyStringUpper(char *s) { return CharUpperA(s); }
-#ifdef _UNICODE
-inline wchar_t * MyStringUpper(wchar_t *s) { return CharUpperW(s); }
-#else
-wchar_t * MyStringUpper(wchar_t *s);
-#endif
-
-inline char * MyStringLower(char *s) { return CharLowerA(s); }
-#ifdef _UNICODE
-inline wchar_t * MyStringLower(wchar_t *s) { return CharLowerW(s); }
-#else
-wchar_t * MyStringLower(wchar_t *s);
-#endif
-
-#else // Standard-C
-wchar_t MyCharUpper(wchar_t c);
-#endif
-
-//////////////////////////////////////
-// Compare
 
 /*
-#ifndef _WIN32_WCE
-int MyStringCollate(const char *s1, const char *s2);
-int MyStringCollateNoCase(const char *s1, const char *s2);
-#endif
-int MyStringCollate(const wchar_t *s1, const wchar_t *s2);
-int MyStringCollateNoCase(const wchar_t *s1, const wchar_t *s2);
+inline wchar_t *MyWcpCpy(wchar_t *dest, const wchar_t *src)
+{
+  for (;;)
+  {
+    const wchar_t c = *src;
+    *dest = c;
+    if (c == 0)
+      return dest;
+    src++;
+    dest++;
+  }
+}
 */
 
-int MyStringCompare(const char *s1, const char  *s2);
-int MyStringCompare(const wchar_t *s1, const wchar_t *s2);
+int FindCharPosInString(const char *s, char c) throw();
+int FindCharPosInString(const wchar_t *s, wchar_t c) throw();
 
 #ifdef _WIN32
-int MyStringCompareNoCase(const char *s1, const char  *s2);
+  #ifndef _UNICODE
+    #define STRING_UNICODE_THROW
+  #endif
 #endif
 
-int MyStringCompareNoCase(const wchar_t *s1, const wchar_t *s2);
+#ifndef STRING_UNICODE_THROW
+  #define STRING_UNICODE_THROW throw()
+#endif
 
-template <class T>
-class CStringBase
+
+inline char MyCharUpper_Ascii(char c)
 {
-  void TrimLeftWithCharSet(const CStringBase &charSet)
-  {
-    const T *p = _chars;
-    while (charSet.Find(*p) >= 0 && (*p != 0))
-      p = GetNextCharPointer(p);
-    Delete(0, (int)(p - _chars));
-  }
-  void TrimRightWithCharSet(const CStringBase &charSet)
-  {
-    const T *p = _chars;
-    const T *pLast = NULL;
-    while (*p != 0)
-    {
-      if (charSet.Find(*p) >= 0)
-      {
-        if (pLast == NULL)
-          pLast = p;
-      }
-      else
-        pLast = NULL;
-      p = GetNextCharPointer(p);
-    }
-    if (pLast != NULL)
-    {
-      int i = (int)(pLast - _chars);
-      Delete(i, _length - i);
-    }
+  if (c >= 'a' && c <= 'z')
+    return (char)((unsigned char)c - 0x20);
+  return c;
+}
 
-  }
-  void MoveItems(int destIndex, int srcIndex)
-  {
-    memmove(_chars + destIndex, _chars + srcIndex,
-        sizeof(T) * (_length - srcIndex + 1));
-  }
-  
-  void InsertSpace(int &index, int size)
-  {
-    CorrectIndex(index);
-    GrowLength(size);
-    MoveItems(index + size, index);
-  }
+/*
+inline wchar_t MyCharUpper_Ascii(wchar_t c)
+{
+  if (c >= 'a' && c <= 'z')
+    return (wchar_t)(c - 0x20);
+  return c;
+}
+*/
 
-  static T *GetNextCharPointer(T *p)
-    { return MyStringGetNextCharPointer(p); }
-  static const T *GetNextCharPointer(const T *p)
-    { return MyStringGetNextCharPointer(p); }
-  static T *GetPrevCharPointer(T *base, T *p)
-    { return MyStringGetPrevCharPointer(base, p); }
-  static const T *GetPrevCharPointer(const T *base, const T *p)
-    { return MyStringGetPrevCharPointer(base, p); }
-protected:
-  T *_chars;
-  int _length;
-  int _capacity;
-  
-  void SetCapacity(int newCapacity)
-  {
-    int realCapacity = newCapacity + 1;
-    if (realCapacity == _capacity)
-      return;
-    /*
-    const int kMaxStringSize = 0x20000000;
-    #ifndef _WIN32_WCE
-    if (newCapacity > kMaxStringSize || newCapacity < _length)
-      throw 1052337;
+inline char MyCharLower_Ascii(char c)
+{
+  if (c >= 'A' && c <= 'Z')
+    return (char)((unsigned char)c + 0x20);
+  return c;
+}
+
+inline wchar_t MyCharLower_Ascii(wchar_t c)
+{
+  if (c >= 'A' && c <= 'Z')
+    return (wchar_t)(c + 0x20);
+  return c;
+}
+
+wchar_t MyCharUpper_WIN(wchar_t c) throw();
+
+inline wchar_t MyCharUpper(wchar_t c) throw()
+{
+  if (c < 'a') return c;
+  if (c <= 'z') return (wchar_t)(c - 0x20);
+  if (c <= 0x7F) return c;
+  #ifdef _WIN32
+    #ifdef _UNICODE
+      return (wchar_t)(unsigned)(UINT_PTR)CharUpperW((LPWSTR)(UINT_PTR)(unsigned)c);
+    #else
+      return (wchar_t)MyCharUpper_WIN(c);
     #endif
-    */
-    T *newBuffer = new T[realCapacity];
-    if (_capacity > 0)
-    {
-      for (int i = 0; i < _length; i++)
-        newBuffer[i] = _chars[i];
-      delete []_chars;
-    }
-    _chars = newBuffer;
-    _chars[_length] = 0;
-    _capacity = realCapacity;
-  }
+  #else
+    return (wchar_t)towupper((wint_t)c);
+  #endif
+}
 
-  void GrowLength(int n)
-  {
-    int freeSize = _capacity - _length - 1;
-    if (n <= freeSize)
-      return;
-    int delta;
-    if (_capacity > 64)
-      delta = _capacity / 2;
-    else if (_capacity > 8)
-      delta = 16;
-    else
-      delta = 4;
-    if (freeSize + delta < n)
-      delta = n - freeSize;
-    SetCapacity(_capacity + delta);
-  }
+/*
+wchar_t MyCharLower_WIN(wchar_t c) throw();
 
-  void CorrectIndex(int &index) const
+inline wchar_t MyCharLower(wchar_t c) throw()
+{
+  if (c < 'A') return c;
+  if (c <= 'Z') return (wchar_t)(c + 0x20);
+  if (c <= 0x7F) return c;
+  #ifdef _WIN32
+    #ifdef _UNICODE
+      return (wchar_t)(unsigned)(UINT_PTR)CharLowerW((LPWSTR)(UINT_PTR)(unsigned)c);
+    #else
+      return (wchar_t)MyCharLower_WIN(c);
+    #endif
+  #else
+    return (wchar_t)tolower(c);
+  #endif
+}
+*/
+
+// char *MyStringUpper(char *s) throw();
+// char *MyStringLower(char *s) throw();
+
+// void MyStringUpper_Ascii(char *s) throw();
+// void MyStringUpper_Ascii(wchar_t *s) throw();
+void MyStringLower_Ascii(char *s) throw();
+void MyStringLower_Ascii(wchar_t *s) throw();
+// wchar_t *MyStringUpper(wchar_t *s) STRING_UNICODE_THROW;
+// wchar_t *MyStringLower(wchar_t *s) STRING_UNICODE_THROW;
+
+bool StringsAreEqualNoCase(const wchar_t *s1, const wchar_t *s2) throw();
+
+bool IsString1PrefixedByString2(const char *s1, const char *s2) throw();
+bool IsString1PrefixedByString2(const wchar_t *s1, const wchar_t *s2) throw();
+bool IsString1PrefixedByString2(const wchar_t *s1, const char *s2) throw();
+bool IsString1PrefixedByString2_NoCase_Ascii(const char *s1, const char *s2) throw();
+bool IsString1PrefixedByString2_NoCase_Ascii(const wchar_t *u, const char *a) throw();
+bool IsString1PrefixedByString2_NoCase(const wchar_t *s1, const wchar_t *s2) throw();
+
+#define MyStringCompare(s1, s2) wcscmp(s1, s2)
+int MyStringCompareNoCase(const wchar_t *s1, const wchar_t *s2) throw();
+// int MyStringCompareNoCase_N(const wchar_t *s1, const wchar_t *s2, unsigned num) throw();
+
+// ---------- ASCII ----------
+// char values in ASCII strings must be less then 128
+bool StringsAreEqual_Ascii(const char *u, const char *a) throw();
+bool StringsAreEqual_Ascii(const wchar_t *u, const char *a) throw();
+bool StringsAreEqualNoCase_Ascii(const char *s1, const char *s2) throw();
+bool StringsAreEqualNoCase_Ascii(const wchar_t *s1, const char *s2) throw();
+bool StringsAreEqualNoCase_Ascii(const wchar_t *s1, const wchar_t *s2) throw();
+
+#define MY_STRING_DELETE(_p_) { delete [](_p_); }
+// #define MY_STRING_DELETE(_p_) my_delete(_p_);
+
+
+#define FORBID_STRING_OPS_2(cls, t) \
+  void Find(t) const; \
+  void Find(t, unsigned startIndex) const; \
+  void ReverseFind(t) const; \
+  void InsertAtFront(t); \
+  void RemoveChar(t); \
+  void Replace(t, t); \
+
+#define FORBID_STRING_OPS(cls, t) \
+  explicit cls(t); \
+  explicit cls(const t *); \
+  cls &operator=(t); \
+  cls &operator=(const t *); \
+  cls &operator+=(t); \
+  cls &operator+=(const t *); \
+  FORBID_STRING_OPS_2(cls, t) \
+
+/*
+  cls &operator+(t); \
+  cls &operator+(const t *); \
+*/
+
+#define FORBID_STRING_OPS_AString(t) FORBID_STRING_OPS(AString, t)
+#define FORBID_STRING_OPS_UString(t) FORBID_STRING_OPS(UString, t)
+#define FORBID_STRING_OPS_UString2(t) FORBID_STRING_OPS(UString2, t)
+
+class AString
+{
+  char *_chars;
+  unsigned _len;
+  unsigned _limit;
+
+  void MoveItems(unsigned dest, unsigned src)
   {
-    if (index > _length)
-      index = _length;
+    memmove(_chars + dest, _chars + src, (size_t)(_len - src + 1) * sizeof(char));
   }
+  
+  void InsertSpace(unsigned &index, unsigned size);
+  
+  void ReAlloc(unsigned newLimit);
+  void ReAlloc2(unsigned newLimit);
+  void SetStartLen(unsigned len);
+  
+  Z7_NO_INLINE
+  void Grow_1();
+  void Grow(unsigned n);
+
+  AString(unsigned num, const char *s);
+  AString(unsigned num, const AString &s);
+  AString(const AString &s, char c); // it's for String + char
+  AString(const char *s1, unsigned num1, const char *s2, unsigned num2);
+
+  friend AString operator+(const AString &s, char c) { return AString(s, c); }
+  // friend AString operator+(char c, const AString &s); // is not supported
+
+  friend AString operator+(const AString &s1, const AString &s2);
+  friend AString operator+(const AString &s1, const char    *s2);
+  friend AString operator+(const char    *s1, const AString &s2);
+
+  // ---------- forbidden functions ----------
+
+  #ifdef MY_NATIVE_WCHAR_T_DEFINED
+  FORBID_STRING_OPS_AString(wchar_t)
+  #endif
+
+  FORBID_STRING_OPS_AString(signed char)
+  FORBID_STRING_OPS_AString(unsigned char)
+  FORBID_STRING_OPS_AString(short)
+  FORBID_STRING_OPS_AString(unsigned short)
+  FORBID_STRING_OPS_AString(int)
+  FORBID_STRING_OPS_AString(unsigned)
+  FORBID_STRING_OPS_AString(long)
+  FORBID_STRING_OPS_AString(unsigned long)
+
+ #ifdef DEBUG_FSTRING_INHERITS_ASTRING
+  AString(const FString &s);
+  AString &operator=(const FString &s);
+  AString &operator+=(const FString &s);
+ #endif
 
 public:
-  CStringBase(): _chars(0), _length(0), _capacity(0) { SetCapacity(3); }
-  CStringBase(T c):  _chars(0), _length(0), _capacity(0)
-  {
-    SetCapacity(1);
-    _chars[0] = c;
-    _chars[1] = 0;
-    _length = 1;
-  }
-  CStringBase(const T *chars): _chars(0), _length(0), _capacity(0)
-  {
-    int length = MyStringLen(chars);
-    SetCapacity(length);
-    MyStringCopy(_chars, chars); // can be optimized by memove()
-    _length = length;
-  }
-  CStringBase(const CStringBase &s):  _chars(0), _length(0), _capacity(0)
-  {
-    SetCapacity(s._length);
-    MyStringCopy(_chars, s._chars);
-    _length = s._length;
-  }
-  ~CStringBase() {  delete []_chars; }
+  explicit AString();
+  explicit AString(char c);
+  explicit AString(const char *s);
+  AString(const AString &s);
+  ~AString() { MY_STRING_DELETE(_chars) }
 
-  operator const T*() const { return _chars;}
+  unsigned Len() const { return _len; }
+  bool IsEmpty() const { return _len == 0; }
+  void Empty() { _len = 0; _chars[0] = 0; }
 
-  // The minimum size of the character buffer in characters.
-  // This value does not include space for a null terminator.
-  T* GetBuffer(int minBufLength)
+  operator const char *() const { return _chars; }
+  char *Ptr_non_const() const { return _chars; }
+  const char *Ptr() const { return _chars; }
+  const char *Ptr(unsigned pos) const { return _chars + pos; }
+  const char *Ptr(int pos) const { return _chars + (unsigned)pos; }
+  const char *RightPtr(unsigned num) const { return _chars + _len - num; }
+  char Back() const { return _chars[(size_t)_len - 1]; }
+
+  void ReplaceOneCharAtPos(unsigned pos, char c) { _chars[pos] = c; }
+
+  char *GetBuf() { return _chars; }
+  /* GetBuf(minLen): provides the buffer that can store
+     at least (minLen) characters and additional null terminator.
+     9.35: GetBuf doesn't preserve old characters and terminator */
+  char *GetBuf(unsigned minLen)
   {
-    if (minBufLength >= _capacity)
-      SetCapacity(minBufLength);
+    if (minLen > _limit)
+      ReAlloc2(minLen);
     return _chars;
   }
-  void ReleaseBuffer() { ReleaseBuffer(MyStringLen(_chars)); }
-  void ReleaseBuffer(int newLength)
+  char *GetBuf_SetEnd(unsigned minLen)
   {
-    /*
-    #ifndef _WIN32_WCE
-    if (newLength >= _capacity)
-      throw 282217;
-    #endif
-    */
-    _chars[newLength] = 0;
-    _length = newLength;
+    if (minLen > _limit)
+      ReAlloc2(minLen);
+    char *chars = _chars;
+    chars[minLen] = 0;
+    _len = minLen;
+    return chars;
   }
 
-  CStringBase& operator=(T c)
+  void ReleaseBuf_SetLen(unsigned newLen) { _len = newLen; }
+  void ReleaseBuf_SetEnd(unsigned newLen) { _len = newLen; _chars[newLen] = 0; }
+  void ReleaseBuf_CalcLen(unsigned maxLen)
   {
-    Empty();
-    SetCapacity(1);
-    _chars[0] = c;
-    _chars[1] = 0;
-    _length = 1;
+    char *chars = _chars;
+    chars[maxLen] = 0;
+    _len = MyStringLen(chars);
+  }
+
+  AString &operator=(char c);
+  AString &operator=(const char *s);
+  AString &operator=(const AString &s);
+  void SetFromWStr_if_Ascii(const wchar_t *s);
+  // void SetFromBstr_if_Ascii(BSTR s);
+
+// private:
+  Z7_FORCE_INLINE
+  AString &operator+=(char c)
+  {
+    if (_limit == _len)
+      Grow_1();
+    unsigned len = _len;
+    char *chars = _chars;
+    chars[len++] = c;
+    chars[len] = 0;
+    _len = len;
     return *this;
   }
-  CStringBase& operator=(const T *chars)
+public:
+  void Add_Space();
+  void Add_Space_if_NotEmpty();
+  void Add_OptSpaced(const char *s);
+  void Add_Char(char c);
+  void Add_LF();
+  void Add_Slash();
+  void Add_Dot();
+  void Add_Minus();
+  void Add_Colon();
+  void Add_PathSepar() { operator+=(CHAR_PATH_SEPARATOR); }
+
+  AString &operator+=(const char *s);
+  AString &operator+=(const AString &s);
+
+  void Add_UInt32(UInt32 v);
+  void Add_UInt64(UInt64 v);
+
+  void AddFrom(const char *s, unsigned len); // no check
+  void SetFrom(const char *s, unsigned len); // no check
+  void SetFrom_Chars_SizeT(const char* s, size_t len); // no check
+  void SetFrom(const char* s, int len) // no check
   {
-    Empty();
-    int length = MyStringLen(chars);
-    SetCapacity(length);
-    MyStringCopy(_chars, chars);
-    _length = length;
-    return *this;
+    SetFrom(s, (unsigned)len); // no check
   }
-  CStringBase& operator=(const CStringBase& s)
+  void SetFrom_CalcLen(const char *s, unsigned len);
+
+  AString Mid(unsigned startIndex, unsigned count) const { return AString(count, _chars + startIndex); }
+  AString Left(unsigned count) const { return AString(count, *this); }
+  // void MakeUpper() { MyStringUpper(_chars); }
+  // void MakeLower() { MyStringLower(_chars); }
+  void MakeLower_Ascii() { MyStringLower_Ascii(_chars); }
+
+
+  bool IsEqualTo(const char *s) const { return strcmp(_chars, s) == 0; }
+  bool IsEqualTo_Ascii_NoCase(const char *s) const { return StringsAreEqualNoCase_Ascii(_chars, s); }
+  // int Compare(const char *s) const { return MyStringCompare(_chars, s); }
+  // int Compare(const AString &s) const { return MyStringCompare(_chars, s._chars); }
+  // int CompareNoCase(const char *s) const { return MyStringCompareNoCase(_chars, s); }
+  // int CompareNoCase(const AString &s) const { return MyStringCompareNoCase(_chars, s._chars); }
+  bool IsPrefixedBy(const char *s) const { return IsString1PrefixedByString2(_chars, s); }
+  bool IsPrefixedBy_Ascii_NoCase(const char *s) const { return IsString1PrefixedByString2_NoCase_Ascii(_chars, s); }
+ 
+  bool IsAscii() const
   {
-    if (&s == this)
-      return *this;
-    Empty();
-    SetCapacity(s._length);
-    MyStringCopy(_chars, s._chars);
-    _length = s._length;
-    return *this;
+    const unsigned len = Len();
+    const char *s = _chars;
+    for (unsigned i = 0; i < len; i++)
+      if ((unsigned char)s[i] >= 0x80)
+        return false;
+    return true;
+  }
+  int Find(char c) const { return FindCharPosInString(_chars, c); }
+  int Find(char c, unsigned startIndex) const
+  {
+    const int pos = FindCharPosInString(_chars + startIndex, c);
+    return pos < 0 ? -1 : (int)startIndex + pos;
+  }
+  int Find(char c, int startIndex) const
+  {
+    return Find(c, (unsigned)startIndex);
   }
   
-  CStringBase& operator+=(T c)
-  {
-    GrowLength(1);
-    _chars[_length] = c;
-    _chars[++_length] = 0;
-    return *this;
-  }
-  CStringBase& operator+=(const T *s)
-  {
-    int len = MyStringLen(s);
-    GrowLength(len);
-    MyStringCopy(_chars + _length, s);
-    _length += len;
-    return *this;
-  }
-  CStringBase& operator+=(const CStringBase &s)
-  {
-    GrowLength(s._length);
-    MyStringCopy(_chars + _length, s._chars);
-    _length += s._length;
-    return *this;
-  }
-  void Empty()
-  {
-    _length = 0;
-    _chars[0] = 0;
-  }
-  int Length() const { return _length; }
-  bool IsEmpty() const { return (_length == 0); }
+  int ReverseFind(char c) const throw();
+  int ReverseFind_Dot() const throw() { return ReverseFind('.'); }
+  int ReverseFind_PathSepar() const throw();
 
-  CStringBase Mid(int startIndex) const
-    { return Mid(startIndex, _length - startIndex); }
-  CStringBase Mid(int startIndex, int count ) const
-  {
-    if (startIndex + count > _length)
-      count = _length - startIndex;
-    
-    if (startIndex == 0 && startIndex + count == _length)
-      return *this;
-    
-    CStringBase<T> result;
-    result.SetCapacity(count);
-    // MyStringNCopy(result._chars, _chars + startIndex, count);
-    for (int i = 0; i < count; i++)
-      result._chars[i] = _chars[startIndex + i];
-    result._chars[count] = 0;
-    result._length = count;
-    return result;
-  }
-  CStringBase Left(int count) const
-    { return Mid(0, count); }
-  CStringBase Right(int count) const
-  {
-    if (count > _length)
-      count = _length;
-    return Mid(_length - count, count);
-  }
-
-  void MakeUpper()
-    { MyStringUpper(_chars); }
-  void MakeLower()
-    { MyStringLower(_chars); }
-
-  int Compare(const CStringBase& s) const
-    { return MyStringCompare(_chars, s._chars); }
-
-  int Compare(const T *s) const
-    { return MyStringCompare(_chars, s); }
-
-  int CompareNoCase(const CStringBase& s) const
-    { return MyStringCompareNoCase(_chars, s._chars); }
-
-  int CompareNoCase(const T *s) const
-    { return MyStringCompareNoCase(_chars, s); }
-
-  /*
-  int Collate(const CStringBase& s) const
-    { return MyStringCollate(_chars, s._chars); }
-  int CollateNoCase(const CStringBase& s) const
-    { return MyStringCollateNoCase(_chars, s._chars); }
-  */
-
-  int Find(T c) const { return Find(c, 0); }
-  int Find(T c, int startIndex) const
-  {
-    T *p = _chars + startIndex;
-    for (;;)
-    {
-      if (*p == c)
-        return (int)(p - _chars);
-      if (*p == 0)
-        return -1;
-      p = GetNextCharPointer(p);
-    }
-  }
-  int Find(const CStringBase &s) const { return Find(s, 0); }
-  int Find(const CStringBase &s, int startIndex) const
-  {
-    if (s.IsEmpty())
-      return startIndex;
-    for (; startIndex < _length; startIndex++)
-    {
-      int j;
-      for (j = 0; j < s._length && startIndex + j < _length; j++)
-        if (_chars[startIndex+j] != s._chars[j])
-          break;
-      if (j == s._length)
-        return startIndex;
-    }
-    return -1;
-  }
-  int ReverseFind(T c) const
-  {
-    if (_length == 0)
-      return -1;
-    T *p = _chars + _length - 1;
-    for (;;)
-    {
-      if (*p == c)
-        return (int)(p - _chars);
-      if (p == _chars)
-        return -1;
-      p = GetPrevCharPointer(_chars, p);
-    }
-  }
-  int FindOneOf(const CStringBase &s) const
-  {
-    for (int i = 0; i < _length; i++)
-      if (s.Find(_chars[i]) >= 0)
-        return i;
-      return -1;
-  }
-
-  void TrimLeft(T c)
-  {
-    const T *p = _chars;
-    while (c == *p)
-      p = GetNextCharPointer(p);
-    Delete(0, p - _chars);
-  }
-  private:
-  CStringBase GetTrimDefaultCharSet()
-  {
-    CStringBase<T> charSet;
-    charSet += (T)' ';
-    charSet += (T)'\n';
-    charSet += (T)'\t';
-    return charSet;
-  }
-  public:
-
-  void TrimLeft()
-  {
-    TrimLeftWithCharSet(GetTrimDefaultCharSet());
-  }
-  void TrimRight()
-  {
-    TrimRightWithCharSet(GetTrimDefaultCharSet());
-  }
-  void TrimRight(T c)
-  {
-    const T *p = _chars;
-    const T *pLast = NULL;
-    while (*p != 0)
-    {
-      if (*p == c)
-      {
-        if (pLast == NULL)
-          pLast = p;
-      }
-      else
-        pLast = NULL;
-      p = GetNextCharPointer(p);
-    }
-    if (pLast != NULL)
-    {
-      int i = pLast - _chars;
-      Delete(i, _length - i);
-    }
-  }
+  int Find(const char *s) const { return Find(s, 0); }
+  int Find(const char *s, unsigned startIndex) const throw();
+  
+  void TrimLeft() throw();
+  void TrimRight() throw();
   void Trim()
   {
     TrimRight();
     TrimLeft();
   }
 
-  int Insert(int index, T c)
+  void InsertAtFront(char c);
+  // void Insert(unsigned index, char c);
+  void Insert(unsigned index, const char *s);
+  void Insert(unsigned index, const AString &s);
+
+  void RemoveChar(char ch) throw();
+  
+  void Replace(char oldChar, char newChar) throw();
+  void Replace(const AString &oldString, const AString &newString);
+
+  void Delete(unsigned index) throw();
+  void Delete(unsigned index, unsigned count) throw();
+  void DeleteFrontal(unsigned num) throw();
+  void DeleteBack() { _chars[--_len] = 0; }
+  void DeleteFrom(unsigned index)
   {
-    InsertSpace(index, 1);
-    _chars[index] = c;
-    _length++;
-    return _length;
+    if (index < _len)
+    {
+      _len = index;
+      _chars[index] = 0;
+    }
   }
-  int Insert(int index, const CStringBase &s)
+  void DeleteFrom(int index)
   {
-    CorrectIndex(index);
-    if (s.IsEmpty())
-      return _length;
-    int numInsertChars = s.Length();
-    InsertSpace(index, numInsertChars);
-    for (int i = 0; i < numInsertChars; i++)
-      _chars[index + i] = s[i];
-    _length += numInsertChars;
-    return _length;
+    DeleteFrom((unsigned)index);
   }
 
-  // !!!!!!!!!!!!!!! test it if newChar = '\0'
-  int Replace(T oldChar, T newChar)
+  
+  void Wipe_and_Empty()
   {
-    if (oldChar == newChar)
-      return 0;
-    int number  = 0;
-    int pos  = 0;
-    while (pos < Length())
+    if (_chars)
     {
-      pos = Find(oldChar, pos);
-      if (pos < 0)
-        break;
-      _chars[pos] = newChar;
-      pos++;
-      number++;
+      memset(_chars, 0, (_limit + 1) * sizeof(*_chars));
+      _len = 0;
     }
-    return number;
-  }
-  int Replace(const CStringBase &oldString, const CStringBase &newString)
-  {
-    if (oldString.IsEmpty())
-      return 0;
-    if (oldString == newString)
-      return 0;
-    int oldStringLength = oldString.Length();
-    int newStringLength = newString.Length();
-    int number  = 0;
-    int pos  = 0;
-    while (pos < _length)
-    {
-      pos = Find(oldString, pos);
-      if (pos < 0)
-        break;
-      Delete(pos, oldStringLength);
-      Insert(pos, newString);
-      pos += newStringLength;
-      number++;
-    }
-    return number;
-  }
-  int Delete(int index, int count = 1 )
-  {
-    if (index + count > _length)
-      count = _length - index;
-    if (count > 0)
-    {
-      MoveItems(index, index + count);
-      _length -= count;
-    }
-    return _length;
   }
 };
 
-template <class T>
-CStringBase<T> operator+(const CStringBase<T>& s1, const CStringBase<T>& s2)
+
+class AString_Wipe: public AString
 {
-  CStringBase<T> result(s1);
-  result += s2;
-  return result;
-}
+  Z7_CLASS_NO_COPY(AString_Wipe)
+public:
+  AString_Wipe(): AString() {}
+  // AString_Wipe(const AString &s): AString(s) {}
+  // AString_Wipe &operator=(const AString &s) { AString::operator=(s); return *this; }
+  // AString_Wipe &operator=(const char *s) { AString::operator=(s); return *this; }
+  ~AString_Wipe() { Wipe_and_Empty(); }
+};
 
-template <class T>
-CStringBase<T> operator+(const CStringBase<T>& s, T c)
+
+bool operator<(const AString &s1, const AString &s2);
+bool operator>(const AString &s1, const AString &s2);
+
+/*
+bool operator==(const AString &s1, const AString &s2);
+bool operator==(const AString &s1, const char    *s2);
+bool operator==(const char    *s1, const AString &s2);
+
+bool operator!=(const AString &s1, const AString &s2);
+bool operator!=(const AString &s1, const char    *s2);
+bool operator!=(const char    *s1, const AString &s2);
+*/
+
+inline bool operator==(const AString &s1, const AString &s2) { return s1.Len() == s2.Len() && strcmp(s1, s2) == 0; }
+inline bool operator==(const AString &s1, const char    *s2) { return strcmp(s1, s2) == 0; }
+inline bool operator==(const char    *s1, const AString &s2) { return strcmp(s1, s2) == 0; }
+
+inline bool operator!=(const AString &s1, const AString &s2) { return s1.Len() != s2.Len() || strcmp(s1, s2) != 0; }
+inline bool operator!=(const AString &s1, const char    *s2) { return strcmp(s1, s2) != 0; }
+inline bool operator!=(const char    *s1, const AString &s2) { return strcmp(s1, s2) != 0; }
+
+// ---------- forbidden functions ----------
+
+void operator==(char c1, const AString &s2);
+void operator==(const AString &s1, char c2);
+
+void operator+(char c, const AString &s); // this function can be OK, but we don't use it
+
+void operator+(const AString &s, int c);
+void operator+(const AString &s, unsigned c);
+void operator+(int c, const AString &s);
+void operator+(unsigned c, const AString &s);
+void operator-(const AString &s, int c);
+void operator-(const AString &s, unsigned c);
+
+
+class UString
 {
-  CStringBase<T> result(s);
-  result += c;
-  return result;
-}
+  wchar_t *_chars;
+  unsigned _len;
+  unsigned _limit;
 
-template <class T>
-CStringBase<T> operator+(T c, const CStringBase<T>& s)
+  void MoveItems(unsigned dest, unsigned src)
+  {
+    memmove(_chars + dest, _chars + src, (size_t)(_len - src + 1) * sizeof(wchar_t));
+  }
+  
+  void InsertSpace(unsigned index, unsigned size);
+  
+  void ReAlloc(unsigned newLimit);
+  void ReAlloc2(unsigned newLimit);
+  void SetStartLen(unsigned len);
+  void Grow_1();
+  void Grow(unsigned n);
+
+  UString(unsigned num, const wchar_t *s); // for Mid
+  UString(unsigned num, const UString &s); // for Left
+  UString(const UString &s, wchar_t c); // it's for String + char
+  UString(const wchar_t *s1, unsigned num1, const wchar_t *s2, unsigned num2);
+
+  friend UString operator+(const UString &s, wchar_t c) { return UString(s, c); }
+  // friend UString operator+(wchar_t c, const UString &s); // is not supported
+
+  friend UString operator+(const UString &s1, const UString &s2);
+  friend UString operator+(const UString &s1, const wchar_t *s2);
+  friend UString operator+(const wchar_t *s1, const UString &s2);
+
+  // ---------- forbidden functions ----------
+  
+  FORBID_STRING_OPS_UString(signed char)
+  FORBID_STRING_OPS_UString(unsigned char)
+  FORBID_STRING_OPS_UString(short)
+  
+  #ifdef MY_NATIVE_WCHAR_T_DEFINED
+  FORBID_STRING_OPS_UString(unsigned short)
+  #endif
+
+  FORBID_STRING_OPS_UString(int)
+  FORBID_STRING_OPS_UString(unsigned)
+  FORBID_STRING_OPS_UString(long)
+  FORBID_STRING_OPS_UString(unsigned long)
+
+  FORBID_STRING_OPS_2(UString, char)
+
+ #ifdef DEBUG_FSTRING_INHERITS_ASTRING
+  UString(const FString &s);
+  UString &operator=(const FString &s);
+  UString &operator+=(const FString &s);
+ #endif
+
+public:
+  UString();
+  explicit UString(wchar_t c);
+  explicit UString(char c);
+  explicit UString(const char *s);
+  explicit UString(const AString &s);
+  UString(const wchar_t *s);
+  UString(const UString &s);
+  ~UString() { MY_STRING_DELETE(_chars) }
+
+  unsigned Len() const { return _len; }
+  bool IsEmpty() const { return _len == 0; }
+  void Empty() { _len = 0; _chars[0] = 0; }
+
+  operator const wchar_t *() const { return _chars; }
+  wchar_t *Ptr_non_const() const { return _chars; }
+  const wchar_t *Ptr() const { return _chars; }
+  const wchar_t *Ptr(int pos) const { return _chars + (unsigned)pos; }
+  const wchar_t *Ptr(unsigned pos) const { return _chars + pos; }
+  const wchar_t *RightPtr(unsigned num) const { return _chars + _len - num; }
+  wchar_t Back() const { return _chars[(size_t)_len - 1]; }
+
+  void ReplaceOneCharAtPos(unsigned pos, wchar_t c) { _chars[pos] = c; }
+
+  wchar_t *GetBuf() { return _chars; }
+
+  /*
+  wchar_t *GetBuf_GetMaxAvail(unsigned &availBufLen)
+  {
+    availBufLen = _limit;
+    return _chars;
+  }
+  */
+
+  wchar_t *GetBuf(unsigned minLen)
+  {
+    if (minLen > _limit)
+      ReAlloc2(minLen);
+    return _chars;
+  }
+  wchar_t *GetBuf_SetEnd(unsigned minLen)
+  {
+    if (minLen > _limit)
+      ReAlloc2(minLen);
+    wchar_t *chars = _chars;
+    chars[minLen] = 0;
+    _len = minLen;
+    return chars;
+  }
+
+  void ReleaseBuf_SetLen(unsigned newLen) { _len = newLen; }
+  void ReleaseBuf_SetEnd(unsigned newLen) { _len = newLen; _chars[newLen] = 0; }
+  void ReleaseBuf_CalcLen(unsigned maxLen)
+  {
+    wchar_t *chars = _chars;
+    chars[maxLen] = 0;
+    _len = MyStringLen(chars);
+  }
+
+  UString &operator=(wchar_t c);
+  UString &operator=(char c) { return (*this)=((wchar_t)(unsigned char)c); }
+  UString &operator=(const wchar_t *s);
+  UString &operator=(const UString &s);
+  void SetFrom(const wchar_t *s, unsigned len); // no check
+  void SetFromBstr(LPCOLESTR s);
+  UString &operator=(const char *s);
+  UString &operator=(const AString &s) { return operator=(s.Ptr()); }
+
+// private:
+  Z7_FORCE_INLINE
+  UString &operator+=(wchar_t c)
+  {
+    if (_limit == _len)
+      Grow_1();
+    unsigned len = _len;
+    wchar_t *chars = _chars;
+    chars[len++] = c;
+    chars[len] = 0;
+    _len = len;
+    return *this;
+  }
+
+private:
+  UString &operator+=(char c); //  { return (*this)+=((wchar_t)(unsigned char)c); }
+public:
+  void Add_Char(char c);
+  // void Add_WChar(wchar_t c);
+  void Add_Space();
+  void Add_Space_if_NotEmpty();
+  void Add_LF();
+  void Add_Dot();
+  void Add_Minus();
+  void Add_Colon();
+  void Add_PathSepar() { operator+=(WCHAR_PATH_SEPARATOR); }
+
+  UString &operator+=(const wchar_t *s);
+  UString &operator+=(const UString &s);
+  UString &operator+=(const char *s);
+  UString &operator+=(const AString &s) { return operator+=(s.Ptr()); }
+
+  void Add_UInt32(UInt32 v);
+  void Add_UInt64(UInt64 v);
+
+  UString Mid(unsigned startIndex, unsigned count) const { return UString(count, _chars + startIndex); }
+  UString Left(unsigned count) const { return UString(count, *this); }
+  UString Left(int count) const { return Left((unsigned)count); }
+
+  // void MakeUpper() { MyStringUpper(_chars); }
+  // void MakeUpper() { MyStringUpper_Ascii(_chars); }
+  // void MakeUpper_Ascii() { MyStringUpper_Ascii(_chars); }
+  void MakeLower_Ascii() { MyStringLower_Ascii(_chars); }
+
+  bool IsEqualTo(const char *s) const { return StringsAreEqual_Ascii(_chars, s); }
+  bool IsEqualTo_NoCase(const wchar_t *s) const { return StringsAreEqualNoCase(_chars, s); }
+  bool IsEqualTo_Ascii_NoCase(const char *s) const { return StringsAreEqualNoCase_Ascii(_chars, s); }
+  int Compare(const wchar_t *s) const { return wcscmp(_chars, s); }
+  // int Compare(const UString &s) const { return MyStringCompare(_chars, s._chars); }
+  // int CompareNoCase(const wchar_t *s) const { return MyStringCompareNoCase(_chars, s); }
+  // int CompareNoCase(const UString &s) const { return MyStringCompareNoCase(_chars, s._chars); }
+  bool IsPrefixedBy(const wchar_t *s) const { return IsString1PrefixedByString2(_chars, s); }
+  bool IsPrefixedBy(const char *s) const { return IsString1PrefixedByString2(_chars, s); }
+  bool IsPrefixedBy_NoCase(const wchar_t *s) const { return IsString1PrefixedByString2_NoCase(_chars, s); }
+  bool IsPrefixedBy_Ascii_NoCase(const char *s) const { return IsString1PrefixedByString2_NoCase_Ascii(_chars, s); }
+
+  bool IsAscii() const
+  {
+    const unsigned len = Len();
+    const wchar_t *s = _chars;
+    for (unsigned i = 0; i < len; i++)
+      if ((unsigned)(int)s[i] >= 0x80)
+        return false;
+    return true;
+  }
+  int Find(wchar_t c) const { return FindCharPosInString(_chars, c); }
+  int Find(wchar_t c, unsigned startIndex) const
+  {
+    const int pos = FindCharPosInString(_chars + startIndex, c);
+    return pos < 0 ? -1 : (int)startIndex + pos;
+  }
+
+  int ReverseFind(wchar_t c) const throw();
+  int ReverseFind_Dot() const throw() { return ReverseFind(L'.'); }
+  int ReverseFind_PathSepar() const throw();
+
+  int Find(const wchar_t *s) const { return Find(s, 0); }
+  int Find(const wchar_t *s, unsigned startIndex) const throw();
+
+  void TrimLeft() throw();
+  void TrimRight() throw();
+  void Trim()
+  {
+    TrimRight();
+    TrimLeft();
+  }
+
+  void InsertAtFront(wchar_t c);
+  // void Insert_wchar_t(unsigned index, wchar_t c);
+  void Insert(unsigned index, const wchar_t *s);
+  void Insert(unsigned index, const UString &s);
+
+  void RemoveChar(wchar_t ch) throw();
+  
+  void Replace(wchar_t oldChar, wchar_t newChar) throw();
+  void Replace(const UString &oldString, const UString &newString);
+
+  void Delete(int index) throw() { Delete((unsigned)index); }
+  void Delete(unsigned index) throw();
+  void Delete(unsigned index, unsigned count) throw();
+  void DeleteFrontal(unsigned num) throw();
+  void DeleteBack() { _chars[--_len] = 0; }
+  void DeleteFrom(int index) { DeleteFrom((unsigned)index); }
+  void DeleteFrom(unsigned index)
+  {
+    if (index < _len)
+    {
+      _len = index;
+      _chars[index] = 0;
+    }
+  }
+  
+  void Wipe_and_Empty()
+  {
+    if (_chars)
+    {
+      memset(_chars, 0, (_limit + 1) * sizeof(*_chars));
+      _len = 0;
+    }
+  }
+};
+
+
+class UString_Wipe: public UString
 {
-  CStringBase<T> result(c);
-  result += s;
-  return result;
-}
+  Z7_CLASS_NO_COPY(UString_Wipe)
+public:
+  UString_Wipe(): UString() {}
+  // UString_Wipe(const UString &s): UString(s) {}
+  // UString_Wipe &operator=(const UString &s) { UString::operator=(s); return *this; }
+  // UString_Wipe &operator=(const wchar_t *s) { UString::operator=(s); return *this; }
+  ~UString_Wipe() { Wipe_and_Empty(); }
+};
 
-template <class T>
-CStringBase<T> operator+(const CStringBase<T>& s, const T * chars)
+
+bool operator<(const UString &s1, const UString &s2);
+bool operator>(const UString &s1, const UString &s2);
+
+inline bool operator==(const UString &s1, const UString &s2) { return s1.Len() == s2.Len() && wcscmp(s1, s2) == 0; }
+inline bool operator==(const UString &s1, const wchar_t *s2) { return wcscmp(s1, s2) == 0; }
+inline bool operator==(const wchar_t *s1, const UString &s2) { return wcscmp(s1, s2) == 0; }
+
+inline bool operator!=(const UString &s1, const UString &s2) { return s1.Len() != s2.Len() || wcscmp(s1, s2) != 0; }
+inline bool operator!=(const UString &s1, const wchar_t *s2) { return wcscmp(s1, s2) != 0; }
+inline bool operator!=(const wchar_t *s1, const UString &s2) { return wcscmp(s1, s2) != 0; }
+
+
+// ---------- forbidden functions ----------
+
+void operator==(wchar_t c1, const UString &s2);
+void operator==(const UString &s1, wchar_t c2);
+
+void operator+(wchar_t c, const UString &s); // this function can be OK, but we don't use it
+
+void operator+(const AString &s1, const UString &s2);
+void operator+(const UString &s1, const AString &s2);
+
+void operator+(const UString &s1, const char *s2);
+void operator+(const char *s1, const UString &s2);
+
+void operator+(const UString &s, char c);
+void operator+(const UString &s, unsigned char c);
+void operator+(char c, const UString &s);
+void operator+(unsigned char c, const UString &s);
+void operator-(const UString &s1, wchar_t c);
+
+#ifdef _WIN32
+// can we forbid these functions, if wchar_t is 32-bit ?
+void operator+(const UString &s, int c);
+void operator+(const UString &s, unsigned c);
+void operator+(int c, const UString &s);
+void operator+(unsigned c, const UString &s);
+void operator-(const UString &s1, int c);
+void operator-(const UString &s1, unsigned c);
+#endif
+
+
+
+
+
+
+
+class UString2
 {
-  CStringBase<T> result(s);
-  result += chars;
-  return result;
-}
+  wchar_t *_chars;
+  unsigned _len;
 
-template <class T>
-CStringBase<T> operator+(const T * chars, const CStringBase<T>& s)
-{
-  CStringBase<T> result(chars);
-  result += s;
-  return result;
-}
+  void ReAlloc2(unsigned newLimit);
+  void SetStartLen(unsigned len);
 
-template <class T>
-bool operator==(const CStringBase<T>& s1, const CStringBase<T>& s2)
-  { return (s1.Compare(s2) == 0); }
+  // ---------- forbidden functions ----------
+  
+  FORBID_STRING_OPS_UString2(char)
+  FORBID_STRING_OPS_UString2(signed char)
+  FORBID_STRING_OPS_UString2(unsigned char)
+  FORBID_STRING_OPS_UString2(short)
 
-template <class T>
-bool operator<(const CStringBase<T>& s1, const CStringBase<T>& s2)
-  { return (s1.Compare(s2) < 0); }
+  UString2 &operator=(wchar_t c);
 
-template <class T>
-bool operator==(const T *s1, const CStringBase<T>& s2)
-  { return (s2.Compare(s1) == 0); }
+  UString2(const AString &s);
+  UString2 &operator=(const AString &s);
+  UString2 &operator+=(const AString &s);
 
-template <class T>
-bool operator==(const CStringBase<T>& s1, const T *s2)
-  { return (s1.Compare(s2) == 0); }
+ #ifdef DEBUG_FSTRING_INHERITS_ASTRING
+  UString2(const FString &s);
+  UString2 &operator=(const FString &s);
+  UString2 &operator+=(const FString &s);
+ #endif
 
-template <class T>
-bool operator!=(const CStringBase<T>& s1, const CStringBase<T>& s2)
-  { return (s1.Compare(s2) != 0); }
+public:
+  UString2(): _chars(NULL), _len(0) {}
+  UString2(const wchar_t *s);
+  UString2(const UString2 &s);
+  ~UString2() { if (_chars) { MY_STRING_DELETE(_chars) } }
 
-template <class T>
-bool operator!=(const T *s1, const CStringBase<T>& s2)
-  { return (s2.Compare(s1) != 0); }
+  unsigned Len() const { return _len; }
+  bool IsEmpty() const { return _len == 0; }
+  // void Empty() { _len = 0; _chars[0] = 0; }
 
-template <class T>
-bool operator!=(const CStringBase<T>& s1, const T *s2)
-  { return (s1.Compare(s2) != 0); }
+  // operator const wchar_t *() const { return _chars; }
+  const wchar_t *GetRawPtr() const { return _chars; }
 
-typedef CStringBase<char> AString;
-typedef CStringBase<wchar_t> UString;
+  int Compare(const wchar_t *s) const { return wcscmp(_chars, s); }
+
+  wchar_t *GetBuf(unsigned minLen)
+  {
+    if (!_chars || minLen > _len)
+      ReAlloc2(minLen);
+    return _chars;
+  }
+  void ReleaseBuf_SetLen(unsigned newLen) { _len = newLen; }
+
+  UString2 &operator=(const wchar_t *s);
+  UString2 &operator=(const UString2 &s);
+  void SetFromAscii(const char *s);
+};
+
+bool operator==(const UString2 &s1, const UString2 &s2);
+bool operator==(const UString2 &s1, const wchar_t *s2);
+bool operator==(const wchar_t *s1, const UString2 &s2);
+
+inline bool operator!=(const UString2 &s1, const UString2 &s2) { return !(s1 == s2); }
+inline bool operator!=(const UString2 &s1, const wchar_t *s2) { return !(s1 == s2); }
+inline bool operator!=(const wchar_t *s1, const UString2 &s2) { return !(s1 == s2); }
+
+
+// ---------- forbidden functions ----------
+
+void operator==(wchar_t c1, const UString2 &s2);
+void operator==(const UString2 &s1, wchar_t c2);
+bool operator<(const UString2 &s1, const UString2 &s2);
+bool operator>(const UString2 &s1, const UString2 &s2);
+
+void operator+(const UString2 &s1, const UString2 &s2);
+void operator+(const UString2 &s1, const wchar_t *s2);
+void operator+(const wchar_t *s1, const UString2 &s2);
+void operator+(wchar_t c, const UString2 &s);
+void operator+(const UString2 &s, wchar_t c);
+void operator+(const UString2 &s, char c);
+void operator+(const UString2 &s, unsigned char c);
+void operator+(char c, const UString2 &s);
+void operator+(unsigned char c, const UString2 &s);
+void operator-(const UString2 &s1, wchar_t c);
+
+
+
+
+
 
 typedef CObjectVector<AString> AStringVector;
 typedef CObjectVector<UString> UStringVector;
@@ -628,4 +955,125 @@ typedef CObjectVector<UString> UStringVector;
 
 typedef CObjectVector<CSysString> CSysStringVector;
 
+
+// ---------- FString ----------
+
+#ifndef DEBUG_FSTRING_INHERITS_ASTRING
+#ifdef _WIN32
+  #define USE_UNICODE_FSTRING
+#endif
+#endif
+
+#ifdef USE_UNICODE_FSTRING
+
+  #define MY_FTEXT(quote) L##quote
+
+  typedef wchar_t FChar;
+  typedef UString FString;
+
+  #define fs2us(_x_) (_x_)
+  #define us2fs(_x_) (_x_)
+  FString fas2fs(const char *s);
+  FString fas2fs(const AString &s);
+  AString fs2fas(const FChar *s);
+
+#else // USE_UNICODE_FSTRING
+
+  #define MY_FTEXT(quote) quote
+
+  typedef char FChar;
+
+ #ifdef DEBUG_FSTRING_INHERITS_ASTRING
+
+  class FString: public AString
+  {
+    // FString &operator=(const char *s);
+    FString &operator=(const AString &s);
+    // FString &operator+=(const AString &s);
+  public:
+    FString(const AString &s): AString(s.Ptr()) {}
+    FString(const FString &s): AString(s.Ptr()) {}
+    FString(const char *s): AString(s) {}
+    FString() {}
+    FString &operator=(const FString &s)  { AString::operator=((const AString &)s); return *this; }
+    FString &operator=(char c) { AString::operator=(c); return *this; }
+    FString &operator+=(char c) { AString::operator+=(c); return *this; }
+    FString &operator+=(const FString &s) { AString::operator+=((const AString &)s); return *this; }
+    FString Left(unsigned count) const  { return FString(AString::Left(count)); }
+  };
+  void operator+(const AString &s1, const FString &s2);
+  void operator+(const FString &s1, const AString &s2);
+
+  inline FString operator+(const FString &s1, const FString &s2)
+  {
+    AString s =(const AString &)s1 + (const AString &)s2;
+    return FString(s.Ptr());
+    // return FString((const AString &)s1 + (const AString &)s2);
+  }
+  inline FString operator+(const FString &s1, const FChar *s2)
+  {
+    return s1 + (FString)s2;
+  }
+  /*
+  inline FString operator+(const FChar *s1, const FString &s2)
+  {
+    return (FString)s1 + s2;
+  }
+  */
+
+  inline FString fas2fs(const char *s)  { return FString(s); }
+
+ #else // DEBUG_FSTRING_INHERITS_ASTRING
+  typedef AString FString;
+  #define fas2fs(_x_) (_x_)
+ #endif // DEBUG_FSTRING_INHERITS_ASTRING
+
+  UString fs2us(const FChar *s);
+  UString fs2us(const FString &s);
+  FString us2fs(const wchar_t *s);
+  #define fs2fas(_x_) (_x_)
+
+#endif // USE_UNICODE_FSTRING
+
+#define FTEXT(quote) MY_FTEXT(quote)
+
+#define FCHAR_PATH_SEPARATOR FTEXT(CHAR_PATH_SEPARATOR)
+#define FSTRING_PATH_SEPARATOR FTEXT(STRING_PATH_SEPARATOR)
+
+// #define FCHAR_ANY_MASK FTEXT('*')
+// #define FSTRING_ANY_MASK FTEXT("*")
+
+typedef const FChar *CFSTR;
+
+typedef CObjectVector<FString> FStringVector;
+
+
+class CStringFinder
+{
+  AString _temp;
+public:
+  // list - is list of low case Ascii strings separated by space " ".
+  // the function returns true, if it can find exact word (str) in (list).
+  bool FindWord_In_LowCaseAsciiList_NoCase(const char *list, const wchar_t *str);
+};
+
+void SplitString(const UString &srcString, UStringVector &destStrings);
+
+#endif
+
+
+
+#if defined(_WIN32)
+  // #include <wchar.h>
+  // WCHAR_MAX is defined as ((wchar_t)-1)
+  #define Z7_WCHART_IS_16BIT 1
+#elif (defined(WCHAR_MAX) && (WCHAR_MAX <= 0xffff)) \
+   || (defined(__SIZEOF_WCHAR_T__) && (__SIZEOF_WCHAR_T__ == 2))
+  #define Z7_WCHART_IS_16BIT 1
+#endif
+
+#if WCHAR_PATH_SEPARATOR == L'\\'
+// WSL scheme
+#define WCHAR_IN_FILE_NAME_BACKSLASH_REPLACEMENT  ((wchar_t)((unsigned)(0xF000) + (unsigned)'\\'))
+// #define WCHAR_IN_FILE_NAME_BACKSLASH_REPLACEMENT  '_'
 #endif

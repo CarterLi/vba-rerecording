@@ -1,22 +1,37 @@
 // BcjCoder.h
 
-#ifndef __COMPRESS_BCJ_CODER_H
-#define __COMPRESS_BCJ_CODER_H
+#ifndef ZIP7_INC_COMPRESS_BCJ_CODER_H
+#define ZIP7_INC_COMPRESS_BCJ_CODER_H
 
-extern "C"
-{
 #include "../../../C/Bra.h"
-}
 
-#include "BranchCoder.h"
+#include "../../Common/MyCom.h"
 
-struct CBranch86
-{
-  UInt32 _prevMask;
-  void x86Init() { x86_Convert_Init(_prevMask); }
+#include "../ICoder.h"
+
+namespace NCompress {
+namespace NBcj {
+
+/* CCoder in old versions used another constructor parameter CCoder(int encode).
+   And some code called it as CCoder(0).
+   We have changed constructor parameter type.
+   So we have changed the name of class also to CCoder2. */
+
+Z7_CLASS_IMP_COM_1(
+  CCoder2
+  , ICompressFilter
+)
+  UInt32 _pc;
+  UInt32 _state;
+  z7_Func_BranchConvSt _convFunc;
+public:
+  CCoder2(z7_Func_BranchConvSt convFunc Z7_lifetimebound):
+      _pc(0),
+      _state(Z7_BRANCH_CONV_ST_X86_STATE_INIT_VAL),
+      _convFunc(convFunc)
+    {}
 };
 
-MyClassB(BCJ_x86, 0x01, 3, CBranch86 ,
-    virtual void SubInit() { x86Init(); })
+}}
 
 #endif
