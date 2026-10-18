@@ -34,6 +34,11 @@
 #include "../stdafx.h"
 #include "ResizeDlg.h"
 #include "../VBA.h"
+#include "../UiFont.h"
+
+#if !defined(WM_DPICHANGED)
+#	define WM_DPICHANGED 0x02E0
+#endif
 #include "../Sound.h"
 #include "../WinHelper.h"
 
@@ -391,6 +396,9 @@ BOOL ResizeDlg::SetData(const DialogSizerSizingItem *psd,
 		DialogData *pdd = (DialogData *)AddDialogData();
 		if (pdd)
 		{
+			// This dialog handles WM_DPICHANGED itself (see OnWndMsg), so the
+			// font hook must not scale it a second time.
+			uiFont::markResizable(*this);
 			pdd->hkRootSave        = hkRootSave;
 			pdd->pcszName          = pcszName;
 			pdd->m_bShowSizingGrip = bShowSizingGrip;
@@ -534,6 +542,41 @@ BOOL ResizeDlg::OnWndMsg(UINT msg, WPARAM wParam, LPARAM lParam, LRESULT *res)
 			UpdateWindowSize(LOWORD(lParam), HIWORD(lParam), *this);
 		}
 		break;
+	}
+	case WM_DPICHANGED:
+	{
+		// The dialog is about to move to a monitor with another DPI.  The
+		// sizer caches the client size to work out how far anchored controls
+		// have to travel; giving it the new size up front makes the WM_SIZE
+		// below a no-op, so only the scaling here moves anything.
+		DialogData *pdd = (DialogData *)dd;
+		RECT *target = reinterpret_cast<RECT *>(lParam);
+		UINT newDpi = LOWORD(wParam);
+		UINT oldDpi = uiFont::layoutDpi(*this);
+		if (oldDpi == 0)
+			oldDpi = newDpi;
+
+		if (pdd)
+		{
+			RECT frame = { 0, 0, 0, 0 };
+			uiFont::adjustWindowRectForDpi(&frame, GetStyle(), GetMenu() != NULL,
+			                               GetExStyle(), newDpi);
+			pdd->m_sizeClient.cx = (target->right - target->left)
+			                       - (frame.right - frame.left);
+			pdd->m_sizeClient.cy = (target->bottom - target->top)
+			                       - (frame.bottom - frame.top);
+		}
+
+		SetWindowPos(NULL, target->left, target->top,
+		             target->right - target->left,
+		             target->bottom - target->top,
+		             SWP_NOZORDER | SWP_NOACTIVATE);
+
+		uiFont::scaleDialog(*this, oldDpi, newDpi);
+		uiFont::onDpiChanged(*this, oldDpi, newDpi);
+
+		*res = 0;
+		return TRUE;
 	}
 	case WM_NCHITTEST:
 	{

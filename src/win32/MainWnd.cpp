@@ -14,6 +14,12 @@
 #include "Input.h"
 #include "Sound.h"
 #include "VBA.h"
+#include "UiFont.h"
+#include "DarkMode.h"
+
+#if !defined(WM_DPICHANGED)
+#	define WM_DPICHANGED 0x02E0
+#endif
 #include "7zip/7zip.h"
 #include "7zip/OpenArchive.h"
 #include "Dialogs/FileDlg.h"
@@ -154,6 +160,10 @@ ON_UPDATE_COMMAND_UI(ID_OPTIONS_VIDEO_X5, OnUpdateOptionsVideoX5)
 ON_UPDATE_COMMAND_UI(ID_OPTIONS_VIDEO_X6, OnUpdateOptionsVideoX6)
 ON_UPDATE_COMMAND_UI(ID_OPTIONS_VIDEO_X7, OnUpdateOptionsVideoX7)
 ON_UPDATE_COMMAND_UI(ID_OPTIONS_VIDEO_X8, OnUpdateOptionsVideoX8)
+ON_UPDATE_COMMAND_UI(ID_OPTIONS_VIDEO_X9, OnUpdateOptionsVideoX9)
+ON_UPDATE_COMMAND_UI(ID_OPTIONS_VIDEO_X10, OnUpdateOptionsVideoX10)
+ON_UPDATE_COMMAND_UI(ID_OPTIONS_VIDEO_X11, OnUpdateOptionsVideoX11)
+ON_UPDATE_COMMAND_UI(ID_OPTIONS_VIDEO_X12, OnUpdateOptionsVideoX12)
 ON_UPDATE_COMMAND_UI(ID_OPTIONS_VIDEO_FULLSCREEN320X240, OnUpdateOptionsVideoFullscreen320x240)
 ON_UPDATE_COMMAND_UI(ID_OPTIONS_VIDEO_FULLSCREEN640X480, OnUpdateOptionsVideoFullscreen640x480)
 ON_UPDATE_COMMAND_UI(ID_OPTIONS_VIDEO_FULLSCREEN800X600, OnUpdateOptionsVideoFullscreen800x600)
@@ -211,6 +221,8 @@ ON_UPDATE_COMMAND_UI(ID_OPTIONS_EMULATOR_SYNCHRONIZE, OnUpdateOptionsEmulatorSyn
 
 ON_COMMAND(ID_OPTIONS_EMULATOR_ALWAYSONTOP, OnOptionsEmulatorAlwaysOnTop)
 ON_UPDATE_COMMAND_UI(ID_OPTIONS_EMULATOR_ALWAYSONTOP, OnUpdateOptionsEmulatorAlwaysOnTop)
+ON_COMMAND(ID_OPTIONS_EMULATOR_MODERNFONT, OnOptionsEmulatorModernFont)
+ON_UPDATE_COMMAND_UI(ID_OPTIONS_EMULATOR_MODERNFONT, OnUpdateOptionsEmulatorModernFont)
 ON_COMMAND(ID_OPTIONS_EMULATOR_PAUSEWHENINACTIVE, OnOptionsEmulatorPausewheninactive)
 ON_UPDATE_COMMAND_UI(ID_OPTIONS_EMULATOR_PAUSEWHENINACTIVE, OnUpdateOptionsEmulatorPausewheninactive)
 ON_COMMAND(ID_OPTIONS_EMULATOR_BACKGROUNDINPUT, OnOptionsEmulatorEnableBackgroundInput)
@@ -538,6 +550,10 @@ ON_COMMAND_EX(ID_OPTIONS_VIDEO_X5, OnOptionVideoSize)
 ON_COMMAND_EX(ID_OPTIONS_VIDEO_X6, OnOptionVideoSize)
 ON_COMMAND_EX(ID_OPTIONS_VIDEO_X7, OnOptionVideoSize)
 ON_COMMAND_EX(ID_OPTIONS_VIDEO_X8, OnOptionVideoSize)
+ON_COMMAND_EX(ID_OPTIONS_VIDEO_X9, OnOptionVideoSize)
+ON_COMMAND_EX(ID_OPTIONS_VIDEO_X10, OnOptionVideoSize)
+ON_COMMAND_EX(ID_OPTIONS_VIDEO_X11, OnOptionVideoSize)
+ON_COMMAND_EX(ID_OPTIONS_VIDEO_X12, OnOptionVideoSize)
 ON_COMMAND_EX_RANGE(ID_OPTIONS_VIDEO_LAYERS_BG0, ID_OPTIONS_VIDEO_LAYERS_OBJWIN, OnVideoLayer)
 ON_UPDATE_COMMAND_UI_RANGE(ID_OPTIONS_VIDEO_LAYERS_BG0, ID_OPTIONS_VIDEO_LAYERS_OBJWIN, OnUpdateVideoLayer)
 ON_COMMAND(ID_SYSTEM_MINIMIZE, OnSystemMinimize)
@@ -601,6 +617,7 @@ ON_COMMAND(ID_RAM_SEARCH, OnFileRamSearch)
 ON_UPDATE_COMMAND_UI(ID_RAM_SEARCH, OnUpdateFileRamSearch)
 ON_COMMAND(ID_RAM_WATCH, OnFileRamWatch)
 ON_UPDATE_COMMAND_UI(ID_RAM_WATCH, OnUpdateFileRamWatch)
+ON_MESSAGE(WM_DPICHANGED, OnDpiChanged)
 //}}AFX_MSG_MAP
 END_MESSAGE_MAP()
 
@@ -685,8 +702,36 @@ void MainWnd::OnSize(UINT nType, int cx, int cy)
 	}
 }
 
-void MainWnd::OnContextMenu(CWnd *pWnd, CPoint point)
+LRESULT MainWnd::OnDpiChanged(WPARAM wParam, LPARAM lParam)
 {
+	RECT *suggested = reinterpret_cast<RECT *>(lParam);
+	UINT dpi = LOWORD(wParam);
+
+	// The emulated screen is measured in game pixels, so its client area
+	// keeps that size when the window moves to a monitor with another DPI;
+	// only the frame follows the new scale.  Letting the client grow would
+	// make the display resize and stretch the image.
+	RECT client;
+	GetClientRect(&client);
+
+	DefWindowProc(WM_DPICHANGED, wParam, lParam);
+
+	RECT window = { 0, 0, client.right, client.bottom };
+	uiFont::adjustWindowRectForDpi(&window, GetStyle(), GetMenu() != NULL,
+	                               GetExStyle(), dpi);
+
+	SetWindowPos(NULL, suggested->left, suggested->top,
+	             window.right - window.left, window.bottom - window.top,
+	             SWP_NOZORDER | SWP_NOACTIVATE);
+
+	// The owner drawn menu bar has to measure itself with the font for the
+	// new DPI, and its height changes with it.
+	darkMode::resetFont();
+	DrawMenuBar();
+	return 0;
+}
+
+void MainWnd::OnContextMenu(CWnd *pWnd, CPoint point){
 	winMouseOn();
 }
 

@@ -115,6 +115,11 @@
     <IntDir Condition="'$(Configuration)|$(Platform)'=='Template|Win32'">$(SolutionDir).VS_Latest\$(Configuration)\$(Platform)\</IntDir>
     <TargetName Condition="'$(Configuration)|$(Platform)'=='Template|Win32'">$(ProjectName)_$(Configuration)</TargetName>
   </PropertyGroup>
+  <ItemDefinitionGroup>
+    <Link>
+      <AdditionalManifestFiles>$(ProjectDir)VBA_Latest.manifest;%(AdditionalManifestFiles)</AdditionalManifestFiles>
+    </Link>
+  </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='V82XR|Win32'">
     <ClCompile>
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
@@ -564,6 +569,7 @@
     <ClCompile Include="..\src\win32\Reg.cpp" />
     <ClCompile Include="..\src\win32\stdafx.cpp" />
     <ClCompile Include="..\src\win32\StringTokenizer.cpp" />
+    <ClCompile Include="..\src\win32\UiFont.cpp" />
     <ClCompile Include="..\src\win32\VBA.cpp" />
     <ClCompile Include="..\src\win32\WavWriter.cpp" />
     <ClCompile Include="..\src\win32\WinResUtil.cpp" />
@@ -694,6 +700,7 @@
     <ClInclude Include="..\src\win32\Sound.h" />
     <ClInclude Include="..\src\win32\stdafx.h" />
     <ClInclude Include="..\src\win32\StringTokenizer.h" />
+    <ClInclude Include="..\src\win32\UiFont.h" />
     <ClInclude Include="..\src\win32\VBA.h" />
     <ClInclude Include="..\src\win32\VersionInfo.h" />
     <ClInclude Include="..\src\win32\WavWriter.h" />

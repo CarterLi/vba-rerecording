@@ -128,18 +128,36 @@ namespace
 
 	// The menu bar has no owner-draw switch and no documented message; the
 	// only way in is to answer the messages uxtheme itself uses for it.
-	HFONT menuFont()
-	{
-		static HFONT font = NULL;
+	HFONT g_menuFont = NULL;
 
-		if (font == NULL)
+	typedef UINT (WINAPI *FnGetDpiForWindow)(HWND);
+	typedef BOOL (WINAPI *FnSystemParametersInfoForDpi)(UINT, UINT, PVOID, UINT, UINT);
+
+	FnGetDpiForWindow          g_getDpiForWindow = NULL;
+	FnSystemParametersInfoForDpi g_spiForDpi     = NULL;
+
+	HFONT menuFont(HWND hwnd)
+	{
+		if (g_menuFont == NULL)
 		{
 			NONCLIENTMETRICSW metrics;
+			ZeroMemory(&metrics, sizeof(metrics));
 			metrics.cbSize = sizeof(metrics);
-			if (SystemParametersInfoW(SPI_GETNONCLIENTMETRICS, sizeof(metrics), &metrics, 0))
-				font = CreateFontIndirectW(&metrics.lfMenuFont);
+
+			UINT dpi = 96;
+			if (g_getDpiForWindow != NULL)
+				dpi = g_getDpiForWindow(hwnd);
+
+			bool ok = false;
+			if (g_spiForDpi != NULL)
+				ok = g_spiForDpi(SPI_GETNONCLIENTMETRICS, sizeof(metrics), &metrics, 0, dpi) != FALSE;
+			if (!ok)
+				ok = SystemParametersInfoW(SPI_GETNONCLIENTMETRICS, sizeof(metrics), &metrics, 0) != FALSE;
+
+			if (ok)
+				g_menuFont = CreateFontIndirectW(&metrics.lfMenuFont);
 		}
-		return font;
+		return g_menuFont;
 	}
 
 	bool drawMenuBar(UAHMENU *menu, HWND hwnd)
@@ -164,7 +182,7 @@ namespace
 		return true;
 	}
 
-	void drawMenuItem(const UAHDRAWMENUITEM *item)
+	void drawMenuItem(const UAHDRAWMENUITEM *item, HWND hwnd)
 	{
 		HDC dc = item->um.hdc;
 
@@ -194,7 +212,7 @@ namespace
 		if (item->dis.itemState & ODS_NOACCEL)
 			flags |= DT_HIDEPREFIX;
 
-		HFONT font = menuFont();
+		HFONT font = menuFont(hwnd);
 		HGDIOBJ oldFont = font != NULL ? SelectObject(dc, font) : NULL;
 
 		RECT rc = item->dis.rcItem;
@@ -252,7 +270,7 @@ namespace
 			break;
 
 		case WM_UAHDRAWMENUITEM:
-			drawMenuItem(reinterpret_cast<const UAHDRAWMENUITEM *>(lParam));
+			drawMenuItem(reinterpret_cast<const UAHDRAWMENUITEM *>(lParam), hwnd);
 			return 0;
 
 		case WM_NCPAINT:
@@ -329,6 +347,17 @@ namespace
 
 namespace darkMode
 {
+	void resetFont()
+	{
+#if !defined(WINXP)
+		if (g_menuFont != NULL)
+		{
+			DeleteObject(g_menuFont);
+			g_menuFont = NULL;
+		}
+#endif
+	}
+
 	void init()
 	{
 		// The visual styles the menu bar is drawn with are common controls

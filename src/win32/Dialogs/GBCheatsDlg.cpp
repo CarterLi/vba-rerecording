@@ -9,6 +9,7 @@
 #include "../WinResUtil.h"
 #include "../Sound.h"
 #include "../VBA.h"
+#include "../UiFont.h"
 
 #include "../../common/CheatSearch.h"
 #include "../../gb/gbCheats.h"
@@ -322,7 +323,7 @@ BOOL GBCheatSearch::OnInitDialog()
 	temp = winResLoadString(IDS_NEW_VALUE);
 	m_list.InsertColumn(2, temp, LVCFMT_CENTER, 125, 2);
 
-	m_list.SetFont(CFont::FromHandle((HFONT)GetStockObject(SYSTEM_FIXED_FONT)),
+	m_list.SetFont(CFont::FromHandle(uiFont::mono()),
 	               TRUE);
 
 	m_list.SetExtendedStyle(LVS_EX_FULLROWSELECT);
@@ -1024,7 +1025,7 @@ BOOL GBCheatList::OnInitDialog()
 	temp = winResLoadString(IDS_STATUS);
 	m_list.InsertColumn(2, temp, LVCFMT_LEFT, 80, 2);
 
-	m_list.SetFont(CFont::FromHandle((HFONT)GetStockObject(SYSTEM_FIXED_FONT)),
+	m_list.SetFont(CFont::FromHandle(uiFont::mono()),
 	               TRUE);
 
 	m_list.SetExtendedStyle(LVS_EX_CHECKBOXES |

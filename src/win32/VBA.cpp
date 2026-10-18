@@ -13,6 +13,7 @@
 #include "IUpdate.h"
 #include "MainWnd.h"
 #include "Reg.h"
+#include "UiFont.h"
 #include "WavWriter.h"
 #include "WinResUtil.h"
 #include "WinMiscUtil.h"
@@ -353,6 +354,7 @@ VBA::VBA() : emulator(::theEmulator)
 	muteWhenInactive		= true;
 	enableBackgroundInput	= false;
 	alwaysOnTop				= false;
+	useModernFont			= true;
 	filenamePreference		= true;
 	frameCounter			= false;
 	lagCounter				= false;
@@ -521,6 +523,10 @@ BOOL VBA::InitInstance()
 	// visual styles have to be in place before the controls are created.
 	darkMode::init();
 
+	// Also before the first dialog: this is where the system UI font is
+	// picked up and the hook that applies it to every dialog is installed.
+	uiFont::init();
+
 	loadSettings();
 	theApp.LuaFastForward = -1;
 	if (!initInput())
@@ -679,8 +685,8 @@ BOOL VBA::InitInstance()
 					int size = atoi(argv[++i]);
 					if (size < 1)
 						size = 1;
-					if (size > 8)
-						size = 8;
+					if (size > 12)
+						size = 12;
 					switch (size)
 					{
 					case 1:
@@ -699,6 +705,14 @@ BOOL VBA::InitInstance()
 						videoOption = VIDEO_7X; break;
 					case 8:
 						videoOption = VIDEO_8X; break;
+					case 9:
+						videoOption = VIDEO_9X; break;
+					case 10:
+						videoOption = VIDEO_10X; break;
+					case 11:
+						videoOption = VIDEO_11X; break;
+					case 12:
+						videoOption = VIDEO_12X; break;
 					}
 				}
 				else if (_stricmp(argv[i], "-hideMenu") == 0)
@@ -1321,6 +1335,22 @@ void VBA::updateVideoSize(UINT id)
 		value		= VIDEO_8X;
 		forceUpdate = true;
 		break;
+	case ID_OPTIONS_VIDEO_X9:
+		value		= VIDEO_9X;
+		forceUpdate = true;
+		break;
+	case ID_OPTIONS_VIDEO_X10:
+		value		= VIDEO_10X;
+		forceUpdate = true;
+		break;
+	case ID_OPTIONS_VIDEO_X11:
+		value		= VIDEO_11X;
+		forceUpdate = true;
+		break;
+	case ID_OPTIONS_VIDEO_X12:
+		value		= VIDEO_12X;
+		forceUpdate = true;
+		break;
 	case ID_OPTIONS_VIDEO_FULLSCREEN320X240:
 		value		 = VIDEO_320x240;
 		fsWidth		 = 320;
@@ -1416,6 +1446,26 @@ void VBA::updateWindowSize(int value)
 		scale = 8;
 		surfaceSizeX = sizeX * 8;
 		surfaceSizeY = sizeY * 8;
+		break;
+	case VIDEO_9X:
+		scale = 9;
+		surfaceSizeX = sizeX * 9;
+		surfaceSizeY = sizeY * 9;
+		break;
+	case VIDEO_10X:
+		scale = 10;
+		surfaceSizeX = sizeX * 10;
+		surfaceSizeY = sizeY * 10;
+		break;
+	case VIDEO_11X:
+		scale = 11;
+		surfaceSizeX = sizeX * 11;
+		surfaceSizeY = sizeY * 11;
+		break;
+	case VIDEO_12X:
+		scale = 12;
+		surfaceSizeX = sizeX * 12;
+		surfaceSizeY = sizeY * 12;
 		break;
 	case VIDEO_320x240:
 	case VIDEO_640x480:
@@ -1861,7 +1911,7 @@ void VBA::loadSettings()
 		pVideoDriverGUID = &videoDriverGUID;
 
 	videoOption = regQueryDwordValue("video", 0);
-	if (videoOption < 0 || videoOption > VIDEO_8X)
+	if (videoOption < 0 || videoOption > VIDEO_12X)
 		videoOption = 0;
 	switch (videoOption)
 	{
@@ -2080,6 +2130,10 @@ void VBA::loadSettings()
 
 	// preferences
 	alwaysOnTop = regQueryDwordValue("alwaysOnTop", false) ? true : false;
+	// The modern UI font is the default; the menu entry exists so that the
+	// 2004 era layout can be brought back if a dialog does not fit.
+	useModernFont = regQueryDwordValue("useModernFont", 1) ? true : false;
+	uiFont::setModern(useModernFont);
 	pauseWhenInactive	  = regQueryDwordValue("pauseWhenInactive", 1) ? true : false;
 	enableBackgroundInput = regQueryDwordValue("enableBackgroundInput", 0) ? true : false;
 	threadPriority		  = regQueryDwordValue("priority", 2);
@@ -2291,6 +2345,7 @@ void VBA::saveSettings()
 
 	// preferences
 	regSetDwordValue("alwaysOnTop", alwaysOnTop);
+	regSetDwordValue("useModernFont", useModernFont);
 	regSetDwordValue("pauseWhenInactive", pauseWhenInactive);
 	regSetDwordValue("enableBackgroundInput", enableBackgroundInput);
 	regSetDwordValue("priority", threadPriority);

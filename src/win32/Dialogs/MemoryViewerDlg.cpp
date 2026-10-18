@@ -9,6 +9,7 @@
 #include "../Reg.h"
 #include "../WinResUtil.h"
 #include "../VBA.h"
+#include "../UiFont.h"
 
 #include "../../common/SystemGlobals.h"
 #include "../../gba/GBAinline.h"
@@ -194,7 +195,7 @@ BOOL MemoryViewerDlg::OnInitDialog()
 	m_viewer.setSize(m_size);
 	UpdateData(FALSE);
 
-	m_current.SetFont(CFont::FromHandle((HFONT)GetStockObject(SYSTEM_FIXED_FONT)));
+	m_current.SetFont(CFont::FromHandle(uiFont::mono()));
 
 	return TRUE; // return TRUE unless you set the focus to a control
 	             // EXCEPTION: OCX Property Pages should return FALSE

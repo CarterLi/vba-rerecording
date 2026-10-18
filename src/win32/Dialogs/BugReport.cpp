@@ -5,6 +5,7 @@
 #include "../resource.h"
 #include "BugReport.h"
 #include "../VBA.h"
+#include "../UiFont.h"
 
 #include "../../version.h"
 #include "../../gba/agbprint.h"
@@ -92,7 +93,7 @@ BOOL BugReport::OnInitDialog()
 
 	CString report = createReport();
 
-	m_report.SetFont(CFont::FromHandle((HFONT)GetStockObject(SYSTEM_FIXED_FONT)));
+	m_report.SetFont(CFont::FromHandle(uiFont::mono()));
 
 	m_report.SetWindowText(report);
 

@@ -5,6 +5,7 @@
 #include "../resource.h"
 #include "IOViewer.h"
 #include "../VBA.h"
+#include "../UiFont.h"
 
 #include "../../gba/GBA.h"
 #include "../../gba/GBAinline.h" // CPUWriteHalfWord
@@ -97,7 +98,7 @@ BOOL IOViewer::OnInitDialog()
 	        "Software\\Emulators\\VisualBoyAdvance\\Viewer\\IOView",
 	        NULL);
 
-	CFont *font = CFont::FromHandle((HFONT)GetStockObject(SYSTEM_FIXED_FONT));
+	CFont *font = CFont::FromHandle(uiFont::mono());
 	int    i;
 	for (i = 0; i < sizeof(ioViewRegisters)/sizeof(IOData); i++)
 	{

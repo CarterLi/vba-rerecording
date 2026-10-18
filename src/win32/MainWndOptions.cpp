@@ -3,6 +3,7 @@
 #include "MainWnd.h"
 #include "WinResUtil.h"
 #include "Reg.h"
+#include "UiFont.h"
 #include "VBA.h"
 #include "Dialogs/Associate.h"
 #include "Dialogs/Directories.h"
@@ -514,6 +515,26 @@ void MainWnd::OnUpdateOptionsVideoX8(CCmdUI*pCmdUI)
 	pCmdUI->SetCheck(theApp.videoOption == VIDEO_8X);
 }
 
+void MainWnd::OnUpdateOptionsVideoX9(CCmdUI*pCmdUI)
+{
+	pCmdUI->SetCheck(theApp.videoOption == VIDEO_9X);
+}
+
+void MainWnd::OnUpdateOptionsVideoX10(CCmdUI*pCmdUI)
+{
+	pCmdUI->SetCheck(theApp.videoOption == VIDEO_10X);
+}
+
+void MainWnd::OnUpdateOptionsVideoX11(CCmdUI*pCmdUI)
+{
+	pCmdUI->SetCheck(theApp.videoOption == VIDEO_11X);
+}
+
+void MainWnd::OnUpdateOptionsVideoX12(CCmdUI*pCmdUI)
+{
+	pCmdUI->SetCheck(theApp.videoOption == VIDEO_12X);
+}
+
 void MainWnd::OnUpdateOptionsVideoFullscreen320x240(CCmdUI*pCmdUI)
 {
 	pCmdUI->Enable(theApp.mode320Available);
@@ -902,6 +923,17 @@ void MainWnd::OnOptionsEmulatorAlwaysOnTop()
 void MainWnd::OnUpdateOptionsEmulatorAlwaysOnTop(CCmdUI*pCmdUI)
 {
 	pCmdUI->SetCheck(theApp.alwaysOnTop);
+}
+
+void MainWnd::OnOptionsEmulatorModernFont()
+{
+	theApp.useModernFont = !theApp.useModernFont;
+	uiFont::setModern(theApp.useModernFont);
+}
+
+void MainWnd::OnUpdateOptionsEmulatorModernFont(CCmdUI*pCmdUI)
+{
+	pCmdUI->SetCheck(theApp.useModernFont);
 }
 
 void MainWnd::OnOptionsEmulatorPausewheninactive()

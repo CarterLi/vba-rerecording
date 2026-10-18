@@ -4,6 +4,7 @@
 #include "../stdafx.h"
 #include "../resource.h"
 #include "MemoryViewer.h"
+#include "../UiFont.h"
 
 extern int emulating;
 
@@ -22,7 +23,7 @@ MemoryViewer::MemoryViewer()
 	displayedLines = 0;
 	hasCaret       = false;
 	maxNibble      = 0;
-	font        = (HFONT)GetStockObject(SYSTEM_FIXED_FONT);
+	font        = uiFont::mono();
 	fontSize.cx = fontSize.cy = 0;
 	beginAscii  = 0;
 	beginHex    = 0;

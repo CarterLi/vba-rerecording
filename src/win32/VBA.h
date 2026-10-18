@@ -30,7 +30,8 @@ enum
 	VIDEO_320x240, VIDEO_640x480, VIDEO_800x600, VIDEO_OTHER,
 	// Appended so the values stored in the registry by older builds keep
 	// meaning the same thing.
-	VIDEO_5X, VIDEO_6X, VIDEO_7X, VIDEO_8X
+	VIDEO_5X, VIDEO_6X, VIDEO_7X, VIDEO_8X,
+	VIDEO_9X, VIDEO_10X, VIDEO_11X, VIDEO_12X
 };
 
 // Sound backend selection (theApp.soundApi).  XAudio2 is optional: when
@@ -209,6 +210,7 @@ public:
 	bool		 pauseWhenInactive;
 	bool		 enableBackgroundInput;
 	bool		 alwaysOnTop;
+	bool		 useModernFont;		// system UI font instead of the bitmap one
 	bool		 useOldSync;
 	bool		 winGbPrinterEnabled;
 	int			 threadPriority;

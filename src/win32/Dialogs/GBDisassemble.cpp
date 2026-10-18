@@ -5,6 +5,7 @@
 #include "../resource.h"
 #include "GBDisassemble.h"
 #include "../VBA.h"
+#include "../UiFont.h"
 #include "../../common/Util.h"
 
 #include "../../gb/GB.h"
@@ -141,7 +142,7 @@ BOOL GBDisassemble::OnInitDialog()
 	si.nPos   = 50;
 	si.nPage  = 0;
 	GetDlgItem(IDC_VSCROLL)->SetScrollInfo(SB_CTL, &si, TRUE);
-	CFont *font = CFont::FromHandle((HFONT)GetStockObject(SYSTEM_FIXED_FONT));
+	CFont *font = CFont::FromHandle(uiFont::mono());
 	m_list.SetFont(font);
 
 	for (int i = 0; i < 7; i++)

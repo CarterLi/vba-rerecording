@@ -1925,6 +1925,10 @@ BEGIN
                 MENUITEM "&6x",                     ID_OPTIONS_VIDEO_X6
                 MENUITEM "&7x",                     ID_OPTIONS_VIDEO_X7
                 MENUITEM "&8x",                     ID_OPTIONS_VIDEO_X8
+                MENUITEM "&9x",                     ID_OPTIONS_VIDEO_X9
+                MENUITEM "1&0x",                    ID_OPTIONS_VIDEO_X10
+                MENUITEM "1&1x",                    ID_OPTIONS_VIDEO_X11
+                MENUITEM "1&2x",                    ID_OPTIONS_VIDEO_X12
             END
             MENUITEM SEPARATOR
             MENUITEM "Full Screen (320x240)",       ID_OPTIONS_VIDEO_FULLSCREEN320X240
@@ -2180,6 +2184,7 @@ BEGIN
         POPUP "&Preferences"
         BEGIN
             MENUITEM "Always On &Top",              ID_OPTIONS_EMULATOR_ALWAYSONTOP
+            MENUITEM "Use &Modern UI Font",         ID_OPTIONS_EMULATOR_MODERNFONT
             MENUITEM "Enable &Background Input",    ID_OPTIONS_EMULATOR_BACKGROUNDINPUT
             MENUITEM "Pause When &Inactive",        ID_OPTIONS_EMULATOR_PAUSEWHENINACTIVE
             POPUP "Process &Priority"

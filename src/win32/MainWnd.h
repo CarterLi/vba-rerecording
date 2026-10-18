@@ -184,6 +184,10 @@ protected:
 	afx_msg void OnUpdateOptionsVideoX6(CCmdUI*pCmdUI);
 	afx_msg void OnUpdateOptionsVideoX7(CCmdUI*pCmdUI);
 	afx_msg void OnUpdateOptionsVideoX8(CCmdUI*pCmdUI);
+	afx_msg void OnUpdateOptionsVideoX9(CCmdUI*pCmdUI);
+	afx_msg void OnUpdateOptionsVideoX10(CCmdUI*pCmdUI);
+	afx_msg void OnUpdateOptionsVideoX11(CCmdUI*pCmdUI);
+	afx_msg void OnUpdateOptionsVideoX12(CCmdUI*pCmdUI);
 	afx_msg void OnUpdateOptionsVideoFullscreen320x240(CCmdUI*pCmdUI);
 	afx_msg void OnUpdateOptionsVideoFullscreen640x480(CCmdUI*pCmdUI);
 	afx_msg void OnUpdateOptionsVideoFullscreen800x600(CCmdUI*pCmdUI);
@@ -241,6 +245,9 @@ protected:
 	afx_msg void OnUpdateOptionsEmulatorSynchronize(CCmdUI*pCmdUI);
 	afx_msg void OnOptionsEmulatorAlwaysOnTop();
 	afx_msg void OnUpdateOptionsEmulatorAlwaysOnTop(CCmdUI*pCmdUI);
+	afx_msg void OnOptionsEmulatorModernFont();
+	afx_msg void OnUpdateOptionsEmulatorModernFont(CCmdUI*pCmdUI);
+	afx_msg LRESULT OnDpiChanged(WPARAM wParam, LPARAM lParam);
 	afx_msg void OnOptionsEmulatorPausewheninactive();
 	afx_msg void OnUpdateOptionsEmulatorPausewheninactive(CCmdUI*pCmdUI);
 	afx_msg void OnOptionsEmulatorEnableBackgroundInput();

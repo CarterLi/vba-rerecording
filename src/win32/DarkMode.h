@@ -17,6 +17,10 @@ namespace darkMode
 {
 	// Call once from InitInstance, before the first window is created.
 	void init();
+
+	// The menu bar is drawn with a font built for the window's DPI; call this
+	// when that DPI changes so the next paint picks up the new size.
+	void resetFont();
 }
 
 #endif // !defined(VBA_WIN32_DARKMODE_H_INCLUDED)

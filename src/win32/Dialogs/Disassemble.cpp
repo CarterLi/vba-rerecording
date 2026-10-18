@@ -5,6 +5,7 @@
 #include "../resource.h"
 #include "Disassemble.h"
 #include "../VBA.h"
+#include "../UiFont.h"
 #include "../../common/Util.h"
 
 #include "../../gba/armdis.h"
@@ -185,7 +186,7 @@ BOOL Disassemble::OnInitDialog()
 	si.nPage  = 0;
 	GetDlgItem(IDC_VSCROLL)->SetScrollInfo(SB_CTL, &si, TRUE);
 
-	CFont *font = CFont::FromHandle((HFONT)GetStockObject(SYSTEM_FIXED_FONT));
+	CFont *font = CFont::FromHandle(uiFont::mono());
 	m_list.SetFont(font, FALSE);
 	for (int i = 0; i < 17; i++)
 		GetDlgItem(IDC_R0+i)->SetFont(font, FALSE);
