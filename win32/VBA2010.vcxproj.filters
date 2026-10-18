@@ -655,6 +655,9 @@
     <None Include="..\src\win32\upscalers\NIS_Scaler.h">
       <Filter>Resource Files</Filter>
     </None>
+    <None Include="..\src\win32\upscalers\XBRZ_Freescale.hlsl">
+      <Filter>Resource Files</Filter>
+    </None>
     <None Include="..\src\win32\upscalers\licence-ffx.txt">
       <Filter>Docs</Filter>
     </None>

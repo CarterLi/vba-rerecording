@@ -590,6 +590,7 @@
     <None Include="..\src\win32\upscalers\NIS_Main.hlsl" />
     <None Include="..\src\win32\upscalers\NIS_Scaler.h" />
     <None Include="..\src\win32\upscalers\README.txt" />
+    <None Include="..\src\win32\upscalers\XBRZ_Freescale.hlsl" />
     <None Include="..\src\win32\vba.rc2" />
     <None Include="..\src\win32\VisualBoyAdvance.exe.manifest" />
     <None Include="ClassDiagram1.cd" />

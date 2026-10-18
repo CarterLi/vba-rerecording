@@ -96,6 +96,17 @@ bool direct3D11Available()
 	return d3d11CreateDevice != NULL && d3dCompile != NULL;
 }
 
+// Set while a Direct3D 11 display is running that compiled its xBRZ shader.
+// The upscaling menu leaves the entry out when the shader does not build on
+// this device, and VBA::updateFilter() then keeps the frame at its native size
+// and the CPU filter in charge.
+static bool xbrzShaderAvailable = false;
+
+bool direct3D11XbrzAvailable()
+{
+	return xbrzShaderAvailable;
+}
+
 // The swap effect the running display presents with, -1 while there is none.
 static int currentSwapEffect = -1;
 
@@ -282,6 +293,13 @@ private:
 	bool updateFsrTargets(int dstWidth, int dstHeight);
 	ID3D11ShaderResourceView *scaleFrameWithFsr();
 
+	// xBRZ
+	bool initXbrz();
+	void releaseXbrz();
+	void releaseXbrzTarget();
+	bool updateXbrzTarget(int dstWidth, int dstHeight);
+	ID3D11ShaderResourceView *scaleFrameWithXbrz();
+
 	HWND                  hwnd;
 	ID3D11Device         *pDevice;
 	ID3D11DeviceContext  *pContext;
@@ -346,6 +364,19 @@ private:
 	ID3D11Buffer              *pFsrCB;
 	FsrTarget                  fsrTargets[FSR_PASS_COUNT];
 
+	// xBRZ, as the single-pass pixel shader that stands in for the CPU filter:
+	// the frame texture holds the frame at its native size and the shader
+	// blends it into a target the size of the back buffer, which is then drawn
+	// 1:1 (see scaleFrameWithXbrz()).
+	bool                      xbrzAvailable;
+	ID3D11PixelShader        *pXbrzPS;
+	ID3D11Buffer             *pXbrzCB;
+	ID3D11Texture2D          *pXbrzTargetTexture;
+	ID3D11ShaderResourceView *pXbrzTargetSRV;
+	ID3D11RenderTargetView   *pXbrzTargetRTV;
+	int                       xbrzTargetWidth;
+	int                       xbrzTargetHeight;
+
 	DXGI_FORMAT frameFormat;
 	int  width;
 	int  height;
@@ -395,6 +426,14 @@ Direct3D11Display::Direct3D11Display()
 	pFsrRcasPS    = NULL;
 	pFsrCB        = NULL;
 	ZeroMemory(fsrTargets, sizeof(fsrTargets));
+	xbrzAvailable = false;
+	pXbrzPS       = NULL;
+	pXbrzCB       = NULL;
+	pXbrzTargetTexture = NULL;
+	pXbrzTargetSRV     = NULL;
+	pXbrzTargetRTV     = NULL;
+	xbrzTargetWidth    = 0;
+	xbrzTargetHeight   = 0;
 	frameFormat   = DXGI_FORMAT_B8G8R8A8_UNORM;
 	width         = 0;
 	height        = 0;
@@ -426,6 +465,7 @@ void Direct3D11Display::releaseAll()
 	releaseFrameTexture();
 	releaseNis();
 	releaseFsr();
+	releaseXbrz();
 
 	if (pOverlaySRV)   { pOverlaySRV->Release();   pOverlaySRV = NULL; }
 	if (pOverlayTexture) { pOverlayTexture->Release(); pOverlayTexture = NULL; }
@@ -795,6 +835,12 @@ bool Direct3D11Display::initialize()
 		initNis();
 	else if (theApp.upscaler == UPSCALER_FSR)
 		initFsr();
+
+	// The xBRZ shader is built here rather than on demand, so that the
+	// upscaling menu and updateFilter() know whether it is there before the
+	// first frame.  Failing is not fatal, the entry is then left out.
+	if (!initXbrz())
+		winlog("D3D11: the xBRZ upscaler is not available on this device\n");
 
 	filterMode = regQueryDwordValue("d3dFilter", 0);
 	if (filterMode < 0 || filterMode > 3)
@@ -1405,6 +1451,182 @@ ID3D11ShaderResourceView *Direct3D11Display::scaleFrameWithFsr()
 	return source;
 }
 
+// --- xBRZ ---------------------------------------------------------------
+//
+// The port of the libretro xBRZ-Freescale shader, see
+// src/win32/upscalers/XBRZ_Freescale.hlsl.  It is a pixel filter rather than a
+// frame reconstruction like the two SDKs above: the frame texture holds the
+// untouched frame at its native size (VBA::updateFilter() keeps the CPU filter
+// out of the way) and the shader blends it while it is stretched into a target
+// the size of the back buffer, which is then drawn 1:1.
+
+bool Direct3D11Display::initXbrz()
+{
+	if (xbrzAvailable)
+		return true;
+
+	if (pDevice == NULL)
+		return false;
+
+	DWORD sourceSize = 0;
+	const char *source = upscalerShaderSource("XBRZ_SHADER_FREESCALE", &sourceSize);
+	if (source == NULL)
+		return false;
+
+	ID3DBlob *blob  = NULL;
+	ID3DBlob *error = NULL;
+
+	if (FAILED(d3dCompile(source, sourceSize, "xbrzPS", NULL, NULL, "main", "ps_4_0", 0, 0, &blob, &error)))
+	{
+		winlog("xBRZ: shader compilation failed: %s\n", error ? (const char *)error->GetBufferPointer() : "?");
+		if (error) error->Release();
+		return false;
+	}
+	if (error)
+		error->Release();
+
+	HRESULT hr = pDevice->CreatePixelShader(blob->GetBufferPointer(), blob->GetBufferSize(), NULL, &pXbrzPS);
+	blob->Release();
+	if (FAILED(hr))
+	{
+		winlog("xBRZ: cannot create the pixel shader\n");
+		return false;
+	}
+
+	// One float4: the size of a source texel in xy, the factor the frame is
+	// stretched by in zw.
+	D3D11_BUFFER_DESC cbd;
+	ZeroMemory(&cbd, sizeof(cbd));
+	cbd.ByteWidth      = 4 * sizeof(float);
+	cbd.Usage          = D3D11_USAGE_DYNAMIC;
+	cbd.BindFlags      = D3D11_BIND_CONSTANT_BUFFER;
+	cbd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	if (FAILED(pDevice->CreateBuffer(&cbd, NULL, &pXbrzCB)))
+	{
+		winlog("xBRZ: cannot create the constant buffer\n");
+		releaseXbrz();
+		return false;
+	}
+
+	xbrzAvailable       = true;
+	xbrzShaderAvailable = true;
+	return true;
+}
+
+void Direct3D11Display::releaseXbrzTarget()
+{
+	if (pXbrzTargetRTV)     { pXbrzTargetRTV->Release();     pXbrzTargetRTV = NULL; }
+	if (pXbrzTargetSRV)     { pXbrzTargetSRV->Release();     pXbrzTargetSRV = NULL; }
+	if (pXbrzTargetTexture) { pXbrzTargetTexture->Release(); pXbrzTargetTexture = NULL; }
+	xbrzTargetWidth  = 0;
+	xbrzTargetHeight = 0;
+}
+
+void Direct3D11Display::releaseXbrz()
+{
+	releaseXbrzTarget();
+
+	if (pXbrzCB) { pXbrzCB->Release(); pXbrzCB = NULL; }
+	if (pXbrzPS) { pXbrzPS->Release(); pXbrzPS = NULL; }
+
+	xbrzAvailable       = false;
+	xbrzShaderAvailable = false;
+}
+
+bool Direct3D11Display::updateXbrzTarget(int dstWidth, int dstHeight)
+{
+	if (dstWidth <= 0 || dstHeight <= 0)
+		return false;
+
+	if (pXbrzTargetTexture != NULL && xbrzTargetWidth == dstWidth &&
+	    xbrzTargetHeight == dstHeight)
+		return true;
+
+	releaseXbrzTarget();
+
+	D3D11_TEXTURE2D_DESC td;
+	ZeroMemory(&td, sizeof(td));
+	td.Width            = dstWidth;
+	td.Height           = dstHeight;
+	td.MipLevels        = 1;
+	td.ArraySize        = 1;
+	td.Format           = DXGI_FORMAT_B8G8R8A8_UNORM;
+	td.SampleDesc.Count = 1;
+	td.Usage            = D3D11_USAGE_DEFAULT;
+	td.BindFlags        = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
+
+	if (FAILED(pDevice->CreateTexture2D(&td, NULL, &pXbrzTargetTexture)) ||
+	    FAILED(pDevice->CreateShaderResourceView(pXbrzTargetTexture, NULL, &pXbrzTargetSRV)) ||
+	    FAILED(pDevice->CreateRenderTargetView(pXbrzTargetTexture, NULL, &pXbrzTargetRTV)))
+	{
+		winlog("xBRZ: cannot create the %dx%d target\n", dstWidth, dstHeight);
+		releaseXbrzTarget();
+		return false;
+	}
+
+	xbrzTargetWidth  = dstWidth;
+	xbrzTargetHeight = dstHeight;
+	return true;
+}
+
+ID3D11ShaderResourceView *Direct3D11Display::scaleFrameWithXbrz()
+{
+	if (!xbrzAvailable || pXbrzPS == NULL || pXbrzCB == NULL || pFrameSRV == NULL)
+		return NULL;
+
+	if (theApp.upscaler != UPSCALER_XBRZ)
+		return NULL;
+
+	// The shader reads the frame at its native size: the CPU filter would have
+	// resized the texture, in which case the sampler takes over again.
+	if (theApp.rect.right != width || theApp.rect.bottom != height)
+		return NULL;
+
+	if (!updateXbrzTarget(backWidth, backHeight))
+		return NULL;
+
+	float constants[4];
+	constants[0] = 1.0f / (float)width;
+	constants[1] = 1.0f / (float)height;
+	constants[2] = (float)backWidth  / (float)width;
+	constants[3] = (float)backHeight / (float)height;
+
+	D3D11_MAPPED_SUBRESOURCE mapped;
+	if (FAILED(pContext->Map(pXbrzCB, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped)))
+		return NULL;
+	memcpy(mapped.pData, constants, sizeof(constants));
+	pContext->Unmap(pXbrzCB, 0);
+
+	D3D11VERTEX fullQuad[4];
+	setFullscreenQuad(fullQuad);
+
+	ID3D11RenderTargetView *rtv = pXbrzTargetRTV;
+	pContext->OMSetRenderTargets(1, &rtv, NULL);
+
+	D3D11_VIEWPORT vp;
+	vp.TopLeftX = 0.0f;
+	vp.TopLeftY = 0.0f;
+	vp.Width    = (float)xbrzTargetWidth;
+	vp.Height   = (float)xbrzTargetHeight;
+	vp.MinDepth = 0.0f;
+	vp.MaxDepth = 1.0f;
+	pContext->RSSetViewports(1, &vp);
+
+	pContext->PSSetConstantBuffers(0, 1, &pXbrzCB);
+
+	// The taps have to land on texel centres.
+	int savedFilter = filterMode;
+	filterMode = 0;
+	drawQuad(pFrameSRV, fullQuad, false, pXbrzPS);
+	filterMode = savedFilter;
+
+	// The caller draws what this produced, so drop the shader resource binding.
+	ID3D11ShaderResourceView *nullView = NULL;
+	pContext->PSSetShaderResources(0, 1, &nullView);
+
+	return pXbrzTargetSRV;
+}
+
 void Direct3D11Display::clear()
 {}
 
@@ -1569,6 +1791,8 @@ void Direct3D11Display::render()
 			scaled = scaleFrameWithNis();
 		else if (theApp.upscaler == UPSCALER_FSR)
 			scaled = scaleFrameWithFsr();
+		else if (theApp.upscaler == UPSCALER_XBRZ)
+			scaled = scaleFrameWithXbrz();
 
 		if (scaled != NULL)
 		{
@@ -1720,6 +1944,8 @@ void Direct3D11Display::setOption(const char *option, int value)
 			systemScreenMessage("NVIDIA Image Scaling is not available on this device");
 		else if (value == UPSCALER_FSR && !fsrAvailable && !initFsr())
 			systemScreenMessage("FidelityFX Super Resolution is not available on this device");
+		else if (value == UPSCALER_XBRZ && !xbrzAvailable && !initXbrz())
+			systemScreenMessage("The xBRZ shader is not available on this device");
 	}
 }
 

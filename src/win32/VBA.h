@@ -43,14 +43,19 @@ enum
 };
 
 // Frame upscaling (theApp.upscaler): the frame is either drawn by the sampler
-// or reconstructed by one of the two upscalers that ship with the Direct3D 11
-// backend, which then applies theApp.upscalerSharpness percent of sharpening.
-// The other backends ignore both settings.
+// or rebuilt by one of the upscalers that ship with the Direct3D 11 backend,
+// which then applies theApp.upscalerSharpness percent of sharpening.  The other
+// backends ignore both settings.
 enum
 {
 	UPSCALER_OFF,   // sampler filtering only
 	UPSCALER_NIS,   // NVIDIA Image Scaling
-	UPSCALER_FSR    // AMD FidelityFX Super Resolution 1.0 (EASU + RCAS)
+	UPSCALER_FSR,   // AMD FidelityFX Super Resolution 1.0 (EASU + RCAS)
+	// xBRZ as the pixel shader of the same backend.  Unlike the two SDKs above
+	// it does not reconstruct the frame but filters it, so it takes the place
+	// of the CPU pixel filter and the frame stays at its native size (see
+	// VBA::updateFilter()).
+	UPSCALER_XBRZ
 };
 
 // True for the fixed-size / custom full screen modes (as opposed to the

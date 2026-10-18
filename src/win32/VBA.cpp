@@ -40,6 +40,9 @@ extern IDisplay *newDirectDrawDisplay();
 extern IDisplay *newDirect3DDisplay();
 extern IDisplay *newOpenGLDisplay();
 extern IDisplay *newDirect3D11Display();
+// Defined in Direct3D11.cpp: true while a Direct3D 11 display is running whose
+// xBRZ upscaler shader compiled on this device.
+extern bool direct3D11XbrzAvailable();
 
 extern Input *newDirectInput();
 
@@ -847,8 +850,23 @@ void VBA::updateFilter()
 	filterWidth	 = sizeX;
 	filterHeight = sizeY;
 
-	if (systemColorDepth == 16 && (videoOption > VIDEO_1X &&
-	                               videoOption != VIDEO_320x240))
+	// The xBRZ upscaler filters the frame in the Direct3D 11 pixel shader while
+	// the quad is stretched, so the frame stays at its native size and no CPU
+	// filter may run underneath it.  Everywhere else the setting is ignored the
+	// way the two upscalers that need shader model 5.0 are.
+	bool shaderXbrz = upscaler == UPSCALER_XBRZ &&
+	                  display != NULL && display->getType() == DIRECT_3D11 &&
+	                  direct3D11XbrzAvailable();
+
+	if (shaderXbrz)
+	{
+		filterFunction = NULL;
+		rect.right	= sizeX;
+		rect.bottom = sizeY;
+		memset(delta, 255, sizeof(delta));
+	}
+	else if (systemColorDepth == 16 && (videoOption > VIDEO_1X &&
+	                                    videoOption != VIDEO_320x240))
 	{
 		switch (filterType)
 		{

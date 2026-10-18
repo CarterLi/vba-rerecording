@@ -63,12 +63,16 @@ IDI_ICON                ICON                    "gbadvance.ico"
 // sources, plus the small FSR wrapper, that the Direct3D 11 backend compiles
 // while it starts up.  They ship inside the executable, see
 // src/win32/upscalers/README.txt.
+//
+// The xBRZ pixel filter of the same backend is a port of a libretro shader and
+// is stored the same way.
 
 NIS_SHADER_MAIN         RCDATA                  "upscalers\\NIS_Main.hlsl"
 NIS_SHADER_SCALER       RCDATA                  "upscalers\\NIS_Scaler.h"
 FSR_SHADER_MAIN         RCDATA                  "upscalers\\FSR_Main.hlsl"
 FSR_SHADER_A            RCDATA                  "upscalers\\ffx_a.h"
 FSR_SHADER_FSR1         RCDATA                  "upscalers\\ffx_fsr1.h"
+XBRZ_SHADER_FREESCALE   RCDATA                  "upscalers\\XBRZ_Freescale.hlsl"
 
 
 /////////////////////////////////////////////////////////////////////////////
@@ -2029,6 +2033,7 @@ BEGIN
             MENUITEM SEPARATOR
             MENUITEM "NVIDIA &NIS",                 ID_OPTIONS_VIDEO_UPSCALER_NIS
             MENUITEM "AMD &FSR 1.0",                ID_OPTIONS_VIDEO_UPSCALER_FSR
+            MENUITEM "&xBRZ (Freescale)",           ID_OPTIONS_VIDEO_UPSCALER_XBRZ
             MENUITEM SEPARATOR
             POPUP "&Sharpening"
             BEGIN
