@@ -1909,8 +1909,8 @@ BEGIN
                 MENUITEM "OpenGL (&Legacy)",            ID_OPTIONS_VIDEO_RENDERMETHOD_OPENGL
                 MENUITEM "    GL Ne&arest",             ID_OPTIONS_VIDEO_RENDEROPTIONS_GLNEAREST
                 MENUITEM "    GL B&ilinear",            ID_OPTIONS_VIDEO_RENDEROPTIONS_GLBILINEAR
-                MENUITEM "    GL T&riangle",            ID_OPTIONS_VIDEO_RENDEROPTIONS_GLTRIANGLE
-                MENUITEM "    GL &Quads",               ID_OPTIONS_VIDEO_RENDEROPTIONS_GLQUADS
+                MENUITEM "    GL T&riangle (Legacy)", ID_OPTIONS_VIDEO_RENDEROPTIONS_GLTRIANGLE
+                MENUITEM "    GL &Quads (Legacy)",    ID_OPTIONS_VIDEO_RENDEROPTIONS_GLQUADS
             END
             MENUITEM SEPARATOR
             MENUITEM "V&Sync (DDraw, D3D11, OpenGL 3.3)", ID_OPTIONS_VIDEO_VSYNC
