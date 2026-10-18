@@ -3,6 +3,10 @@
 // The emulator frame is uploaded into a dynamic BGRA/BGR565 texture and drawn
 // as a single textured quad.  OSD text is rendered by TextOverlay into a
 // second texture and blended on top, so it stays 1:1 with the window.
+//
+// Optionally the frame is scaled up by NVIDIA Image Scaling (NIS) instead of
+// the sampler: the SDK compute shader runs between the frame upload and the
+// quad draw, see the NIS section below.
 
 #include "stdafx.h"
 
@@ -19,6 +23,10 @@
 #include "Reg.h"
 #include "VBA.h"
 #include "TextOverlay.h"
+
+// NVIDIA Image Scaling SDK, see src/win32/nis for these files.
+#include "nis/NIS_Config.h"
+#include "nis/NIS_Shader.h"
 
 #include "../common/SystemGlobals.h"
 #include "../common/Text.h"
@@ -56,6 +64,43 @@ static const char *g_quadShader =
     "    return frameTex.Sample(frameSampler, i.uv);\n"
     "}\n";
 
+// --- NVIDIA Image Scaling (NIS) ------------------------------------------
+//
+// The block layout is baked into the compute shader and has to match the
+// dispatch; 32x24 with 128 threads per group is what the SDK's NISOptimizer
+// picks for upscaling on generic hardware.
+#define NIS_BLOCK_WIDTH        32
+#define NIS_BLOCK_HEIGHT       24
+#define NIS_THREAD_GROUP_SIZE  128
+
+#define NIS_STR_INNER(x) #x
+#define NIS_STR(x)       NIS_STR_INNER(x)
+
+// A single NIS pass scales by at most 2x, so larger windows need several
+// passes.  Four of them reach 16x, well past any window size.
+#define NIS_MAX_PASSES 4
+
+// Serves NIS_Scaler.h to D3DCompile from the embedded SDK sources, so the
+// shaders stay inside the executable instead of sitting next to it.
+class NisIncludeHandler : public ID3DInclude
+{
+public:
+	STDMETHOD(Open)(D3D_INCLUDE_TYPE type, LPCSTR name, LPCVOID parent, LPCVOID *data, UINT *bytes)
+	{
+		if (name == NULL || _stricmp(name, "NIS_Scaler.h") != 0)
+			return E_FAIL;
+
+		*data  = g_nisScalerShader;
+		*bytes = (UINT)strlen(g_nisScalerShader);
+		return S_OK;
+	}
+
+	STDMETHOD(Close)(LPCVOID data)
+	{
+		return S_OK;
+	}
+};
+
 class Direct3D11Display : public IDisplay
 {
 public:
@@ -86,6 +131,13 @@ private:
 	void calculateVertices();
 	void drawQuad(ID3D11ShaderResourceView *srv, D3D11VERTEX *quad, bool blend);
 
+	// NVIDIA Image Scaling
+	bool initNis();
+	void releaseNis();
+	void releaseNisTargets();
+	bool updateNisChain(int srcWidth, int srcHeight, int dstWidth, int dstHeight);
+	ID3D11ShaderResourceView *scaleFrameWithNis();
+
 	HWND                  hwnd;
 	ID3D11Device         *pDevice;
 	ID3D11DeviceContext  *pContext;
@@ -102,6 +154,32 @@ private:
 	ID3D11SamplerState   *pSamplerLinear;
 	ID3D11BlendState     *pBlendAlpha;
 	ID3D11Buffer         *pVertexBuffer;
+
+	// NVIDIA Image Scaling: one pass target per 2x step between the frame and
+	// the back buffer.
+	struct NisTarget
+	{
+		ID3D11Texture2D           *texture;
+		ID3D11ShaderResourceView  *srv;
+		ID3D11UnorderedAccessView *uav;
+		int                        width;
+		int                        height;
+	};
+
+	D3D_FEATURE_LEVEL          featureLevel;
+	bool                       nisAvailable;
+	ID3D11ComputeShader       *pNisCS;
+	ID3D11Buffer              *pNisCB;
+	ID3D11Texture2D           *pNisCoefScale;
+	ID3D11ShaderResourceView  *pNisCoefScaleSRV;
+	ID3D11Texture2D           *pNisCoefUsm;
+	ID3D11ShaderResourceView  *pNisCoefUsmSRV;
+	NisTarget                  nisTargets[NIS_MAX_PASSES];
+	int                        nisPassCount;
+	int                        nisSrcWidth;
+	int                        nisSrcHeight;
+	int                        nisDstWidth;
+	int                        nisDstHeight;
 
 	DXGI_FORMAT frameFormat;
 	int  width;
@@ -132,6 +210,20 @@ Direct3D11Display::Direct3D11Display()
 	pSamplerLinear = NULL;
 	pBlendAlpha   = NULL;
 	pVertexBuffer = NULL;
+	featureLevel  = D3D_FEATURE_LEVEL_10_0;
+	nisAvailable  = false;
+	pNisCS        = NULL;
+	pNisCB        = NULL;
+	pNisCoefScale = NULL;
+	pNisCoefScaleSRV = NULL;
+	pNisCoefUsm   = NULL;
+	pNisCoefUsmSRV = NULL;
+	ZeroMemory(nisTargets, sizeof(nisTargets));
+	nisPassCount  = 0;
+	nisSrcWidth   = 0;
+	nisSrcHeight  = 0;
+	nisDstWidth   = 0;
+	nisDstHeight  = 0;
 	frameFormat   = DXGI_FORMAT_B8G8R8A8_UNORM;
 	width         = 0;
 	height        = 0;
@@ -161,6 +253,7 @@ void Direct3D11Display::cleanup()
 void Direct3D11Display::releaseAll()
 {
 	releaseFrameTexture();
+	releaseNis();
 
 	if (pOverlaySRV)   { pOverlaySRV->Release();   pOverlaySRV = NULL; }
 	if (pOverlayTexture) { pOverlayTexture->Release(); pOverlayTexture = NULL; }
@@ -225,6 +318,8 @@ bool Direct3D11Display::createDevice()
 		winlog("D3D11CreateDeviceAndSwapChain failed %08x\n", hr);
 		return false;
 	}
+
+	featureLevel = obtained;
 
 	return createBackBufferViews();
 }
@@ -383,6 +478,9 @@ bool Direct3D11Display::initialize()
 		return false;
 	}
 
+	if (theApp.nisSharpness >= 0)
+		initNis();
+
 	filterMode = regQueryDwordValue("d3dFilter", 0);
 	if (filterMode < 0 || filterMode > 3)
 		filterMode = 0;
@@ -456,6 +554,271 @@ bool Direct3D11Display::initializeOffscreen(int w, int h)
 void Direct3D11Display::updateFiltering(int filter)
 {
 	filterMode = filter;
+}
+
+// --- NVIDIA Image Scaling -------------------------------------------------
+
+bool Direct3D11Display::initNis()
+{
+	if (nisAvailable)
+		return true;
+
+	if (pDevice == NULL)
+		return false;
+
+	if (featureLevel < D3D_FEATURE_LEVEL_11_0)
+	{
+		winlog("NIS: needs Direct3D feature level 11.0\n");
+		return false;
+	}
+
+	D3D_SHADER_MACRO defines[] =
+	{
+		{ "NIS_SCALER",            "1" },
+		{ "NIS_HDR_MODE",          "0" },
+		{ "NIS_BLOCK_WIDTH",       NIS_STR(NIS_BLOCK_WIDTH) },
+		{ "NIS_BLOCK_HEIGHT",      NIS_STR(NIS_BLOCK_HEIGHT) },
+		{ "NIS_THREAD_GROUP_SIZE", NIS_STR(NIS_THREAD_GROUP_SIZE) },
+		{ NULL, NULL }
+	};
+
+	NisIncludeHandler includeHandler;
+	ID3DBlob *blob  = NULL;
+	ID3DBlob *error = NULL;
+
+	HRESULT hr = D3DCompile(g_nisMainShader, strlen(g_nisMainShader), "NIS_Main.hlsl",
+	                        defines, &includeHandler, "main", "cs_5_0", 0, 0,
+	                        &blob, &error);
+	if (FAILED(hr))
+	{
+		winlog("NIS: shader compilation failed: %s\n",
+		       error ? (const char *)error->GetBufferPointer() : "?");
+		if (error)
+			error->Release();
+		return false;
+	}
+	if (error)
+		error->Release();
+
+	hr = pDevice->CreateComputeShader(blob->GetBufferPointer(), blob->GetBufferSize(), NULL, &pNisCS);
+	blob->Release();
+	if (FAILED(hr))
+	{
+		winlog("NIS: CreateComputeShader failed %08x\n", hr);
+		return false;
+	}
+
+	// The filter bank is 64 phases of 8 taps; the SDK exposes it as two 2x64
+	// RGBA32F textures (kFilterSize / 4 columns).
+	D3D11_TEXTURE2D_DESC td;
+	ZeroMemory(&td, sizeof(td));
+	td.Width            = (UINT)(kFilterSize / 4);
+	td.Height           = (UINT)kPhaseCount;
+	td.MipLevels        = 1;
+	td.ArraySize        = 1;
+	td.Format           = DXGI_FORMAT_R32G32B32A32_FLOAT;
+	td.SampleDesc.Count = 1;
+	td.Usage            = D3D11_USAGE_IMMUTABLE;
+	td.BindFlags        = D3D11_BIND_SHADER_RESOURCE;
+
+	D3D11_SUBRESOURCE_DATA data;
+	ZeroMemory(&data, sizeof(data));
+	data.SysMemPitch = (UINT)kFilterSize * sizeof(float);
+
+	data.pSysMem = coef_scale;
+	if (FAILED(pDevice->CreateTexture2D(&td, &data, &pNisCoefScale)))
+	{
+		winlog("NIS: cannot create the scaler coefficient texture\n");
+		return false;
+	}
+
+	data.pSysMem = coef_usm;
+	if (FAILED(pDevice->CreateTexture2D(&td, &data, &pNisCoefUsm)))
+	{
+		winlog("NIS: cannot create the sharpening coefficient texture\n");
+		return false;
+	}
+
+	if (FAILED(pDevice->CreateShaderResourceView(pNisCoefScale, NULL, &pNisCoefScaleSRV)) ||
+	    FAILED(pDevice->CreateShaderResourceView(pNisCoefUsm, NULL, &pNisCoefUsmSRV)))
+	{
+		winlog("NIS: cannot create the coefficient views\n");
+		return false;
+	}
+
+	D3D11_BUFFER_DESC cbd;
+	ZeroMemory(&cbd, sizeof(cbd));
+	cbd.ByteWidth      = sizeof(NISConfig);
+	cbd.Usage          = D3D11_USAGE_DYNAMIC;
+	cbd.BindFlags      = D3D11_BIND_CONSTANT_BUFFER;
+	cbd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	if (FAILED(pDevice->CreateBuffer(&cbd, NULL, &pNisCB)))
+	{
+		winlog("NIS: cannot create the config buffer\n");
+		return false;
+	}
+
+	nisAvailable = true;
+	return true;
+}
+
+void Direct3D11Display::releaseNisTargets()
+{
+	for (int i = 0; i < NIS_MAX_PASSES; i++)
+	{
+		if (nisTargets[i].uav)     { nisTargets[i].uav->Release();     nisTargets[i].uav = NULL; }
+		if (nisTargets[i].srv)     { nisTargets[i].srv->Release();     nisTargets[i].srv = NULL; }
+		if (nisTargets[i].texture) { nisTargets[i].texture->Release(); nisTargets[i].texture = NULL; }
+		nisTargets[i].width  = 0;
+		nisTargets[i].height = 0;
+	}
+	nisPassCount = 0;
+}
+
+void Direct3D11Display::releaseNis()
+{
+	releaseNisTargets();
+
+	if (pNisCoefScaleSRV) { pNisCoefScaleSRV->Release(); pNisCoefScaleSRV = NULL; }
+	if (pNisCoefUsmSRV)   { pNisCoefUsmSRV->Release();   pNisCoefUsmSRV   = NULL; }
+	if (pNisCoefScale)    { pNisCoefScale->Release();    pNisCoefScale    = NULL; }
+	if (pNisCoefUsm)      { pNisCoefUsm->Release();      pNisCoefUsm      = NULL; }
+	if (pNisCB)           { pNisCB->Release();           pNisCB           = NULL; }
+	if (pNisCS)           { pNisCS->Release();           pNisCS           = NULL; }
+	nisAvailable = false;
+}
+
+bool Direct3D11Display::updateNisChain(int srcWidth, int srcHeight, int dstWidth, int dstHeight)
+{
+	if (nisPassCount > 0 && nisSrcWidth == srcWidth && nisSrcHeight == srcHeight &&
+	    nisDstWidth == dstWidth && nisDstHeight == dstHeight)
+		return true;
+
+	releaseNisTargets();
+
+	nisSrcWidth  = srcWidth;
+	nisSrcHeight = srcHeight;
+	nisDstWidth  = dstWidth;
+	nisDstHeight = dstHeight;
+
+	if (srcWidth <= 0 || srcHeight <= 0 || dstWidth <= 0 || dstHeight <= 0)
+		return false;
+
+	// A pass may not shrink the image and may not scale by more than 2x, so a
+	// window bigger than that is reached in steps of at most 2x.
+	int w    = srcWidth;
+	int h    = srcHeight;
+	int pass = 0;
+
+	while ((w < dstWidth || h < dstHeight) && pass < NIS_MAX_PASSES)
+	{
+		if (w < dstWidth)
+			w = (w * 2 < dstWidth) ? w * 2 : dstWidth;
+		if (h < dstHeight)
+			h = (h * 2 < dstHeight) ? h * 2 : dstHeight;
+
+		D3D11_TEXTURE2D_DESC td;
+		ZeroMemory(&td, sizeof(td));
+		td.Width            = w;
+		td.Height           = h;
+		td.MipLevels        = 1;
+		td.ArraySize        = 1;
+		td.Format           = DXGI_FORMAT_B8G8R8A8_UNORM;
+		td.SampleDesc.Count = 1;
+		td.Usage            = D3D11_USAGE_DEFAULT;
+		td.BindFlags        = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_UNORDERED_ACCESS;
+
+		if (FAILED(pDevice->CreateTexture2D(&td, NULL, &nisTargets[pass].texture)) ||
+		    FAILED(pDevice->CreateShaderResourceView(nisTargets[pass].texture, NULL, &nisTargets[pass].srv)) ||
+		    FAILED(pDevice->CreateUnorderedAccessView(nisTargets[pass].texture, NULL, &nisTargets[pass].uav)))
+		{
+			winlog("NIS: cannot create the %dx%d pass target\n", w, h);
+			releaseNisTargets();
+			return false;
+		}
+
+		nisTargets[pass].width  = w;
+		nisTargets[pass].height = h;
+		pass++;
+	}
+
+	if (w != dstWidth || h != dstHeight)
+	{
+		// The back buffer is not reachable within NIS_MAX_PASSES, or it is
+		// smaller than the frame, which NIS cannot scale down to.
+		releaseNisTargets();
+		return false;
+	}
+
+	nisPassCount = pass;
+	return pass > 0;
+}
+
+ID3D11ShaderResourceView *Direct3D11Display::scaleFrameWithNis()
+{
+	if (!nisAvailable || pNisCS == NULL || pNisCB == NULL || pFrameSRV == NULL)
+		return NULL;
+
+	if (theApp.nisSharpness < 0)
+		return NULL;
+
+	// The chain maps the whole frame texture onto the whole back buffer, the
+	// same mapping the textured quad would use.
+	if (theApp.rect.right != width || theApp.rect.bottom != height)
+		return NULL;
+
+	if (!updateNisChain(width, height, backWidth, backHeight))
+		return NULL;
+
+	const float sharpness = theApp.nisSharpness / 100.0f;
+
+	ID3D11ShaderResourceView *source = pFrameSRV;
+	int srcWidth  = width;
+	int srcHeight = height;
+
+	for (int i = 0; i < nisPassCount; i++)
+	{
+		NisTarget& target = nisTargets[i];
+
+		NISConfig config;
+		ZeroMemory(&config, sizeof(config));
+		if (!NVScalerUpdateConfig(config, sharpness,
+		                          0, 0, srcWidth, srcHeight, srcWidth, srcHeight,
+		                          0, 0, target.width, target.height,
+		                          target.width, target.height, NISHDRMode::None))
+		{
+			return NULL;
+		}
+
+		D3D11_MAPPED_SUBRESOURCE mapped;
+		if (FAILED(pContext->Map(pNisCB, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped)))
+			return NULL;
+		memcpy(mapped.pData, &config, sizeof(config));
+		pContext->Unmap(pNisCB, 0);
+
+		pContext->CSSetShader(pNisCS, NULL, 0);
+		pContext->CSSetConstantBuffers(0, 1, &pNisCB);
+		pContext->CSSetSamplers(0, 1, &pSamplerLinear);
+		pContext->CSSetShaderResources(0, 1, &source);
+		pContext->CSSetShaderResources(1, 1, &pNisCoefScaleSRV);
+		pContext->CSSetShaderResources(2, 1, &pNisCoefUsmSRV);
+		pContext->CSSetUnorderedAccessViews(0, 1, &target.uav, NULL);
+
+		pContext->Dispatch((target.width + NIS_BLOCK_WIDTH - 1) / NIS_BLOCK_WIDTH,
+		                   (target.height + NIS_BLOCK_HEIGHT - 1) / NIS_BLOCK_HEIGHT, 1);
+
+		// Unbind so the next pass, and the quad draw, can read the result.
+		ID3D11UnorderedAccessView *nullUav    = NULL;
+		ID3D11ShaderResourceView  *nullSrv[3] = { NULL, NULL, NULL };
+		pContext->CSSetUnorderedAccessViews(0, 1, &nullUav, NULL);
+		pContext->CSSetShaderResources(0, 3, nullSrv);
+
+		source    = target.srv;
+		srcWidth  = target.width;
+		srcHeight = target.height;
+	}
+
+	return source;
 }
 
 void Direct3D11Display::clear()
@@ -608,6 +971,21 @@ void Direct3D11Display::render()
 		}
 	}
 
+	// Optionally let the NIS compute shader scale the frame up to the back
+	// buffer instead of the sampler.
+	ID3D11ShaderResourceView *frameView = pFrameSRV;
+	bool nisScaled = false;
+
+	if (pFrameSRV != NULL && theApp.nisSharpness >= 0)
+	{
+		ID3D11ShaderResourceView *scaled = scaleFrameWithNis();
+		if (scaled != NULL)
+		{
+			frameView = scaled;
+			nisScaled = true;
+		}
+	}
+
 	const float clearColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
 	pContext->OMSetRenderTargets(1, &pRTV, NULL);
 	pContext->ClearRenderTargetView(pRTV, clearColor);
@@ -621,8 +999,27 @@ void Direct3D11Display::render()
 	vp.MaxDepth = 1.0f;
 	pContext->RSSetViewports(1, &vp);
 
-	if (pFrameSRV != NULL)
-		drawQuad(pFrameSRV, quad, false);
+	if (frameView != NULL)
+	{
+		if (nisScaled)
+		{
+			// The NIS output covers exactly the back buffer, so it is drawn 1:1.
+			D3D11VERTEX fullQuad[4];
+			fullQuad[0].x = -1.0f; fullQuad[0].y = -1.0f; fullQuad[0].u = 0.0f; fullQuad[0].v = 1.0f;
+			fullQuad[1].x = -1.0f; fullQuad[1].y =  1.0f; fullQuad[1].u = 0.0f; fullQuad[1].v = 0.0f;
+			fullQuad[2].x =  1.0f; fullQuad[2].y = -1.0f; fullQuad[2].u = 1.0f; fullQuad[2].v = 1.0f;
+			fullQuad[3].x =  1.0f; fullQuad[3].y =  1.0f; fullQuad[3].u = 1.0f; fullQuad[3].v = 0.0f;
+
+			int savedFilter = filterMode;
+			filterMode = 0; // 1:1, no sampling needed
+			drawQuad(frameView, fullQuad, false);
+			filterMode = savedFilter;
+		}
+		else
+		{
+			drawQuad(frameView, quad, false);
+		}
+	}
 
 	if (textMethod == 2 && pOverlayTexture != NULL && !overlay.empty())
 	{
@@ -654,6 +1051,11 @@ void Direct3D11Display::render()
 			filterMode = savedFilter;
 		}
 	}
+
+	// Nothing must stay bound as a shader resource: the next frame writes the
+	// frame texture again and may bind an NIS target as a UAV.
+	ID3D11ShaderResourceView *nullView = NULL;
+	pContext->PSSetShaderResources(0, 1, &nullView);
 
 	pSwapChain->Present(1, 0);
 }
@@ -704,7 +1106,15 @@ bool Direct3D11Display::changeRenderSize(int w, int h)
 void Direct3D11Display::setOption(const char *option, int value)
 {
 	if (!strcmp(option, "d3dFilter"))
+	{
 		updateFiltering(value);
+	}
+	else if (!strcmp(option, "nis"))
+	{
+		// The shaders and the coefficient textures are only built on demand.
+		if (value >= 0 && !nisAvailable && !initNis())
+			systemScreenMessage("NVIDIA Image Scaling is not available on this device");
+	}
 }
 
 int Direct3D11Display::selectFullScreenMode(GUID * *)

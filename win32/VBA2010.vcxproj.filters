@@ -1104,6 +1104,12 @@
     <ClInclude Include="..\src\win32\TextOverlay.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\src\win32\nis\NIS_Config.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\src\win32\nis\NIS_Shader.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="..\src\win32\7zip\7zip.rc">

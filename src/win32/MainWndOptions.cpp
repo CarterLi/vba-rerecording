@@ -1905,6 +1905,75 @@ void MainWnd::OnUpdateOptionsVideoLcdFilter(CCmdUI *pCmdUI)
 	}
 }
 
+BOOL MainWnd::OnOptionsVideoNis(UINT nID)
+{
+	int sharpness;
+
+	switch (nID)
+	{
+	case ID_OPTIONS_VIDEO_NIS_OFF:
+		sharpness = NIS_SHARPNESS_OFF;
+		break;
+	case ID_OPTIONS_VIDEO_NIS_SHARP_0:
+		sharpness = 0;
+		break;
+	case ID_OPTIONS_VIDEO_NIS_SHARP_25:
+		sharpness = 25;
+		break;
+	case ID_OPTIONS_VIDEO_NIS_SHARP_50:
+		sharpness = 50;
+		break;
+	case ID_OPTIONS_VIDEO_NIS_SHARP_75:
+		sharpness = 75;
+		break;
+	case ID_OPTIONS_VIDEO_NIS_SHARP_100:
+		sharpness = 100;
+		break;
+	default:
+		return FALSE;
+	}
+
+	// Only the Direct3D 11 renderer has a scaling filter; the others ignore it
+	// and the setting is applied again when the render method changes.
+	theApp.nisSharpness = sharpness;
+	if (theApp.display)
+		theApp.display->setOption("nis", sharpness);
+	return TRUE;
+}
+
+void MainWnd::OnUpdateOptionsVideoNis(CCmdUI *pCmdUI)
+{
+	int sharpness;
+
+	switch (pCmdUI->m_nID)
+	{
+	case ID_OPTIONS_VIDEO_NIS_OFF:
+		sharpness = NIS_SHARPNESS_OFF;
+		break;
+	case ID_OPTIONS_VIDEO_NIS_SHARP_0:
+		sharpness = 0;
+		break;
+	case ID_OPTIONS_VIDEO_NIS_SHARP_25:
+		sharpness = 25;
+		break;
+	case ID_OPTIONS_VIDEO_NIS_SHARP_50:
+		sharpness = 50;
+		break;
+	case ID_OPTIONS_VIDEO_NIS_SHARP_75:
+		sharpness = 75;
+		break;
+	default:
+		sharpness = 100;
+		break;
+	}
+
+	pCmdUI->SetCheck(theApp.nisSharpness == sharpness);
+
+	// NVIDIA Image Scaling needs the compute stage, so it is only offered for
+	// the Direct3D 11 renderer.
+	pCmdUI->Enable(theApp.display != NULL && theApp.display->getType() == DIRECT_3D11);
+}
+
 void MainWnd::OnOptionsLanguageSystem()
 {
 	theApp.winSetLanguageOption(0, false);

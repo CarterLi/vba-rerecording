@@ -562,6 +562,8 @@
     <None Include="..\documentation\Readme.txt" />
     <None Include="..\documentation\TODO.txt" />
     <None Include="..\src\win32\gbadvance.ico" />
+    <None Include="..\src\win32\nis\licence.txt" />
+    <None Include="..\src\win32\nis\README.txt" />
     <None Include="..\src\win32\vba.rc2" />
     <None Include="..\src\win32\VisualBoyAdvance.exe.manifest" />
     <None Include="ClassDiagram1.cd" />
@@ -697,6 +699,8 @@
     <ClInclude Include="..\src\win32\7zip\7zipstreams.h" />
     <ClInclude Include="..\src\win32\7zip\OpenArchive.h" />
     <ClInclude Include="..\src\win32\resource.h" />
+    <ClInclude Include="..\src\win32\nis\NIS_Config.h" />
+    <ClInclude Include="..\src\win32\nis\NIS_Shader.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="..\src\win32\7zip\7zip.rc" />

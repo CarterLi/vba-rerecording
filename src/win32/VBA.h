@@ -42,6 +42,11 @@ enum
 	SOUND_API_XAUDIO2
 };
 
+// NVIDIA Image Scaling (theApp.nisSharpness): the filter is off, or it runs
+// with a sharpening amount in percent.  Only the Direct3D 11 backend
+// implements it; the others ignore the setting.
+#define NIS_SHARPNESS_OFF (-1)
+
 // True for the fixed-size / custom full screen modes (as opposed to the
 // integer window scale factors).
 inline bool isFullscreenOption(int option)
@@ -155,6 +160,7 @@ public:
 	bool		 ddrawDebug;
 	bool		 ddrawUseVideoMemory;
 	int			 d3dFilter;
+	int			 nisSharpness;      // NIS sharpening in percent, NIS_SHARPNESS_OFF = off
 	int			 glFilter;
 	int			 glType;
 	bool		 muteWhenInactive;

@@ -75,6 +75,8 @@ protected:
 	afx_msg BOOL OnOptionsFilter(UINT nID);
 	afx_msg void OnUpdateOptionsVideoLcdFilter(CCmdUI *pCmdUI);
 	afx_msg BOOL OnOptionsVideoLcdFilter(UINT nID);
+	afx_msg void OnUpdateOptionsVideoNis(CCmdUI *pCmdUI);
+	afx_msg BOOL OnOptionsVideoNis(UINT nID);
 	afx_msg void OnUpdateOptionsPriority(CCmdUI *pCmdUI);
 	afx_msg BOOL OnOptionsPriority(UINT nID);
 	afx_msg void OnUpdateOptionsSoundVolume(CCmdUI *pCmdUI);
