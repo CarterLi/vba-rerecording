@@ -37,6 +37,31 @@ public:
 	virtual int selectFullScreenMode(GUID * *);
 };
 
+// Coarse "is there a picture at all" probe: samples a 16x16 grid of the source
+// image and counts the samples that are not pure black. Returns -1 on bad input.
+static int countVisibleSamples(const u8 *bits, int pitch, int width, int height, int bytesPerPixel)
+{
+	if (bits == NULL || pitch <= 0 || width <= 0 || height <= 0)
+		return -1;
+
+	int visible = 0;
+
+	for (int gy = 0; gy < 16; gy++)
+	{
+		const u8 *row = bits + (size_t)(gy * (height - 1) / 15) * (size_t)pitch;
+
+		for (int gx = 0; gx < 16; gx++)
+		{
+			const u8 *pixel = row + (size_t)(gx * (width - 1) / 15) * (size_t)bytesPerPixel;
+
+			if (pixel[0] || pixel[1] || pixel[2])
+				visible++;
+		}
+	}
+
+	return visible;
+}
+
 static int calculateShift(u32 mask)
 {
 	int m = 0;
@@ -137,6 +162,12 @@ bool GDIDisplay::initialize()
 
 	pWnd->DragAcceptFiles(TRUE);
 
+	winlog("GDI: initialized, colour depth %d, shifts %d/%d/%d, filter %s, frame %dx%d, visible rect %dx%d",
+	       systemColorDepth, systemRedShift, systemGreenShift, systemBlueShift,
+	       theApp.filterFunction ? "on" : "off",
+	       theApp.filterWidth, theApp.filterHeight,
+	       theApp.rect.right - theApp.rect.left, theApp.rect.bottom - theApp.rect.top);
+
 	return TRUE;
 }
 
@@ -159,6 +190,7 @@ void GDIDisplay::render()
 
 	int rectWidth = theApp.rect.right - theApp.rect.left, rectHeight = theApp.rect.bottom - theApp.rect.top;
 	int filterPitch = rectWidth * (systemColorDepth / 8);
+	int bytesPerPixel = systemColorDepth / 8;
 
 	u8 *data = pix;
 	int dataPitch = theApp.filterWidth * (systemColorDepth / 8) + (systemColorDepth == 24 ? 0 : 4);
@@ -208,9 +240,19 @@ void GDIDisplay::render()
 				     buffer);
 	}
 
+	// The frame buffer reserves its first row for padding, the filtered image
+	// starts at the beginning of filterData. Blitting filterData unconditionally
+	// (which is what this used to do) shows uninitialised memory whenever no CPU
+	// filter is selected, i.e. a black picture.
+	u8 *source = filterFunction ? filterData : data + dataPitch;
+	int sourcePitch = dataPitch;
+	// StretchDIBits has no pitch parameter, so the DIB width has to absorb the
+	// per-row padding; the source rectangle then copies only the visible part.
+	int sourceDibWidth = filterFunction ? rectWidth : dataPitch / bytesPerPixel;
+
 	if (textMethod == 1)
 	{
-		DrawTextMessages((u8 *)filterData, filterPitch, theApp.rect.left, theApp.rect.bottom);
+		DrawTextMessages((u8 *)source, sourcePitch, theApp.rect.left, theApp.rect.bottom);
 	}
 
 	POINT p;
@@ -226,10 +268,10 @@ void GDIDisplay::render()
 	CDC *dc = pWnd->GetDC();
 
 	BITMAPINFO *bi = (BITMAPINFO *)info;
-	bi->bmiHeader.biWidth = rectWidth;
+	bi->bmiHeader.biWidth = sourceDibWidth;
 	bi->bmiHeader.biHeight = -rectHeight;
 
-	StretchDIBits((HDC)*dc,
+	int copied = StretchDIBits((HDC)*dc,
 	              p.x,
 	              p.y,
 	              p2.x - p.x,
@@ -238,10 +280,25 @@ void GDIDisplay::render()
 	              0,
 	              theApp.rect.right,
 	              theApp.rect.bottom,
-	              filterData,
+	              source,
 	              bi,
 	              DIB_RGB_COLORS,
 	              SRCCOPY);
+
+	static int renderCount = 0;
+	renderCount++;
+
+	if (renderCount <= 3 || (renderCount % 600) == 0)
+		winlog("GDI: frame %d, textMethod %d, source %s (%dx%d, dib width %d, pitch %d, %d/256 non-black samples), "
+		       "dest (%d,%d)-(%d,%d), dc %p, StretchDIBits -> %d",
+		       renderCount, textMethod,
+		       filterFunction ? "filterData" : "pix",
+		       theApp.rect.right, theApp.rect.bottom, sourceDibWidth, sourcePitch,
+		       countVisibleSamples(source, sourcePitch, theApp.rect.right, theApp.rect.bottom, bytesPerPixel),
+		       p.x, p.y, p2.x, p2.y, (void *)(HDC)*dc, copied);
+
+	if (copied <= 0)
+		winlog("GDI: StretchDIBits failed with %d, GetLastError %lu", copied, GetLastError());
 
 	if (textMethod == 2)
 		for (int slot = 0; slot < SCREEN_MESSAGE_SLOTS; slot++)
