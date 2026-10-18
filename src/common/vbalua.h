@@ -71,6 +71,10 @@ char* VBAGetLuaScriptName();
 char* VBALuaEngineVersion();
 char* VBALuaEnginePath();
 
+// And that file's own version resource when it carries one, which is where a
+// stock Lua 5.1 build states its patch level (5.1.5): empty otherwise.
+char* VBALuaEngineFileVersion();
+
 // And some interesting REVERSE declarations!
 char *VBAGetFreezeFilename(int slot);
 

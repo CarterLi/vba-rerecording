@@ -134,7 +134,7 @@
     </ClCompile>
     <Link>
       <AdditionalOptions>/WHOLEARCHIVE:wlib7zip.lib %(AdditionalOptions)</AdditionalOptions>
-      <AdditionalDependencies>d3d9.lib;wsock32.lib;mpr.lib;ddraw.lib;dxguid.lib;winmm.lib;dinput8.lib;vfw32.lib;opengl32.lib;nafxcw.lib;libcmt.lib;lua51.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>d3d9.lib;wsock32.lib;mpr.lib;ddraw.lib;dxguid.lib;winmm.lib;dinput8.lib;vfw32.lib;opengl32.lib;nafxcw.lib;libcmt.lib;lua51.lib;version.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <OutputFile>$(TargetPath)</OutputFile>
       <AdditionalLibraryDirectories>lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <IgnoreSpecificDefaultLibraries>libci.lib;nafxcw.lib;libcmt.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
@@ -155,6 +155,10 @@
     <PreBuildEvent>
       <Command>defaultconfig\SubWCRev.bat</Command>
     </PreBuildEvent>
+    <PostBuildEvent>
+      <Command>if not exist "$(OutDir)lua51.dll" copy /y "$(ProjectDir)lib\lua51.dll" "$(OutDir)"</Command>
+      <Message>Copying the Lua engine next to the emulator</Message>
+    </PostBuildEvent>
     <ResourceCompile>
       <PreprocessorDefinitions>NDEBUG;_AFXDLL;WIN32;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <Culture>0x0409</Culture>
@@ -183,7 +187,7 @@
     </ClCompile>
     <Link>
       <AdditionalOptions>/WHOLEARCHIVE:wlib7zip.lib %(AdditionalOptions)</AdditionalOptions>
-      <AdditionalDependencies>d3d9.lib;wsock32.lib;mpr.lib;ddraw.lib;dxguid.lib;winmm.lib;dinput8.lib;vfw32.lib;opengl32.lib;nafxcw.lib;libcmt.lib;lua51.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>d3d9.lib;wsock32.lib;mpr.lib;ddraw.lib;dxguid.lib;winmm.lib;dinput8.lib;vfw32.lib;opengl32.lib;nafxcw.lib;libcmt.lib;lua51.lib;version.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <OutputFile>$(OutDir)$(ProjectName)_release.exe</OutputFile>
       <AdditionalLibraryDirectories>lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <IgnoreSpecificDefaultLibraries>libci.lib;nafxcw.lib;libcmt.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
@@ -203,6 +207,10 @@
     <PreBuildEvent>
       <Command>defaultconfig\SubWCRev.bat</Command>
     </PreBuildEvent>
+    <PostBuildEvent>
+      <Command>if not exist "$(OutDir)lua51.dll" copy /y "$(ProjectDir)lib\lua51.dll" "$(OutDir)"</Command>
+      <Message>Copying the Lua engine next to the emulator</Message>
+    </PostBuildEvent>
     <ResourceCompile>
       <PreprocessorDefinitions>NDEBUG;_AFXDLL;WIN32;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <Culture>0x0409</Culture>
@@ -225,7 +233,7 @@
     </ClCompile>
     <Link>
       <AdditionalOptions>/WHOLEARCHIVE:wlib7zip.lib %(AdditionalOptions)</AdditionalOptions>
-      <AdditionalDependencies>d3d9.lib;wsock32.lib;mpr.lib;ddraw.lib;dxguid.lib;winmm.lib;dinput8.lib;vfw32.lib;opengl32.lib;nafxcwd.lib;libcmtd.lib;lua51.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>d3d9.lib;wsock32.lib;mpr.lib;ddraw.lib;dxguid.lib;winmm.lib;dinput8.lib;vfw32.lib;opengl32.lib;nafxcwd.lib;libcmtd.lib;lua51.lib;version.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <OutputFile>$(TargetPath)</OutputFile>
       <AdditionalLibraryDirectories>lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <IgnoreSpecificDefaultLibraries>libci.lib;nafxcwd.lib;libcmtd.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
@@ -249,6 +257,10 @@
       <UndefinePreprocessorDefinitions>USE_GB_CORE_V7;USE_GBA_CORE_V7</UndefinePreprocessorDefinitions>
     </ResourceCompile>
     <PreBuildEvent />
+    <PostBuildEvent>
+      <Command>if not exist "$(OutDir)lua51.dll" copy /y "$(ProjectDir)lib\lua51.dll" "$(OutDir)"</Command>
+      <Message>Copying the Lua engine next to the emulator</Message>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='V72XD|Win32'">
     <ClCompile>
@@ -266,7 +278,7 @@
     </ClCompile>
     <Link>
       <AdditionalOptions>/WHOLEARCHIVE:wlib7zip.lib %(AdditionalOptions)</AdditionalOptions>
-      <AdditionalDependencies>d3d9.lib;wsock32.lib;mpr.lib;ddraw.lib;dxguid.lib;winmm.lib;dinput8.lib;vfw32.lib;opengl32.lib;nafxcwd.lib;libcmtd.lib;lua51.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>d3d9.lib;wsock32.lib;mpr.lib;ddraw.lib;dxguid.lib;winmm.lib;dinput8.lib;vfw32.lib;opengl32.lib;nafxcwd.lib;libcmtd.lib;lua51.lib;version.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <OutputFile>$(TargetPath)</OutputFile>
       <AdditionalLibraryDirectories>lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <IgnoreSpecificDefaultLibraries>libci.lib;nafxcwd.lib;libcmtd.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
@@ -289,6 +301,10 @@
       <Culture>0x0409</Culture>
     </ResourceCompile>
     <PreBuildEvent />
+    <PostBuildEvent>
+      <Command>if not exist "$(OutDir)lua51.dll" copy /y "$(ProjectDir)lib\lua51.dll" "$(OutDir)"</Command>
+      <Message>Copying the Lua engine next to the emulator</Message>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='V72XR|Win32'">
     <ClCompile>
@@ -311,7 +327,7 @@
       <OutputFile>$(TargetPath)</OutputFile>
       <AdditionalLibraryDirectories>lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalOptions>/WHOLEARCHIVE:wlib7zip.lib %(AdditionalOptions)</AdditionalOptions>
-      <AdditionalDependencies>d3d9.lib;wsock32.lib;mpr.lib;ddraw.lib;dxguid.lib;winmm.lib;dinput8.lib;vfw32.lib;opengl32.lib;nafxcw.lib;libcmt.lib;lua51.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>d3d9.lib;wsock32.lib;mpr.lib;ddraw.lib;dxguid.lib;winmm.lib;dinput8.lib;vfw32.lib;opengl32.lib;nafxcw.lib;libcmt.lib;lua51.lib;version.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <IgnoreSpecificDefaultLibraries>libci.lib;nafxcw.lib;libcmt.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
       <SubSystem>Windows</SubSystem>
       <OptimizeReferences>true</OptimizeReferences>
@@ -325,6 +341,10 @@
     <PreBuildEvent>
       <Command>defaultconfig\SubWCRev.bat</Command>
     </PreBuildEvent>
+    <PostBuildEvent>
+      <Command>if not exist "$(OutDir)lua51.dll" copy /y "$(ProjectDir)lib\lua51.dll" "$(OutDir)"</Command>
+      <Message>Copying the Lua engine next to the emulator</Message>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Template|Win32'">
     <ClCompile>

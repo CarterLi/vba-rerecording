@@ -339,11 +339,18 @@ INT_PTR CALLBACK DlgLuaScriptDialog(HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 				CString text;
 
 				// The engine says what it is: see VBALuaEngineVersion, which
-				// reads the version out of the lua51.dll that is loaded.
+				// reads the version out of the lua51.dll that is loaded, and
+				// VBALuaEngineFileVersion, which adds that DLL's own file
+				// version when it carries one, which is where a stock Lua 5.1
+				// build states its patch level.
 				text.Format(VBA_NAME_AND_VERSION " Lua scripting\r\n\r\n"
 				            "Engine  : %s\r\n"
 				            "Lua DLL : %s",
 				            VBALuaEngineVersion(), VBALuaEnginePath());
+
+				CString fileVersion = VBALuaEngineFileVersion();
+				if (!fileVersion.IsEmpty())
+					text.AppendFormat("\r\nFile ver: %s", (LPCSTR)fileVersion);
 
 				MessageBox(hDlg, text, "About Lua Scripting", MB_OK | MB_ICONINFORMATION);
 			}	break;

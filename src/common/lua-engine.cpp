@@ -24,6 +24,7 @@ using std::map;
 #if (defined(WIN32) && !defined(SDL))
 	#include <direct.h>
 	#include "../win32/stdafx.h"
+	#include <winver.h>
 	#include "../win32/Input.h"
 	#include "../win32/MainWnd.h"
 	#include "../win32/VBA.h"
@@ -5346,10 +5347,12 @@ char *VBAGetLuaScriptName()
 	return luaScriptName;
 }
 
-// The engine scripts run on is the lua51.dll next to the exe, delay loaded, so
-// it is loaded here when no script has needed it yet.  That way what is named
-// is the engine a script would get, not merely the one that happens to be
-// mapped already.
+// The engine the scripts run on is the lua51.dll next to the exe, delay loaded,
+// so it is loaded here when no script has needed it yet.  That way what is
+// named is the engine a script would get, not merely the one that happens to be
+// mapped already.  Asking the engine for its version is a Windows matter, and so
+// is the scripting window that asks, the same way DemandLua above is.
+#if (defined(WIN32) && !defined(SDL))
 static HMODULE luaEngineModule()
 {
 	HMODULE module = GetModuleHandle("lua51.dll");
@@ -5429,3 +5432,90 @@ char *VBALuaEnginePath()
 
 	return path;
 }
+
+// The version resource the engine was built with.  That is where a stock Lua
+// build states its patch level, 5.1.5 for instance, because Lua 5.1 keeps the
+// patch out of _VERSION, which only says "Lua 5.1" (the patch made it into the
+// language's own version string from 5.2 on).  LuaJIT has no such patch level
+// and carries no resource, so for it this stays empty and the build in
+// jit.version is what identifies the engine.
+static void luaEngineFileVersion(char *out, size_t size)
+{
+	out[0] = '\0';
+
+	HMODULE module = luaEngineModule();
+	if (module == NULL)
+		return;
+
+	char path[MAX_PATH];
+	if (GetModuleFileName(module, path, sizeof(path)) == 0)
+		return;
+
+	DWORD ignored = 0;
+	DWORD length = GetFileVersionInfoSize(path, &ignored);
+	if (length == 0)
+		return;
+
+	BYTE *data = new BYTE[length];
+	if (data == NULL)
+		return;
+
+	if (!GetFileVersionInfo(path, 0, length, data))
+	{
+		delete [] data;
+		return;
+	}
+
+	// The string the build wrote, the one Explorer prints as "File version",
+	// reads better than the numeric form, so try it first.
+	WORD *translation = NULL;
+	UINT translationLength = 0;
+	if (VerQueryValue(data, "\\VarFileInfo\\Translation", (LPVOID *)&translation, &translationLength) &&
+	    translationLength >= sizeof(WORD) * 2)
+	{
+		char key[64];
+		sprintf(key, "\\StringFileInfo\\%04x%04x\\FileVersion", translation[0], translation[1]);
+
+		char *value = NULL;
+		UINT valueLength = 0;
+		if (VerQueryValue(data, key, (LPVOID *)&value, &valueLength) && valueLength > 1)
+			strncpy(out, value, size - 1);
+	}
+
+	if (out[0] == '\0')
+	{
+		VS_FIXEDFILEINFO *info = NULL;
+		UINT infoLength = 0;
+		if (VerQueryValue(data, "\\", (LPVOID *)&info, &infoLength) &&
+		    infoLength >= sizeof(VS_FIXEDFILEINFO) && info->dwSignature == VS_FFI_SIGNATURE)
+		{
+			unsigned major	 = HIWORD(info->dwFileVersionMS);
+			unsigned minor	 = LOWORD(info->dwFileVersionMS);
+			unsigned build	 = HIWORD(info->dwFileVersionLS);
+			unsigned revision = LOWORD(info->dwFileVersionLS);
+
+			if (major != 0 || minor != 0 || build != 0)
+			{
+				if (revision != 0)
+					sprintf(out, "%u.%u.%u.%u", major, minor, build, revision);
+				else
+					sprintf(out, "%u.%u.%u", major, minor, build);
+			}
+		}
+	}
+
+	delete [] data;
+}
+
+// That string as the scripting window prints it, empty when the DLL has no
+// version resource to read.
+char *VBALuaEngineFileVersion()
+{
+	static char version[128];
+
+	version[0] = '\0';
+	luaEngineFileVersion(version, sizeof(version));
+
+	return version;
+}
+#endif
