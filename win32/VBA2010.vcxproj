@@ -521,6 +521,7 @@
     <ClCompile Include="..\src\win32\DirectDraw.cpp" />
     <ClCompile Include="..\src\win32\DirectInput.cpp" />
     <ClCompile Include="..\src\win32\DirectSound.cpp" />
+    <ClCompile Include="..\src\win32\XAudio2Sound.cpp" />
     <ClCompile Include="..\src\win32\GDIDisplay.cpp" />
     <ClCompile Include="..\src\win32\MainWnd.cpp" />
     <ClCompile Include="..\src\win32\MainWndCheats.cpp" />

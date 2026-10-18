@@ -297,6 +297,7 @@ VBA::VBA() : emulator(::theEmulator)
 	menu			 = NULL;
 	popup			 = NULL;
 	soundInitialized = false;
+	soundApi		 = SOUND_API_DIRECTSOUND;
 	useBiosFile		 = false;
 	skipBiosIntro	 = false;
 	active			 = true;
@@ -1992,6 +1993,9 @@ void VBA::loadSettings()
 	systemSoundDisableChannels(~resChannels);
 	soundOffFlag = (regQueryDwordValue("soundOff", 0)) ? true : false;
 	soundQuality = regQueryDwordValue("soundQuality", 2);
+	soundApi	 = regQueryDwordValue("soundApi", SOUND_API_DIRECTSOUND);
+	if (soundApi != SOUND_API_XAUDIO2)
+		soundApi = SOUND_API_DIRECTSOUND;
 	soundEcho	 = regQueryDwordValue("soundEcho", 0) ? true : false;
 	soundLowPass = regQueryDwordValue("soundLowPass", 0) ? true : false;
 	soundReverse = regQueryDwordValue("soundReverse", 0) ? true : false;
@@ -2233,6 +2237,7 @@ void VBA::saveSettings()
 	regSetDwordValue("soundEnable", systemSoundGetEnabledChannels() & 0x030f);
 	regSetDwordValue("soundOff", soundOffFlag);
 	regSetDwordValue("soundQuality", soundQuality);
+	regSetDwordValue("soundApi", soundApi);
 	regSetDwordValue("soundEcho", soundEcho);
 	regSetDwordValue("soundLowPass", soundLowPass);
 	regSetDwordValue("soundReverse", soundReverse);

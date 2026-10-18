@@ -33,6 +33,15 @@ enum
 	VIDEO_5X, VIDEO_6X, VIDEO_7X, VIDEO_8X
 };
 
+// Sound backend selection (theApp.soundApi).  XAudio2 is optional: when
+// XAudio2_9.dll or the audio device is unavailable, systemSoundInit() falls
+// back to DirectSound.
+enum
+{
+	SOUND_API_DIRECTSOUND,
+	SOUND_API_XAUDIO2
+};
+
 // True for the fixed-size / custom full screen modes (as opposed to the
 // integer window scale factors).
 inline bool isFullscreenOption(int option)
@@ -179,6 +188,7 @@ public:
 	WavWriter *	 soundRecorder;
 	CString		 soundRecordName;
 	ISound *	 sound;
+	int			 soundApi;  // SOUND_API_DIRECTSOUND or SOUND_API_XAUDIO2
 	bool		 aviRecording;
 	AVIWrite *	 aviRecorder;
 	CString		 aviRecordName;

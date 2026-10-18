@@ -810,11 +810,33 @@ int systemFramesToSkip()
 bool systemSoundInit()
 {
 	if (theApp.sound)
+	{
 		delete theApp.sound;
+		theApp.sound = NULL;
+	}
 
 	extern ISound *newDirectSound();
+	extern ISound *newXAudio2();
+
+	// XAudio2 is optional.  XAudio2_9.dll only ships with Windows 10 and later
+	// and the audio device may be unusable, so any failure degrades to
+	// DirectSound instead of leaving the emulator without sound.
+	if (theApp.soundApi == SOUND_API_XAUDIO2)
+	{
+		ISound *xaudio2 = newXAudio2();
+		if (xaudio2 != NULL && xaudio2->init())
+		{
+			theApp.sound = xaudio2;
+			return true;
+		}
+		delete xaudio2;
+
+		// Keep the menu in step with what is actually in use.
+		theApp.soundApi = SOUND_API_DIRECTSOUND;
+	}
+
 	theApp.sound = newDirectSound();
-	return theApp.sound->init();
+	return theApp.sound != NULL && theApp.sound->init();
 }
 
 void systemSoundShutdown()

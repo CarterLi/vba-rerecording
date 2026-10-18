@@ -1298,6 +1298,44 @@ void MainWnd::OnUpdateOptionsSound44khz(CCmdUI*pCmdUI)
 	pCmdUI->Enable(!(theApp.soundRecording || theApp.aviRecording || theApp.nvAudioLog));
 }
 
+// Re-creates the sound backend so a changed soundApi takes effect immediately.
+// systemSoundInit() silently degrades to DirectSound if XAudio2 cannot start.
+static void applySoundApi()
+{
+	if (!soundOffFlag)
+		systemSoundCleanInit();
+}
+
+void MainWnd::OnOptionsSoundApiDirectsound()
+{
+	if (theApp.soundApi == SOUND_API_DIRECTSOUND)
+		return;
+
+	theApp.soundApi = SOUND_API_DIRECTSOUND;
+	applySoundApi();
+}
+
+void MainWnd::OnUpdateOptionsSoundApiDirectsound(CCmdUI*pCmdUI)
+{
+	pCmdUI->SetCheck(theApp.soundApi == SOUND_API_DIRECTSOUND);
+	pCmdUI->Enable(!(theApp.soundRecording || theApp.aviRecording || theApp.nvAudioLog));
+}
+
+void MainWnd::OnOptionsSoundApiXaudio2()
+{
+	if (theApp.soundApi == SOUND_API_XAUDIO2)
+		return;
+
+	theApp.soundApi = SOUND_API_XAUDIO2;
+	applySoundApi();
+}
+
+void MainWnd::OnUpdateOptionsSoundApiXaudio2(CCmdUI*pCmdUI)
+{
+	pCmdUI->SetCheck(theApp.soundApi == SOUND_API_XAUDIO2);
+	pCmdUI->Enable(!(theApp.soundRecording || theApp.aviRecording || theApp.nvAudioLog));
+}
+
 BOOL MainWnd::OnOptionsSoundVolume(UINT nID)
 {
 	soundVolume = nID - ID_OPTIONS_SOUND_VOLUME_1X;

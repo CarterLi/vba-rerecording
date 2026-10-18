@@ -320,6 +320,10 @@ protected:
 	afx_msg void OnUpdateOptionsSound22khz(CCmdUI*pCmdUI);
 	afx_msg void OnOptionsSound44khz();
 	afx_msg void OnUpdateOptionsSound44khz(CCmdUI*pCmdUI);
+	afx_msg void OnOptionsSoundApiDirectsound();
+	afx_msg void OnUpdateOptionsSoundApiDirectsound(CCmdUI*pCmdUI);
+	afx_msg void OnOptionsSoundApiXaudio2();
+	afx_msg void OnUpdateOptionsSoundApiXaudio2(CCmdUI*pCmdUI);
 	afx_msg void OnOptionsSoundChannel1();
 	afx_msg void OnUpdateOptionsSoundChannel1(CCmdUI*pCmdUI);
 	afx_msg void OnOptionsSoundChannel2();

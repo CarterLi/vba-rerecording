@@ -270,6 +270,9 @@
     <ClCompile Include="..\src\win32\DirectSound.cpp">
       <Filter>Source Files\Win32</Filter>
     </ClCompile>
+    <ClCompile Include="..\src\win32\XAudio2Sound.cpp">
+      <Filter>Source Files\Win32</Filter>
+    </ClCompile>
     <ClCompile Include="..\src\win32\GDIDisplay.cpp">
       <Filter>Source Files\Win32</Filter>
     </ClCompile>

@@ -2042,6 +2042,11 @@ BEGIN
                 MENUITEM "Direct Sound &B",             ID_OPTIONS_SOUND_DIRECTSOUNDB, CHECKED
             END
             MENUITEM SEPARATOR
+            POPUP "Sound &API"
+            BEGIN
+                MENUITEM "&DirectSound",                ID_OPTIONS_SOUND_API_DIRECTSOUND, CHECKED
+                MENUITEM "&XAudio2 (2.9)",              ID_OPTIONS_SOUND_API_XAUDIO2
+            END
             MENUITEM "&11 Khz",                     ID_OPTIONS_SOUND_11KHZ
             MENUITEM "&22 Khz",                     ID_OPTIONS_SOUND_22KHZ
             MENUITEM "&44 Khz",                     ID_OPTIONS_SOUND_44KHZ
