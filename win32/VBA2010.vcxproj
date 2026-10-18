@@ -550,6 +550,7 @@
     <ClCompile Include="..\src\win32\MainWndOptions.cpp" />
     <ClCompile Include="..\src\win32\MainWndTools.cpp" />
     <ClCompile Include="..\src\win32\OpenGL.cpp" />
+    <ClCompile Include="..\src\win32\OpenGL3.cpp" />
     <ClCompile Include="..\src\win32\Reg.cpp" />
     <ClCompile Include="..\src\win32\stdafx.cpp" />
     <ClCompile Include="..\src\win32\StringTokenizer.cpp" />
@@ -585,12 +586,16 @@
     <None Include="..\src\win32\upscalers\ffx_a.h" />
     <None Include="..\src\win32\upscalers\ffx_fsr1.h" />
     <None Include="..\src\win32\upscalers\FSR_Main.hlsl" />
+    <None Include="..\src\win32\upscalers\FSR_Body.glsl" />
+    <None Include="..\src\win32\upscalers\FSR_Easu.glsl" />
+    <None Include="..\src\win32\upscalers\FSR_Rcas.glsl" />
     <None Include="..\src\win32\upscalers\licence-ffx.txt" />
     <None Include="..\src\win32\upscalers\licence.txt" />
     <None Include="..\src\win32\upscalers\NIS_Main.hlsl" />
     <None Include="..\src\win32\upscalers\NIS_Scaler.h" />
     <None Include="..\src\win32\upscalers\README.txt" />
     <None Include="..\src\win32\upscalers\XBRZ_Freescale.hlsl" />
+    <None Include="..\src\win32\upscalers\XBRZ_Freescale.glsl" />
     <None Include="..\src\win32\vba.rc2" />
     <None Include="..\src\win32\VisualBoyAdvance.exe.manifest" />
     <None Include="ClassDiagram1.cd" />
@@ -727,6 +732,7 @@
     <ClInclude Include="..\src\win32\7zip\OpenArchive.h" />
     <ClInclude Include="..\src\win32\resource.h" />
     <ClInclude Include="..\src\win32\upscalers\NIS_Config.h" />
+    <ClInclude Include="..\src\win32\upscalers\UpscalerFsr.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="..\src\win32\7zip\7zip.rc" />

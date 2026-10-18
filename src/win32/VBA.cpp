@@ -39,6 +39,7 @@ extern IDisplay *newGDIDisplay();
 extern IDisplay *newDirectDrawDisplay();
 extern IDisplay *newDirect3DDisplay();
 extern IDisplay *newOpenGLDisplay();
+extern IDisplay *newOpenGL33Display();
 extern IDisplay *newDirect3D11Display();
 
 extern Input *newDirectInput();
@@ -1571,6 +1572,9 @@ bool VBA::initDisplay()
 		case OPENGL:
 			display = newOpenGLDisplay();
 			break;
+		case OPENGL33:
+			display = newOpenGL33Display();
+			break;
 		case DIRECT_3D11:
 			display = newDirect3D11Display();
 			break;
@@ -1620,7 +1624,9 @@ bool VBA::updateRenderMethod(bool force)
 
 		while (!res && renderMethod > 0)
 		{
-			if (renderMethod == DIRECT_3D11)
+			if (renderMethod == OPENGL33)
+				renderMethod = OPENGL;
+			else if (renderMethod == DIRECT_3D11)
 				renderMethod = DIRECT_3D;
 			else if (renderMethod == OPENGL)
 				renderMethod = DIRECT_3D;
@@ -1927,7 +1933,7 @@ void VBA::loadSettings()
 	fullScreenStretch = regQueryDwordValue("stretch", 0) ? true : false;
 
 	renderMethod = (DISPLAY_TYPE)regQueryDwordValue("renderMethod", DIRECT_DRAW);
-	if (renderMethod < GDI || renderMethod > DIRECT_3D11)
+	if (renderMethod < GDI || renderMethod > OPENGL33)
 		renderMethod = DIRECT_DRAW;
 
 	ddrawEmulationOnly	= regQueryDwordValue("ddrawEmulationOnly", false) ? true : false;

@@ -31,6 +31,9 @@
 
 // NVIDIA Image Scaling SDK, see src/win32/upscalers for the shader sources.
 #include "upscalers/NIS_Config.h"
+// AMD FidelityFX Super Resolution 1.0 host constants, shared with the OpenGL
+// 3.3 backend.
+#include "upscalers/UpscalerFsr.h"
 
 #include "../common/SystemGlobals.h"
 #include "../common/Text.h"
@@ -153,11 +156,10 @@ static const char *g_quadShader =
 // passes.  Four of them reach 16x, well past any window size.
 #define NIS_MAX_PASSES 4
 
-// FidelityFX Super Resolution 1.0 reconstructs the frame (EASU) and sharpens
-// it (RCAS) in one full screen pass each, and its shader constants are the
-// four float4s EASU wants, the RCAS one, and the size of the pass input.
-#define FSR_PASS_COUNT      2
-#define FSR_CONSTANT_FLOATS (5 * 4 + 4)
+// FidelityFX Super Resolution 1.0 reconstructs the frame (EASU) and sharpens it
+// (RCAS) in one full screen pass each; FSR_PASS_COUNT, FSR_CONSTANT_FLOATS and
+// the constants themselves are in upscalers/UpscalerFsr.h, which the OpenGL 3.3
+// backend fills the same way.
 
 // --- Upscaling -----------------------------------------------------------
 //
@@ -400,6 +402,11 @@ static bool updateUpscaleTarget(ID3D11Device *device, UpscaleTarget &target,
 	return true;
 }
 
+// False for an upscaler this backend cannot run, see upscalerAvailable().  It is
+// declared here because the IDisplay method answers with it, defined with the
+// upscaling code further down.
+bool direct3D11UpscalerAvailable(int upscaler);
+
 class Direct3D11Display : public IDisplay
 {
 public:
@@ -417,6 +424,7 @@ public:
 	virtual DISPLAY_TYPE getType() { return DIRECT_3D11; };
 	virtual void setOption(const char *, int);
 	virtual int selectFullScreenMode(GUID * *);
+	virtual bool upscalerAvailable(int upscaler) { return direct3D11UpscalerAvailable(upscaler); };
 
 private:
 	bool createDevice();
@@ -1287,53 +1295,8 @@ ID3D11ShaderResourceView *Direct3D11Display::scaleFrameWithNis()
 // EASU reconstructs the frame at an arbitrary ratio and RCAS sharpens the
 // result; both are pixel shaders, so the frame is drawn twice through the
 // full screen quad with one round trip through a window sized target in
-// between.  The SDK ships host code for its EASU and RCAS constants, but
-// including it here would pull the whole header into this translation unit;
-// the handful of values it computes are repeated below (see FsrEasuCon and
-// FsrRcasCon in ffx_fsr1.h).  They go into the constant buffer as floats and
-// come back out of its uint4 unchanged, since only the bits matter.
-
-// Maps the output pixels onto the whole input frame, the same mapping the
-// textured quad would use for a 1:1 upload.
-static void fsrEasuCon(float *con, float inputViewportWidth, float inputViewportHeight,
-                       float inputWidth, float inputHeight,
-                       float outputWidth, float outputHeight)
-{
-	float rcpOutputWidth  = 1.0f / outputWidth;
-	float rcpOutputHeight = 1.0f / outputHeight;
-
-	float rcpInputWidth  = 1.0f / inputWidth;
-	float rcpInputHeight = 1.0f / inputHeight;
-
-	con[0]  = inputViewportWidth * rcpOutputWidth;
-	con[1]  = inputViewportHeight * rcpOutputHeight;
-	con[2]  = 0.5f * inputViewportWidth * rcpOutputWidth - 0.5f;
-	con[3]  = 0.5f * inputViewportHeight * rcpOutputHeight - 0.5f;
-
-	con[4]  = rcpInputWidth;
-	con[5]  = rcpInputHeight;
-	con[6]  = rcpInputWidth;
-	con[7]  = -rcpInputHeight;
-
-	con[8]  = -rcpInputWidth;
-	con[9]  = 2.0f * rcpInputHeight;
-	con[10] = rcpInputWidth;
-	con[11] = 2.0f * rcpInputHeight;
-
-	con[12] = 0.0f;
-	con[13] = 4.0f * rcpInputHeight;
-	con[14] = 0.0f;
-	con[15] = 0.0f;
-}
-
-// RCAS is given the number of stops the sharpening is reduced by, so it runs
-// the other way round from the percentage the user picks.
-static float fsrRcasCon(int sharpness)
-{
-	float stops = (100.0f - (float)sharpness) / 50.0f;
-
-	return exp2f(-stops);
-}
+// between.  The constants they are given are in upscalers/UpscalerFsr.h, which
+// the OpenGL 3.3 backend fills with the same function.
 
 bool Direct3D11Display::initFsr()
 {
@@ -1417,14 +1380,11 @@ ID3D11ShaderResourceView *Direct3D11Display::scaleFrameWithFsr()
 	if (!updateFsrTargets(backWidth, backHeight))
 		return NULL;
 
+	// The constants are the floats the shaders read as the bits of uint4s, plus
+	// the size of the pass input, which they read as integers.
 	float constants[FSR_CONSTANT_FLOATS];
-	ZeroMemory(constants, sizeof(constants));
-	fsrEasuCon(constants, (float)width, (float)height, (float)width, (float)height,
-	           (float)backWidth, (float)backHeight);
-	constants[16] = fsrRcasCon(theApp.upscalerSharpness);
-	// The size of the pass input, so the shader can clamp the RCAS taps.
-	constants[20] = (float)backWidth;
-	constants[21] = (float)backHeight;
+	fsrWriteConstants(constants, (float)width, (float)height,
+	                  (float)backWidth, (float)backHeight, theApp.upscalerSharpness);
 
 	if (!writeUpscalerConstants(pContext, pFsrCB, constants, sizeof(constants)))
 		return NULL;

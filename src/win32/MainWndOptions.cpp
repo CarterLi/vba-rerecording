@@ -32,10 +32,11 @@
 // Defined in Direct3D11.cpp: false when D3D11.DLL or D3DCOMPILER_47.DLL is
 // missing, in which case the renderer is not offered at all.
 extern bool direct3D11Available();
-// Defined in Direct3D11.cpp: false for an upscaler whose shader is built when
-// the Direct3D 11 renderer starts but did not compile on this device, which is
-// how the upscaling menu knows to leave it out.
-extern bool direct3D11UpscalerAvailable(int upscaler);
+// Defined in OpenGL3.cpp: the core profile version the OpenGL 3.3 renderer
+// created, empty while it is not the render method that is presenting.  The
+// renderer asks for the newest core version the driver has and descends from
+// there, so this is what was actually created, see OpenGL3.cpp.
+extern const char *openGL33Version();
 // Defined in Direct3D11.cpp: the presentation model the Direct3D 11 backend is
 // running with ("Flip", "Flip sequential", "Bitblt"), NULL while it is not the
 // render method that is presenting.
@@ -102,6 +103,36 @@ static void setRenderMethodModel(CCmdUI *pCmdUI, const char *model, const char *
 
 	if (model != NULL)
 		text.AppendFormat(" (%s)", model);
+
+	pCmdUI->SetText(text);
+	theApp.winAccelMgr.UpdateMenu(pCmdUI->m_pMenu->GetSafeHmenu());
+}
+
+// Names the core profile version the OpenGL 3.3 renderer is running with, so
+// that "OpenGL 3.3" reads "OpenGL 3.3 (4.6 core)".  The request descends from
+// the newest core version the driver has, so what is printed is what was
+// actually created rather than what the entry asks for; the shape is the same
+// as setRenderMethodModel above.
+static void setRenderMethodGlVersion(CCmdUI *pCmdUI, const char *version)
+{
+	if (pCmdUI->m_pMenu == NULL)
+		return;
+
+	CString text;
+	pCmdUI->m_pMenu->GetMenuString(pCmdUI->m_nID, text, MF_BYCOMMAND);
+
+	// Drop the accelerator text winAccelMgr appends and a version named by an
+	// earlier update, then add what is running now.
+	int tab = text.Find('\t');
+	if (tab >= 0)
+		text = text.Left(tab);
+
+	int paren = text.Find(" (");
+	if (paren >= 0)
+		text = text.Left(paren);
+
+	if (version != NULL)
+		text.AppendFormat(" (%s)", version);
 
 	pCmdUI->SetText(text);
 	theApp.winAccelMgr.UpdateMenu(pCmdUI->m_pMenu->GetSafeHmenu());
@@ -664,6 +695,25 @@ void MainWnd::OnOptionsVideoRendermethodOpengl()
 void MainWnd::OnUpdateOptionsVideoRendermethodOpengl(CCmdUI*pCmdUI)
 {
 	pCmdUI->SetCheck(theApp.renderMethod == OPENGL);
+}
+
+void MainWnd::OnOptionsVideoRendermethodOpengl33()
+{
+	theApp.renderMethod = OPENGL33;
+	theApp.updateRenderMethod(false);
+}
+
+void MainWnd::OnUpdateOptionsVideoRendermethodOpengl33(CCmdUI*pCmdUI)
+{
+	// The renderer falls back through the rest of the chain where the driver
+	// has no 3.3 core context to give, so the entry is always offered; the
+	// core version it ended up creating is named the way the Direct3D entries
+	// are named after their presentation model.
+	bool active = theApp.renderMethod == OPENGL33;
+
+	setRenderMethodGlVersion(pCmdUI, active ? openGL33Version() : NULL);
+
+	pCmdUI->SetCheck(active);
 }
 
 void MainWnd::OnOptionsVideoRendermethodDirect3d11()
@@ -2063,8 +2113,10 @@ BOOL MainWnd::OnOptionsVideoUpscaler(UINT nID)
 		sharpness = 25 * (int)(nID - ID_OPTIONS_VIDEO_UPSCALER_SHARP_0);
 	}
 
-	// Only the Direct3D 11 renderer scales the frame; the others ignore the
-	// settings, and the renderer picks them up again when it is recreated.
+	// Only the render methods whose backend runs the upscaler shaders scale the
+	// frame with them; every backend answers for itself through
+	// upscalerAvailable(), and the renderer picks the settings up again when it
+	// is recreated.
 	theApp.upscaler          = upscaler;
 	theApp.upscalerSharpness = sharpness;
 	if (theApp.display)
@@ -2075,9 +2127,8 @@ BOOL MainWnd::OnOptionsVideoUpscaler(UINT nID)
 
 void MainWnd::OnUpdateOptionsVideoUpscaler(CCmdUI *pCmdUI)
 {
-	// The upscalers are shaders, which only the Direct3D 11 renderer runs.
-	bool available = theApp.display != NULL && theApp.display->getType() == DIRECT_3D11;
-
+	// The upscalers are shaders, which only some of the render methods run, and
+	// only where they built; the backend that is presenting answers both.
 	if (pCmdUI->m_nID < ID_OPTIONS_VIDEO_UPSCALER_SHARP_0)
 	{
 		int upscaler = UPSCALER_OFF + (int)(pCmdUI->m_nID - ID_OPTIONS_VIDEO_UPSCALER_OFF);
@@ -2085,9 +2136,9 @@ void MainWnd::OnUpdateOptionsVideoUpscaler(CCmdUI *pCmdUI)
 		pCmdUI->SetCheck(theApp.upscaler == upscaler);
 
 		// The shaders that are built when the renderer starts are left out
-		// where they did not compile; the two SDK upscalers are built on
-		// demand, so there is nothing to know about them yet.
-		pCmdUI->Enable(available && direct3D11UpscalerAvailable(upscaler));
+		// where they did not compile, and the ones a backend does not have at
+		// all are never there; both are what it answers with.
+		pCmdUI->Enable(theApp.display != NULL && theApp.display->upscalerAvailable(upscaler));
 		return;
 	}
 
@@ -2096,7 +2147,8 @@ void MainWnd::OnUpdateOptionsVideoUpscaler(CCmdUI *pCmdUI)
 	bool sharpens = theApp.upscaler == UPSCALER_NIS || theApp.upscaler == UPSCALER_FSR;
 
 	pCmdUI->SetCheck(theApp.upscalerSharpness == sharpness);
-	pCmdUI->Enable(available && sharpens);
+	pCmdUI->Enable(sharpens && theApp.display != NULL &&
+	               theApp.display->upscalerAvailable(theApp.upscaler));
 }
 
 void MainWnd::OnOptionsLanguageSystem()

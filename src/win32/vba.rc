@@ -74,6 +74,14 @@ FSR_SHADER_A            RCDATA                  "upscalers\\ffx_a.h"
 FSR_SHADER_FSR1         RCDATA                  "upscalers\\ffx_fsr1.h"
 XBRZ_SHADER_FREESCALE   RCDATA                  "upscalers\\XBRZ_Freescale.hlsl"
 
+// The OpenGL 3.3 backend compiles the same upscalers from GLSL, so the two
+// renderers reconstruct a frame the same way.  It splices #include itself, so
+// the FidelityFX headers above are the ones it gets as well.
+XBRZ_GLSL_FREESCALE     RCDATA                  "upscalers\\XBRZ_Freescale.glsl"
+FSR_GLSL_BODY           RCDATA                  "upscalers\\FSR_Body.glsl"
+FSR_GLSL_EASU           RCDATA                  "upscalers\\FSR_Easu.glsl"
+FSR_GLSL_RCAS           RCDATA                  "upscalers\\FSR_Rcas.glsl"
+
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -1897,14 +1905,15 @@ BEGIN
                 MENUITEM "    D3D &Nearest",            ID_OPTIONS_VIDEO_RENDEROPTIONS_D3DNOFILTER
                 MENUITEM "    D3D &Bilinear",           ID_OPTIONS_VIDEO_RENDEROPTIONS_D3DBILINEAR
                 MENUITEM SEPARATOR
-                MENUITEM "&OpenGL",                     ID_OPTIONS_VIDEO_RENDERMETHOD_OPENGL
+                MENUITEM "&OpenGL 3.3",                 ID_OPTIONS_VIDEO_RENDERMETHOD_OPENGL33
+                MENUITEM "OpenGL (&Legacy)",            ID_OPTIONS_VIDEO_RENDERMETHOD_OPENGL
                 MENUITEM "    GL Ne&arest",             ID_OPTIONS_VIDEO_RENDEROPTIONS_GLNEAREST
                 MENUITEM "    GL B&ilinear",            ID_OPTIONS_VIDEO_RENDEROPTIONS_GLBILINEAR
                 MENUITEM "    GL T&riangle",            ID_OPTIONS_VIDEO_RENDEROPTIONS_GLTRIANGLE
                 MENUITEM "    GL &Quads",               ID_OPTIONS_VIDEO_RENDEROPTIONS_GLQUADS
             END
             MENUITEM SEPARATOR
-            MENUITEM "V&Sync (DDraw, D3D11)",       ID_OPTIONS_VIDEO_VSYNC
+            MENUITEM "V&Sync (DDraw, D3D11, OpenGL 3.3)", ID_OPTIONS_VIDEO_VSYNC
             MENUITEM SEPARATOR
             POPUP "&Window Size"
             BEGIN

@@ -8,6 +8,11 @@ shaders section of src/win32/vba.rc); the FidelityFX headers are far too large
 for a C++ string literal, and resources keep these files readable and diffable
 against upstream.  Nothing has to be shipped next to the executable.
 
+The OpenGL 3.3 renderer runs the same FSR and xBRZ upscalers from GLSL ports of
+the same sources, and compiles them with the driver instead, see the GLSL
+section at the end.  NVIDIA Image Scaling has no port: it is a compute shader
+and stays with Direct3D 11.
+
 The two SDKs are pipelines of their own (a compute shader with a coefficient
 texture, and a reconstruction pass plus a sharpening pass).  xBRZ belongs to the
 simpler kind, the single pass pixel shader upscalers, which the table
@@ -57,11 +62,39 @@ XBRZ_Freescale.hlsl  ours, a port of the GLSL shader "xbrz-freescale.glsl" from
                 table in Direct3D11.cpp.
 
 The constants a single pass upscaler is handed (SinglePassConstants in
-Direct3D11.cpp), the way its source declares them:
+Direct3D11.cpp, the same uniforms in OpenGL3.cpp), the way its source declares
+them:
 
     float4 SourceSize;  // xy: the frame size, zw: 1 / xy (one texel)
     float4 OutputSize;  // xy: the target size, zw: 1 / xy
     float4 Scale;       // xy: OutputSize.xy / SourceSize.xy
+
+GLSL, for the OpenGL 3.3 renderer
+---------------------------------
+The ports, which the driver compiles while the renderer starts up.  GLSL has no
+#include, so OpenGL3.cpp splices the resources into each other itself; the
+FidelityFX headers above are the same resources, so both backends hand the same
+bits to the same AMD code.
+
+XBRZ_Freescale.glsl  ours, the same shader as XBRZ_Freescale.hlsl, written in
+                GLSL 3.30 against the libretro source rather than translated
+                from the HLSL.  -> XBRZ_GLSL_FREESCALE, and the first row of
+                the single pass table in OpenGL3.cpp.
+FSR_Body.glsl   ours.  The FSR_Main.hlsl wrapper in GLSL: the input callbacks
+                and the uniforms, with no #version and no entry point of its
+                own, so that one body serves the two passes.  -> FSR_GLSL_BODY.
+FSR_Easu.glsl   ours.  The reconstruction pass, #version 420 core because the
+                AMD headers use the implicit integer conversions and the
+                bitfield operations of that version.  -> FSR_GLSL_EASU.
+FSR_Rcas.glsl   ours.  The sharpening pass, the same version.  -> FSR_GLSL_RCAS.
+
+The uniforms the FSR passes are handed are the block Direct3D 11 puts in its
+constant buffer, as bits rather than as floats, plus the size of the pass input
+for RCAS to clamp its taps with:
+
+    uvec4 con0, con1, con2, con3;  // EASU, from FsrEasuCon()
+    uvec4 conRcas;                 // RCAS, from FsrRcasCon()
+    uvec4 sizeInfo;                // xy: the EASU target size, as integers
 
 Rebuilding: vba.rc pulls the files above in as RCDATA resources, and the build
 tracks them as inputs, so editing one is enough - MSBuild then recompiles the

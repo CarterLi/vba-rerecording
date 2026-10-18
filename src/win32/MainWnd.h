@@ -204,6 +204,8 @@ protected:
 	afx_msg void OnUpdateOptionsVideoRendermethodDirect3d(CCmdUI*pCmdUI);
 	afx_msg void OnOptionsVideoRendermethodOpengl();
 	afx_msg void OnUpdateOptionsVideoRendermethodOpengl(CCmdUI*pCmdUI);
+	afx_msg void OnOptionsVideoRendermethodOpengl33();
+	afx_msg void OnUpdateOptionsVideoRendermethodOpengl33(CCmdUI*pCmdUI);
 	afx_msg void OnOptionsVideoRendermethodDirect3d11();
 	afx_msg void OnUpdateOptionsVideoRendermethodDirect3d11(CCmdUI*pCmdUI);
 	afx_msg void OnOptionsVideoTriplebuffering();
