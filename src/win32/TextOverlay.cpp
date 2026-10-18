@@ -37,6 +37,9 @@ TextOverlay::TextOverlay()
 	overlayHeight = 0;
 	overlayPitch = 0;
 	anyVisible   = false;
+	contentChanged = false;
+	haveSignature  = false;
+	lastSignature  = 0;
 }
 
 TextOverlay::~TextOverlay()
@@ -63,6 +66,12 @@ void TextOverlay::destroy()
 	overlayWidth  = 0;
 	overlayHeight = 0;
 	overlayPitch  = 0;
+
+	// A new backing store has nothing in common with the one the signature was
+	// taken from, so the next update() renders whatever is pending.
+	contentChanged = false;
+	haveSignature  = false;
+	lastSignature  = 0;
 }
 
 bool TextOverlay::create(int width, int height)
@@ -71,7 +80,14 @@ bool TextOverlay::create(int width, int height)
 		return false;
 
 	if (dc != NULL && width == overlayWidth && height == overlayHeight)
+	{
+		// The backing store stays, but the caller is usually about to make a
+		// new texture of it, so the next update() renders it again rather than
+		// leaving a texture that has never been written to on the screen.
+		contentChanged = false;
+		haveSignature  = false;
 		return true;
+	}
 
 	destroy();
 
@@ -136,10 +152,87 @@ void TextOverlay::drawSlot(int slot)
 	         DT_LEFT | DT_TOP | DT_SINGLELINE | DT_NOPREFIX);
 }
 
+// Folds one visible slot into the signature the overlay is redrawn on.  The
+// slot number goes in because two slots with the same text are drawn at
+// different rows, and a separator keeps "ab" + "c" apart from "a" + "bc".
+static unsigned int hashSlot(unsigned int hash, int slot, const CString &text)
+{
+	hash = (hash ^ (unsigned int)slot) * 16777619u;
+
+	for (int i = 0; i < text.GetLength(); i++)
+		hash = (hash ^ (unsigned int)(unsigned char)text[i]) * 16777619u;
+
+	return (hash ^ 0x7fu) * 16777619u;
+}
+
+int TextOverlay::usedTop() const
+{
+	// One 20 pixel row per slot, counted up from the bottom, and the outline
+	// reaches one pixel above its row.
+	int top = overlayHeight - 20 * SCREEN_MESSAGE_SLOTS - 1;
+
+	return top > 0 ? top : 0;
+}
+
+int TextOverlay::usedHeight() const
+{
+	return overlayHeight - usedTop();
+}
+
 bool TextOverlay::update()
 {
 	if (dc == NULL || dibBits == NULL)
 		return false;
+
+	// Which slots are still visible, and what they say, is all the overlay is
+	// made of, so a signature of that says whether the DIB already holds the
+	// right picture.  While it does, nothing is rendered: the DIB is the size
+	// of the window and update() walks it twice, which is a few million pixels
+	// a frame for a picture that does not change between messages.
+	bool visible[SCREEN_MESSAGE_SLOTS];
+	unsigned int signature = 2166136261u; // FNV-1a
+	int  visibleCount = 0;
+
+	for (int slot = 0; slot < SCREEN_MESSAGE_SLOTS; slot++)
+	{
+		visible[slot] = false;
+
+		if (!theApp.screenMessage[slot])
+			continue;
+
+		if ((theApp.screenMessageDuration[slot] < 0 ||
+		     (int)(GetTickCount() - theApp.screenMessageTime[slot]) < theApp.screenMessageDuration[slot]) &&
+		    (!theApp.disableStatusMessage || slot == 1 || slot == 2))
+		{
+			visible[slot] = true;
+			visibleCount++;
+			signature = hashSlot(signature, slot, theApp.screenMessageBuffer[slot]);
+		}
+		else
+		{
+			theApp.screenMessage[slot] = false;
+		}
+	}
+
+	// Both colours are picked when the text is drawn, so they are part of what
+	// the signature has to cover.
+	signature = (signature ^ (unsigned int)textColor) * 16777619u;
+	signature = (signature ^ (unsigned int)outlinedText) * 16777619u;
+
+	anyVisible     = visibleCount > 0;
+	contentChanged = false;
+
+	if (!anyVisible)
+	{
+		// Nothing to show.  The caller stops drawing the overlay, so the DIB
+		// may keep what it has until the next message fills it again.
+		lastSignature = signature;
+		haveSignature = true;
+		return false;
+	}
+
+	if (haveSignature && signature == lastSignature)
+		return true;
 
 	// Fill with the transparent key colour.
 	unsigned char *row = (unsigned char *)dibBits;
@@ -162,23 +255,10 @@ bool TextOverlay::update()
 	                        _T("Arial"));
 	HFONT oldFont = (HFONT)SelectObject(dc, font);
 
-	anyVisible = false;
 	for (int slot = 0; slot < SCREEN_MESSAGE_SLOTS; slot++)
 	{
-		if (!theApp.screenMessage[slot])
-			continue;
-
-		if ((theApp.screenMessageDuration[slot] < 0 ||
-		     (int)(GetTickCount() - theApp.screenMessageTime[slot]) < theApp.screenMessageDuration[slot]) &&
-		    (!theApp.disableStatusMessage || slot == 1 || slot == 2))
-		{
+		if (visible[slot])
 			drawSlot(slot);
-			anyVisible = true;
-		}
-		else
-		{
-			theApp.screenMessage[slot] = false;
-		}
 	}
 
 	SelectObject(dc, oldFont);
@@ -204,5 +284,8 @@ bool TextOverlay::update()
 		row += overlayPitch;
 	}
 
-	return anyVisible;
+	lastSignature  = signature;
+	haveSignature  = true;
+	contentChanged = true;
+	return true;
 }

@@ -578,19 +578,25 @@ void Direct3DDisplay::drawTextOverlay()
 	if (!overlay.update())
 		return;
 
-	D3DLOCKED_RECT locked;
-	if (FAILED(pOverlayTexture->LockRect(0, &locked, NULL, D3DLOCK_DISCARD)))
-		return;
+	// The overlay is the size of the back buffer and only changes when a
+	// message does, so it is uploaded again only then; the texture still holds
+	// the last picture.
+	if (overlay.changed())
+	{
+		D3DLOCKED_RECT locked;
+		if (FAILED(pOverlayTexture->LockRect(0, &locked, NULL, D3DLOCK_DISCARD)))
+			return;
 
-	const unsigned char *src = overlay.pixels();
-	int srcPitch = overlay.pitch();
-	int copyW    = overlay.width() * 4;
-	if (copyW > (int)locked.Pitch)
-		copyW = (int)locked.Pitch;
-	for (int y = 0; y < overlay.height(); y++)
-		memcpy((unsigned char *)locked.pBits + y * locked.Pitch, src + y * srcPitch, copyW);
+		const unsigned char *src = overlay.pixels();
+		int srcPitch = overlay.pitch();
+		int copyW    = overlay.width() * 4;
+		if (copyW > (int)locked.Pitch)
+			copyW = (int)locked.Pitch;
+		for (int y = 0; y < overlay.height(); y++)
+			memcpy((unsigned char *)locked.pBits + y * locked.Pitch, src + y * srcPitch, copyW);
 
-	pOverlayTexture->UnlockRect(0);
+		pOverlayTexture->UnlockRect(0);
+	}
 
 	pDevice->SetSamplerState(0, D3DSAMP_MINFILTER, D3DTEXF_POINT);
 	pDevice->SetSamplerState(0, D3DSAMP_MAGFILTER, D3DTEXF_POINT);

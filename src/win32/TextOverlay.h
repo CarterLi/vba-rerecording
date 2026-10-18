@@ -26,6 +26,19 @@ public:
 	// in which case the caller can skip uploading the overlay entirely.
 	bool update();
 
+	// True when the last update() changed the pixels, which is the case only
+	// when a message appeared, expired or changed what it says.  The overlay is
+	// the size of the window, so a backend only uploads it again when this is
+	// set.
+	bool changed() const { return contentChanged; }
+
+	// The rows update() paints on, from usedTop() down to the bottom edge: the
+	// message slots sit there, one 20 pixel row each, and the outline reaches a
+	// pixel above its row.  Everything above them stays the transparent key
+	// colour, so a backend only has to upload this band again.
+	int usedTop() const;
+	int usedHeight() const;
+
 	bool  empty() const { return dib == NULL; }
 	int   width() const { return overlayWidth; }
 	int   height() const { return overlayHeight; }
@@ -43,6 +56,9 @@ private:
 	int     overlayHeight;
 	int     overlayPitch;
 	bool    anyVisible;
+	bool    contentChanged;
+	bool    haveSignature;
+	unsigned int lastSignature;
 };
 
 #endif // VBA_WIN32_TEXTOVERLAY_H

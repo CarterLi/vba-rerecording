@@ -19,7 +19,8 @@
 // fixed function OpenGL one, and from there on down the list.
 //
 // Vertical synchronisation follows theApp.vsync through wglSwapIntervalEXT,
-// like the Direct3D 11 backend follows it through its Present interval.
+// like the Direct3D 11 backend follows it through its Present interval, and
+// uses adaptive synchronisation where the driver has it.
 
 #include "stdafx.h"
 
@@ -197,10 +198,12 @@ static bool loadGL3Functions()
 typedef BOOL  (WINAPI *PFNWGLCHOOSEPIXELFORMATARBPROC)(HDC, const int *, const FLOAT *, UINT, int *, UINT *);
 typedef HGLRC (WINAPI *PFNWGLCREATECONTEXTATTRIBSARBPROC)(HDC, HGLRC, const int *);
 typedef BOOL  (WINAPI *PFNWGLSWAPINTERVALEXTPROC)(int);
+typedef const char *(WINAPI *PFNWGLGETEXTENSIONSSTRINGEXTPROC)(void);
 
 static PFNWGLCHOOSEPIXELFORMATARBPROC     wglChoosePixelFormatARB   = NULL;
 static PFNWGLCREATECONTEXTATTRIBSARBPROC  wglCreateContextAttribsARB = NULL;
 static PFNWGLSWAPINTERVALEXTPROC          wglSwapIntervalEXT         = NULL;
+static PFNWGLGETEXTENSIONSSTRINGEXTPROC   wglGetExtensionsStringEXT  = NULL;
 
 // The version and profile the running renderer really got, for the render
 // method menu entry, which reads "OpenGL 3.3 (4.6 core)".
@@ -737,6 +740,9 @@ struct QuadVertex
 class OpenGL33Display : public IDisplay
 {
 private:
+	// How many frame textures are rotated through, see uploadFrame().
+	enum { FRAME_TEXTURE_COUNT = 2 };
+
 	HDC    hDC;
 	HWND   hwnd;
 	HGLRC  hglrc;
@@ -745,7 +751,12 @@ private:
 	int    viewWidth;
 	int    viewHeight;
 
-	GLuint frameTexture;
+	// Two frame textures, used in turn: uploading into the one the last frame
+	// was drawn from would make the driver wait for that draw to finish first.
+	// With two of them the texture written here was last read two frames ago.
+	GLuint frameTextures[FRAME_TEXTURE_COUNT];
+	int    frameTextureIndex;
+	GLuint frameTexture; // the one this frame is uploaded into and drawn from
 	int    frameWidth;
 	int    frameHeight;
 
@@ -755,9 +766,11 @@ private:
 	GLuint quadArray;
 
 	GLuint overlayTexture;
+	bool   overlayFullUpload; // the whole overlay has been uploaded once
 	TextOverlay overlay;
 
 	int    swapInterval;
+	bool   swapTear;
 
 	u8 *filterData;
 
@@ -801,6 +814,9 @@ OpenGL33Display::OpenGL33Display()
 	failed         = false;
 	viewWidth      = 0;
 	viewHeight     = 0;
+	for (int i = 0; i < FRAME_TEXTURE_COUNT; i++)
+		frameTextures[i] = 0;
+	frameTextureIndex = 0;
 	frameTexture   = 0;
 	frameWidth     = 0;
 	frameHeight    = 0;
@@ -809,7 +825,9 @@ OpenGL33Display::OpenGL33Display()
 	quadBuffer     = 0;
 	quadArray      = 0;
 	overlayTexture = 0;
+	overlayFullUpload = true;
 	swapInterval   = -1;
+	swapTear       = false;
 	filterData     = (u8 *)malloc(4*16*256*256); // sufficient for 4x filters @ 32bit color depth
 }
 
@@ -853,6 +871,7 @@ bool OpenGL33Display::createContext()
 			wglChoosePixelFormatARB    = (PFNWGLCHOOSEPIXELFORMATARBPROC)wglGetProcAddress("wglChoosePixelFormatARB");
 			wglCreateContextAttribsARB = (PFNWGLCREATECONTEXTATTRIBSARBPROC)wglGetProcAddress("wglCreateContextAttribsARB");
 			wglSwapIntervalEXT         = (PFNWGLSWAPINTERVALEXTPROC)wglGetProcAddress("wglSwapIntervalEXT");
+			wglGetExtensionsStringEXT  = (PFNWGLGETEXTENSIONSSTRINGEXTPROC)wglGetProcAddress("wglGetExtensionsStringEXT");
 			ok = true;
 
 			wglMakeCurrent(NULL, NULL);
@@ -958,6 +977,19 @@ bool OpenGL33Display::createContext()
 	       (const char *)glGetString(GL_VERSION),
 	       (const char *)glGetString(GL_RENDERER),
 	       (const char *)glGetString(GL_VENDOR));
+
+	// Adaptive vertical synchronisation: where the driver has it, a frame that
+	// misses the blanking interval is shown straight away instead of waiting
+	// for the next one, so a frame rate that does not divide the refresh rate
+	// tears once in a while instead of stuttering.
+	swapTear = false;
+	if (wglGetExtensionsStringEXT != NULL)
+	{
+		const char *extensions = wglGetExtensionsStringEXT();
+		swapTear = extensions != NULL && strstr(extensions, "WGL_EXT_swap_control_tear") != NULL;
+	}
+
+	winlog("OpenGL 3.3: swap control%s\n", swapTear ? " with adaptive vsync" : "");
 
 	// One texture unit is enough; the shaders all sample from unit 0.
 	glActiveTexture(GL_TEXTURE0);
@@ -1108,16 +1140,23 @@ void OpenGL33Display::cleanup()
 
 void OpenGL33Display::releaseTextures()
 {
-	if (frameTexture != 0)
+	for (int i = 0; i < FRAME_TEXTURE_COUNT; i++)
 	{
-		glDeleteTextures(1, &frameTexture);
-		frameTexture = 0;
+		if (frameTextures[i] != 0)
+		{
+			glDeleteTextures(1, &frameTextures[i]);
+			frameTextures[i] = 0;
+		}
 	}
+	frameTexture      = 0;
+	frameTextureIndex = 0;
+
 	if (overlayTexture != 0)
 	{
 		glDeleteTextures(1, &overlayTexture);
 		overlayTexture = 0;
 	}
+	overlayFullUpload = true;
 
 	frameWidth  = 0;
 	frameHeight = 0;
@@ -1125,14 +1164,18 @@ void OpenGL33Display::releaseTextures()
 
 void OpenGL33Display::createFrameTexture(int w, int h)
 {
-	if (frameTexture != 0)
+	for (int i = 0; i < FRAME_TEXTURE_COUNT; i++)
 	{
-		glDeleteTextures(1, &frameTexture);
-		frameTexture = 0;
+		if (frameTextures[i] != 0)
+		{
+			glDeleteTextures(1, &frameTextures[i]);
+			frameTextures[i] = 0;
+		}
 	}
-
-	frameWidth  = 0;
-	frameHeight = 0;
+	frameTexture      = 0;
+	frameTextureIndex = 0;
+	frameWidth        = 0;
+	frameHeight       = 0;
 
 	if (w <= 0 || h <= 0)
 	{
@@ -1140,27 +1183,33 @@ void OpenGL33Display::createFrameTexture(int w, int h)
 		return;
 	}
 
-	glGenTextures(1, &frameTexture);
-	if (frameTexture == 0)
+	glGenTextures(FRAME_TEXTURE_COUNT, frameTextures);
+
+	for (int i = 0; i < FRAME_TEXTURE_COUNT; i++)
 	{
-		failed = true;
-		return;
+		if (frameTextures[i] == 0)
+		{
+			failed = true;
+			return;
+		}
+
+		glBindTexture(GL_TEXTURE_2D, frameTextures[i]);
+
+		// A frame is not a power of two and does not need to be: the texture
+		// is drawn 1:1 or sampled at texel centres by the upscalers.  Clamping
+		// is what the reconstruction wants at the edges.
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+		updateFiltering();
+
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
 	}
 
-	glBindTexture(GL_TEXTURE_2D, frameTexture);
-
-	// A frame is not a power of two and does not need to be: the texture is
-	// drawn 1:1 or sampled at texel centres by the upscalers.  Clamping is what
-	// the reconstruction wants at the edges.
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-
-	updateFiltering();
-
-	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
-
-	frameWidth  = w;
-	frameHeight = h;
+	frameTexture      = frameTextures[0];
+	frameTextureIndex = 0;
+	frameWidth        = w;
+	frameHeight       = h;
 }
 
 void OpenGL33Display::createOverlayTexture(int w, int h)
@@ -1170,6 +1219,10 @@ void OpenGL33Display::createOverlayTexture(int w, int h)
 		glDeleteTextures(1, &overlayTexture);
 		overlayTexture = 0;
 	}
+
+	// A new texture holds nothing yet, so the first upload after this one has
+	// to cover all of it rather than the band the messages are drawn in.
+	overlayFullUpload = true;
 
 	if (w <= 0 || h <= 0)
 		return;
@@ -1262,6 +1315,13 @@ void OpenGL33Display::drawQuad(GLuint texture, float u0, float v0, float u1, flo
 // in.
 void OpenGL33Display::uploadFrame()
 {
+	// Take the other frame texture, so the upload below does not have to wait
+	// for the draw of the previous frame to be done reading the one it lands
+	// in.  Everything after this - the upscalers and the quad - samples the
+	// texture this frame is in.
+	frameTextureIndex = (frameTextureIndex + 1) % FRAME_TEXTURE_COUNT;
+	frameTexture      = frameTextures[frameTextureIndex];
+
 	u8 *data = pix;
 	int dataPitch = theApp.filterWidth * 4 + 4;
 
@@ -1465,11 +1525,24 @@ void OpenGL33Display::drawOverlay()
 	if (!overlay.update())
 		return;
 
-	glBindTexture(GL_TEXTURE_2D, overlayTexture);
-	glPixelStorei(GL_UNPACK_ROW_LENGTH, overlay.pitch() / 4);
-	glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, overlay.width(), overlay.height(),
-	                GL_BGRA, GL_UNSIGNED_BYTE, overlay.pixels());
-	glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+	// The overlay is the size of the window - 8 MB a frame at 1080p - and it
+	// only changes when a message does, so it is uploaded again only then.  The
+	// band the slots are drawn in is all that can have changed; the rest of the
+	// texture was left transparent by the first upload after it was created.
+	if (overlay.changed())
+	{
+		int top    = overlayFullUpload ? 0 : overlay.usedTop();
+		int height = overlayFullUpload ? overlay.height() : overlay.usedHeight();
+
+		glBindTexture(GL_TEXTURE_2D, overlayTexture);
+		glPixelStorei(GL_UNPACK_ROW_LENGTH, overlay.pitch() / 4);
+		glTexSubImage2D(GL_TEXTURE_2D, 0, 0, top, overlay.width(), height,
+		                GL_BGRA, GL_UNSIGNED_BYTE,
+		                overlay.pixels() + (size_t)top * (size_t)overlay.pitch());
+		glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+
+		overlayFullUpload = false;
+	}
 
 	drawQuad(overlayTexture, 0.0f, 0.0f, 1.0f, 1.0f, false, true);
 }
@@ -1524,9 +1597,15 @@ void OpenGL33Display::render()
 	{
 		// Only wait for the vertical blank when the user asked for it and the
 		// emulator is not running ahead of the frame rate, the same condition
-		// the Direct3D 11 backend presents with.
+		// the Direct3D 11 backend presents with.  Where the driver has adaptive
+		// synchronisation it is asked for: a frame that is late is then shown
+		// at once instead of being held back a whole interval, which turns the
+		// stutter of a 59.73 Hz emulator on a 60 Hz display into a tear.
 		bool fastForward = speedup || theApp.frameSearchSkipping;
-		int interval = theApp.vsync && !fastForward ? 1 : 0;
+		int interval = 0;
+		if (theApp.vsync && !fastForward)
+			interval = swapTear ? -1 : 1;
+
 		if (interval != swapInterval)
 		{
 			wglSwapIntervalEXT(interval);
@@ -1589,9 +1668,15 @@ void OpenGL33Display::setOption(const char *option, int value)
 {
 	if (!strcmp(option, "glFilter"))
 	{
-		if (frameTexture != 0)
-			glBindTexture(GL_TEXTURE_2D, frameTexture);
-		updateFiltering();
+		// Every frame texture carries its own sampler state.
+		for (int i = 0; i < FRAME_TEXTURE_COUNT; i++)
+		{
+			if (frameTextures[i] == 0)
+				continue;
+
+			glBindTexture(GL_TEXTURE_2D, frameTextures[i]);
+			updateFiltering();
+		}
 	}
 
 	// The upscaler and its sharpening are read from theApp on every frame, and

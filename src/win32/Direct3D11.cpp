@@ -1828,18 +1828,24 @@ void Direct3D11Display::render()
 	{
 		if (overlay.update())
 		{
-			D3D11_MAPPED_SUBRESOURCE mapped;
-			if (SUCCEEDED(pContext->Map(pOverlayTexture, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped)))
+			// The overlay is the size of the back buffer and only changes when
+			// a message does, so it is uploaded again only then; the texture
+			// still holds the last picture.
+			if (overlay.changed())
 			{
-				const unsigned char *src = overlay.pixels();
-				int srcPitch = overlay.pitch();
-				int copyBytes = overlay.width() * 4;
-				if (copyBytes > (int)mapped.RowPitch)
-					copyBytes = (int)mapped.RowPitch;
-				for (int y = 0; y < overlay.height(); y++)
-					memcpy((unsigned char *)mapped.pData + y * mapped.RowPitch,
-					       src + y * srcPitch, copyBytes);
-				pContext->Unmap(pOverlayTexture, 0);
+				D3D11_MAPPED_SUBRESOURCE mapped;
+				if (SUCCEEDED(pContext->Map(pOverlayTexture, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped)))
+				{
+					const unsigned char *src = overlay.pixels();
+					int srcPitch = overlay.pitch();
+					int copyBytes = overlay.width() * 4;
+					if (copyBytes > (int)mapped.RowPitch)
+						copyBytes = (int)mapped.RowPitch;
+					for (int y = 0; y < overlay.height(); y++)
+						memcpy((unsigned char *)mapped.pData + y * mapped.RowPitch,
+						       src + y * srcPitch, copyBytes);
+					pContext->Unmap(pOverlayTexture, 0);
+				}
 			}
 
 			D3D11VERTEX overlayQuad[4];
