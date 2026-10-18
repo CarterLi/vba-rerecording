@@ -32,9 +32,10 @@
 // Defined in Direct3D11.cpp: false when D3D11.DLL or D3DCOMPILER_47.DLL is
 // missing, in which case the renderer is not offered at all.
 extern bool direct3D11Available();
-// Defined in Direct3D11.cpp: true while a Direct3D 11 display is running whose
-// xBRZ upscaler shader compiled on this device.
-extern bool direct3D11XbrzAvailable();
+// Defined in Direct3D11.cpp: false for an upscaler whose shader is built when
+// the Direct3D 11 renderer starts but did not compile on this device, which is
+// how the upscaling menu knows to leave it out.
+extern bool direct3D11UpscalerAvailable(int upscaler);
 // Defined in Direct3D11.cpp: the presentation model the Direct3D 11 backend is
 // running with ("Flip", "Flip sequential", "Bitblt"), NULL while it is not the
 // render method that is presenting.
@@ -1910,12 +1911,6 @@ void MainWnd::OnUpdateOptionsFilter(CCmdUI *pCmdUI)
 		pCmdUI->SetCheck(theApp.filterType == 26);
 		break;
 	}
-
-	// The xBRZ upscaler filters the frame in the renderer, so none of these can
-	// run next to it.  This has the last word over the checks above.
-	if (theApp.upscaler == UPSCALER_XBRZ && theApp.display != NULL &&
-	    theApp.display->getType() == DIRECT_3D11 && direct3D11XbrzAvailable())
-		pCmdUI->Enable(FALSE);
 }
 
 BOOL MainWnd::OnOptionsFilterIFB(UINT nID)
@@ -2055,107 +2050,53 @@ BOOL MainWnd::OnOptionsVideoUpscaler(UINT nID)
 	int upscaler  = theApp.upscaler;
 	int sharpness = theApp.upscalerSharpness;
 
-	switch (nID)
+	// The upscaler items follow the UPSCALER_* values and the sharpening items
+	// sit above them, so a new upscaler needs no case here (see the ids in
+	// resource.h).
+	if (nID < ID_OPTIONS_VIDEO_UPSCALER_SHARP_0)
 	{
-	case ID_OPTIONS_VIDEO_UPSCALER_OFF:
-		upscaler = UPSCALER_OFF;
-		break;
-	case ID_OPTIONS_VIDEO_UPSCALER_NIS:
-		upscaler = UPSCALER_NIS;
-		break;
-	case ID_OPTIONS_VIDEO_UPSCALER_FSR:
-		upscaler = UPSCALER_FSR;
-		break;
-	case ID_OPTIONS_VIDEO_UPSCALER_XBRZ:
-		upscaler = UPSCALER_XBRZ;
-		break;
-	case ID_OPTIONS_VIDEO_UPSCALER_SHARP_0:
-		sharpness = 0;
-		break;
-	case ID_OPTIONS_VIDEO_UPSCALER_SHARP_25:
-		sharpness = 25;
-		break;
-	case ID_OPTIONS_VIDEO_UPSCALER_SHARP_50:
-		sharpness = 50;
-		break;
-	case ID_OPTIONS_VIDEO_UPSCALER_SHARP_75:
-		sharpness = 75;
-		break;
-	case ID_OPTIONS_VIDEO_UPSCALER_SHARP_100:
-		sharpness = 100;
-		break;
-	default:
-		return FALSE;
+		upscaler = UPSCALER_OFF + (int)(nID - ID_OPTIONS_VIDEO_UPSCALER_OFF);
+	}
+	else
+	{
+		// They are 0, 25, 50, 75 and 100 percent, in that order.
+		sharpness = 25 * (int)(nID - ID_OPTIONS_VIDEO_UPSCALER_SHARP_0);
 	}
 
 	// Only the Direct3D 11 renderer scales the frame; the others ignore the
 	// settings, and the renderer picks them up again when it is recreated.
-	int previous = theApp.upscaler;
-
 	theApp.upscaler          = upscaler;
 	theApp.upscalerSharpness = sharpness;
 	if (theApp.display)
 		theApp.display->setOption("upscaler", upscaler);
-
-	// xBRZ is a filter rather than a frame reconstruction, so it hands the CPU
-	// pixel filter over to the shader and back when it is left again.
-	if ((previous == UPSCALER_XBRZ) != (upscaler == UPSCALER_XBRZ))
-		theApp.updateFilter();
 
 	return TRUE;
 }
 
 void MainWnd::OnUpdateOptionsVideoUpscaler(CCmdUI *pCmdUI)
 {
-	bool check     = false;
-	bool sharpness = false;
+	// The upscalers are shaders, which only the Direct3D 11 renderer runs.
+	bool available = theApp.display != NULL && theApp.display->getType() == DIRECT_3D11;
 
-	switch (pCmdUI->m_nID)
+	if (pCmdUI->m_nID < ID_OPTIONS_VIDEO_UPSCALER_SHARP_0)
 	{
-	case ID_OPTIONS_VIDEO_UPSCALER_OFF:
-		check = theApp.upscaler == UPSCALER_OFF;
-		break;
-	case ID_OPTIONS_VIDEO_UPSCALER_NIS:
-		check = theApp.upscaler == UPSCALER_NIS;
-		break;
-	case ID_OPTIONS_VIDEO_UPSCALER_FSR:
-		check = theApp.upscaler == UPSCALER_FSR;
-		break;
-	case ID_OPTIONS_VIDEO_UPSCALER_XBRZ:
-		check = theApp.upscaler == UPSCALER_XBRZ;
-		break;
-	case ID_OPTIONS_VIDEO_UPSCALER_SHARP_0:
-		check     = theApp.upscalerSharpness == 0;
-		sharpness = true;
-		break;
-	case ID_OPTIONS_VIDEO_UPSCALER_SHARP_25:
-		check     = theApp.upscalerSharpness == 25;
-		sharpness = true;
-		break;
-	case ID_OPTIONS_VIDEO_UPSCALER_SHARP_50:
-		check     = theApp.upscalerSharpness == 50;
-		sharpness = true;
-		break;
-	case ID_OPTIONS_VIDEO_UPSCALER_SHARP_75:
-		check     = theApp.upscalerSharpness == 75;
-		sharpness = true;
-		break;
-	default:
-		check     = theApp.upscalerSharpness == 100;
-		sharpness = true;
-		break;
+		int upscaler = UPSCALER_OFF + (int)(pCmdUI->m_nID - ID_OPTIONS_VIDEO_UPSCALER_OFF);
+
+		pCmdUI->SetCheck(theApp.upscaler == upscaler);
+
+		// The shaders that are built when the renderer starts are left out
+		// where they did not compile; the two SDK upscalers are built on
+		// demand, so there is nothing to know about them yet.
+		pCmdUI->Enable(available && direct3D11UpscalerAvailable(upscaler));
+		return;
 	}
 
-	pCmdUI->SetCheck(check);
+	// The sharpening amount only means something for the two SDKs that have one.
+	int sharpness = 25 * (int)(pCmdUI->m_nID - ID_OPTIONS_VIDEO_UPSCALER_SHARP_0);
+	bool sharpens = theApp.upscaler == UPSCALER_NIS || theApp.upscaler == UPSCALER_FSR;
 
-	// The upscalers are shaders, which only the Direct3D 11 renderer runs, and
-	// the sharpening amount only means something for the two SDKs that have one.
-	bool available = theApp.display != NULL && theApp.display->getType() == DIRECT_3D11;
-	if (pCmdUI->m_nID == ID_OPTIONS_VIDEO_UPSCALER_XBRZ)
-		available = available && direct3D11XbrzAvailable();
-
-	pCmdUI->Enable(available &&
-	               (!sharpness || (theApp.upscaler != UPSCALER_OFF && theApp.upscaler != UPSCALER_XBRZ)));
+	pCmdUI->SetCheck(theApp.upscalerSharpness == sharpness);
+	pCmdUI->Enable(available && sharpens);
 }
 
 void MainWnd::OnOptionsLanguageSystem()

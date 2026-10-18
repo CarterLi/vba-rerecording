@@ -43,18 +43,23 @@ enum
 };
 
 // Frame upscaling (theApp.upscaler): the frame is either drawn by the sampler
-// or rebuilt by one of the upscalers that ship with the Direct3D 11 backend,
-// which then applies theApp.upscalerSharpness percent of sharpening.  The other
-// backends ignore both settings.
+// or rebuilt by one of the upscalers that ship with the Direct3D 11 backend.
+// The two SDK upscalers then apply theApp.upscalerSharpness percent of
+// sharpening, the pixel filter shaders do not.  The other backends ignore all
+// of it.
+//
+// The values are in the order of the upscaling menu, which MainWndOptions.cpp
+// works out from the menu ids (see resource.h), so a new upscaler is a value
+// here, an id, a menu item and, for one the renderer runs as a single pixel
+// shader pass, a row of g_singlePassUpscalers in Direct3D11.cpp.
 enum
 {
 	UPSCALER_OFF,   // sampler filtering only
 	UPSCALER_NIS,   // NVIDIA Image Scaling
 	UPSCALER_FSR,   // AMD FidelityFX Super Resolution 1.0 (EASU + RCAS)
-	// xBRZ as the pixel shader of the same backend.  Unlike the two SDKs above
-	// it does not reconstruct the frame but filters it, so it takes the place
-	// of the CPU pixel filter and the frame stays at its native size (see
-	// VBA::updateFilter()).
+	// xBRZ as a pixel filter shader of the same backend.  Unlike the two SDKs
+	// above it does not reconstruct the frame but filters it, at whatever size
+	// the emulation thread produced it, the way a CPU pixel filter would.
 	UPSCALER_XBRZ
 };
 
@@ -171,7 +176,8 @@ public:
 	bool		 ddrawDebug;
 	bool		 ddrawUseVideoMemory;
 	int			 d3dFilter;
-	int			 upscaler;          // UPSCALER_OFF / UPSCALER_NIS / UPSCALER_FSR
+	int			 upscaler;          // UPSCALER_OFF / UPSCALER_NIS / UPSCALER_FSR /
+	                                // UPSCALER_XBRZ, see the enum above
 	int			 upscalerSharpness; // upscaler sharpening in percent, 0..100
 	int			 glFilter;
 	int			 glType;

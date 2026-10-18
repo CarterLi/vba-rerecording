@@ -96,17 +96,6 @@ bool direct3D11Available()
 	return d3d11CreateDevice != NULL && d3dCompile != NULL;
 }
 
-// Set while a Direct3D 11 display is running that compiled its xBRZ shader.
-// The upscaling menu leaves the entry out when the shader does not build on
-// this device, and VBA::updateFilter() then keeps the frame at its native size
-// and the CPU filter in charge.
-static bool xbrzShaderAvailable = false;
-
-bool direct3D11XbrzAvailable()
-{
-	return xbrzShaderAvailable;
-}
-
 // The swap effect the running display presents with, -1 while there is none.
 static int currentSwapEffect = -1;
 
@@ -199,6 +188,24 @@ static const char *upscalerShaderSource(LPCSTR name, DWORD *size)
 	return (const char *)LockResource(handle);
 }
 
+// The SDK headers the shaders include, as they are stored in the executable.
+// A shader that includes another one needs a row here and the resource in
+// vba.rc, nothing else.
+struct UpscalerInclude
+{
+	const char *file;     // the name as the shader includes it
+	const char *resource; // the RCDATA resource holding it
+};
+
+static const UpscalerInclude g_upscalerIncludes[] =
+{
+	{ "NIS_Scaler.h", "NIS_SHADER_SCALER" },
+	{ "ffx_a.h",      "FSR_SHADER_A" },
+	{ "ffx_fsr1.h",   "FSR_SHADER_FSR1" },
+};
+
+#define UPSCALER_INCLUDE_COUNT (sizeof(g_upscalerIncludes) / sizeof(g_upscalerIncludes[0]))
+
 // Serves the SDK headers to D3DCompile from those resources, so the shaders
 // stay inside the executable instead of sitting next to it.
 class UpscalerIncludeHandler : public ID3DInclude
@@ -209,14 +216,14 @@ public:
 		if (name == NULL)
 			return E_FAIL;
 
-		LPCSTR resource = NULL;
+		const char *resource = NULL;
 
-		if (!_stricmp(name, "NIS_Scaler.h"))
-			resource = "NIS_SHADER_SCALER";
-		else if (!_stricmp(name, "ffx_a.h"))
-			resource = "FSR_SHADER_A";
-		else if (!_stricmp(name, "ffx_fsr1.h"))
-			resource = "FSR_SHADER_FSR1";
+		for (UINT i = 0; i < UPSCALER_INCLUDE_COUNT; i++)
+			if (!_stricmp(name, g_upscalerIncludes[i].file))
+			{
+				resource = g_upscalerIncludes[i].resource;
+				break;
+			}
 
 		if (resource == NULL)
 			return E_FAIL;
@@ -245,6 +252,152 @@ static void setFullscreenQuad(D3D11VERTEX *vertices)
 	vertices[1].x = -1.0f; vertices[1].y =  1.0f; vertices[1].u = 0.0f; vertices[1].v = 0.0f;
 	vertices[2].x =  1.0f; vertices[2].y = -1.0f; vertices[2].u = 1.0f; vertices[2].v = 1.0f;
 	vertices[3].x =  1.0f; vertices[3].y =  1.0f; vertices[3].u = 1.0f; vertices[3].v = 0.0f;
+}
+
+// --- Upscaler parts ------------------------------------------------------
+//
+// The pieces every upscaler is made of.  They are here so that a new one is
+// mostly data: the shaders are loaded through compileUpscalerShader(), the
+// constants through createUpscalerConstants(), and the targets they draw into
+// through updateUpscaleTarget().
+
+// Compiles one of the shaders stored in the executable.  Returns NULL and logs
+// what the compiler said when it does not build.
+static ID3DBlob *compileUpscalerShader(LPCSTR resource, LPCSTR name, LPCSTR entry,
+                                       LPCSTR profile, const D3D_SHADER_MACRO *defines = NULL,
+                                       ID3DInclude *include = NULL)
+{
+	DWORD sourceSize = 0;
+	const char *source = upscalerShaderSource(resource, &sourceSize);
+	if (source == NULL)
+		return NULL;
+
+	ID3DBlob *blob  = NULL;
+	ID3DBlob *error = NULL;
+
+	if (FAILED(d3dCompile(source, sourceSize, name, defines, include, entry, profile, 0, 0,
+	                      &blob, &error)))
+	{
+		winlog("%s: %s does not compile: %s\n", name, entry,
+		       error ? (const char *)error->GetBufferPointer() : "?");
+		if (error)
+			error->Release();
+		return NULL;
+	}
+
+	if (error)
+		error->Release();
+
+	return blob;
+}
+
+// Compiles one of the shaders stored in the executable and creates the pixel
+// shader out of it.
+static ID3D11PixelShader *createUpscalerPixelShader(ID3D11Device *device, LPCSTR resource,
+                                                    LPCSTR name, LPCSTR entry, LPCSTR profile,
+                                                    ID3DInclude *include = NULL)
+{
+	ID3DBlob *blob = compileUpscalerShader(resource, name, entry, profile, NULL, include);
+	if (blob == NULL)
+		return NULL;
+
+	ID3D11PixelShader *shader = NULL;
+	HRESULT hr = device->CreatePixelShader(blob->GetBufferPointer(), blob->GetBufferSize(), NULL,
+	                                       &shader);
+	blob->Release();
+
+	if (FAILED(hr))
+	{
+		winlog("%s: CreatePixelShader failed %08x\n", name, hr);
+		return NULL;
+	}
+
+	return shader;
+}
+
+// The dynamic constant buffer a pass writes its constants into, and the upload
+// that fills it.
+static bool createUpscalerConstants(ID3D11Device *device, UINT bytes, ID3D11Buffer **buffer)
+{
+	D3D11_BUFFER_DESC cbd;
+	ZeroMemory(&cbd, sizeof(cbd));
+	cbd.ByteWidth      = bytes;
+	cbd.Usage          = D3D11_USAGE_DYNAMIC;
+	cbd.BindFlags      = D3D11_BIND_CONSTANT_BUFFER;
+	cbd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+
+	return SUCCEEDED(device->CreateBuffer(&cbd, NULL, buffer));
+}
+
+static bool writeUpscalerConstants(ID3D11DeviceContext *context, ID3D11Buffer *buffer,
+                                   const void *constants, UINT bytes)
+{
+	D3D11_MAPPED_SUBRESOURCE mapped;
+	if (FAILED(context->Map(buffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped)))
+		return false;
+
+	memcpy(mapped.pData, constants, bytes);
+	context->Unmap(buffer, 0);
+	return true;
+}
+
+// The texture one pass of an upscaler draws into, with the view the next pass,
+// or the quad, reads it back through.
+struct UpscaleTarget
+{
+	ID3D11Texture2D          *texture;
+	ID3D11ShaderResourceView *srv;
+	ID3D11RenderTargetView   *rtv;
+	int                       width;
+	int                       height;
+};
+
+static void releaseUpscaleTarget(UpscaleTarget &target)
+{
+	if (target.rtv)     { target.rtv->Release();     target.rtv = NULL; }
+	if (target.srv)     { target.srv->Release();     target.srv = NULL; }
+	if (target.texture) { target.texture->Release(); target.texture = NULL; }
+	target.width  = 0;
+	target.height = 0;
+}
+
+// Creates the target, or keeps the one that already has the size the pass
+// needs.  Returns false, and leaves the target empty, when the device will not
+// give us one.
+static bool updateUpscaleTarget(ID3D11Device *device, UpscaleTarget &target,
+                                int width, int height, const char *name)
+{
+	if (width <= 0 || height <= 0)
+		return false;
+
+	if (target.texture != NULL && target.width == width && target.height == height)
+		return true;
+
+	releaseUpscaleTarget(target);
+
+	D3D11_TEXTURE2D_DESC td;
+	ZeroMemory(&td, sizeof(td));
+	td.Width            = width;
+	td.Height           = height;
+	td.MipLevels        = 1;
+	td.ArraySize        = 1;
+	td.Format           = DXGI_FORMAT_B8G8R8A8_UNORM;
+	td.SampleDesc.Count = 1;
+	td.Usage            = D3D11_USAGE_DEFAULT;
+	td.BindFlags        = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
+
+	if (FAILED(device->CreateTexture2D(&td, NULL, &target.texture)) ||
+	    FAILED(device->CreateShaderResourceView(target.texture, NULL, &target.srv)) ||
+	    FAILED(device->CreateRenderTargetView(target.texture, NULL, &target.rtv)))
+	{
+		winlog("%s: cannot create the %dx%d target\n", name, width, height);
+		releaseUpscaleTarget(target);
+		return false;
+	}
+
+	target.width  = width;
+	target.height = height;
+	return true;
 }
 
 class Direct3D11Display : public IDisplay
@@ -293,12 +446,11 @@ private:
 	bool updateFsrTargets(int dstWidth, int dstHeight);
 	ID3D11ShaderResourceView *scaleFrameWithFsr();
 
-	// xBRZ
-	bool initXbrz();
-	void releaseXbrz();
-	void releaseXbrzTarget();
-	bool updateXbrzTarget(int dstWidth, int dstHeight);
-	ID3D11ShaderResourceView *scaleFrameWithXbrz();
+	// The single pass pixel shader upscalers: xBRZ and whatever is added to
+	// g_singlePassUpscalers next.
+	void initSinglePassUpscalers();
+	void releaseSinglePassUpscalers();
+	ID3D11ShaderResourceView *scaleFrameWithSinglePass(int upscaler);
 
 	HWND                  hwnd;
 	ID3D11Device         *pDevice;
@@ -349,33 +501,11 @@ private:
 
 	// FidelityFX Super Resolution: EASU writes the first target, RCAS the
 	// second one, which is the one that gets drawn.
-	struct FsrTarget
-	{
-		ID3D11Texture2D          *texture;
-		ID3D11ShaderResourceView *srv;
-		ID3D11RenderTargetView   *rtv;
-		int                       width;
-		int                       height;
-	};
-
 	bool                       fsrAvailable;
 	ID3D11PixelShader         *pFsrEasuPS;
 	ID3D11PixelShader         *pFsrRcasPS;
 	ID3D11Buffer              *pFsrCB;
-	FsrTarget                  fsrTargets[FSR_PASS_COUNT];
-
-	// xBRZ, as the single-pass pixel shader that stands in for the CPU filter:
-	// the frame texture holds the frame at its native size and the shader
-	// blends it into a target the size of the back buffer, which is then drawn
-	// 1:1 (see scaleFrameWithXbrz()).
-	bool                      xbrzAvailable;
-	ID3D11PixelShader        *pXbrzPS;
-	ID3D11Buffer             *pXbrzCB;
-	ID3D11Texture2D          *pXbrzTargetTexture;
-	ID3D11ShaderResourceView *pXbrzTargetSRV;
-	ID3D11RenderTargetView   *pXbrzTargetRTV;
-	int                       xbrzTargetWidth;
-	int                       xbrzTargetHeight;
+	UpscaleTarget              fsrTargets[FSR_PASS_COUNT];
 
 	DXGI_FORMAT frameFormat;
 	int  width;
@@ -426,14 +556,6 @@ Direct3D11Display::Direct3D11Display()
 	pFsrRcasPS    = NULL;
 	pFsrCB        = NULL;
 	ZeroMemory(fsrTargets, sizeof(fsrTargets));
-	xbrzAvailable = false;
-	pXbrzPS       = NULL;
-	pXbrzCB       = NULL;
-	pXbrzTargetTexture = NULL;
-	pXbrzTargetSRV     = NULL;
-	pXbrzTargetRTV     = NULL;
-	xbrzTargetWidth    = 0;
-	xbrzTargetHeight   = 0;
 	frameFormat   = DXGI_FORMAT_B8G8R8A8_UNORM;
 	width         = 0;
 	height        = 0;
@@ -465,7 +587,7 @@ void Direct3D11Display::releaseAll()
 	releaseFrameTexture();
 	releaseNis();
 	releaseFsr();
-	releaseXbrz();
+	releaseSinglePassUpscalers();
 
 	if (pOverlaySRV)   { pOverlaySRV->Release();   pOverlaySRV = NULL; }
 	if (pOverlayTexture) { pOverlayTexture->Release(); pOverlayTexture = NULL; }
@@ -836,11 +958,10 @@ bool Direct3D11Display::initialize()
 	else if (theApp.upscaler == UPSCALER_FSR)
 		initFsr();
 
-	// The xBRZ shader is built here rather than on demand, so that the
-	// upscaling menu and updateFilter() know whether it is there before the
-	// first frame.  Failing is not fatal, the entry is then left out.
-	if (!initXbrz())
-		winlog("D3D11: the xBRZ upscaler is not available on this device\n");
+	// The single pass shaders are built here rather than on demand, so that the
+	// upscaling menu knows whether they are there before they are selected.
+	// Failing is not fatal, the entry is then left out.
+	initSinglePassUpscalers();
 
 	filterMode = regQueryDwordValue("d3dFilter", 0);
 	if (filterMode < 0 || filterMode > 3)
@@ -943,30 +1064,13 @@ bool Direct3D11Display::initNis()
 		{ NULL, NULL }
 	};
 
-	DWORD sourceSize = 0;
-	const char *source = upscalerShaderSource("NIS_SHADER_MAIN", &sourceSize);
-	if (source == NULL)
-		return false;
-
 	UpscalerIncludeHandler includeHandler;
-	ID3DBlob *blob  = NULL;
-	ID3DBlob *error = NULL;
-
-	HRESULT hr = d3dCompile(source, sourceSize, "NIS_Main.hlsl",
-	                        defines, &includeHandler, "main", "cs_5_0", 0, 0,
-	                        &blob, &error);
-	if (FAILED(hr))
-	{
-		winlog("NIS: shader compilation failed: %s\n",
-		       error ? (const char *)error->GetBufferPointer() : "?");
-		if (error)
-			error->Release();
+	ID3DBlob *blob = compileUpscalerShader("NIS_SHADER_MAIN", "NIS_Main.hlsl", "main", "cs_5_0",
+	                                       defines, &includeHandler);
+	if (blob == NULL)
 		return false;
-	}
-	if (error)
-		error->Release();
 
-	hr = pDevice->CreateComputeShader(blob->GetBufferPointer(), blob->GetBufferSize(), NULL, &pNisCS);
+	HRESULT hr = pDevice->CreateComputeShader(blob->GetBufferPointer(), blob->GetBufferSize(), NULL, &pNisCS);
 	blob->Release();
 	if (FAILED(hr))
 	{
@@ -1012,13 +1116,7 @@ bool Direct3D11Display::initNis()
 		return false;
 	}
 
-	D3D11_BUFFER_DESC cbd;
-	ZeroMemory(&cbd, sizeof(cbd));
-	cbd.ByteWidth      = sizeof(NISConfig);
-	cbd.Usage          = D3D11_USAGE_DYNAMIC;
-	cbd.BindFlags      = D3D11_BIND_CONSTANT_BUFFER;
-	cbd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-	if (FAILED(pDevice->CreateBuffer(&cbd, NULL, &pNisCB)))
+	if (!createUpscalerConstants(pDevice, sizeof(NISConfig), &pNisCB))
 	{
 		winlog("NIS: cannot create the config buffer\n");
 		return false;
@@ -1156,11 +1254,8 @@ ID3D11ShaderResourceView *Direct3D11Display::scaleFrameWithNis()
 			return NULL;
 		}
 
-		D3D11_MAPPED_SUBRESOURCE mapped;
-		if (FAILED(pContext->Map(pNisCB, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped)))
+		if (!writeUpscalerConstants(pContext, pNisCB, &config, sizeof(config)))
 			return NULL;
-		memcpy(mapped.pData, &config, sizeof(config));
-		pContext->Unmap(pNisCB, 0);
 
 		pContext->CSSetShader(pNisCS, NULL, 0);
 		pContext->CSSetConstantBuffers(0, 1, &pNisCB);
@@ -1240,40 +1335,6 @@ static float fsrRcasCon(int sharpness)
 	return exp2f(-stops);
 }
 
-// Compiles one of the two entry points the FSR wrapper offers.
-static ID3D11PixelShader *compileFsrShader(ID3D11Device *device, const char *source,
-                                           DWORD sourceSize, const char *entry,
-                                           ID3DInclude *include)
-{
-	ID3DBlob *blob  = NULL;
-	ID3DBlob *error = NULL;
-
-	HRESULT hr = d3dCompile(source, sourceSize, "FSR_Main.hlsl", NULL, include, entry,
-	                        "ps_5_0", 0, 0, &blob, &error);
-	if (FAILED(hr))
-	{
-		winlog("FSR: %s failed to compile: %s\n", entry,
-		       error ? (const char *)error->GetBufferPointer() : "?");
-		if (error)
-			error->Release();
-		return NULL;
-	}
-	if (error)
-		error->Release();
-
-	ID3D11PixelShader *shader = NULL;
-	hr = device->CreatePixelShader(blob->GetBufferPointer(), blob->GetBufferSize(), NULL, &shader);
-	blob->Release();
-
-	if (FAILED(hr))
-	{
-		winlog("FSR: CreatePixelShader failed %08x\n", hr);
-		return NULL;
-	}
-
-	return shader;
-}
-
 bool Direct3D11Display::initFsr()
 {
 	if (fsrAvailable)
@@ -1288,28 +1349,19 @@ bool Direct3D11Display::initFsr()
 		return false;
 	}
 
-	DWORD sourceSize = 0;
-	const char *source = upscalerShaderSource("FSR_SHADER_MAIN", &sourceSize);
-	if (source == NULL)
-		return false;
-
 	UpscalerIncludeHandler includeHandler;
 
-	pFsrEasuPS = compileFsrShader(pDevice, source, sourceSize, "FSR_Easu", &includeHandler);
-	pFsrRcasPS = compileFsrShader(pDevice, source, sourceSize, "FSR_Rcas", &includeHandler);
+	pFsrEasuPS = createUpscalerPixelShader(pDevice, "FSR_SHADER_MAIN", "FSR_Main.hlsl",
+	                                       "FSR_Easu", "ps_5_0", &includeHandler);
+	pFsrRcasPS = createUpscalerPixelShader(pDevice, "FSR_SHADER_MAIN", "FSR_Main.hlsl",
+	                                       "FSR_Rcas", "ps_5_0", &includeHandler);
 	if (pFsrEasuPS == NULL || pFsrRcasPS == NULL)
 	{
 		releaseFsr();
 		return false;
 	}
 
-	D3D11_BUFFER_DESC cbd;
-	ZeroMemory(&cbd, sizeof(cbd));
-	cbd.ByteWidth      = FSR_CONSTANT_FLOATS * sizeof(float);
-	cbd.Usage          = D3D11_USAGE_DYNAMIC;
-	cbd.BindFlags      = D3D11_BIND_CONSTANT_BUFFER;
-	cbd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-	if (FAILED(pDevice->CreateBuffer(&cbd, NULL, &pFsrCB)))
+	if (!createUpscalerConstants(pDevice, FSR_CONSTANT_FLOATS * sizeof(float), &pFsrCB))
 	{
 		winlog("FSR: cannot create the constant buffer\n");
 		releaseFsr();
@@ -1323,13 +1375,7 @@ bool Direct3D11Display::initFsr()
 void Direct3D11Display::releaseFsrTargets()
 {
 	for (int i = 0; i < FSR_PASS_COUNT; i++)
-	{
-		if (fsrTargets[i].rtv)     { fsrTargets[i].rtv->Release();     fsrTargets[i].rtv = NULL; }
-		if (fsrTargets[i].srv)     { fsrTargets[i].srv->Release();     fsrTargets[i].srv = NULL; }
-		if (fsrTargets[i].texture) { fsrTargets[i].texture->Release(); fsrTargets[i].texture = NULL; }
-		fsrTargets[i].width  = 0;
-		fsrTargets[i].height = 0;
-	}
+		releaseUpscaleTarget(fsrTargets[i]);
 }
 
 void Direct3D11Display::releaseFsr()
@@ -1344,40 +1390,12 @@ void Direct3D11Display::releaseFsr()
 
 bool Direct3D11Display::updateFsrTargets(int dstWidth, int dstHeight)
 {
-	if (dstWidth <= 0 || dstHeight <= 0)
-		return false;
-
-	if (fsrTargets[0].texture != NULL && fsrTargets[0].width == dstWidth &&
-	    fsrTargets[0].height == dstHeight)
-		return true;
-
-	releaseFsrTargets();
-
 	for (int i = 0; i < FSR_PASS_COUNT; i++)
-	{
-		D3D11_TEXTURE2D_DESC td;
-		ZeroMemory(&td, sizeof(td));
-		td.Width            = dstWidth;
-		td.Height           = dstHeight;
-		td.MipLevels        = 1;
-		td.ArraySize        = 1;
-		td.Format           = DXGI_FORMAT_B8G8R8A8_UNORM;
-		td.SampleDesc.Count = 1;
-		td.Usage            = D3D11_USAGE_DEFAULT;
-		td.BindFlags        = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
-
-		if (FAILED(pDevice->CreateTexture2D(&td, NULL, &fsrTargets[i].texture)) ||
-		    FAILED(pDevice->CreateShaderResourceView(fsrTargets[i].texture, NULL, &fsrTargets[i].srv)) ||
-		    FAILED(pDevice->CreateRenderTargetView(fsrTargets[i].texture, NULL, &fsrTargets[i].rtv)))
+		if (!updateUpscaleTarget(pDevice, fsrTargets[i], dstWidth, dstHeight, "FSR"))
 		{
-			winlog("FSR: cannot create the %dx%d pass target\n", dstWidth, dstHeight);
 			releaseFsrTargets();
 			return false;
 		}
-
-		fsrTargets[i].width  = dstWidth;
-		fsrTargets[i].height = dstHeight;
-	}
 
 	return true;
 }
@@ -1408,11 +1426,8 @@ ID3D11ShaderResourceView *Direct3D11Display::scaleFrameWithFsr()
 	constants[20] = (float)backWidth;
 	constants[21] = (float)backHeight;
 
-	D3D11_MAPPED_SUBRESOURCE mapped;
-	if (FAILED(pContext->Map(pFsrCB, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped)))
+	if (!writeUpscalerConstants(pContext, pFsrCB, constants, sizeof(constants)))
 		return NULL;
-	memcpy(mapped.pData, constants, sizeof(constants));
-	pContext->Unmap(pFsrCB, 0);
 
 	D3D11VERTEX fullQuad[4];
 	setFullscreenQuad(fullQuad);
@@ -1421,7 +1436,7 @@ ID3D11ShaderResourceView *Direct3D11Display::scaleFrameWithFsr()
 
 	for (int pass = 0; pass < FSR_PASS_COUNT; pass++)
 	{
-		FsrTarget& target = fsrTargets[pass];
+		UpscaleTarget& target = fsrTargets[pass];
 
 		ID3D11RenderTargetView *rtv = target.rtv;
 		pContext->OMSetRenderTargets(1, &rtv, NULL);
@@ -1451,180 +1466,187 @@ ID3D11ShaderResourceView *Direct3D11Display::scaleFrameWithFsr()
 	return source;
 }
 
-// --- xBRZ ---------------------------------------------------------------
+// --- Single pass pixel shader upscalers ----------------------------------
 //
-// The port of the libretro xBRZ-Freescale shader, see
-// src/win32/upscalers/XBRZ_Freescale.hlsl.  It is a pixel filter rather than a
-// frame reconstruction like the two SDKs above: the frame texture holds the
-// untouched frame at its native size (VBA::updateFilter() keeps the CPU filter
-// out of the way) and the shader blends it while it is stretched into a target
-// the size of the back buffer, which is then drawn 1:1.
+// xBRZ and anything else like it: one pixel shader, one block of constants and
+// one render target the size of the back buffer.  The pass maps the whole frame
+// texture onto the whole window, the same mapping the textured quad would use,
+// so it stacks with the CPU pixel filter and with the sharpening the way the
+// two SDK upscalers above do.  Adding another one is a row of the table below,
+// its source as a resource in vba.rc, a UPSCALER_* value and a menu item: no
+// code, and nothing else in the renderer has to know about it.
+//
+// The xBRZ port itself is src/win32/upscalers/XBRZ_Freescale.hlsl.
 
-bool Direct3D11Display::initXbrz()
+struct SinglePassUpscalerSource
 {
-	if (xbrzAvailable)
-		return true;
+	int         value;     // the UPSCALER_* value it implements
+	const char *name;      // for the trace log and the screen message
+	const char *resource;  // the RCDATA resource holding its source
+	const char *entry;     // the entry point of its pixel shader
+	const char *profile;   // the shader model it is compiled for
+};
 
-	if (pDevice == NULL)
-		return false;
+static const SinglePassUpscalerSource g_singlePassUpscalers[] =
+{
+	{ UPSCALER_XBRZ, "xBRZ", "XBRZ_SHADER_FREESCALE", "main", "ps_4_0" },
+};
 
-	DWORD sourceSize = 0;
-	const char *source = upscalerShaderSource("XBRZ_SHADER_FREESCALE", &sourceSize);
-	if (source == NULL)
-		return false;
+#define SINGLE_PASS_UPSCALER_COUNT (sizeof(g_singlePassUpscalers) / sizeof(g_singlePassUpscalers[0]))
 
-	ID3DBlob *blob  = NULL;
-	ID3DBlob *error = NULL;
+// The block every one of them is handed, and the one their sources declare:
+//
+//   float4 SourceSize;  // xy: the frame size in pixels, zw: 1 / xy, one texel
+//   float4 OutputSize;  // xy: the target size in pixels, zw: 1 / xy
+//   float4 Scale;       // xy: OutputSize.xy / SourceSize.xy
+//
+// They are sampled with the point sampler, so their taps land on texel centres.
+// A shader that needs anything more is a pipeline of its own, like NIS.
+struct SinglePassConstants
+{
+	float sourceSize[4];
+	float outputSize[4];
+	float scale[4];
+};
 
-	if (FAILED(d3dCompile(source, sourceSize, "xbrzPS", NULL, NULL, "main", "ps_4_0", 0, 0, &blob, &error)))
-	{
-		winlog("xBRZ: shader compilation failed: %s\n", error ? (const char *)error->GetBufferPointer() : "?");
-		if (error) error->Release();
-		return false;
-	}
-	if (error)
-		error->Release();
+// What the running renderer built out of the table above.  There is never more
+// than one display at a time, and the upscaling menu asks about the shaders in
+// between two of them, so they live here rather than in the display object.
+struct SinglePassUpscaler
+{
+	ID3D11PixelShader *shader;
+	ID3D11Buffer      *constants;
+	UpscaleTarget      target;
+};
 
-	HRESULT hr = pDevice->CreatePixelShader(blob->GetBufferPointer(), blob->GetBufferSize(), NULL, &pXbrzPS);
-	blob->Release();
-	if (FAILED(hr))
-	{
-		winlog("xBRZ: cannot create the pixel shader\n");
-		return false;
-	}
+static SinglePassUpscaler g_singlePassUpscalerState[SINGLE_PASS_UPSCALER_COUNT];
 
-	// One float4: the size of a source texel in xy, the factor the frame is
-	// stretched by in zw.
-	D3D11_BUFFER_DESC cbd;
-	ZeroMemory(&cbd, sizeof(cbd));
-	cbd.ByteWidth      = 4 * sizeof(float);
-	cbd.Usage          = D3D11_USAGE_DYNAMIC;
-	cbd.BindFlags      = D3D11_BIND_CONSTANT_BUFFER;
-	cbd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-	if (FAILED(pDevice->CreateBuffer(&cbd, NULL, &pXbrzCB)))
-	{
-		winlog("xBRZ: cannot create the constant buffer\n");
-		releaseXbrz();
-		return false;
-	}
+// The row of the table above that implements `value`, or -1.
+static int singlePassUpscalerIndex(int value)
+{
+	for (UINT i = 0; i < SINGLE_PASS_UPSCALER_COUNT; i++)
+		if (g_singlePassUpscalers[i].value == value)
+			return (int)i;
 
-	xbrzAvailable       = true;
-	xbrzShaderAvailable = true;
-	return true;
+	return -1;
 }
 
-void Direct3D11Display::releaseXbrzTarget()
+// False for an upscaler of the table above whose shader did not compile on this
+// device, which is how the upscaling menu leaves it out.  The two SDK upscalers
+// are built on demand, so there is nothing to answer for them, and anything the
+// renderer does not know at all passes too.
+bool direct3D11UpscalerAvailable(int upscaler)
 {
-	if (pXbrzTargetRTV)     { pXbrzTargetRTV->Release();     pXbrzTargetRTV = NULL; }
-	if (pXbrzTargetSRV)     { pXbrzTargetSRV->Release();     pXbrzTargetSRV = NULL; }
-	if (pXbrzTargetTexture) { pXbrzTargetTexture->Release(); pXbrzTargetTexture = NULL; }
-	xbrzTargetWidth  = 0;
-	xbrzTargetHeight = 0;
+	int index = singlePassUpscalerIndex(upscaler);
+
+	return index < 0 || g_singlePassUpscalerState[index].shader != NULL;
 }
 
-void Direct3D11Display::releaseXbrz()
+void Direct3D11Display::initSinglePassUpscalers()
 {
-	releaseXbrzTarget();
-
-	if (pXbrzCB) { pXbrzCB->Release(); pXbrzCB = NULL; }
-	if (pXbrzPS) { pXbrzPS->Release(); pXbrzPS = NULL; }
-
-	xbrzAvailable       = false;
-	xbrzShaderAvailable = false;
-}
-
-bool Direct3D11Display::updateXbrzTarget(int dstWidth, int dstHeight)
-{
-	if (dstWidth <= 0 || dstHeight <= 0)
-		return false;
-
-	if (pXbrzTargetTexture != NULL && xbrzTargetWidth == dstWidth &&
-	    xbrzTargetHeight == dstHeight)
-		return true;
-
-	releaseXbrzTarget();
-
-	D3D11_TEXTURE2D_DESC td;
-	ZeroMemory(&td, sizeof(td));
-	td.Width            = dstWidth;
-	td.Height           = dstHeight;
-	td.MipLevels        = 1;
-	td.ArraySize        = 1;
-	td.Format           = DXGI_FORMAT_B8G8R8A8_UNORM;
-	td.SampleDesc.Count = 1;
-	td.Usage            = D3D11_USAGE_DEFAULT;
-	td.BindFlags        = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
-
-	if (FAILED(pDevice->CreateTexture2D(&td, NULL, &pXbrzTargetTexture)) ||
-	    FAILED(pDevice->CreateShaderResourceView(pXbrzTargetTexture, NULL, &pXbrzTargetSRV)) ||
-	    FAILED(pDevice->CreateRenderTargetView(pXbrzTargetTexture, NULL, &pXbrzTargetRTV)))
+	for (UINT i = 0; i < SINGLE_PASS_UPSCALER_COUNT; i++)
 	{
-		winlog("xBRZ: cannot create the %dx%d target\n", dstWidth, dstHeight);
-		releaseXbrzTarget();
-		return false;
-	}
+		const SinglePassUpscalerSource& source = g_singlePassUpscalers[i];
+		SinglePassUpscaler& upscaler = g_singlePassUpscalerState[i];
 
-	xbrzTargetWidth  = dstWidth;
-	xbrzTargetHeight = dstHeight;
-	return true;
+		if (upscaler.shader != NULL)
+			continue;
+
+		upscaler.shader = createUpscalerPixelShader(pDevice, source.resource, source.name,
+		                                            source.entry, source.profile);
+		if (upscaler.shader == NULL)
+		{
+			winlog("D3D11: the %s upscaler is not available on this device\n", source.name);
+			continue;
+		}
+
+		if (!createUpscalerConstants(pDevice, sizeof(SinglePassConstants), &upscaler.constants))
+		{
+			winlog("%s: cannot create the constant buffer\n", source.name);
+			upscaler.shader->Release();
+			upscaler.shader = NULL;
+		}
+	}
 }
 
-ID3D11ShaderResourceView *Direct3D11Display::scaleFrameWithXbrz()
+void Direct3D11Display::releaseSinglePassUpscalers()
 {
-	if (!xbrzAvailable || pXbrzPS == NULL || pXbrzCB == NULL || pFrameSRV == NULL)
+	for (UINT i = 0; i < SINGLE_PASS_UPSCALER_COUNT; i++)
+	{
+		SinglePassUpscaler& upscaler = g_singlePassUpscalerState[i];
+
+		releaseUpscaleTarget(upscaler.target);
+
+		if (upscaler.constants) { upscaler.constants->Release(); upscaler.constants = NULL; }
+		if (upscaler.shader)    { upscaler.shader->Release();    upscaler.shader    = NULL; }
+	}
+}
+
+ID3D11ShaderResourceView *Direct3D11Display::scaleFrameWithSinglePass(int upscaler)
+{
+	int index = singlePassUpscalerIndex(upscaler);
+	if (index < 0)
 		return NULL;
 
-	if (theApp.upscaler != UPSCALER_XBRZ)
+	const SinglePassUpscalerSource& source = g_singlePassUpscalers[index];
+	SinglePassUpscaler&             state  = g_singlePassUpscalerState[index];
+
+	if (state.shader == NULL || state.constants == NULL || pFrameSRV == NULL)
 		return NULL;
 
-	// The shader reads the frame at its native size: the CPU filter would have
-	// resized the texture, in which case the sampler takes over again.
+	// The pass maps the whole frame texture onto the whole back buffer, the
+	// same mapping the textured quad would use.
 	if (theApp.rect.right != width || theApp.rect.bottom != height)
 		return NULL;
 
-	if (!updateXbrzTarget(backWidth, backHeight))
+	if (!updateUpscaleTarget(pDevice, state.target, backWidth, backHeight, source.name))
 		return NULL;
 
-	float constants[4];
-	constants[0] = 1.0f / (float)width;
-	constants[1] = 1.0f / (float)height;
-	constants[2] = (float)backWidth  / (float)width;
-	constants[3] = (float)backHeight / (float)height;
+	SinglePassConstants constants;
+	constants.sourceSize[0] = (float)width;
+	constants.sourceSize[1] = (float)height;
+	constants.sourceSize[2] = 1.0f / (float)width;
+	constants.sourceSize[3] = 1.0f / (float)height;
+	constants.outputSize[0] = (float)backWidth;
+	constants.outputSize[1] = (float)backHeight;
+	constants.outputSize[2] = 1.0f / (float)backWidth;
+	constants.outputSize[3] = 1.0f / (float)backHeight;
+	constants.scale[0]      = (float)backWidth  / (float)width;
+	constants.scale[1]      = (float)backHeight / (float)height;
+	constants.scale[2]      = 0.0f;
+	constants.scale[3]      = 0.0f;
 
-	D3D11_MAPPED_SUBRESOURCE mapped;
-	if (FAILED(pContext->Map(pXbrzCB, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped)))
+	if (!writeUpscalerConstants(pContext, state.constants, &constants, sizeof(constants)))
 		return NULL;
-	memcpy(mapped.pData, constants, sizeof(constants));
-	pContext->Unmap(pXbrzCB, 0);
 
 	D3D11VERTEX fullQuad[4];
 	setFullscreenQuad(fullQuad);
 
-	ID3D11RenderTargetView *rtv = pXbrzTargetRTV;
+	ID3D11RenderTargetView *rtv = state.target.rtv;
 	pContext->OMSetRenderTargets(1, &rtv, NULL);
 
 	D3D11_VIEWPORT vp;
 	vp.TopLeftX = 0.0f;
 	vp.TopLeftY = 0.0f;
-	vp.Width    = (float)xbrzTargetWidth;
-	vp.Height   = (float)xbrzTargetHeight;
+	vp.Width    = (float)state.target.width;
+	vp.Height   = (float)state.target.height;
 	vp.MinDepth = 0.0f;
 	vp.MaxDepth = 1.0f;
 	pContext->RSSetViewports(1, &vp);
 
-	pContext->PSSetConstantBuffers(0, 1, &pXbrzCB);
+	pContext->PSSetConstantBuffers(0, 1, &state.constants);
 
 	// The taps have to land on texel centres.
 	int savedFilter = filterMode;
 	filterMode = 0;
-	drawQuad(pFrameSRV, fullQuad, false, pXbrzPS);
+	drawQuad(pFrameSRV, fullQuad, false, state.shader);
 	filterMode = savedFilter;
 
 	// The caller draws what this produced, so drop the shader resource binding.
 	ID3D11ShaderResourceView *nullView = NULL;
 	pContext->PSSetShaderResources(0, 1, &nullView);
 
-	return pXbrzTargetSRV;
+	return state.target.srv;
 }
 
 void Direct3D11Display::clear()
@@ -1791,8 +1813,10 @@ void Direct3D11Display::render()
 			scaled = scaleFrameWithNis();
 		else if (theApp.upscaler == UPSCALER_FSR)
 			scaled = scaleFrameWithFsr();
-		else if (theApp.upscaler == UPSCALER_XBRZ)
-			scaled = scaleFrameWithXbrz();
+		else
+			// Everything else is one of the single pass shaders, if it is one
+			// of ours at all.
+			scaled = scaleFrameWithSinglePass(theApp.upscaler);
 
 		if (scaled != NULL)
 		{
@@ -1939,13 +1963,20 @@ void Direct3D11Display::setOption(const char *option, int value)
 	}
 	else if (!strcmp(option, "upscaler"))
 	{
-		// The shaders and the render targets are only built on demand.
+		// The two SDK upscalers are built on demand, the single pass shaders
+		// when the renderer starts, so there is nothing to build here, only
+		// something to report when one of them is not there.
 		if (value == UPSCALER_NIS && !nisAvailable && !initNis())
 			systemScreenMessage("NVIDIA Image Scaling is not available on this device");
 		else if (value == UPSCALER_FSR && !fsrAvailable && !initFsr())
 			systemScreenMessage("FidelityFX Super Resolution is not available on this device");
-		else if (value == UPSCALER_XBRZ && !xbrzAvailable && !initXbrz())
-			systemScreenMessage("The xBRZ shader is not available on this device");
+		else if (!direct3D11UpscalerAvailable(value))
+		{
+			char message[128];
+			sprintf(message, "The %s upscaler is not available on this device",
+			        g_singlePassUpscalers[singlePassUpscalerIndex(value)].name);
+			systemScreenMessage(message);
+		}
 	}
 }
 

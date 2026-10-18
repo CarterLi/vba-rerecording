@@ -4,13 +4,13 @@
 // shaders, xbrz/shaders).  It applies the xBRZ corner analysis and blending in
 // a single pass and without a fixed scaling factor: the CPU xBRZ filters in
 // src/filters are built for a fixed factor and for a fixed 4 MB destination
-// buffer, this one samples the frame texture at its native size and blends
-// while the quad is stretched over the window.  The emulation thread therefore
-// never runs the filter, which is what keeps the audio device fed.
+// buffer, this one samples the frame texture and blends it while the quad is
+// stretched over the window, so the emulation thread never runs a filter, which
+// is what keeps the audio device fed.
 //
-// The shader is factor agnostic, but blending a frame that is not being scaled
-// up would only smear it, so the caller enables it for upscaled video options
-// only (see VBA::updateFilter()).
+// The shader is factor agnostic and takes the frame as the renderer has it: the
+// CPU pixel filter may already have scaled it, and the factor to stretch it by
+// is handed over with the frame size.
 //
 // The original licences of the ported shader:
 //
@@ -60,11 +60,18 @@ struct XbrzVSOut
 	float2 uv  : TEXCOORD0;
 };
 
-// xy: the size of one source texel (1 / frame size), zw: the factor the frame
-// is stretched by (window size / frame size).
-cbuffer XbrzConstants : register(b0)
+// The block the renderer hands every single pass upscaler, the one
+// Direct3D11Display::scaleFrameWithSinglePass() fills:
+//
+//   SourceSize.xy: the frame size in pixels, zw: one texel (1 / xy)
+//   OutputSize.xy: the size of the target, zw: one pixel of it
+//   Scale.xy:      the factor the frame is stretched by (OutputSize / SourceSize)
+//
+cbuffer UpscalerConstants : register(b0)
 {
-	float4 xbrzInfo;
+	float4 SourceSize;
+	float4 OutputSize;
+	float4 Scale;
 };
 
 Texture2D    frameTex     : register(t0);
@@ -131,8 +138,8 @@ float4 main(XbrzVSOut input) : SV_TARGET
 	//                       x|G|H|I|x
 	//                       -|x|x|x|-
 
-	float2 scale = xbrzInfo.zw;
-	float2 texel = xbrzInfo.xy;
+	float2 texel = SourceSize.zw;
+	float2 scale = Scale.xy;
 	float2 pos   = frac(input.uv / texel) - float2(0.5, 0.5);
 	float2 coord = input.uv - pos * texel;
 

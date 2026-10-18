@@ -8,6 +8,14 @@ shaders section of src/win32/vba.rc); the FidelityFX headers are far too large
 for a C++ string literal, and resources keep these files readable and diffable
 against upstream.  Nothing has to be shipped next to the executable.
 
+The two SDKs are pipelines of their own (a compute shader with a coefficient
+texture, and a reconstruction pass plus a sharpening pass).  xBRZ belongs to the
+simpler kind, the single pass pixel shader upscalers, which the table
+g_singlePassUpscalers in Direct3D11.cpp describes: such a shader is a row in that
+table, a resource here, a UPSCALER_* value and a menu item, and the renderer
+hands it the frame texture with the whole frame mapped onto the whole window,
+sampled with the point sampler.  Adding one needs no code anywhere else.
+
 NVIDIA Image Scaling (NIS)
 --------------------------
 NIS_Config.h   vendor file, verbatim from the NVIDIA Image Scaling SDK v1.0.3
@@ -38,15 +46,22 @@ xBRZ
 XBRZ_Freescale.hlsl  ours, a port of the GLSL shader "xbrz-freescale.glsl" from
                 https://github.com/libretro/glsl-shaders (xbrz/shaders) to
                 HLSL.  xBRZ is a pixel filter rather than a reconstruction, so
-                the renderer leaves the frame at its native size and lets this
-                shader blend it while the frame is stretched: the emulation
-                thread never runs a filter, and unlike the CPU filters in
+                the renderer leaves the frame texture at the size the emulation
+                thread produced it and lets this shader blend it while the frame
+                is stretched over the window; unlike the CPU filters in
                 src/filters there is no fixed scaling factor and no 32-bit
                 colour requirement.  The port carries the licences of the
                 original: Hyllian's xBR shader code under the MIT licence, and
                 the xBRZ part under the GPL-3 with the MAME linking exception.
-                -> XBRZ_SHADER_FREESCALE, compiled and used by
-                Direct3D11Display::scaleFrameWithXbrz().
+                -> XBRZ_SHADER_FREESCALE, and the first row of the single pass
+                table in Direct3D11.cpp.
+
+The constants a single pass upscaler is handed (SinglePassConstants in
+Direct3D11.cpp), the way its source declares them:
+
+    float4 SourceSize;  // xy: the frame size, zw: 1 / xy (one texel)
+    float4 OutputSize;  // xy: the target size, zw: 1 / xy
+    float4 Scale;       // xy: OutputSize.xy / SourceSize.xy
 
 Rebuilding: vba.rc pulls the files above in as RCDATA resources, and the build
 tracks them as inputs, so editing one is enough - MSBuild then recompiles the
