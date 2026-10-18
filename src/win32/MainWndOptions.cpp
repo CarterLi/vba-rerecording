@@ -36,6 +36,47 @@ extern bool direct3D11Available();
 // running with ("Flip", "Flip sequential", "Bitblt"), NULL while it is not the
 // render method that is presenting.
 extern const char *direct3D11PresentationModel();
+// Defined in Direct3D.cpp: the same for the Direct3D 9Ex backend ("Flip",
+// "Bitblt").
+extern const char *direct3D9PresentationModel();
+
+// Names the presentation model that a render method entry is running with, so
+// that "Direct3D 11" reads "Direct3D 11 (Flip)".  The plain name comes from the
+// menu item itself (the resource carries it) and the accelerator text is left to
+// winAccelMgr, so nothing here has to be kept in step with the resources by
+// hand.
+static void setRenderMethodModel(CCmdUI *pCmdUI, const char *model)
+{
+	if (pCmdUI->m_pMenu == NULL)
+		return;
+
+	CString text;
+	pCmdUI->m_pMenu->GetMenuString(pCmdUI->m_nID, text, MF_BYCOMMAND);
+
+	// Drop the accelerator text winAccelMgr appends and a model named by an
+	// earlier update, then add what is running now.
+	int tab = text.Find('\t');
+	if (tab >= 0)
+		text = text.Left(tab);
+
+	const char *models[3] = { " (Flip)", " (Flip sequential)", " (Bitblt)" };
+	for (int i = 0; i < 3; i++)
+	{
+		CString suffix(models[i]);
+		if (text.GetLength() > suffix.GetLength() &&
+		    text.Right(suffix.GetLength()) == suffix)
+		{
+			text = text.Left(text.GetLength() - suffix.GetLength());
+			break;
+		}
+	}
+
+	if (model != NULL)
+		text.AppendFormat(" (%s)", model);
+
+	pCmdUI->SetText(text);
+	theApp.winAccelMgr.UpdateMenu(pCmdUI->m_pMenu->GetSafeHmenu());
+}
 
 #define VBA_CONFIRM_MODE WM_APP + 100
 
@@ -537,6 +578,7 @@ void MainWnd::OnOptionsVideoRendermethodDirect3d()
 
 void MainWnd::OnUpdateOptionsVideoRendermethodDirect3d(CCmdUI*pCmdUI)
 {
+	setRenderMethodModel(pCmdUI, theApp.renderMethod == DIRECT_3D ? direct3D9PresentationModel() : NULL);
 	pCmdUI->SetCheck(theApp.renderMethod == DIRECT_3D);
 }
 
@@ -564,33 +606,8 @@ void MainWnd::OnUpdateOptionsVideoRendermethodDirect3d11(CCmdUI*pCmdUI)
 	pCmdUI->Enable(direct3D11Available());
 
 	// The renderer presents in the flip model where the system supports it and
-	// in the bitblt model where it does not, see createSwapChain(), so the entry
-	// names the model that is running.  The plain name is read back from the
-	// menu (the resource carries it) so the two cannot drift apart, and the
-	// accelerator text winAccelMgr appends is left to winAccelMgr.
-	if (pCmdUI->m_pMenu != NULL)
-	{
-		static CString label;
-
-		if (label.IsEmpty())
-		{
-			CString text;
-			pCmdUI->m_pMenu->GetMenuString(pCmdUI->m_nID, text, MF_BYCOMMAND);
-
-			int tab = text.Find('\t');
-			label = (tab >= 0) ? text.Left(tab) : text;
-		}
-
-		const char *presentation =
-		    (theApp.renderMethod == DIRECT_3D11) ? direct3D11PresentationModel() : NULL;
-
-		CString text = label;
-		if (presentation != NULL)
-			text.AppendFormat(" (%s)", presentation);
-
-		pCmdUI->SetText(text);
-		theApp.winAccelMgr.UpdateMenu(pCmdUI->m_pMenu->GetSafeHmenu());
-	}
+	// in the bitblt model where it does not, see createSwapChain().
+	setRenderMethodModel(pCmdUI, theApp.renderMethod == DIRECT_3D11 ? direct3D11PresentationModel() : NULL);
 
 	pCmdUI->SetCheck(theApp.renderMethod == DIRECT_3D11);
 }

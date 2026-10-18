@@ -50,6 +50,24 @@ typedef struct _D3DTLVERTEX
 typedef HRESULT (WINAPI *PFN_Direct3DCreate9Ex)(UINT SDKVersion, IDirect3D9Ex * *ppD3D);
 typedef IDirect3D9 *(WINAPI *PFN_Direct3DCreate9)(UINT SDKVersion);
 
+// The swap effect the running display presents with, -1 while there is none.
+static int currentSwapEffect = -1;
+
+// Names the presentation model that is in use, or returns NULL while the
+// renderer is not running.  The render method menu asks for this so that the
+// model is visible without digging through the trace log, see
+// MainWndOptions.cpp.
+const char *direct3D9PresentationModel()
+{
+	switch (currentSwapEffect)
+	{
+	case D3DSWAPEFFECT_FLIPEX:  return "Flip";
+	case D3DSWAPEFFECT_DISCARD: return "Bitblt";
+	}
+
+	return NULL;
+}
+
 class Direct3DDisplay : public IDisplay
 {
 public:
@@ -122,6 +140,8 @@ Direct3DDisplay::~Direct3DDisplay()
 void Direct3DDisplay::cleanup()
 {
 	overlay.destroy();
+
+	currentSwapEffect = -1;
 
 	if (pOverlayTexture)
 	{
@@ -268,15 +288,39 @@ bool Direct3DDisplay::initialize()
 	dpp.BackBufferHeight = theApp.surfaceSizeY;
 
 	HRESULT hret;
+	HRESULT flipRefused = S_OK;
 	if (pD3DEx != NULL)
 	{
-		hret = pD3DEx->CreateDeviceEx(D3DADAPTER_DEFAULT,
-		                              D3DDEVTYPE_HAL,
-		                              pWnd->GetSafeHwnd(),
-		                              D3DCREATE_SOFTWARE_VERTEXPROCESSING | D3DCREATE_FPU_PRESERVE,
-		                              &dpp,
-		                              NULL,
-		                              &pDeviceEx);
+		// Direct3D 9Ex has a flip model of its own (D3DSWAPEFFECT_FLIPEX,
+		// Windows 7 and later), where the frame is handed to the desktop window
+		// manager instead of being copied into it.  It wants at least two back
+		// buffers, so that one can be drawn into while the window manager holds
+		// the other, and systems without it refuse the swap effect outright, so
+		// the bitblt model the renderer used before is what the second level
+		// falls back to - the same idea as the three levels of the Direct3D 11
+		// renderer.
+		D3DSWAPEFFECT effects[2] = { D3DSWAPEFFECT_FLIPEX, D3DSWAPEFFECT_DISCARD };
+		UINT         buffers[2]  = { 2, 1 };
+
+		for (int level = 0; level < 2; level++)
+		{
+			dpp.SwapEffect      = effects[level];
+			dpp.BackBufferCount = buffers[level];
+
+			hret = pD3DEx->CreateDeviceEx(D3DADAPTER_DEFAULT,
+			                              D3DDEVTYPE_HAL,
+			                              pWnd->GetSafeHwnd(),
+			                              D3DCREATE_SOFTWARE_VERTEXPROCESSING | D3DCREATE_FPU_PRESERVE,
+			                              &dpp,
+			                              NULL,
+			                              &pDeviceEx);
+			if (SUCCEEDED(hret))
+				break;
+
+			if (level == 0)
+				flipRefused = hret;
+		}
+
 		if (SUCCEEDED(hret))
 			pDevice = pDeviceEx;
 	}
@@ -294,6 +338,23 @@ bool Direct3DDisplay::initialize()
 		winlog("Error creating Direct3DDevice %08x\n", hret);
 		return false;
 	}
+
+	// Which model it ended up with, for the trace log and for the render method
+	// menu (see MainWndOptions.cpp).  Only the last line written to the trace log
+	// survives, so the reason the flip model was turned down is carried into this
+	// line when there was one.
+	currentSwapEffect = (int)dpp.SwapEffect;
+	if (flipRefused != S_OK)
+		winlog("Direct3D 9Ex: no flip model swap chain (%08x), using swap effect %d (bitblt), %d back buffer(s)\n",
+		       (unsigned int)flipRefused,
+		       (int)dpp.SwapEffect,
+		       (int)dpp.BackBufferCount);
+	else
+		winlog("Direct3D 9%s: swap effect %d (%s), %d back buffer(s)\n",
+		       pDeviceEx != NULL ? "Ex" : "",
+		       (int)dpp.SwapEffect,
+		       dpp.SwapEffect == D3DSWAPEFFECT_FLIPEX ? "flip" : "bitblt",
+		       (int)dpp.BackBufferCount);
 
 	restoreDeviceObjects();
 
@@ -715,11 +776,25 @@ void Direct3DDisplay::resize(int w, int h)
 		invalidateDeviceObjects();
 		releaseTextures();
 		if (pDeviceEx != NULL)
+		{
 			hr = pDeviceEx->ResetEx(&dpp, NULL);
+
+			// A reset does not have to keep the flip model, in which case the
+			// bitblt model takes over for the rest of the session.
+			if (FAILED(hr) && dpp.SwapEffect == D3DSWAPEFFECT_FLIPEX)
+			{
+				winlog("Direct3D 9Ex: reset refused the flip model (%08x), using the bitblt model\n", hr);
+				dpp.SwapEffect      = D3DSWAPEFFECT_DISCARD;
+				dpp.BackBufferCount = 1;
+
+				hr = pDeviceEx->ResetEx(&dpp, NULL);
+			}
+		}
 		else
 			hr = pDevice->Reset(&dpp);
 		if (SUCCEEDED(hr))
 		{
+			currentSwapEffect = (int)dpp.SwapEffect;
 			restoreDeviceObjects();
 			if (width > 0 && height > 0)
 				initializeOffscreen(width, height);

@@ -501,6 +501,7 @@ bool Direct3D11Display::createSwapChain()
 	IDXGIAdapter  *adapter    = NULL;
 	IDXGIFactory  *factory    = NULL;
 	IDXGIFactory2 *factory2   = NULL;
+	HRESULT        flipRefused = S_OK;
 
 	// The factory that owns the device, so no DXGI entry point has to be
 	// imported (see loadD3D11Libraries()).
@@ -561,7 +562,10 @@ bool Direct3D11Display::createSwapChain()
 		}
 		else
 		{
-			winlog("D3D11: no flip model swap chain (%08x), using the bitblt model\n", hr);
+			// Only the last line written to the trace log survives, so the
+			// reason the flip model was turned down is carried into the line
+			// that reports the model that is in use.
+			flipRefused = hr;
 		}
 	}
 
@@ -590,7 +594,11 @@ bool Direct3D11Display::createSwapChain()
 		else
 		{
 			currentSwapEffect = (int)sd.SwapEffect;
-			winlog("D3D11: swap effect %d (bitblt), 1 buffer\n", (int)sd.SwapEffect);
+			if (flipRefused != S_OK)
+				winlog("D3D11: no flip model swap chain (%08x), using swap effect %d (bitblt), 1 buffer\n",
+				       (unsigned int)flipRefused, (int)sd.SwapEffect);
+			else
+				winlog("D3D11: swap effect %d (bitblt), 1 buffer\n", (int)sd.SwapEffect);
 		}
 	}
 
