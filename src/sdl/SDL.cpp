@@ -66,9 +66,6 @@
 # include "getopt.h"
 #endif // ! __GNUC__
 
-#ifdef MMX
-extern "C" bool cpu_mmx;
-#endif
 extern bool8 soundEcho;
 extern bool8 soundLowPass;
 extern bool8 soundReverse;
@@ -165,7 +162,6 @@ int filter = 0;
 u8 *delta = NULL;
 
 int sdlPrintUsage = 0;
-int disableMMX = 0;
 
 int systemCartridgeType = 3;
 int sizeOption = 0;
@@ -353,7 +349,6 @@ struct option sdlOptions[] = {
   { "no-auto-frameskip", no_argument, &autoFrameSkip, 0 },
   { "no-debug", no_argument, 0, 'N' },
   { "no-ips", no_argument, &sdlAutoIPS, 0 },
-  { "no-mmx", no_argument, &disableMMX, 1 },
   { "no-pause-when-inactive", no_argument, &pauseWhenInactive, 0 },
   { "no-rtc", no_argument, &sdlRtcEnable, 0 },
   { "no-show-speed", no_argument, &showSpeed, 0 },
@@ -619,18 +614,10 @@ void sdlMakeStretcher(int width)
   }
 }
 
-#ifdef _MSC_VER
+/* The stretcher is a machine code block built at run time, so it is called
+ * through a function pointer instead of a hand written asm trampoline. */
 #define SDL_CALL_STRETCHER \
-  {\
-    __asm mov eax, stretcher\
-    __asm mov edi, dest\
-    __asm mov esi, src\
-    __asm call eax\
-  }
-#else
-#define SDL_CALL_STRETCHER \
-        asm volatile("call *%%eax"::"a" (stretcher),"S" (src),"D" (dest))
-#endif
+  ((void (*)(u8 *, u8 *))stretcher)(src, dest)
 #else
 #define SDL_CALL_STRETCHER \
        sdlStretcher(src, dest)
@@ -1201,10 +1188,6 @@ void sdlReadPreferences(FILE *f)
       throttle = sdlFromHex(value);
       if(throttle != 0 && (throttle < 5 || throttle > 1000))
         throttle = 0;
-    } else if(!strcmp(key, "disableMMX")) {
-#ifdef MMX
-      cpu_mmx = sdlFromHex(value) ? false : true;
-#endif
     } else if(!strcmp(key, "pauseWhenInactive")) {
       pauseWhenInactive = sdlFromHex(value) ? true : false;
     } else if(!strcmp(key, "agbPrint")) {
@@ -1945,7 +1928,6 @@ Long options only:\n\
       --no-agb-print           Disable AGBPrint support\n\
       --no-auto-frameskip      Disable auto frameskipping\n\
       --no-ips                 Do not apply IPS patch\n\
-      --no-mmx                 Disable MMX support\n\
       --no-pause-when-inactive Don't pause when inactive\n\
       --no-rtc                 Disable RTC support\n\
       --no-show-speed          Don't show emulation speed\n\
@@ -2275,11 +2257,6 @@ int main(int argc, char **argv)
     usage(argv[0]);
     exit(-1);
   }
-
-#ifdef MMX
-  if(disableMMX)
-    cpu_mmx = 0;
-#endif
 
   if(rewindTimer)
     rewindMemory = (char *)malloc(8*REWIND_SIZE);

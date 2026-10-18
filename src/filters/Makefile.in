@@ -50,16 +50,16 @@ CONFIG_CLEAN_FILES =
 LIBRARIES = $(noinst_LIBRARIES)
 AR = ar
 ARFLAGS = cru
-lib386_a_AR = $(AR) $(ARFLAGS)
-lib386_a_LIBADD =
-am_lib386_a_OBJECTS = 2xSaImmx.$(OBJEXT)
-lib386_a_OBJECTS = $(patsubst %,$(OBJDIR)/%,$(am_lib386_a_OBJECTS))
 libfilter_a_AR = $(AR) $(ARFLAGS)
 libfilter_a_LIBADD =
 am_libfilter_a_OBJECTS = 2xSaI.$(OBJEXT) admame.$(OBJEXT) \
-	bilinear.$(OBJEXT) hq2x.$(OBJEXT) interframe.$(OBJEXT) \
-	motionblur.$(OBJEXT) pixel.$(OBJEXT) scanline.$(OBJEXT) \
-	simple2x.$(OBJEXT)
+	bilinear.$(OBJEXT) hq2x.$(OBJEXT) hq3x32.$(OBJEXT) \
+	hq4x.$(OBJEXT) hq_shared32.$(OBJEXT) interframe.$(OBJEXT) \
+	lcdfilter.$(OBJEXT) motionblur.$(OBJEXT) pixel.$(OBJEXT) \
+	scalefx.$(OBJEXT) scalefx_manager.$(OBJEXT) scalefx_pass0.$(OBJEXT) \
+	scalefx_pass1.$(OBJEXT) scalefx_pass2.$(OBJEXT) scalefx_pass3.$(OBJEXT) \
+	scalefx_pass4.$(OBJEXT) scanline.$(OBJEXT) simple2x.$(OBJEXT) \
+	xbrz.$(OBJEXT) xbrzfilter.$(OBJEXT)
 libfilter_a_OBJECTS = $(patsubst %,$(OBJDIR)/%,$(am_libfilter_a_OBJECTS))
 DEFAULT_INCLUDES = -I.@am__isrc@
 depcomp = $(SHELL) $(top_srcdir)/depcomp
@@ -73,8 +73,8 @@ COMPILE = $(CC) $(DEFS) $(DEFAULT_INCLUDES) $(INCLUDES) $(AM_CPPFLAGS) \
 	$(CPPFLAGS) $(AM_CFLAGS) $(CFLAGS)
 CCLD = $(CC)
 LINK = $(CCLD) $(AM_CFLAGS) $(CFLAGS) $(AM_LDFLAGS) $(LDFLAGS) -o $@
-SOURCES = $(lib386_a_SOURCES) $(libfilter_a_SOURCES)
-DIST_SOURCES = $(lib386_a_SOURCES) $(libfilter_a_SOURCES)
+SOURCES = $(libfilter_a_SOURCES)
+DIST_SOURCES = $(libfilter_a_SOURCES)
 ETAGS = etags
 CTAGS = ctags
 DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
@@ -209,27 +209,53 @@ target_os = @target_os@
 target_vendor = @target_vendor@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
-SUFFIXES = .asm
-noinst_LIBRARIES = lib386.a libfilter.a
-lib386_a_SOURCES = 2xSaImmx.asm
+noinst_LIBRARIES = libfilter.a
 libfilter_a_SOURCES = \
 	2xSaI.cpp		\
 	admame.cpp		\
 	bilinear.cpp		\
+	filters.h		\
 	hq2x.cpp		\
 	hq2x.h			\
+	hq3x32.cpp		\
+	hq3x32.h		\
+	hq4x.cpp		\
+	hq4x_pattern.h		\
+	hq_base.h		\
+	hq_shared.h		\
+	hq_shared32.cpp		\
+	hq_shared32.h		\
 	interframe.cpp		\
+	interframe.h		\
 	interp.h		\
+	lcdfilter.cpp		\
+	lcdfilter.h		\
 	lq2x.h			\
 	motionblur.cpp		\
 	pixel.cpp		\
+	scalefx.cpp		\
+	scalefx.h		\
+	scalefx_manager.cpp	\
+	scalefx_manager.h	\
+	scalefx_pass0.cpp	\
+	scalefx_pass1.cpp	\
+	scalefx_pass2.cpp	\
+	scalefx_pass3.cpp	\
+	scalefx_pass4.cpp	\
+	scalefx_simd.h		\
 	scanline.cpp		\
-	simple2x.cpp
+	simd_common.h		\
+	simple2x.cpp		\
+	xbrz.cpp		\
+	xbrz.h			\
+	xbrz_config.h		\
+	xbrz_tools.h		\
+	xbrzfilter.cpp
 
 all: all-am
 
 .SUFFIXES:
-.SUFFIXES: .asm .cpp .o .obj
+.SUFFIXES: .cpp .o .obj
 $(srcdir)/Makefile.in:  $(srcdir)/Makefile.am  $(am__configure_deps)
 	@for dep in $?; do \
 	  case '$(am__configure_deps)' in \
@@ -262,10 +288,6 @@ $(ACLOCAL_M4):  $(am__aclocal_m4_deps)
 
 clean-noinstLIBRARIES:
 	-test -z "$(noinst_LIBRARIES)" || rm -f $(noinst_LIBRARIES)
-lib386.a: $(lib386_a_OBJECTS) $(lib386_a_DEPENDENCIES) 
-	-rm -f lib386.a
-	$(lib386_a_AR) lib386.a $(lib386_a_OBJECTS) $(lib386_a_LIBADD)
-	$(RANLIB) lib386.a
 libfilter.a: $(libfilter_a_OBJECTS) $(libfilter_a_DEPENDENCIES) 
 	-rm -f libfilter.a
 	$(libfilter_a_AR) libfilter.a $(libfilter_a_OBJECTS) $(libfilter_a_LIBADD)
@@ -376,7 +398,7 @@ distdir: $(DISTFILES)
 	done
 check-am: all-am
 check: check-am
-all-am: Makefile $(lib386_a_OBJECTS) $(libfilter_a_OBJECTS)
+all-am: Makefile $(libfilter_a_OBJECTS)
 installdirs:
 install: install-am
 install-exec: install-exec-am
@@ -481,8 +503,6 @@ else
    ELFFLAG = elf
 endif
 
-$(OBJDIR)/%.o: %.asm
-	$(NASM) -f $(ELFFLAG) -o $@ $<
 # Tell versions [3.59,3.63) of GNU make to not export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.
 .NOEXPORT:

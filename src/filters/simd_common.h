@@ -1,5 +1,5 @@
 /// SIMD detection and common utilities for display filters
-/// SSE2 for 64-bit builds, MMX for 32-bit builds
+/// SSE2 when the target has it, scalar C otherwise
 
 #ifndef VBAM_COMPONENTS_FILTERS_INTERNAL_SIMD_COMMON_H_
 #define VBAM_COMPONENTS_FILTERS_INTERNAL_SIMD_COMMON_H_
@@ -20,11 +20,6 @@
 #if defined(__SSE__) || (defined(_M_IX86_FP) && _M_IX86_FP >= 1)
 #define USE_SSE
 #include <xmmintrin.h>
-#endif
-
-// MMX detection (32-bit only, controlled by build system)
-#ifdef MMX
-extern "C" bool cpu_mmx;
 #endif
 
 // ============================================================================

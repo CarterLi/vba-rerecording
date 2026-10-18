@@ -44,9 +44,6 @@
 # define GETCWD _getcwd
 #endif // WIN32
 
-#ifdef MMX
-extern "C" bool cpu_mmx;
-#endif
 extern bool8 soundEcho;
 extern bool8 soundLowPass;
 extern bool8 soundReverse;

@@ -1,630 +1,1021 @@
+/// Interframe blending filters with thread-safe per-region buffering
+/// Supports multithreaded IFB synchronized with FilterThread
+
+#include "interframe.h"
+
+#include <algorithm>
 #include <cstdlib>
 #include <cstring>
-#include "../Port.h"
+#include <mutex>
+#include <vector>
 
-#ifdef MMX
-extern "C" bool cpu_mmx;
+// SIMD headers
+// Don't use SSE2 on WINXP builds (32-bit) - target older CPUs with only SSE/MMX
+#if !defined(WINXP) && (defined(__SSE2__) || (defined(_M_X64) || (defined(_M_IX86_FP) && _M_IX86_FP >= 2)))
+#define USE_SSE2
+#include <emmintrin.h>
 #endif
 
-/*
- * Thanks to Kawaks' Mr. K for the code
+#if defined(__SSE__) || (defined(_M_IX86_FP) && _M_IX86_FP >= 1)
+#define USE_SSE
+#include <xmmintrin.h>
+#endif
 
-   Incorporated into vba by Anthony Di Franco
- */
+extern uint32_t qRGB_COLOR_MASK[2];
 
-static u8 *frm1 = NULL;
-static u8 *frm2 = NULL;
-static u8 *frm3 = NULL;
+// Threshold for fuzzy color comparison (per channel, 0-255 range)
+// Colors within this threshold are considered "equal" for pattern detection
+static constexpr int kColorThreshold = 16;
 
-extern u32 RGB_LOW_BITS_MASK;
-extern u32 qRGB_COLOR_MASK[2];
+// ============================================================================
+// InterframeManager Implementation
+// ============================================================================
 
-static void Init()
-{
-	frm1 = (u8 *)calloc(322 * 242, 4);
-	// 1 frame ago
-	frm2 = (u8 *)calloc(322 * 242, 4);
-	// 2 frames ago
-	frm3 = (u8 *)calloc(322 * 242, 4);
-	// 3 frames ago
+InterframeManager& InterframeManager::Instance() {
+    static InterframeManager instance;
+    return instance;
 }
 
-void InterframeCleanup()
-{
-	if (frm1)
-		free(frm1);
-	if (frm2)
-		free(frm2);
-	if (frm3)
-		free(frm3);
-	frm1 = frm2 = frm3 = NULL;
+void InterframeManager::Init(int width, int height, int pitch, int numRegions) {
+    std::lock_guard<std::mutex> lock(init_mutex_);
+
+    // Only reinitialize if dimensions or region count changed
+    if (initialized_ && width_ == width && height_ == height &&
+        pitch_ == pitch && static_cast<int>(regions_.size()) == numRegions) {
+        return;
+    }
+
+    CleanupInternal();
+
+    width_ = width;
+    height_ = height;
+    pitch_ = pitch;
+
+    // Calculate buffer size for each region
+    // Each region needs full-frame sized buffers to store its slice of history
+    // Buffer size: pitch * height (covers the full frame for offset calculations)
+    buffer_size_ = static_cast<size_t>(pitch) * height;
+
+    regions_.resize(numRegions);
+    for (int i = 0; i < numRegions; i++) {
+        regions_[i].frame1_.reset(new uint8_t[buffer_size_]());
+        regions_[i].frame2_.reset(new uint8_t[buffer_size_]());
+        regions_[i].frame3_.reset(new uint8_t[buffer_size_]());
+    }
+
+    initialized_ = true;
 }
 
-#ifdef MMX
-static void SmartIB_MMX(u8 *srcPtr, u32 srcPitch, int width, int height)
-{
-	u16 *src0 = (u16 *)srcPtr;
-	u16 *src1 = (u16 *)frm1;
-	u16 *src2 = (u16 *)frm2;
-	u16 *src3 = (u16 *)frm3;
+void InterframeManager::Cleanup() {
+    std::lock_guard<std::mutex> lock(init_mutex_);
+    CleanupInternal();
+}
 
-	int count = width >> 2;
+void InterframeManager::Clear() {
+    std::lock_guard<std::mutex> lock(init_mutex_);
 
-	for (int i = 0; i < height; i++)
-	{
-#ifdef __GNUC__
-		asm volatile (
-		    "push %4\n"
-		    "movq 0(%5), %%mm7\n"       // colorMask
-		    "0:\n"
-		    "movq 0(%0), %%mm0\n"       // src0
-		    "movq 0(%1), %%mm1\n"       // src1
-		    "movq 0(%2), %%mm2\n"       // src2
-		    "movq 0(%3), %%mm3\n"       // src3
-		    "movq %%mm0, 0(%3)\n"       // src3 = src0
-		    "movq %%mm0, %%mm4\n"
-		    "movq %%mm1, %%mm5\n"
-		    "pcmpeqw %%mm2, %%mm5\n"       // src1 == src2 (A)
-		    "pcmpeqw %%mm3, %%mm4\n"       // src3 == src0 (B)
-		    "por %%mm5, %%mm4\n"       // A | B
-		    "movq %%mm2, %%mm5\n"
-		    "pcmpeqw %%mm0, %%mm5\n"       // src0 == src2 (C)
-		    "pcmpeqw %%mm1, %%mm3\n"       // src1 == src3 (D)
-		    "por %%mm3, %%mm5\n"       // C|D
-		    "pandn %%mm5, %%mm4\n"       // (!(A|B))&(C|D)
-		    "movq %%mm0, %%mm2\n"
-		    "pand %%mm7, %%mm2\n"       // color & colorMask
-		    "pand %%mm7, %%mm1\n"       // src1 & colorMask
-		    "psrlw $1, %%mm2\n"       // (color & colorMask) >> 1 (E)
-		    "psrlw $1, %%mm1\n"       // (src & colorMask) >> 1 (F)
-		    "paddw %%mm2, %%mm1\n"       // E+F
-		    "pand %%mm4, %%mm1\n"       // (E+F) & res
-		    "pandn %%mm0, %%mm4\n"       // color& !res
+    if (!initialized_) {
+        return;
+    }
 
-		    "por %%mm1, %%mm4\n"
-		    "movq %%mm4, 0(%0)\n"       // src0 = res
+    // Zero out all frame buffers without reallocating
+    for (auto& region : regions_) {
+        if (region.frame1_) {
+            memset(region.frame1_.get(), 0, buffer_size_);
+        }
+        if (region.frame2_) {
+            memset(region.frame2_.get(), 0, buffer_size_);
+        }
+        if (region.frame3_) {
+            memset(region.frame3_.get(), 0, buffer_size_);
+        }
+    }
+}
 
-		    "addl $8, %0\n"
-		    "addl $8, %1\n"
-		    "addl $8, %2\n"
-		    "addl $8, %3\n"
+void InterframeManager::CleanupInternal() {
+    // Caller must hold init_mutex_
+    regions_.clear();
+    initialized_ = false;
+    width_ = height_ = pitch_ = 0;
+    buffer_size_ = 0;
+}
 
-		    "decl %4\n"
-		    "jnz 0b\n"
-		    "pop %4\n"
-		    "emms\n"
-			: "+r" (src0), "+r" (src1), "+r" (src2), "+r" (src3)
-			: "r" (count), "r" (qRGB_COLOR_MASK)
-		    );
+// ============================================================================
+// Forward declarations of scalar implementations (needed for SIMD fallbacks)
+// ============================================================================
+
+static void SmartIB16_Scalar(uint8_t* srcPtr, uint8_t* frm1Ptr, uint8_t* frm2Ptr, uint8_t* frm3Ptr,
+                              uint32_t srcPitch, int width, int starty, int height);
+
+// ============================================================================
+// SIMD Implementations - SSE2 (64-bit)
+// ============================================================================
+
+#ifdef USE_SSE2
+
+static void MotionBlurIB32_SSE2(uint8_t* srcPtr, uint8_t* histPtr,
+                                 uint32_t srcPitch, int width, int starty, int height) {
+    (void)width;  // Width is implicit in srcPitch for SIMD version
+    const __m128i colorMask = _mm_set1_epi32(0x00FEFEFE);
+
+    uint32_t* src = reinterpret_cast<uint32_t*>(srcPtr) + starty * (srcPitch / 4);
+    uint32_t* hist = reinterpret_cast<uint32_t*>(histPtr) + starty * (srcPitch / 4);
+
+    int sPitch = srcPitch >> 2;
+
+    for (int y = 0; y < height; y++) {
+        int x = 0;
+        // Process 4 pixels at a time (128-bit = 4 x 32-bit)
+        for (; x + 4 <= sPitch; x += 4) {
+            __m128i curr = _mm_loadu_si128(reinterpret_cast<const __m128i*>(&src[x]));
+            __m128i prev = _mm_loadu_si128(reinterpret_cast<const __m128i*>(&hist[x]));
+
+            // Exponential decay: blend = (current + prev) / 2
+            __m128i curr_masked = _mm_and_si128(curr, colorMask);
+            __m128i prev_masked = _mm_and_si128(prev, colorMask);
+            __m128i curr_half = _mm_srli_epi32(curr_masked, 1);
+            __m128i prev_half = _mm_srli_epi32(prev_masked, 1);
+            __m128i blended = _mm_add_epi32(curr_half, prev_half);
+
+            // Save blended result to history (creates exponential decay)
+            _mm_storeu_si128(reinterpret_cast<__m128i*>(&hist[x]), blended);
+            _mm_storeu_si128(reinterpret_cast<__m128i*>(&src[x]), blended);
+        }
+
+        // Handle remaining pixels (scalar)
+        for (; x < sPitch; x++) {
+            uint32_t color = src[x];
+            uint32_t hist_color = hist[x];
+            // Exponential decay: blend current with accumulated history
+            uint32_t blended = ((color & 0xFEFEFE) >> 1) + ((hist_color & 0xFEFEFE) >> 1);
+            hist[x] = blended;  // Save blended result (accumulates decay)
+            src[x] = blended;
+        }
+
+        src += sPitch;
+        hist += sPitch;
+    }
+}
+
+static void MotionBlurIB16_SSE2(uint8_t* srcPtr, uint8_t* histPtr,
+                                 uint32_t srcPitch, int width, int starty, int height) {
+    (void)width;  // Width is implicit in srcPitch for SIMD version
+    // Use constant mask for RGB555 - don't read RGB_LOW_BITS_MASK which may be
+    // racily modified by filter threads running concurrently
+    const uint16_t colorMask = 0x7BDE;  // ~0x0421 & 0x7FFF for RGB555
+    const __m128i mask = _mm_set1_epi16(colorMask);
+
+    uint16_t* src = reinterpret_cast<uint16_t*>(srcPtr) + starty * (srcPitch / 2);
+    uint16_t* hist = reinterpret_cast<uint16_t*>(histPtr) + starty * (srcPitch / 2);
+
+    int sPitch = srcPitch >> 1;
+
+    for (int y = 0; y < height; y++) {
+        int x = 0;
+        // Process 8 pixels at a time (128-bit = 8 x 16-bit)
+        for (; x + 8 <= sPitch; x += 8) {
+            __m128i curr = _mm_loadu_si128(reinterpret_cast<const __m128i*>(&src[x]));
+            __m128i prev = _mm_loadu_si128(reinterpret_cast<const __m128i*>(&hist[x]));
+
+            // Exponential decay: blend = (current + prev) / 2
+            __m128i curr_masked = _mm_and_si128(curr, mask);
+            __m128i prev_masked = _mm_and_si128(prev, mask);
+            __m128i curr_half = _mm_srli_epi16(curr_masked, 1);
+            __m128i prev_half = _mm_srli_epi16(prev_masked, 1);
+            __m128i blended = _mm_add_epi16(curr_half, prev_half);
+
+            // Save blended result to history (creates exponential decay)
+            _mm_storeu_si128(reinterpret_cast<__m128i*>(&hist[x]), blended);
+            _mm_storeu_si128(reinterpret_cast<__m128i*>(&src[x]), blended);
+        }
+
+        for (; x < sPitch; x++) {
+            uint16_t color = src[x];
+            uint16_t hist_color = hist[x];
+            // Exponential decay: blend current with accumulated history
+            uint16_t blended = ((color & colorMask) >> 1) + ((hist_color & colorMask) >> 1);
+            hist[x] = blended;  // Save blended result (accumulates decay)
+            src[x] = blended;
+        }
+
+        src += sPitch;
+        hist += sPitch;
+    }
+}
+
+#endif // USE_SSE2
+
+// ============================================================================
+// Helper functions for threshold-based color comparison (all builds)
+// ============================================================================
+
+// Helper: check if two 32-bit colors are "similar" (within threshold per channel)
+static inline bool ColorsSimilar32(uint32_t a, uint32_t b, int threshold) {
+    int dr = std::abs(static_cast<int>((a >> 16) & 0xFF) - static_cast<int>((b >> 16) & 0xFF));
+    int dg = std::abs(static_cast<int>((a >> 8) & 0xFF) - static_cast<int>((b >> 8) & 0xFF));
+    int db = std::abs(static_cast<int>(a & 0xFF) - static_cast<int>(b & 0xFF));
+    return (dr <= threshold) && (dg <= threshold) && (db <= threshold);
+}
+
+// Helper: check if two 32-bit colors are "different" (any channel exceeds threshold)
+static inline bool ColorsDifferent32(uint32_t a, uint32_t b, int threshold) {
+    int dr = std::abs(static_cast<int>((a >> 16) & 0xFF) - static_cast<int>((b >> 16) & 0xFF));
+    int dg = std::abs(static_cast<int>((a >> 8) & 0xFF) - static_cast<int>((b >> 8) & 0xFF));
+    int db = std::abs(static_cast<int>(a & 0xFF) - static_cast<int>(b & 0xFF));
+    return (dr > threshold) || (dg > threshold) || (db > threshold);
+}
+
+// Threshold for 16-bit colors (scaled for 5 bit channels)
+// RGB555: R=5bits, G=5bits, B=5bits; threshold ~2 is equivalent to ~16 for 8-bit
+static constexpr int kColorThreshold16 = 2;
+
+// Helper: check if two 16-bit colors are "similar" (RGB555 format)
+// Always uses RGB555 format - don't check RGB_LOW_BITS_MASK which may be
+// racily modified by filter threads running concurrently
+static inline bool ColorsSimilar16(uint16_t a, uint16_t b, int threshold) {
+    // RGB555: R(14:10), G(9:5), B(4:0)
+    int dr = std::abs(static_cast<int>((a >> 10) & 0x1F) - static_cast<int>((b >> 10) & 0x1F));
+    int dg = std::abs(static_cast<int>((a >> 5) & 0x1F) - static_cast<int>((b >> 5) & 0x1F));
+    int db = std::abs(static_cast<int>(a & 0x1F) - static_cast<int>(b & 0x1F));
+    return (dr <= threshold) && (dg <= threshold) && (db <= threshold);
+}
+
+// Helper: check if two 16-bit colors are "different"
+static inline bool ColorsDifferent16(uint16_t a, uint16_t b, int threshold) {
+    return !ColorsSimilar16(a, b, threshold);
+}
+
+// Threshold for 24-bit/8-bit colors (per byte, same as 32-bit)
+static constexpr int kColorThreshold24 = 16;
+
+// Helper: check if three consecutive bytes (R,G,B) are similar
+static inline bool ColorsSimilar24(uint8_t r1, uint8_t g1, uint8_t b1,
+                                    uint8_t r2, uint8_t g2, uint8_t b2, int threshold) {
+    int dr = std::abs(static_cast<int>(r1) - static_cast<int>(r2));
+    int dg = std::abs(static_cast<int>(g1) - static_cast<int>(g2));
+    int db = std::abs(static_cast<int>(b1) - static_cast<int>(b2));
+    return (dr <= threshold) && (dg <= threshold) && (db <= threshold);
+}
+
+// Helper: check if three consecutive bytes (R,G,B) are different
+static inline bool ColorsDifferent24(uint8_t r1, uint8_t g1, uint8_t b1,
+                                      uint8_t r2, uint8_t g2, uint8_t b2, int threshold) {
+    return !ColorsSimilar24(r1, g1, b1, r2, g2, b2, threshold);
+}
+
+#ifdef USE_SSE2
+
+// SSE2 helper: compute absolute difference of packed bytes
+static inline __m128i AbsDiff8(__m128i a, __m128i b) {
+    // SSE2 doesn't have abs diff for unsigned, use max(a-b, b-a) via saturating sub
+    return _mm_or_si128(_mm_subs_epu8(a, b), _mm_subs_epu8(b, a));
+}
+
+// SSE2 helper: check if colors are "similar" (all channel diffs <= threshold)
+// Returns mask where all bits are set for similar pixels
+static inline __m128i ColorsSimilar32_SSE2(__m128i a, __m128i b, __m128i threshold) {
+    __m128i diff = AbsDiff8(a, b);
+    // Check if all bytes <= threshold (compare diff > threshold, then invert)
+    __m128i exceeds = _mm_subs_epu8(diff, threshold);  // saturating sub: 0 if diff <= threshold
+    // exceeds is 0 for each byte where diff <= threshold
+    // We need all 3 color channels (not alpha) to be 0
+    // Compare with zero - if all bytes are 0, colors are similar
+    __m128i zero = _mm_setzero_si128();
+    // Mask off alpha channel for comparison (we only care about RGB)
+    __m128i alphaMask = _mm_set1_epi32(0x00FFFFFF);
+    exceeds = _mm_and_si128(exceeds, alphaMask);
+    __m128i is_zero = _mm_cmpeq_epi32(exceeds, zero);
+    return is_zero;
+}
+
+// SSE2 helper: check if colors are "different" (any channel diff > threshold)
+static inline __m128i ColorsDifferent32_SSE2(__m128i a, __m128i b, __m128i threshold) {
+    __m128i similar = ColorsSimilar32_SSE2(a, b, threshold);
+    __m128i ones = _mm_set1_epi32(-1);
+    return _mm_xor_si128(similar, ones);  // NOT similar = different
+}
+
+#endif // USE_SSE2 (SSE2 helper functions)
+
+#ifdef USE_SSE2
+
+static void SmartIB32_SSE2(uint8_t* srcPtr, uint8_t* frm1Ptr, uint8_t* frm2Ptr, uint8_t* frm3Ptr,
+                           uint32_t srcPitch, int width, int starty, int height) {
+    (void)width;  // Width is implicit in srcPitch for SIMD version
+    const __m128i colorMask = _mm_set1_epi32(0x00FEFEFE);
+
+    uint32_t* src = reinterpret_cast<uint32_t*>(srcPtr) + starty * (srcPitch / 4);
+    uint32_t* frm1 = reinterpret_cast<uint32_t*>(frm1Ptr) + starty * (srcPitch / 4);
+    uint32_t* frm2 = reinterpret_cast<uint32_t*>(frm2Ptr) + starty * (srcPitch / 4);
+    uint32_t* frm3 = reinterpret_cast<uint32_t*>(frm3Ptr) + starty * (srcPitch / 4);
+
+    int sPitch = srcPitch >> 2;
+
+#ifdef USE_SSE2
+    // Threshold as a byte value replicated across all bytes
+    const __m128i threshold = _mm_set1_epi8(static_cast<char>(kColorThreshold));
+#endif
+
+    for (int y = 0; y < height; y++) {
+        int x = 0;
+#ifdef USE_SSE2
+        // Process 4 pixels at a time
+        for (; x + 4 <= sPitch; x += 4) {
+            __m128i src0 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(&src[x]));
+            __m128i src1 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(&frm1[x]));
+            __m128i src2 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(&frm2[x]));
+            __m128i src3 = _mm_loadu_si128(reinterpret_cast<const __m128i*>(&frm3[x]));
+
+            // Save current to frm3 (oldest buffer gets newest frame)
+            _mm_storeu_si128(reinterpret_cast<__m128i*>(&frm3[x]), src0);
+
+            // Smart IB logic: Only blend pixels that CHANGED from previous frame
+            // AND show oscillation pattern (similar to older frames).
+            // This prevents static pixels from being incorrectly blended when
+            // adjacent scrolling content happens to match history.
+            //
+            // changed = (src0 ~!= src1)  - current differs from previous
+            // oscillates = (src0 ~== src2) || (src0 ~== src3)
+            // blend = changed && oscillates
+
+            // First check if pixel changed from previous frame
+            __m128i changed = ColorsDifferent32_SSE2(src0, src1, threshold);
+
+            // Check oscillation: current similar to 2 or 3 frames ago (A->B->A pattern)
+            __m128i similar_0_2 = ColorsSimilar32_SSE2(src0, src2, threshold);
+            __m128i similar_0_3 = ColorsSimilar32_SSE2(src0, src3, threshold);
+            __m128i oscillates = _mm_or_si128(similar_0_2, similar_0_3);
+
+            // Also check neighbors in history (for scrolling content)
+            // ONLY if pixel changed - prevents static edge artifacts
+            // Check ±1, ±2 pixels (reduced from ±3 for better precision)
+            if (x >= 2 && x + 6 <= sPitch) {
+                __m128i neighbor_osc = _mm_setzero_si128();
+
+                // Check ±1 pixel offsets
+                neighbor_osc = _mm_or_si128(neighbor_osc,
+                    _mm_or_si128(ColorsSimilar32_SSE2(src0, _mm_loadu_si128(reinterpret_cast<const __m128i*>(&frm2[x-1])), threshold),
+                                 ColorsSimilar32_SSE2(src0, _mm_loadu_si128(reinterpret_cast<const __m128i*>(&frm2[x+1])), threshold)));
+                neighbor_osc = _mm_or_si128(neighbor_osc,
+                    _mm_or_si128(ColorsSimilar32_SSE2(src0, _mm_loadu_si128(reinterpret_cast<const __m128i*>(&frm3[x-1])), threshold),
+                                 ColorsSimilar32_SSE2(src0, _mm_loadu_si128(reinterpret_cast<const __m128i*>(&frm3[x+1])), threshold)));
+
+                // Check ±2 pixel offsets
+                neighbor_osc = _mm_or_si128(neighbor_osc,
+                    _mm_or_si128(ColorsSimilar32_SSE2(src0, _mm_loadu_si128(reinterpret_cast<const __m128i*>(&frm2[x-2])), threshold),
+                                 ColorsSimilar32_SSE2(src0, _mm_loadu_si128(reinterpret_cast<const __m128i*>(&frm2[x+2])), threshold)));
+                neighbor_osc = _mm_or_si128(neighbor_osc,
+                    _mm_or_si128(ColorsSimilar32_SSE2(src0, _mm_loadu_si128(reinterpret_cast<const __m128i*>(&frm3[x-2])), threshold),
+                                 ColorsSimilar32_SSE2(src0, _mm_loadu_si128(reinterpret_cast<const __m128i*>(&frm3[x+2])), threshold)));
+
+                // Neighbor oscillation only counts if pixel changed
+                oscillates = _mm_or_si128(oscillates, _mm_and_si128(changed, neighbor_osc));
+            }
+
+            // blend = changed && oscillates
+            // Only blend pixels that actually changed AND show oscillation
+            __m128i blend_mask = _mm_and_si128(changed, oscillates);
+
+            // Calculate blended value: average current and previous frame
+            __m128i src0_masked = _mm_and_si128(src0, colorMask);
+            __m128i src1_masked = _mm_and_si128(src1, colorMask);
+            __m128i blended = _mm_add_epi32(_mm_srli_epi32(src0_masked, 1),
+                                            _mm_srli_epi32(src1_masked, 1));
+
+            // Select: blend_mask ? blended : src0
+            __m128i result = _mm_or_si128(_mm_and_si128(blend_mask, blended),
+                                          _mm_andnot_si128(blend_mask, src0));
+
+            _mm_storeu_si128(reinterpret_cast<__m128i*>(&src[x]), result);
+        }
+#endif
+
+        // Scalar tail
+        for (; x < sPitch; x++) {
+            uint32_t color = src[x];
+
+            // First check if pixel changed from previous frame
+            bool changed = ColorsDifferent32(color, frm1[x], kColorThreshold);
+
+            // Only consider oscillation if pixel actually changed
+            bool oscillates = false;
+            if (changed) {
+                // Check oscillation at current position (A->B->A pattern)
+                oscillates = ColorsSimilar32(color, frm2[x], kColorThreshold) ||
+                             ColorsSimilar32(color, frm3[x], kColorThreshold);
+
+                // Also check neighbors in history (for scrolling content)
+                // Check ±1, ±2 pixels (reduced from ±3 for better precision)
+                if (!oscillates && x >= 2 && x < sPitch - 2) {
+                    for (int offset = 1; offset <= 2 && !oscillates; offset++) {
+                        oscillates = ColorsSimilar32(color, frm2[x-offset], kColorThreshold) ||
+                                     ColorsSimilar32(color, frm2[x+offset], kColorThreshold) ||
+                                     ColorsSimilar32(color, frm3[x-offset], kColorThreshold) ||
+                                     ColorsSimilar32(color, frm3[x+offset], kColorThreshold);
+                    }
+                }
+            }
+
+            frm3[x] = color;
+            if (oscillates) {
+                src[x] = ((color & 0xFEFEFE) >> 1) + ((frm1[x] & 0xFEFEFE) >> 1);
+            }
+        }
+
+        src += sPitch;
+        frm1 += sPitch;
+        frm2 += sPitch;
+        frm3 += sPitch;
+    }
+}
+
+static void SmartIB16_SSE2(uint8_t* srcPtr, uint8_t* frm1Ptr, uint8_t* frm2Ptr, uint8_t* frm3Ptr,
+                           uint32_t srcPitch, int width, int starty, int height) {
+    // 16-bit SIMD for packed RGB565/555 threshold comparison is complex,
+    // delegate to scalar implementation which has the full algorithm
+    SmartIB16_Scalar(srcPtr, frm1Ptr, frm2Ptr, frm3Ptr, srcPitch, width, starty, height);
+}
+
+#endif // USE_SSE2
+
+// ============================================================================
+// Scalar Implementations (fallback)
+// ============================================================================
+
+static void SmartIB32_Scalar(uint8_t* srcPtr, uint8_t* frm1Ptr, uint8_t* frm2Ptr, uint8_t* frm3Ptr,
+                              uint32_t srcPitch, int width, int starty, int height) {
+    (void)width;  // Width is implicit in srcPitch for consistency with SIMD versions
+    uint32_t* src0 = reinterpret_cast<uint32_t*>(srcPtr) + starty * srcPitch / 4;
+    uint32_t* src1 = reinterpret_cast<uint32_t*>(frm1Ptr) + starty * srcPitch / 4;
+    uint32_t* src2 = reinterpret_cast<uint32_t*>(frm2Ptr) + starty * srcPitch / 4;
+    uint32_t* src3 = reinterpret_cast<uint32_t*>(frm3Ptr) + starty * srcPitch / 4;
+
+    const uint32_t colorMask = 0xFEFEFE;  // Mask for divide-by-2
+    int sPitch = srcPitch >> 2;
+    int pos = 0;
+
+    for (int j = 0; j < height; j++) {
+        for (int i = 0; i < sPitch; i++) {
+            uint32_t color = src0[pos];
+
+            // First check if pixel changed from previous frame
+            bool changed = ColorsDifferent32(color, src1[pos], kColorThreshold);
+
+            // Only consider oscillation if pixel actually changed
+            bool oscillates = false;
+            if (changed) {
+                // Check oscillation at current position (A->B->A pattern)
+                oscillates = ColorsSimilar32(color, src2[pos], kColorThreshold) ||
+                             ColorsSimilar32(color, src3[pos], kColorThreshold);
+
+                // Also check neighbors in history (for scrolling content)
+                // Check ±1, ±2 pixels (reduced from ±3 for better precision)
+                if (!oscillates && i >= 2 && i < sPitch - 2) {
+                    for (int offset = 1; offset <= 2 && !oscillates; offset++) {
+                        oscillates = ColorsSimilar32(color, src2[pos-offset], kColorThreshold) ||
+                                     ColorsSimilar32(color, src2[pos+offset], kColorThreshold) ||
+                                     ColorsSimilar32(color, src3[pos-offset], kColorThreshold) ||
+                                     ColorsSimilar32(color, src3[pos+offset], kColorThreshold);
+                    }
+                }
+            }
+
+            // 2-frame average preserves scroll motion better
+            src0[pos] = oscillates
+                            ? (((color & colorMask) >> 1) + ((src1[pos] & colorMask) >> 1))
+                            : color;
+            src3[pos] = color;
+            pos++;
+        }
+    }
+}
+
+static void SmartIB16_Scalar(uint8_t* srcPtr, uint8_t* frm1Ptr, uint8_t* frm2Ptr, uint8_t* frm3Ptr,
+                              uint32_t srcPitch, int width, int starty, int height) {
+    (void)width;  // Width is implicit in srcPitch for consistency with SIMD versions
+    // Use constant mask for RGB555 (0x7BDE) - don't read RGB_LOW_BITS_MASK which may be
+    // racily modified by filter threads running concurrently
+    const uint16_t colorMask = 0x7BDE;  // ~0x0421 & 0x7FFF for RGB555
+
+    uint16_t* src0 = reinterpret_cast<uint16_t*>(srcPtr) + starty * srcPitch / 2;
+    uint16_t* src1 = reinterpret_cast<uint16_t*>(frm1Ptr) + srcPitch * starty / 2;
+    uint16_t* src2 = reinterpret_cast<uint16_t*>(frm2Ptr) + srcPitch * starty / 2;
+    uint16_t* src3 = reinterpret_cast<uint16_t*>(frm3Ptr) + srcPitch * starty / 2;
+
+    int sPitch = srcPitch >> 1;
+    int pos = 0;
+
+    for (int j = 0; j < height; j++) {
+        for (int i = 0; i < sPitch; i++) {
+            uint16_t color = src0[pos];
+
+            // First check if pixel changed from previous frame
+            bool changed = ColorsDifferent16(color, src1[pos], kColorThreshold16);
+
+            // Only consider oscillation if pixel actually changed
+            bool oscillates = false;
+            if (changed) {
+                // Check oscillation at current position (A->B->A pattern)
+                oscillates = ColorsSimilar16(color, src2[pos], kColorThreshold16) ||
+                             ColorsSimilar16(color, src3[pos], kColorThreshold16);
+
+                // Also check neighbors in history (for scrolling content)
+                // Check ±1, ±2 pixels (reduced from ±3 for better precision)
+                if (!oscillates && i >= 2 && i < sPitch - 2) {
+                    for (int offset = 1; offset <= 2 && !oscillates; offset++) {
+                        oscillates = ColorsSimilar16(color, src2[pos-offset], kColorThreshold16) ||
+                                     ColorsSimilar16(color, src2[pos+offset], kColorThreshold16) ||
+                                     ColorsSimilar16(color, src3[pos-offset], kColorThreshold16) ||
+                                     ColorsSimilar16(color, src3[pos+offset], kColorThreshold16);
+                    }
+                }
+            }
+
+            src0[pos] = oscillates
+                            ? (((color & colorMask) >> 1) + ((src1[pos] & colorMask) >> 1))
+                            : color;
+            src3[pos] = color;
+            pos++;
+        }
+    }
+}
+
+static void SmartIB24_Scalar(uint8_t* srcPtr, uint8_t* frm1Ptr, uint8_t* frm2Ptr, uint8_t* frm3Ptr,
+                              uint32_t srcPitch, int width, int starty, int height) {
+    (void)width;  // Width is implicit in srcPitch for consistency with SIMD versions
+    const uint8_t colorMask = 0xFE;  // Mask for divide-by-2
+
+    uint8_t* src0 = srcPtr + starty * srcPitch / 3;
+    uint8_t* src1 = frm1Ptr + srcPitch * starty / 3;
+    uint8_t* src2 = frm2Ptr + srcPitch * starty / 3;
+    uint8_t* src3 = frm3Ptr + srcPitch * starty / 3;
+
+    int sPitch = srcPitch / 3;
+    int pos = 0;
+
+    for (int j = 0; j < height; j++) {
+        for (int i = 0; i < sPitch; i++) {
+            uint8_t r0 = src0[pos];
+            uint8_t g0 = src0[pos + 1];
+            uint8_t b0 = src0[pos + 2];
+
+            // First check if pixel changed from previous frame
+            bool changed = ColorsDifferent24(r0, g0, b0,
+                                              src1[pos], src1[pos + 1], src1[pos + 2], kColorThreshold24);
+
+            // Only consider oscillation if pixel actually changed
+            bool oscillates = false;
+            if (changed) {
+                // Check oscillation at current position (A->B->A pattern)
+                oscillates = ColorsSimilar24(r0, g0, b0,
+                                              src2[pos], src2[pos + 1], src2[pos + 2], kColorThreshold24) ||
+                             ColorsSimilar24(r0, g0, b0,
+                                              src3[pos], src3[pos + 1], src3[pos + 2], kColorThreshold24);
+
+                // Also check neighbors in history (for scrolling content)
+                // Check ±1, ±2 pixels (reduced from ±3 for better precision)
+                // Each pixel is 3 bytes, so offset by 3*n
+                if (!oscillates && i >= 2 && i < sPitch - 2) {
+                    for (int offset = 1; offset <= 2 && !oscillates; offset++) {
+                        int byteOffset = offset * 3;
+                        oscillates = ColorsSimilar24(r0, g0, b0,
+                                        src2[pos-byteOffset], src2[pos-byteOffset+1], src2[pos-byteOffset+2], kColorThreshold24) ||
+                                     ColorsSimilar24(r0, g0, b0,
+                                        src2[pos+byteOffset], src2[pos+byteOffset+1], src2[pos+byteOffset+2], kColorThreshold24) ||
+                                     ColorsSimilar24(r0, g0, b0,
+                                        src3[pos-byteOffset], src3[pos-byteOffset+1], src3[pos-byteOffset+2], kColorThreshold24) ||
+                                     ColorsSimilar24(r0, g0, b0,
+                                        src3[pos+byteOffset], src3[pos+byteOffset+1], src3[pos+byteOffset+2], kColorThreshold24);
+                    }
+                }
+            }
+
+            if (oscillates) {
+                // 2-frame average preserves scroll motion better
+                src0[pos] = ((r0 & colorMask) >> 1) + ((src1[pos] & colorMask) >> 1);
+                src0[pos + 1] = ((g0 & colorMask) >> 1) + ((src1[pos + 1] & colorMask) >> 1);
+                src0[pos + 2] = ((b0 & colorMask) >> 1) + ((src1[pos + 2] & colorMask) >> 1);
+            }
+
+            src3[pos] = r0;
+            src3[pos + 1] = g0;
+            src3[pos + 2] = b0;
+            pos += 3;
+        }
+    }
+}
+
+// Helper: convert 8-bit palette index to 16-bit RGB555
+static inline uint16_t PaletteToRGB555(uint8_t idx) {
+    if (idx == 0xff) return 0x7fff;
+    return static_cast<uint16_t>(((idx & 0xe0) << 7) | ((idx & 0x1c) << 5) | ((idx & 0x3) << 3));
+}
+
+// Helper: convert 16-bit RGB555 back to 8-bit palette approximation
+static inline uint8_t RGB555ToPalette(uint16_t c) {
+    return static_cast<uint8_t>(((c >> 7) & 0xe0) | ((c >> 5) & 0x1c) | ((c >> 3) & 0x3));
+}
+
+static void SmartIB8_Scalar(uint8_t* srcPtr, uint8_t* frm1Ptr, uint8_t* frm2Ptr, uint8_t* frm3Ptr,
+                             uint32_t srcPitch, int width, int starty, int height) {
+    (void)width;  // Width is implicit in srcPitch for consistency with SIMD versions
+    // Use constant mask for RGB555 (0x7BDE) - palette is converted to RGB555 for blending
+    const uint16_t colorMask = 0x7BDE;  // ~0x0421 & 0x7FFF for RGB555
+
+    uint8_t* src0 = srcPtr + starty * srcPitch;
+    uint8_t* src1 = frm1Ptr + srcPitch * starty;
+    uint8_t* src2 = frm2Ptr + srcPitch * starty;
+    uint8_t* src3 = frm3Ptr + srcPitch * starty;
+
+    int sPitch = srcPitch;
+    int pos = 0;
+
+    for (int j = 0; j < height; j++) {
+        for (int i = 0; i < sPitch; i++) {
+            // Convert palette indices to RGB555 for comparison
+            uint16_t c0 = PaletteToRGB555(src0[pos]);
+            uint16_t c1 = PaletteToRGB555(src1[pos]);
+            uint16_t c2 = PaletteToRGB555(src2[pos]);
+            uint16_t c3 = PaletteToRGB555(src3[pos]);
+
+            // First check if pixel changed from previous frame
+            bool changed = ColorsDifferent16(c0, c1, kColorThreshold16);
+
+            // Only consider oscillation if pixel actually changed
+            bool oscillates = false;
+            if (changed) {
+                // Check oscillation at current position (A->B->A pattern)
+                oscillates = ColorsSimilar16(c0, c2, kColorThreshold16) ||
+                             ColorsSimilar16(c0, c3, kColorThreshold16);
+
+                // Also check neighbors in history (for scrolling content)
+                // Check ±1, ±2 pixels (reduced from ±3 for better precision)
+                if (!oscillates && i >= 2 && i < sPitch - 2) {
+                    for (int offset = 1; offset <= 2 && !oscillates; offset++) {
+                        uint16_t c2_left = PaletteToRGB555(src2[pos-offset]);
+                        uint16_t c2_right = PaletteToRGB555(src2[pos+offset]);
+                        uint16_t c3_left = PaletteToRGB555(src3[pos-offset]);
+                        uint16_t c3_right = PaletteToRGB555(src3[pos+offset]);
+                        oscillates = ColorsSimilar16(c0, c2_left, kColorThreshold16) ||
+                                     ColorsSimilar16(c0, c2_right, kColorThreshold16) ||
+                                     ColorsSimilar16(c0, c3_left, kColorThreshold16) ||
+                                     ColorsSimilar16(c0, c3_right, kColorThreshold16);
+                    }
+                }
+            }
+
+            if (oscillates) {
+                uint16_t blended = ((c0 & colorMask) >> 1) + ((c1 & colorMask) >> 1);
+                src0[pos] = RGB555ToPalette(blended);
+            } else {
+                src0[pos] = RGB555ToPalette(c0);
+            }
+            src3[pos] = RGB555ToPalette(c0);
+            pos++;
+        }
+    }
+}
+
+static void MotionBlurIB32_Scalar(uint8_t* srcPtr, uint8_t* histPtr,
+                                   uint32_t srcPitch, int width, int starty, int height) {
+    (void)width;  // Width is implicit in srcPitch for consistency with SIMD versions
+    uint32_t* src0 = reinterpret_cast<uint32_t*>(srcPtr) + starty * srcPitch / 4;
+    uint32_t* src1 = reinterpret_cast<uint32_t*>(histPtr) + starty * srcPitch / 4;
+
+    const uint32_t colorMask = 0xfefefe;
+    int sPitch = srcPitch >> 2;
+    int pos = 0;
+
+    for (int j = 0; j < height; j++) {
+        for (int i = 0; i < sPitch; i++) {
+            uint32_t color = src0[pos];
+            // Exponential decay: blend current with accumulated history
+            uint32_t blended = (((color & colorMask) >> 1) + ((src1[pos] & colorMask) >> 1));
+            src1[pos] = blended;  // Save blended result (accumulates decay)
+            src0[pos] = blended;
+            pos++;
+        }
+    }
+}
+
+static void MotionBlurIB16_Scalar(uint8_t* srcPtr, uint8_t* histPtr,
+                                   uint32_t srcPitch, int width, int starty, int height) {
+    (void)width;  // Width is implicit in srcPitch for consistency with SIMD versions
+    // Use constant mask for RGB555 - don't read RGB_LOW_BITS_MASK which may be
+    // racily modified by filter threads running concurrently
+    const uint16_t colorMask = 0x7BDE;  // ~0x0421 & 0x7FFF for RGB555
+
+    uint16_t* src0 = reinterpret_cast<uint16_t*>(srcPtr) + starty * srcPitch / 2;
+    uint16_t* src1 = reinterpret_cast<uint16_t*>(histPtr) + starty * srcPitch / 2;
+
+    int sPitch = srcPitch >> 1;
+    int pos = 0;
+
+    for (int j = 0; j < height; j++) {
+        for (int i = 0; i < sPitch; i++) {
+            uint16_t color = src0[pos];
+            // Exponential decay: blend current with accumulated history
+            uint16_t blended = (((color & colorMask) >> 1) + ((src1[pos] & colorMask) >> 1));
+            src1[pos] = blended;  // Save blended result (accumulates decay)
+            src0[pos] = blended;
+            pos++;
+        }
+    }
+}
+
+static void MotionBlurIB24_Scalar(uint8_t* srcPtr, uint8_t* histPtr,
+                                   uint32_t srcPitch, int width, int starty, int height) {
+    (void)width;  // Width is implicit in srcPitch for consistency with SIMD versions
+    const uint8_t colorMask = 0xfe;
+
+    uint8_t* src0 = srcPtr + starty * srcPitch / 3;
+    uint8_t* src1 = histPtr + starty * srcPitch / 3;
+
+    int sPitch = srcPitch / 3;
+    int pos = 0;
+
+    for (int j = 0; j < height; j++) {
+        for (int i = 0; i < sPitch; i++) {
+            uint8_t color = src0[pos];
+            uint8_t color2 = src0[pos + 1];
+            uint8_t color3 = src0[pos + 2];
+
+            // Exponential decay: blend current with accumulated history
+            uint8_t blended_r = ((color & colorMask) >> 1) + ((src1[pos] & colorMask) >> 1);
+            uint8_t blended_g = ((color2 & colorMask) >> 1) + ((src1[pos + 1] & colorMask) >> 1);
+            uint8_t blended_b = ((color3 & colorMask) >> 1) + ((src1[pos + 2] & colorMask) >> 1);
+
+            // Save blended result (accumulates decay)
+            src1[pos] = blended_r;
+            src1[pos + 1] = blended_g;
+            src1[pos + 2] = blended_b;
+
+            src0[pos] = blended_r;
+            src0[pos + 1] = blended_g;
+            src0[pos + 2] = blended_b;
+            pos += 3;
+        }
+    }
+}
+
+static void MotionBlurIB8_Scalar(uint8_t* srcPtr, uint8_t* histPtr,
+                                  uint32_t srcPitch, int width, int starty, int height) {
+    (void)width;  // Width is implicit in srcPitch for consistency with SIMD versions
+    // Use constant mask for RGB555 - palette is converted to RGB555 for blending
+    const uint16_t colorMask = 0x7BDE;  // ~0x0421 & 0x7FFF for RGB555
+
+    uint8_t* src0 = srcPtr + starty * srcPitch;
+    uint8_t* src1 = histPtr + starty * srcPitch;
+
+    int sPitch = srcPitch;
+    int pos = 0;
+
+    for (int j = 0; j < height; j++) {
+        for (int i = 0; i < sPitch; i++) {
+            uint16_t color = src0[pos] == 0xff
+                                 ? 0x7fff
+                                 : ((src0[pos] & 0xe0) << 7) | ((src0[pos] & 0x1c) << 5) |
+                                       ((src0[pos] & 0x3) << 3);
+            uint16_t color2 = src1[pos] == 0xff
+                                  ? 0x7fff
+                                  : ((src1[pos] & 0xe0) << 7) | ((src1[pos] & 0x1c) << 5) |
+                                        ((src1[pos] & 0x3) << 3);
+            // Exponential decay: blend current with accumulated history
+            uint16_t blended_rgb = ((color & colorMask) >> 1) + ((color2 & colorMask) >> 1);
+
+            uint8_t blended_pal = static_cast<uint8_t>(((blended_rgb >> 7) & 0xe0) |
+                                              ((blended_rgb >> 5) & 0x1c) | ((blended_rgb >> 3) & 0x3));
+
+            // Save blended result (accumulates decay)
+            src1[pos] = blended_pal;
+            src0[pos] = blended_pal;
+            pos++;
+        }
+    }
+}
+
+// ============================================================================
+// InterframeManager Region Methods
+// ============================================================================
+
+void InterframeManager::ApplySmartIBRegion(uint8_t* srcPtr, uint32_t srcPitch,
+                                            int width, int starty, int height,
+                                            int colorDepth, int regionId) {
+    if (!initialized_ || regionId < 0 || regionId >= static_cast<int>(regions_.size())) {
+        return;
+    }
+
+    // Validate that the pitch matches what we were initialized with to prevent buffer overflow
+    // This can happen if color depth changes and InterframeManager hasn't been reinitialized
+    if (static_cast<int>(srcPitch) != pitch_) {
+        return;
+    }
+
+    RegionState& region = regions_[regionId];
+    uint8_t* hist1 = region.frame1_.get();
+    uint8_t* hist2 = region.frame2_.get();
+    uint8_t* hist3 = region.frame3_.get();
+
+    switch (colorDepth) {
+        case 32:
+#ifdef USE_SSE2
+            SmartIB32_SSE2(srcPtr, hist1, hist2, hist3, srcPitch, width, starty, height);
 #else
-		__asm {
-			movq mm7, qword ptr [qRGB_COLOR_MASK];
-			mov	 eax, src0;
-			mov	 ebx, src1;
-			mov	 ecx, src2;
-			mov	 edx, src3;
-			mov	 edi, count;
-label0:
-			movq mm0, qword ptr [eax]; // src0
-			movq	   mm1, qword ptr [ebx]; // src1
-			movq	   mm2, qword ptr [ecx]; // src2
-			movq	   mm3, qword ptr [edx]; // src3
-			movq qword ptr [edx], mm0; // src3 = src0
-			movq	   mm4, mm0;
-			movq	   mm5, mm1;
-			pcmpeqw	   mm5, mm2; // src1 == src2 (A)
-			pcmpeqw	   mm4, mm3; // src3 == src0 (B)
-			por		   mm4, mm5; // A | B
-			movq	   mm5, mm2;
-			pcmpeqw	   mm5, mm0; // src0 == src2 (C)
-			pcmpeqw	   mm3, mm1; // src1 == src3 (D)
-			por		   mm5, mm3; // C|D
-			pandn	   mm4, mm5; // (!(A|B))&(C|D)
-			movq	   mm2, mm0;
-			pand	   mm2, mm7; // color & colorMask
-			pand	   mm1, mm7; // src1 & colorMask
-			psrlw	   mm2, 1; // (color & colorMask) >> 1 (E)
-			psrlw	   mm1, 1; // (src & colorMask) >> 1 (F)
-			paddw	   mm1, mm2; // E+F
-			pand	   mm1, mm4; // (E+F) & res
-			pandn	   mm4, mm0; // color & !res
-
-			por		   mm4, mm1;
-			movq qword ptr [eax], mm4; // src0 = res
-
-			add eax, 8;
-			add ebx, 8;
-			add ecx, 8;
-			add edx, 8;
-
-			dec edi;
-			jnz label0;
-			mov src0, eax;
-			mov src1, ebx;
-			mov src2, ecx;
-			mov src3, edx;
-			emms;
-		}
+            SmartIB32_Scalar(srcPtr, hist1, hist2, hist3, srcPitch, width, starty, height);
 #endif
-		src0 += 2;
-		src1 += 2;
-		src2 += 2;
-		src3 += 2;
-	}
+            break;
 
-	/* Swap buffers around */
-	u8 *temp = frm1;
-	frm1 = frm3;
-	frm3 = frm2;
-	frm2 = temp;
-}
-
-#endif
-
-void SmartIB(u8 *srcPtr, u32 srcPitch, int width, int height)
-{
-	if (frm1 == NULL)
-	{
-		Init();
-	}
-#ifdef MMX
-	if (cpu_mmx)
-	{
-		SmartIB_MMX(srcPtr, srcPitch, width, height);
-		return;
-	}
-#endif
-
-	u16 colorMask = ~RGB_LOW_BITS_MASK;
-
-	u16 *src0 = (u16 *)srcPtr;
-	u16 *src1 = (u16 *)frm1;
-	u16 *src2 = (u16 *)frm2;
-	u16 *src3 = (u16 *)frm3;
-
-	int sPitch = srcPitch >> 1;
-
-	int pos = 0;
-	for (int j = 0; j < height; j++)
-		for (int i = 0; i < sPitch; i++)
-		{
-			u16 color = src0[pos];
-			src0[pos] =
-			    (src1[pos] != src2[pos]) &&
-			    (src3[pos] != color) &&
-			    ((color == src2[pos]) || (src1[pos] == src3[pos]))
-			    ? (((color & colorMask) >> 1) + ((src1[pos] & colorMask) >> 1)) :
-			    color;
-			src3[pos] = color; /* oldest buffer now holds newest frame */
-			pos++;
-		}
-
-	/* Swap buffers around */
-	u8 *temp = frm1;
-	frm1 = frm3;
-	frm3 = frm2;
-	frm2 = temp;
-}
-
-#ifdef MMX
-static void SmartIB32_MMX(u8 *srcPtr, u32 srcPitch, int width, int height)
-{
-	u32 *src0 = (u32 *)srcPtr;
-	u32 *src1 = (u32 *)frm1;
-	u32 *src2 = (u32 *)frm2;
-	u32 *src3 = (u32 *)frm3;
-
-	int count = width >> 1;
-
-	for (int i = 0; i < height; i++)
-	{
-#ifdef __GNUC__
-		asm volatile (
-		    "push %4\n"
-		    "movq 0(%5), %%mm7\n"       // colorMask
-		    "0:\n"
-		    "movq 0(%0), %%mm0\n"       // src0
-		    "movq 0(%1), %%mm1\n"       // src1
-		    "movq 0(%2), %%mm2\n"       // src2
-		    "movq 0(%3), %%mm3\n"       // src3
-		    "movq %%mm0, 0(%3)\n"       // src3 = src0
-		    "movq %%mm0, %%mm4\n"
-		    "movq %%mm1, %%mm5\n"
-		    "pcmpeqd %%mm2, %%mm5\n"       // src1 == src2 (A)
-		    "pcmpeqd %%mm3, %%mm4\n"       // src3 == src0 (B)
-		    "por %%mm5, %%mm4\n"       // A | B
-		    "movq %%mm2, %%mm5\n"
-		    "pcmpeqd %%mm0, %%mm5\n"       // src0 == src2 (C)
-		    "pcmpeqd %%mm1, %%mm3\n"       // src1 == src3 (D)
-		    "por %%mm3, %%mm5\n"       // C|D
-		    "pandn %%mm5, %%mm4\n"       // (!(A|B))&(C|D)
-		    "movq %%mm0, %%mm2\n"
-		    "pand %%mm7, %%mm2\n"       // color & colorMask
-		    "pand %%mm7, %%mm1\n"       // src1 & colorMask
-		    "psrld $1, %%mm2\n"       // (color & colorMask) >> 1 (E)
-		    "psrld $1, %%mm1\n"       // (src & colorMask) >> 1 (F)
-		    "paddd %%mm2, %%mm1\n"       // E+F
-		    "pand %%mm4, %%mm1\n"       // (E+F) & res
-		    "pandn %%mm0, %%mm4\n"       // color& !res
-
-		    "por %%mm1, %%mm4\n"
-		    "movq %%mm4, 0(%0)\n"       // src0 = res
-
-		    "addl $8, %0\n"
-		    "addl $8, %1\n"
-		    "addl $8, %2\n"
-		    "addl $8, %3\n"
-
-		    "decl %4\n"
-		    "jnz 0b\n"
-		    "pop %4\n"
-		    "emms\n"
-			: "+r" (src0), "+r" (src1), "+r" (src2), "+r" (src3)
-			: "r" (count), "r" (qRGB_COLOR_MASK)
-		    );
+        case 16:
+#ifdef USE_SSE2
+            SmartIB16_SSE2(srcPtr, hist1, hist2, hist3, srcPitch, width, starty, height);
 #else
-		__asm {
-			movq mm7, qword ptr [qRGB_COLOR_MASK];
-			mov	 eax, src0;
-			mov	 ebx, src1;
-			mov	 ecx, src2;
-			mov	 edx, src3;
-			mov	 edi, count;
-label0:
-			movq mm0, qword ptr [eax]; // src0
-			movq	   mm1, qword ptr [ebx]; // src1
-			movq	   mm2, qword ptr [ecx]; // src2
-			movq	   mm3, qword ptr [edx]; // src3
-			movq qword ptr [edx], mm0; // src3 = src0
-			movq	   mm4, mm0;
-			movq	   mm5, mm1;
-			pcmpeqd	   mm5, mm2; // src1 == src2 (A)
-			pcmpeqd	   mm4, mm3; // src3 == src0 (B)
-			por		   mm4, mm5; // A | B
-			movq	   mm5, mm2;
-			pcmpeqd	   mm5, mm0; // src0 == src2 (C)
-			pcmpeqd	   mm3, mm1; // src1 == src3 (D)
-			por		   mm5, mm3; // C|D
-			pandn	   mm4, mm5; // (!(A|B))&(C|D)
-			movq	   mm2, mm0;
-			pand	   mm2, mm7; // color & colorMask
-			pand	   mm1, mm7; // src1 & colorMask
-			psrld	   mm2, 1; // (color & colorMask) >> 1 (E)
-			psrld	   mm1, 1; // (src & colorMask) >> 1 (F)
-			paddd	   mm1, mm2; // E+F
-			pand	   mm1, mm4; // (E+F) & res
-			pandn	   mm4, mm0; // color & !res
-
-			por		   mm4, mm1;
-			movq qword ptr [eax], mm4; // src0 = res
-
-			add eax, 8;
-			add ebx, 8;
-			add ecx, 8;
-			add edx, 8;
-
-			dec edi;
-			jnz label0;
-			mov src0, eax;
-			mov src1, ebx;
-			mov src2, ecx;
-			mov src3, edx;
-			emms;
-		}
+            SmartIB16_Scalar(srcPtr, hist1, hist2, hist3, srcPitch, width, starty, height);
 #endif
+            break;
 
-		src0++;
-		src1++;
-		src2++;
-		src3++;
-	}
-	/* Swap buffers around */
-	u8 *temp = frm1;
-	frm1 = frm3;
-	frm3 = frm2;
-	frm2 = temp;
+        case 24:
+            SmartIB24_Scalar(srcPtr, hist1, hist2, hist3, srcPitch, width, starty, height);
+            break;
+
+        case 8:
+            SmartIB8_Scalar(srcPtr, hist1, hist2, hist3, srcPitch, width, starty, height);
+            break;
+    }
+
+    // Rotate buffers for this region
+    region.frame1_.swap(region.frame3_);
+    region.frame3_.swap(region.frame2_);
 }
 
-#endif
+void InterframeManager::ApplyMotionBlurRegion(uint8_t* srcPtr, uint32_t srcPitch,
+                                               int width, int starty, int height,
+                                               int colorDepth, int regionId) {
+    if (!initialized_ || regionId < 0 || regionId >= static_cast<int>(regions_.size())) {
+        return;
+    }
 
-void SmartIB32(u8 *srcPtr, u32 srcPitch, int width, int height)
-{
-	if (frm1 == NULL)
-	{
-		Init();
-	}
-#ifdef MMX
-	if (cpu_mmx)
-	{
-		SmartIB32_MMX(srcPtr, srcPitch, width, height);
-		return;
-	}
-#endif
+    // Validate that the pitch matches what we were initialized with to prevent buffer overflow
+    // This can happen if color depth changes and InterframeManager hasn't been reinitialized
+    if (static_cast<int>(srcPitch) != pitch_) {
+        return;
+    }
 
-	u32 *src0 = (u32 *)srcPtr;
-	u32 *src1 = (u32 *)frm1;
-	u32 *src2 = (u32 *)frm2;
-	u32 *src3 = (u32 *)frm3;
+    RegionState& region = regions_[regionId];
+    uint8_t* hist = region.frame1_.get();
 
-	u32 colorMask = 0xfefefe;
-
-	int sPitch = srcPitch >> 2;
-	int pos	   = 0;
-
-	for (int j = 0; j < height; j++)
-		for (int i = 0; i < sPitch; i++)
-		{
-			u32 color = src0[pos];
-			src0[pos] =
-			    (src1[pos] != src2[pos]) &&
-			    (src3[pos] != color) &&
-			    ((color == src2[pos]) || (src1[pos] == src3[pos]))
-			    ? (((color & colorMask) >> 1) + ((src1[pos] & colorMask) >> 1)) :
-			    color;
-			src3[pos] = color; /* oldest buffer now holds newest frame */
-			pos++;
-		}
-
-	/* Swap buffers around */
-	u8 *temp = frm1;
-	frm1 = frm3;
-	frm3 = frm2;
-	frm2 = temp;
-}
-
-#ifdef MMX
-static void MotionBlurIB_MMX(u8 *srcPtr, u32 srcPitch, int width, int height)
-{
-	u16 *src0 = (u16 *)srcPtr;
-	u16 *src1 = (u16 *)frm1;
-
-	int count = width >> 2;
-
-	for (int i = 0; i < height; i++)
-	{
-#ifdef __GNUC__
-		asm volatile (
-		    "push %2\n"
-		    "movq 0(%3), %%mm7\n"       // colorMask
-		    "0:\n"
-		    "movq 0(%0), %%mm0\n"       // src0
-		    "movq 0(%1), %%mm1\n"       // src1
-		    "movq %%mm0, 0(%1)\n"       // src1 = src0
-		    "pand %%mm7, %%mm0\n"       // color & colorMask
-		    "pand %%mm7, %%mm1\n"       // src1 & colorMask
-		    "psrlw $1, %%mm0\n"       // (color & colorMask) >> 1 (E)
-		    "psrlw $1, %%mm1\n"       // (src & colorMask) >> 1 (F)
-		    "paddw %%mm1, %%mm0\n"       // E+F
-
-		    "movq %%mm0, 0(%0)\n"       // src0 = res
-
-		    "addl $8, %0\n"
-		    "addl $8, %1\n"
-
-		    "decl %2\n"
-		    "jnz 0b\n"
-		    "pop %2\n"
-		    "emms\n"
-			: "+r" (src0), "+r" (src1)
-			: "r" (count), "r" (qRGB_COLOR_MASK)
-		    );
+    switch (colorDepth) {
+        case 32:
+#ifdef USE_SSE2
+            MotionBlurIB32_SSE2(srcPtr, hist, srcPitch, width, starty, height);
 #else
-		__asm {
-			movq mm7, qword ptr [qRGB_COLOR_MASK];
-			mov	 eax, src0;
-			mov	 ebx, src1;
-			mov	 edi, count;
-label0:
-			movq mm0, qword ptr [eax]; // src0
-			movq	   mm1, qword ptr [ebx]; // src1
-			movq qword ptr [ebx], mm0; // src1 = src0
-			pand	   mm0, mm7; // color & colorMask
-			pand	   mm1, mm7; // src1 & colorMask
-			psrlw	   mm0, 1; // (color & colorMask) >> 1 (E)
-			psrlw	   mm1, 1; // (src & colorMask) >> 1 (F)
-			paddw	   mm0, mm1; // E+F
-
-			movq qword ptr [eax], mm0; // src0 = res
-
-			add eax, 8;
-			add ebx, 8;
-
-			dec edi;
-			jnz label0;
-			mov src0, eax;
-			mov src1, ebx;
-			emms;
-		}
+            MotionBlurIB32_Scalar(srcPtr, hist, srcPitch, width, starty, height);
 #endif
-		src0 += 2;
-		src1 += 2;
-	}
-}
+            break;
 
-#endif
-
-void MotionBlurIB(u8 *srcPtr, u32 srcPitch, int width, int height)
-{
-	if (frm1 == NULL)
-	{
-		Init();
-	}
-
-#ifdef MMX
-	if (cpu_mmx)
-	{
-		MotionBlurIB_MMX(srcPtr, srcPitch, width, height);
-		return;
-	}
-#endif
-
-	u16 colorMask = ~RGB_LOW_BITS_MASK;
-
-	u16 *src0 = (u16 *)srcPtr;
-	u16 *src1 = (u16 *)frm1;
-
-	int sPitch = srcPitch >> 1;
-
-	int pos = 0;
-	for (int j = 0; j < height; j++)
-		for (int i = 0; i < sPitch; i++)
-		{
-			u16 color = src0[pos];
-			src0[pos] =
-			    (((color & colorMask) >> 1) + ((src1[pos] & colorMask) >> 1));
-			src1[pos] = color;
-			pos++;
-		}
-}
-
-#ifdef MMX
-static void MotionBlurIB32_MMX(u8 *srcPtr, u32 srcPitch, int width, int height)
-{
-	u32 *src0 = (u32 *)srcPtr;
-	u32 *src1 = (u32 *)frm1;
-
-	int count = width >> 1;
-
-	for (int i = 0; i < height; i++)
-	{
-#ifdef __GNUC__
-		asm volatile (
-		    "push %2\n"
-		    "movq 0(%3), %%mm7\n"       // colorMask
-		    "0:\n"
-		    "movq 0(%0), %%mm0\n"       // src0
-		    "movq 0(%1), %%mm1\n"       // src1
-		    "movq %%mm0, 0(%1)\n"       // src1 = src0
-		    "pand %%mm7, %%mm0\n"       // color & colorMask
-		    "pand %%mm7, %%mm1\n"       // src1 & colorMask
-		    "psrld $1, %%mm0\n"       // (color & colorMask) >> 1 (E)
-		    "psrld $1, %%mm1\n"       // (src & colorMask) >> 1 (F)
-		    "paddd %%mm1, %%mm0\n"       // E+F
-
-		    "movq %%mm0, 0(%0)\n"       // src0 = res
-
-		    "addl $8, %0\n"
-		    "addl $8, %1\n"
-
-		    "decl %2\n"
-		    "jnz 0b\n"
-		    "pop %2\n"
-		    "emms\n"
-			: "+r" (src0), "+r" (src1)
-			: "r" (count), "r" (qRGB_COLOR_MASK)
-		    );
+        case 16:
+#ifdef USE_SSE2
+            MotionBlurIB16_SSE2(srcPtr, hist, srcPitch, width, starty, height);
 #else
-		__asm {
-			movq mm7, qword ptr [qRGB_COLOR_MASK];
-			mov	 eax, src0;
-			mov	 ebx, src1;
-			mov	 edi, count;
-label0:
-			movq mm0, qword ptr [eax]; // src0
-			movq	   mm1, qword ptr [ebx]; // src1
-			movq qword ptr [ebx], mm0; // src1 = src0
-			pand	   mm0, mm7; // color & colorMask
-			pand	   mm1, mm7; // src1 & colorMask
-			psrld	   mm0, 1; // (color & colorMask) >> 1 (E)
-			psrld	   mm1, 1; // (src & colorMask) >> 1 (F)
-			paddd	   mm0, mm1; // E+F
-
-			movq qword ptr [eax], mm0; // src0 = res
-
-			add eax, 8;
-			add ebx, 8;
-
-			dec edi;
-			jnz label0;
-			mov src0, eax;
-			mov src1, ebx;
-			emms;
-		}
+            MotionBlurIB16_Scalar(srcPtr, hist, srcPitch, width, starty, height);
 #endif
-		src0++;
-		src1++;
-	}
+            break;
+
+        case 24:
+            MotionBlurIB24_Scalar(srcPtr, hist, srcPitch, width, starty, height);
+            break;
+
+        case 8:
+            MotionBlurIB8_Scalar(srcPtr, hist, srcPitch, width, starty, height);
+            break;
+    }
 }
 
-#endif
+// ============================================================================
+// Legacy API (for SDL/libretro ports - single-threaded)
+// ============================================================================
 
-void MotionBlurIB32(u8 *srcPtr, u32 srcPitch, int width, int height)
-{
-	if (frm1 == NULL)
-	{
-		Init();
-	}
+static uint8_t* frm1 = nullptr;
+static uint8_t* frm2 = nullptr;
+static uint8_t* frm3 = nullptr;
 
-#ifdef MMX
-	if (cpu_mmx)
-	{
-		MotionBlurIB32_MMX(srcPtr, srcPitch, width, height);
-		return;
-	}
-#endif
-
-	u32 *src0 = (u32 *)srcPtr;
-	u32 *src1 = (u32 *)frm1;
-
-	u32 colorMask = 0xfefefe;
-
-	int sPitch = srcPitch >> 2;
-	int pos	   = 0;
-
-	for (int j = 0; j < height; j++)
-		for (int i = 0; i < sPitch; i++)
-		{
-			u32 color = src0[pos];
-			src0[pos] = (((color & colorMask) >> 1) +
-			             ((src1[pos] & colorMask) >> 1));
-			src1[pos] = color;
-			pos++;
-		}
+void InterframeFilterInit() {
+    frm1 = static_cast<uint8_t*>(calloc(322 * 242, 4));
+    frm2 = static_cast<uint8_t*>(calloc(322 * 242, 4));
+    frm3 = static_cast<uint8_t*>(calloc(322 * 242, 4));
 }
 
-static int count = 0;
+void InterframeCleanup() {
+    if (frm1) free(frm1);
+    if (frm2 && (frm1 != frm2)) free(frm2);
+    if (frm3 && (frm1 != frm3) && (frm2 != frm3)) free(frm3);
+    frm1 = frm2 = frm3 = nullptr;
 
-void InterlaceIB(u8 *srcPtr, u32 srcPitch, int width, int height)
-{
-	if (frm1 == NULL)
-	{
-		Init();
-	}
-
-	u16 colorMask = ~RGB_LOW_BITS_MASK;
-
-	u16 *src0 = (u16 *)srcPtr;
-	u16 *src1 = (u16 *)frm1;
-
-	int sPitch = srcPitch >> 1;
-
-	int pos = 0;
-	for (int j = 0; j < height; j++)
-	{
-		bool render = count ? (j & 1) != 0 : (j & 1) == 0;
-		if (render)
-		{
-			for (int i = 0; i < sPitch; i++)
-			{
-				u16 color = src0[pos];
-				src0[pos] =
-				    (((color & colorMask) >> 1) + ((((src1[pos] & colorMask) >> 1) & colorMask) >> 1));
-				src1[pos] = color;
-				pos++;
-			}
-		}
-		else
-		{
-			for (int i = 0; i < sPitch; i++)
-			{
-				u16 color = src0[pos];
-				src0[pos] =
-				    (((((color & colorMask) >> 1) & colorMask) >> 1) + ((src1[pos] & colorMask) >> 1));
-				src1[pos] = color;
-				pos++;
-			}
-		}
-	}
-	count = count ^ 1;
+    // Also cleanup the manager
+    InterframeManager::Instance().Cleanup();
 }
 
+void InterframeClear() {
+    // Clear legacy buffers (used by SDL/libretro ports)
+    if (frm1) {
+        memset(frm1, 0, 322 * 242 * 4);
+    }
+    if (frm2 && frm2 != frm1) {
+        memset(frm2, 0, 322 * 242 * 4);
+    }
+    if (frm3 && frm3 != frm1 && frm3 != frm2) {
+        memset(frm3, 0, 322 * 242 * 4);
+    }
+
+    // Clear manager buffers
+    InterframeManager::Instance().Clear();
+}
+
+// Legacy SmartIB functions
+void SmartIB(uint8_t* srcPtr, uint32_t srcPitch, int width, int starty, int height) {
+    if (frm1 == nullptr) InterframeFilterInit();
+    SmartIB16_Scalar(srcPtr, frm1, frm2, frm3, srcPitch, width, starty, height);
+    uint8_t* temp = frm1;
+    frm1 = frm3;
+    frm3 = frm2;
+    frm2 = temp;
+}
+
+void SmartIB(uint8_t* srcPtr, uint32_t srcPitch, int width, int height) {
+    SmartIB(srcPtr, srcPitch, width, 0, height);
+}
+
+void SmartIB8(uint8_t* srcPtr, uint32_t srcPitch, int width, int starty, int height) {
+    if (frm1 == nullptr) InterframeFilterInit();
+    SmartIB8_Scalar(srcPtr, frm1, frm2, frm3, srcPitch, width, starty, height);
+    uint8_t* temp = frm1;
+    frm1 = frm3;
+    frm3 = frm2;
+    frm2 = temp;
+}
+
+void SmartIB8(uint8_t* srcPtr, uint32_t srcPitch, int width, int height) {
+    SmartIB8(srcPtr, srcPitch, width, 0, height);
+}
+
+void SmartIB24(uint8_t* srcPtr, uint32_t srcPitch, int width, int starty, int height) {
+    if (frm1 == nullptr) InterframeFilterInit();
+    SmartIB24_Scalar(srcPtr, frm1, frm2, frm3, srcPitch, width, starty, height);
+    uint8_t* temp = frm1;
+    frm1 = frm3;
+    frm3 = frm2;
+    frm2 = temp;
+}
+
+void SmartIB24(uint8_t* srcPtr, uint32_t srcPitch, int width, int height) {
+    SmartIB24(srcPtr, srcPitch, width, 0, height);
+}
+
+void SmartIB32(uint8_t* srcPtr, uint32_t srcPitch, int width, int starty, int height) {
+    if (frm1 == nullptr) InterframeFilterInit();
+    SmartIB32_Scalar(srcPtr, frm1, frm2, frm3, srcPitch, width, starty, height);
+    uint8_t* temp = frm1;
+    frm1 = frm3;
+    frm3 = frm2;
+    frm2 = temp;
+}
+
+void SmartIB32(uint8_t* srcPtr, uint32_t srcPitch, int width, int height) {
+    SmartIB32(srcPtr, srcPitch, width, 0, height);
+}
+
+// Legacy MotionBlurIB functions
+void MotionBlurIB(uint8_t* srcPtr, uint32_t srcPitch, int width, int starty, int height) {
+    if (frm1 == nullptr) InterframeFilterInit();
+    MotionBlurIB16_Scalar(srcPtr, frm1, srcPitch, width, starty, height);
+}
+
+void MotionBlurIB(uint8_t* srcPtr, uint32_t srcPitch, int width, int height) {
+    MotionBlurIB(srcPtr, srcPitch, width, 0, height);
+}
+
+void MotionBlurIB8(uint8_t* srcPtr, uint32_t srcPitch, int width, int starty, int height) {
+    if (frm1 == nullptr) InterframeFilterInit();
+    MotionBlurIB8_Scalar(srcPtr, frm1, srcPitch, width, starty, height);
+}
+
+void MotionBlurIB8(uint8_t* srcPtr, uint32_t srcPitch, int width, int height) {
+    MotionBlurIB8(srcPtr, srcPitch, width, 0, height);
+}
+
+void MotionBlurIB24(uint8_t* srcPtr, uint32_t srcPitch, int width, int starty, int height) {
+    if (frm1 == nullptr) InterframeFilterInit();
+    MotionBlurIB24_Scalar(srcPtr, frm1, srcPitch, width, starty, height);
+}
+
+void MotionBlurIB24(uint8_t* srcPtr, uint32_t srcPitch, int width, int height) {
+    MotionBlurIB24(srcPtr, srcPitch, width, 0, height);
+}
+
+void MotionBlurIB32(uint8_t* srcPtr, uint32_t srcPitch, int width, int starty, int height) {
+    if (frm1 == nullptr) InterframeFilterInit();
+    MotionBlurIB32_Scalar(srcPtr, frm1, srcPitch, width, starty, height);
+}
+
+void MotionBlurIB32(uint8_t* srcPtr, uint32_t srcPitch, int width, int height) {
+    MotionBlurIB32(srcPtr, srcPitch, width, 0, height);
+}

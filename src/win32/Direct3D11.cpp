@@ -39,12 +39,6 @@
 #include "../common/Text.h"
 #include "../version.h"
 
-#ifdef MMX
-extern "C" bool cpu_mmx;
-
-extern bool detectMMX();
-#endif
-
 extern int Init_2xSaI(u32);
 extern void directXMessage(const char *);
 extern void winlog(const char *, ...);
@@ -943,13 +937,6 @@ bool Direct3D11Display::initialize()
 		Init_2xSaI(32);
 	}
 	theApp.fsColorDepth = systemColorDepth;
-
-#ifdef MMX
-	if (!theApp.disableMMX)
-		cpu_mmx = theApp.detectMMX();
-	else
-		cpu_mmx = 0;
-#endif
 
 	if (!createDevice())
 	{

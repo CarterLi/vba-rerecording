@@ -180,8 +180,8 @@ target_vendor = @target_vendor@
 top_builddir = @top_builddir@
 top_srcdir = @top_srcdir@
 EXTRA_DIST = \
-	gba.sln	\
-	GBA.vcproj	\
+	VBA_Latest.sln	\
+	VBA_Latest.vcxproj	\
 	lib		\
 	include	\
 	directx

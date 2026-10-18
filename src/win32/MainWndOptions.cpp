@@ -1999,20 +1999,6 @@ void MainWnd::OnUpdateOptionsFilterIFB(CCmdUI *pCmdUI)
 	}
 }
 
-void MainWnd::OnOptionsFilterDisablemmx()
-{
-	theApp.disableMMX = !theApp.disableMMX;
-	if (!theApp.disableMMX)
-		cpu_mmx = theApp.detectMMX();
-	else
-		cpu_mmx = 0;
-}
-
-void MainWnd::OnUpdateOptionsFilterDisablemmx(CCmdUI*pCmdUI)
-{
-	pCmdUI->SetCheck(theApp.disableMMX);
-}
-
 BOOL MainWnd::OnOptionsVideoLcdFilter(UINT nID)
 {
 	switch (nID)

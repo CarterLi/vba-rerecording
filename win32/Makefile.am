@@ -1,6 +1,6 @@
 EXTRA_DIST = \
-	gba.sln	\
-	GBA.vcproj	\
+	VBA_Latest.sln	\
+	VBA_Latest.vcxproj	\
 	lib		\
 	include	\
 	directx

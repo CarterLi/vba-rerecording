@@ -15,12 +15,6 @@
 #include "../common/Text.h"
 #include "../version.h"
 
-#ifdef MMX
-extern "C" bool cpu_mmx;
-
-extern bool detectMMX();
-#endif
-
 extern int Init_2xSaI(u32);
 extern void directXMessage(const char *);
 extern void winlog(const char *, ...);
@@ -286,13 +280,6 @@ bool Direct3DDisplay::initialize()
 		return false;
 	}
 	theApp.fsColorDepth = systemColorDepth;
-
-#ifdef MMX
-	if (!theApp.disableMMX)
-		cpu_mmx = theApp.detectMMX();
-	else
-		cpu_mmx = 0;
-#endif
 
 	screenFormat = mode.Format;
 
@@ -667,59 +654,20 @@ void Direct3DDisplay::render()
 				int copyX, copyY;
 				systemGetLCDResolution(copyX, copyY);
 
-				// MMX doesn't seem to be faster to copy the data
-				__asm {
-					mov eax, copyX;
-					mov ebx, copyY;
+				// Copy the frame straight into the locked surface.  The source buffer
+				// carries a one row border and, except at 24 bpp, two extra pixels
+				// per row, so skip the first row and walk the real stride.
+				const int bytesPerPixel = systemColorDepth / 8;
+				const int rowBytes = copyX * bytesPerPixel;
+				const u8 *src = data + dataPitch;
+				u8 *dst = (u8 *)locked.pBits;
+				const int dstPitch = locked.Pitch;
 
-					mov esi, data;
-					mov edi, locked.pBits;
-					mov edx, locked.Pitch;
-					cmp systemColorDepth, 16;
-					jnz gbaOtherColor;
-					sub edx, eax;
-					sub edx, eax;
-					lea esi, [esi+2*eax+4];
-					shr eax, 1;
-gbaLoop16bit:
-					mov ecx, eax;
-					repz movsd;
-					inc  esi;
-					inc  esi;
-					inc  esi;
-					inc  esi;
-					add  edi, edx;
-					dec  ebx;
-					jnz  gbaLoop16bit;
-					jmp  gbaLoopEnd;
-gbaOtherColor:
-					cmp systemColorDepth, 32;
-					jnz gbaOtherColor2;
-
-					sub edx, eax;
-					sub edx, eax;
-					sub edx, eax;
-					sub edx, eax;
-					lea esi, [esi+4*eax+4];
-gbaLoop32bit:
-					mov ecx, eax;
-					repz movsd;
-					add  esi, 4;
-					add  edi, edx;
-					dec  ebx;
-					jnz  gbaLoop32bit;
-					jmp  gbaLoopEnd;
-gbaOtherColor2:
-					lea eax, [eax+2*eax];
-					sub edx, eax;
-gbaLoop24bit:
-					mov ecx, eax;
-					shr  ecx, 2;
-					repz movsd;
-					add  edi, edx;
-					dec  ebx;
-					jnz  gbaLoop24bit;
-gbaLoopEnd:
+				for (int y = 0; y < copyY; ++y)
+				{
+					memcpy(dst, src, rowBytes);
+					src += dataPitch;
+					dst += dstPitch;
 				}
 			}
 

@@ -1668,20 +1668,6 @@
 				</widget>
 			      </child>
 
-			      <child>
-				<widget class="GtkSeparatorMenuItem" id="separator17">
-				  <property name="visible">True</property>
-				</widget>
-			      </child>
-
-			      <child>
-				<widget class="GtkCheckMenuItem" id="FilterDisableMmx">
-				  <property name="visible">True</property>
-				  <property name="label" translatable="yes">_Disable MMX</property>
-				  <property name="use_underline">True</property>
-				  <property name="active">False</property>
-				</widget>
-			      </child>
 			    </widget>
 			  </child>
 			</widget>

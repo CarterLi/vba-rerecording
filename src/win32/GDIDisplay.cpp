@@ -148,13 +148,6 @@ bool GDIDisplay::initialize()
 	theApp.fsColorDepth = systemColorDepth;
 	if (systemColorDepth == 24)
 		theApp.filterFunction = NULL;
-#ifdef MMX
-	if (!theApp.disableMMX)
-		cpu_mmx = theApp.detectMMX();
-	else
-		cpu_mmx = 0;
-#endif
-
 	systemUpdateColorMaps();
 
 	theApp.updateFilter();

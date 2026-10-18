@@ -15,7 +15,6 @@
 # ---------------------------------------------------------------------------
 # Build output and intermediate directories (see OutDir / IntDir in the vcxproj)
 # ---------------------------------------------------------------------------
-win32/.VS2010/
 win32/x64/
 win32/__bins/
 win32/__V72Xbins/
@@ -51,8 +50,10 @@ win32/userconfig/svnrev.h
 # Local workspace data (agent scratch space, never part of the build)
 # ---------------------------------------------------------------------------
 .workbuddy-ai/
+.workbuddy
 
 # NOTE: win32/lib/*.lib (lua51.lib), win32/directx/*.lib, win32/nasm.exe and
 # win32/defaultconfig/*.exe are vendored third-party binaries and stay tracked.
 
-.VS2010
+.VS_Latest
+*.log

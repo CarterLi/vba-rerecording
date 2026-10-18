@@ -64,10 +64,6 @@ bool flagHideMenu	= false;
 int	 quitAfterTime	= -1;
 int	 pauseAfterTime = -1;
 
-#ifdef MMX
-extern "C" bool cpu_mmx;
-#endif
-
 // nowhere good to put them to
 
 void DrawTextMessages(u8 *dest, int pitch, int left, int bottom)
@@ -372,7 +368,6 @@ VBA::VBA() : emulator(::theEmulator)
 	winMuteForNow		= false;
 	winGbPrinterEnabled		= false;
 	threadPriority			= 2;
-	disableMMX				= false;
 	languageOption			= 0;
 	languageModule			= NULL;
 	languageName			= "";
@@ -1693,50 +1688,6 @@ void VBA::updatePriority()
 	}
 }
 
-#ifdef MMX
-bool VBA::detectMMX()
-{
-	bool support = false;
-	char brand[13];
-
-	// check for Intel chip
-	__try {
-		__asm {
-			mov eax, 0;
-			cpuid;
-			mov [dword ptr brand + 0], ebx;
-			mov [dword ptr brand + 4], edx;
-			mov [dword ptr brand + 8], ecx;
-		}
-	}
-	__except(EXCEPTION_EXECUTE_HANDLER) {
-		if (_exception_code() == STATUS_ILLEGAL_INSTRUCTION)
-		{
-			return false;
-		}
-		return false;
-	}
-	// Check for Intel or AMD CPUs
-	if (strncmp(brand, "GenuineIntel", 12))
-	{
-		if (strncmp(brand, "AuthenticAMD", 12))
-		{
-			return false;
-		}
-	}
-
-	__asm {
-		mov eax, 1;
-		cpuid;
-		test edx, 00800000h;
-		jz	 NotFound;
-		mov [support], 1;
-NotFound:
-	}
-	return support;
-}
-
-#endif
 
 void VBA::winSetLanguageOption(int option, bool force)
 {
@@ -1980,7 +1931,6 @@ void VBA::loadSettings()
 	lcdFilterColorMode = (int)regQueryDwordValue("lcdFilterColorMode", 0);
 	if (lcdFilterColorMode < 0 || lcdFilterColorMode > 2)
 		lcdFilterColorMode = 0;
-	disableMMX = regQueryDwordValue("disableMMX", 0) ? true : false;
 	ifbType	   = regQueryDwordValue("ifbType", 0);
 	if (ifbType < 0 || ifbType > 2)
 		ifbType = 0;
@@ -2241,7 +2191,6 @@ void VBA::saveSettings()
 	regSetDwordValue("lcdFilterGbc", lcdFilterGbc);
 	regSetDwordValue("lcdFilterColorMode", lcdFilterColorMode);
 	regSetDwordValue("ifbType", ifbType);
-	regSetDwordValue("disableMMX", disableMMX);
 
 	// frame skipping
 	regSetDwordValue("frameSkip", frameSkip);

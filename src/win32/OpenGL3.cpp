@@ -43,12 +43,6 @@
 // unmodified AMD headers.
 #include "upscalers/UpscalerFsr.h"
 
-#ifdef MMX
-extern "C" bool cpu_mmx;
-
-extern bool detectMMX();
-#endif
-
 extern int systemSpeed;
 extern int Init_2xSaI(u32);
 extern void winlog(const char *, ...);
@@ -1062,13 +1056,6 @@ bool OpenGL33Display::initialize()
 	theApp.fsColorDepth = 32;
 
 	Init_2xSaI(32);
-#ifdef MMX
-	if (!theApp.disableMMX)
-		cpu_mmx = theApp.detectMMX();
-	else
-		cpu_mmx = 0;
-#endif
-
 	if (theApp.ddrawDebug)
 	{
 		winlog("R shift: %d\n", systemRedShift);

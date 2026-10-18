@@ -1397,7 +1397,6 @@ Optional Features:
 Optional Packages:
   --with-PACKAGE[=ARG]    use PACKAGE [ARG=yes]
   --without-PACKAGE       do not use PACKAGE (same as --with-PACKAGE=no)
-  --with-mmx              use MMX (default is yes on x86 targets)
   --with-x                use the X Window System
   --with-sdl-prefix=PFX   Prefix where SDL is installed (optional)
   --with-sdl-exec-prefix=PFX Exec prefix where SDL is installed (optional)
@@ -2377,11 +2376,9 @@ test -n "$target_alias" &&
 case "$target" in
   i?86-*-*)
     VBA_USE_C_CORE=no
-    VBA_USE_MMX=yes
     ;;
   *)
     VBA_USE_C_CORE=yes
-    VBA_USE_MMX=no
     ;;
 esac
 
@@ -5770,13 +5767,6 @@ if test "x$enable_profiling" = xyes; then
   VBA_LIBS="$VBA_LIBS ../prof/libprof.a"
 fi
 
-if test "x$with_mmx" = xyes; then
-  if test "x$NASM" = x; then
-    as_fn_error $? "*** Couldn't find nasm program." "$LINENO" 5
-  fi
-  CXXFLAGS="$CXXFLAGS -DMMX"
-  VBA_LIBS="$VBA_LIBS ../filters/lib386.a"
-fi
 
 if test "x$enable_sdl" = xyes || test "x$enable_gtk" = xyes; then
   SDL_VERSION=1.2.2

@@ -52,9 +52,6 @@ extern void remoteOutput(char *, u32);
 extern void remoteSetProtocol(int);
 extern void remoteSetPort(int);
 
-#ifdef MMX
-extern "C" bool cpu_mmx;
-#endif // MMX
 
 namespace VBA
 {
@@ -724,18 +721,6 @@ Window::Window(GtkWindow * _pstWindow, const Glib::RefPtr<Xml> & _poXml) :
                                       poCMI, astFilter2x[i].m_eFilter2x));
   }
 
-  poCMI = dynamic_cast<Gtk::CheckMenuItem *>(_poXml->get_widget("FilterDisableMmx"));
-#ifdef MMX
-  poCMI->set_active(m_poDisplayConfig->oGetKey<bool>("filter_disable_mmx"));
-  vOnDisableMMXToggled(poCMI);
-  poCMI->signal_toggled().connect(SigC::bind<Gtk::CheckMenuItem *>(
-                                    SigC::slot(*this, &Window::vOnDisableMMXToggled),
-                                    poCMI));
-#else // ! MMX
-  poCMI->set_active();
-  poCMI->set_sensitive(false);
-#endif // ! MMX
-
   // Interframe blending menu
   //
   struct
@@ -1011,9 +996,6 @@ void Window::vInitConfig()
   m_poDisplayConfig->vSetKey("pause_when_inactive", true           );
   m_poDisplayConfig->vSetKey("filter2x",            FilterNone     );
   m_poDisplayConfig->vSetKey("filterIB",            FilterIBNone   );
-#ifdef MMX
-  m_poDisplayConfig->vSetKey("filter_disable_mmx",  false          );
-#endif // MMX
 
   // Sound section
   //

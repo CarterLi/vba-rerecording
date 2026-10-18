@@ -2012,8 +2012,6 @@ BEGIN
             BEGIN
                 MENUITEM "xBRZ 5x",                     ID_OPTIONS_FILTER_XBRZ5X
             END
-            MENUITEM SEPARATOR
-            MENUITEM "&Disable MMX Optimizations",  ID_OPTIONS_FILTER_DISABLEMMX
         END
         POPUP "LCD Color &Filter"
         BEGIN

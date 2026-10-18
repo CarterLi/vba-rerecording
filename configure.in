@@ -8,11 +8,9 @@ AC_CANONICAL_TARGET
 case "$target" in
   i?86-*-*)
     VBA_USE_C_CORE=no
-    VBA_USE_MMX=yes
     ;;
   *)
     VBA_USE_C_CORE=yes
-    VBA_USE_MMX=no
     ;;
 esac
 
@@ -25,10 +23,6 @@ AC_ARG_ENABLE(c-core,
 AC_ARG_ENABLE(profiling,
   AC_HELP_STRING([--enable-profiling],[enable profiling (default is yes)]),
   , enable_profiling=yes)
-
-AC_ARG_WITH(mmx,
-  AC_HELP_STRING([--with-mmx],[use MMX (default is yes on x86 targets)]),
-  , with_mmx=$VBA_USE_MMX)
 
 AC_ARG_ENABLE(sdl,
   AC_HELP_STRING([--enable-sdl],[build the SDL interface (default is yes)]),
@@ -113,14 +107,6 @@ if test "x$enable_profiling" = xyes; then
   CXXFLAGS="$CXXFLAGS -DPROFILING"
   VBA_SRC_EXTRA="$VBA_SRC_EXTRA prof"
   VBA_LIBS="$VBA_LIBS ../prof/libprof.a"
-fi
-
-if test "x$with_mmx" = xyes; then
-  if test "x$NASM" = x; then
-    AC_MSG_ERROR([*** Couldn't find nasm program.])
-  fi
-  CXXFLAGS="$CXXFLAGS -DMMX"
-  VBA_LIBS="$VBA_LIBS ../filters/lib386.a"
 fi
 
 if test "x$enable_sdl" = xyes || test "x$enable_gtk" = xyes; then

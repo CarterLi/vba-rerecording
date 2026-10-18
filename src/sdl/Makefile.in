@@ -310,7 +310,7 @@ TestEmu$(EXEEXT): $(TestEmu_OBJECTS) $(TestEmu_DEPENDENCIES)
 	$(CXXLINK) $(TestEmu_OBJECTS) $(TestEmu_LDADD) $(LIBS)
 	
 OBJECTS_ = \
-2xSaImmx.o  elf.o         GBASound.o   gbSound.o     Mode2.o       RTC.o \
+elf.o       GBASound.o   gbSound.o     Mode2.o       RTC.o
 2xSaI.o     gbCheats.o   getopt1.o     Mode3.o       scanline.o expr.o \
 admame.o    gbDis.o      getopt.o      Mode4.o       SDL.o expr-lex.o \
 agbprint.o  gbGfx.o      hq2x.o        Mode5.o       simple2x.o exprNode.o \

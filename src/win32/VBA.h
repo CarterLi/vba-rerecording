@@ -212,7 +212,6 @@ public:
 	bool		 useOldSync;
 	bool		 winGbPrinterEnabled;
 	int			 threadPriority;
-	bool		 disableMMX;
 	int			 languageOption;
 	CString		 languageName;
 	HINSTANCE	 languageModule;
@@ -309,9 +308,6 @@ public:
 public:
 	HINSTANCE winLoadLanguage(const char *name);
 	void winSetLanguageOption(int option, bool force);
-#ifdef MMX
-	bool detectMMX();
-#endif
 	void updatePriority();
 	void shutdownDisplay();
 	void winCheckFullscreen();
@@ -334,10 +330,6 @@ public:
 };
 
 extern VBA theApp;
-
-#ifdef MMX
-extern "C" bool cpu_mmx;
-#endif
 
 extern void DrawTextMessages(u8 *dest, int pitch, int left, int bottom);
 

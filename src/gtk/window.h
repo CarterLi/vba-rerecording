@@ -181,9 +181,6 @@ protected:
   virtual void vOnEmulatorTypeToggled(Gtk::CheckMenuItem * _poCMI, int _iEmulatorType);
   virtual void vOnFilter2xToggled(Gtk::CheckMenuItem * _poCMI, int _iFilter2x);
   virtual void vOnFilterIBToggled(Gtk::CheckMenuItem * _poCMI, int _iFilterIB);
-#ifdef MMX
-  virtual void vOnDisableMMXToggled(Gtk::CheckMenuItem * _poCMI);
-#endif // MMX
   virtual void vOnJoypadConfigure(int _iJoypad);
   virtual void vOnJoypadToggled(Gtk::CheckMenuItem * _poCMI, int _iJoypad);
   virtual void vOnAutofireToggled(Gtk::CheckMenuItem * _poCMI, u32 _uiKeyFlag);

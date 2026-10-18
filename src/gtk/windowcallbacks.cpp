@@ -52,9 +52,6 @@ extern void remoteOutput(char *, u32);
 extern void remoteSetProtocol(int);
 extern void remoteSetPort(int);
 
-#ifdef MMX
-extern "C" bool cpu_mmx;
-#endif // MMX
 
 namespace VBA
 {
@@ -1162,14 +1159,6 @@ void Window::vOnFilterIBToggled(Gtk::CheckMenuItem * _poCMI, int _iFilterIB)
   }
   m_poDisplayConfig->vSetKey("filterIB", _iFilterIB);
 }
-
-#ifdef MMX
-void Window::vOnDisableMMXToggled(Gtk::CheckMenuItem * _poCMI)
-{
-  cpu_mmx = ! _poCMI->get_active();
-  m_poDisplayConfig->vSetKey("filter_disable_mmx", _poCMI->get_active());
-}
-#endif // MMX
 
 void Window::vOnJoypadConfigure(int _iJoypad)
 {
