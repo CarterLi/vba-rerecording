@@ -29,6 +29,10 @@
 #include "../common/movie.h"
 #include "../version.h"
 
+// Defined in Direct3D11.cpp: false when D3D11.DLL or D3DCOMPILER_47.DLL is
+// missing, in which case the renderer is not offered at all.
+extern bool direct3D11Available();
+
 #define VBA_CONFIRM_MODE WM_APP + 100
 
 void MainWnd::OnOptionsFrameskipThrottleNothrottle()
@@ -551,6 +555,9 @@ void MainWnd::OnOptionsVideoRendermethodDirect3d11()
 
 void MainWnd::OnUpdateOptionsVideoRendermethodDirect3d11(CCmdUI*pCmdUI)
 {
+	// D3D11.DLL and D3DCOMPILER_47.DLL are not part of Windows 7, so the
+	// renderer is only offered where both of them can be loaded.
+	pCmdUI->Enable(direct3D11Available());
 	pCmdUI->SetCheck(theApp.renderMethod == DIRECT_3D11);
 }
 
@@ -1299,7 +1306,7 @@ void MainWnd::OnUpdateOptionsSound44khz(CCmdUI*pCmdUI)
 }
 
 // Re-creates the sound backend so a changed soundApi takes effect immediately.
-// systemSoundInit() silently degrades to DirectSound if XAudio2 cannot start.
+// systemSoundInit() falls back to DirectSound if XAudio2 cannot start.
 static void applySoundApi()
 {
 	if (!soundOffFlag)

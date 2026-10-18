@@ -11,9 +11,9 @@
 
 #include "stdafx.h"
 
-#pragma comment( lib, "d3d11" )
-#pragma comment( lib, "dxgi" )
-#pragma comment( lib, "d3dcompiler" )
+// Neither d3d11.dll nor d3dcompiler_47.dll is linked, they are loaded by hand,
+// see direct3D11Available() below.  Nothing from dxgi.dll is called either: the
+// factory comes from the device and the swap chain from that.
 
 #include <d3d11.h>
 #include <dxgi.h>
@@ -41,6 +41,57 @@ extern bool detectMMX();
 extern int Init_2xSaI(u32);
 extern void directXMessage(const char *);
 extern void winlog(const char *, ...);
+
+// d3d11.dll and d3dcompiler_47.dll are not part of Windows 7, and an executable
+// that imports them cannot start there at all, even when it never touches the
+// Direct3D 11 renderer.  They are therefore resolved on demand, and
+// direct3D11Available() lets the render method menu leave the renderer out when
+// either of them is missing.  The DLLs stay loaded for the lifetime of the
+// process so the entry points stay valid across display recreation.
+typedef HRESULT (WINAPI *PFN_D3D11CreateDeviceAndSwapChain)(
+    IDXGIAdapter *, D3D_DRIVER_TYPE, HMODULE, UINT, CONST D3D_FEATURE_LEVEL *, UINT,
+    UINT, CONST DXGI_SWAP_CHAIN_DESC *, IDXGISwapChain **, ID3D11Device **,
+    D3D_FEATURE_LEVEL *, ID3D11DeviceContext **);
+typedef HRESULT (WINAPI *PFN_D3DCompile)(
+    LPCVOID, SIZE_T, LPCSTR, CONST D3D_SHADER_MACRO *, ID3DInclude *,
+    LPCSTR, LPCSTR, UINT, UINT, ID3DBlob **, ID3DBlob **);
+
+static HINSTANCE d3d11DLL       = NULL;
+static HINSTANCE d3dcompilerDLL = NULL;
+static PFN_D3D11CreateDeviceAndSwapChain d3d11CreateDeviceAndSwapChain = NULL;
+static PFN_D3DCompile d3dCompile = NULL;
+static bool      d3d11Probed    = false;
+
+// Resolves the DLLs once.  Silent, because the render method menu uses the
+// outcome and a message box per menu would be absurd.
+static void loadD3D11Libraries()
+{
+	if (d3d11Probed)
+		return;
+
+	d3d11Probed = true;
+
+	d3d11DLL = LoadLibrary("D3D11.DLL");
+	if (d3d11DLL != NULL)
+		d3d11CreateDeviceAndSwapChain = (PFN_D3D11CreateDeviceAndSwapChain)
+		    GetProcAddress(d3d11DLL, "D3D11CreateDeviceAndSwapChain");
+
+	d3dcompilerDLL = LoadLibrary("D3DCOMPILER_47.DLL");
+	if (d3dcompilerDLL != NULL)
+		d3dCompile = (PFN_D3DCompile)GetProcAddress(d3dcompilerDLL, "D3DCompile");
+
+	if (d3d11CreateDeviceAndSwapChain == NULL)
+		winlog("D3D11: D3D11.DLL is not available\n");
+	if (d3dCompile == NULL)
+		winlog("D3D11: D3DCOMPILER_47.DLL is not available\n");
+}
+
+bool direct3D11Available()
+{
+	loadD3D11Libraries();
+
+	return d3d11CreateDeviceAndSwapChain != NULL && d3dCompile != NULL;
+}
 
 struct D3D11VERTEX
 {
@@ -371,6 +422,9 @@ void Direct3D11Display::releaseFrameTexture()
 
 bool Direct3D11Display::createDevice()
 {
+	if (!direct3D11Available())
+		return false;
+
 	DXGI_SWAP_CHAIN_DESC sd;
 	ZeroMemory(&sd, sizeof(sd));
 	sd.BufferCount                        = 1;
@@ -394,7 +448,7 @@ bool Direct3D11Display::createDevice()
 	D3D_FEATURE_LEVEL levels[] = { D3D_FEATURE_LEVEL_11_0, D3D_FEATURE_LEVEL_10_1, D3D_FEATURE_LEVEL_10_0 };
 	D3D_FEATURE_LEVEL obtained;
 
-	HRESULT hr = D3D11CreateDeviceAndSwapChain(NULL,
+	HRESULT hr = d3d11CreateDeviceAndSwapChain(NULL,
 	                                           D3D_DRIVER_TYPE_HARDWARE,
 	                                           NULL,
 	                                           flags,
@@ -434,14 +488,14 @@ bool Direct3D11Display::createShaders()
 	ID3DBlob *psBlob = NULL;
 	ID3DBlob *error = NULL;
 
-	if (FAILED(D3DCompile(g_quadShader, strlen(g_quadShader), "quadVS", NULL, NULL,
+	if (FAILED(d3dCompile(g_quadShader, strlen(g_quadShader), "quadVS", NULL, NULL,
 	                      "VSMain", "vs_4_0", 0, 0, &vsBlob, &error)))
 	{
 		winlog("D3D11 vertex shader compilation failed: %s\n", error ? (const char *)error->GetBufferPointer() : "?");
 		if (error) error->Release();
 		return false;
 	}
-	if (FAILED(D3DCompile(g_quadShader, strlen(g_quadShader), "quadPS", NULL, NULL,
+	if (FAILED(d3dCompile(g_quadShader, strlen(g_quadShader), "quadPS", NULL, NULL,
 	                      "PSMain", "ps_4_0", 0, 0, &psBlob, &error)))
 	{
 		winlog("D3D11 pixel shader compilation failed: %s\n", error ? (const char *)error->GetBufferPointer() : "?");
@@ -516,6 +570,21 @@ bool Direct3D11Display::createSamplers()
 bool Direct3D11Display::initialize()
 {
 	CWnd *pWnd = theApp.m_pMainWnd;
+
+	if (!direct3D11Available())
+	{
+		// Same treatment as the other renderers: report what could not be
+		// loaded and let the caller fall back to something else.
+		if (d3d11DLL == NULL)
+			directXMessage("D3D11.DLL");
+		else if (d3d11CreateDeviceAndSwapChain == NULL)
+			directXMessage("D3D11CreateDeviceAndSwapChain");
+		else if (d3dcompilerDLL == NULL)
+			directXMessage("D3DCOMPILER_47.DLL");
+		else
+			directXMessage("D3DCompile");
+		return false;
+	}
 
 	hwnd      = pWnd->GetSafeHwnd();
 	backWidth  = theApp.surfaceSizeX;
@@ -686,7 +755,7 @@ bool Direct3D11Display::initNis()
 	ID3DBlob *blob  = NULL;
 	ID3DBlob *error = NULL;
 
-	HRESULT hr = D3DCompile(source, sourceSize, "NIS_Main.hlsl",
+	HRESULT hr = d3dCompile(source, sourceSize, "NIS_Main.hlsl",
 	                        defines, &includeHandler, "main", "cs_5_0", 0, 0,
 	                        &blob, &error);
 	if (FAILED(hr))
@@ -982,7 +1051,7 @@ static ID3D11PixelShader *compileFsrShader(ID3D11Device *device, const char *sou
 	ID3DBlob *blob  = NULL;
 	ID3DBlob *error = NULL;
 
-	HRESULT hr = D3DCompile(source, sourceSize, "FSR_Main.hlsl", NULL, include, entry,
+	HRESULT hr = d3dCompile(source, sourceSize, "FSR_Main.hlsl", NULL, include, entry,
 	                        "ps_5_0", 0, 0, &blob, &error);
 	if (FAILED(hr))
 	{

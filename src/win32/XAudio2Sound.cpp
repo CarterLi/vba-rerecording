@@ -5,6 +5,10 @@
 // failure (no DLL, no audio device, no voices) init() returns false and
 // systemSoundInit() falls back to DirectSound.
 //
+// The DLL is loaded and the failures are reported exactly the way the
+// DirectSound backend does it: the name of what could not be resolved goes to
+// directXMessage(), a failing call reports its HRESULT.
+//
 // The emulator hands us one block of soundBufferLen bytes per emulated frame.
 // Each block is copied into a round-robin pool of buffers and submitted to a
 // source voice; a free slot is waited for exactly where the DirectSound
@@ -37,6 +41,8 @@
 #define XAUDIO2_SOUND_BUFFERS 10
 
 typedef HRESULT (WINAPI *XAudio2CreateFn)(IXAudio2 **, UINT32, XAUDIO2_PROCESSOR);
+
+extern void directXMessage(const char *);
 
 // Counters shared with the DirectSound backend (defined there) that pace the
 // emulator against the audio clock.
@@ -192,27 +198,27 @@ bool XAudio2Sound::init()
 	hXAudio2 = LoadLibrary("XAudio2_9.dll");
 	if (hXAudio2 == NULL)
 	{
-		systemScreenMessage("XAudio2_9.dll not available, using DirectSound");
+		directXMessage("XAudio2_9.dll");
 		return false;
 	}
 
 	XAudio2CreateFn xaudio2Create = (XAudio2CreateFn)GetProcAddress(hXAudio2, "XAudio2Create");
 	if (xaudio2Create == NULL)
 	{
-		systemScreenMessage("XAudio2Create not found, using DirectSound");
+		directXMessage("XAudio2Create");
 		return false;
 	}
 
 	if (FAILED(hr = xaudio2Create(&pXAudio2, 0, XAUDIO2_DEFAULT_PROCESSOR)))
 	{
-		systemScreenMessage("XAudio2 not available, using DirectSound");
+		systemMessage(0, "Cannot create XAudio2 %08x", hr);
 		pXAudio2 = NULL;
 		return false;
 	}
 
 	if (FAILED(hr = pXAudio2->CreateMasteringVoice(&pMasteringVoice)))
 	{
-		systemScreenMessage("XAudio2 has no output device, using DirectSound");
+		systemMessage(0, "Cannot create XAudio2 mastering voice %08x", hr);
 		pMasteringVoice = NULL;
 		return false;
 	}
@@ -221,7 +227,7 @@ bool XAudio2Sound::init()
 	if (FAILED(hr = pXAudio2->CreateSourceVoice(&pSourceVoice, &wfx, 0, XAUDIO2_MAX_FREQ_RATIO,
 	                                            this, NULL, NULL)))
 	{
-		systemScreenMessage("XAudio2 voice creation failed, using DirectSound");
+		systemMessage(0, "Cannot create XAudio2 source voice %08x", hr);
 		pSourceVoice = NULL;
 		return false;
 	}
