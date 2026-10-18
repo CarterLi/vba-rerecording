@@ -4,9 +4,10 @@
 // as a single textured quad.  OSD text is rendered by TextOverlay into a
 // second texture and blended on top, so it stays 1:1 with the window.
 //
-// Optionally the frame is scaled up by NVIDIA Image Scaling (NIS) instead of
-// the sampler: the SDK compute shader runs between the frame upload and the
-// quad draw, see the NIS section below.
+// Optionally the frame is scaled up by an upscaler instead of the sampler:
+// NVIDIA Image Scaling (a compute shader) or AMD FidelityFX Super Resolution
+// 1.0 (a reconstruction and a sharpening pixel shader) runs between the frame
+// upload and the quad draw, see the upscaling sections below.
 
 #include "stdafx.h"
 
@@ -24,9 +25,8 @@
 #include "VBA.h"
 #include "TextOverlay.h"
 
-// NVIDIA Image Scaling SDK, see src/win32/nis for these files.
-#include "nis/NIS_Config.h"
-#include "nis/NIS_Shader.h"
+// NVIDIA Image Scaling SDK, see src/win32/upscalers for the shader sources.
+#include "upscalers/NIS_Config.h"
 
 #include "../common/SystemGlobals.h"
 #include "../common/Text.h"
@@ -80,18 +80,70 @@ static const char *g_quadShader =
 // passes.  Four of them reach 16x, well past any window size.
 #define NIS_MAX_PASSES 4
 
-// Serves NIS_Scaler.h to D3DCompile from the embedded SDK sources, so the
-// shaders stay inside the executable instead of sitting next to it.
-class NisIncludeHandler : public ID3DInclude
+// FidelityFX Super Resolution 1.0 reconstructs the frame (EASU) and sharpens
+// it (RCAS) in one full screen pass each, and its shader constants are the
+// four float4s EASU wants, the RCAS one, and the size of the pass input.
+#define FSR_PASS_COUNT      2
+#define FSR_CONSTANT_FLOATS (5 * 4 + 4)
+
+// --- Upscaling -----------------------------------------------------------
+//
+// The upscaler shaders, and the SDK headers they include, are compiled while
+// the renderer starts up.  Their sources are stored in the executable as
+// RCDATA resources rather than in string literals, because the FidelityFX
+// headers are far past the 64 kB a single C++ literal may hold; see
+// src/win32/upscalers.
+
+static const char *upscalerShaderSource(LPCSTR name, DWORD *size)
+{
+	HRSRC resource = FindResource(NULL, name, RT_RCDATA);
+	if (resource == NULL)
+	{
+		winlog("upscaler: %s is missing from the executable\n", name);
+		return NULL;
+	}
+
+	HGLOBAL handle = LoadResource(NULL, resource);
+	if (handle == NULL)
+	{
+		winlog("upscaler: cannot load %s\n", name);
+		return NULL;
+	}
+
+	if (size)
+		*size = SizeofResource(NULL, resource);
+	return (const char *)LockResource(handle);
+}
+
+// Serves the SDK headers to D3DCompile from those resources, so the shaders
+// stay inside the executable instead of sitting next to it.
+class UpscalerIncludeHandler : public ID3DInclude
 {
 public:
 	STDMETHOD(Open)(D3D_INCLUDE_TYPE type, LPCSTR name, LPCVOID parent, LPCVOID *data, UINT *bytes)
 	{
-		if (name == NULL || _stricmp(name, "NIS_Scaler.h") != 0)
+		if (name == NULL)
 			return E_FAIL;
 
-		*data  = g_nisScalerShader;
-		*bytes = (UINT)strlen(g_nisScalerShader);
+		LPCSTR resource = NULL;
+
+		if (!_stricmp(name, "NIS_Scaler.h"))
+			resource = "NIS_SHADER_SCALER";
+		else if (!_stricmp(name, "ffx_a.h"))
+			resource = "FSR_SHADER_A";
+		else if (!_stricmp(name, "ffx_fsr1.h"))
+			resource = "FSR_SHADER_FSR1";
+
+		if (resource == NULL)
+			return E_FAIL;
+
+		DWORD size = 0;
+		const char *source = upscalerShaderSource(resource, &size);
+		if (source == NULL)
+			return E_FAIL;
+
+		*data  = source;
+		*bytes = (UINT)size;
 		return S_OK;
 	}
 
@@ -100,6 +152,16 @@ public:
 		return S_OK;
 	}
 };
+
+// The upscaled frame fills the back buffer, so it is drawn with a quad that
+// maps the whole window onto the whole texture.
+static void setFullscreenQuad(D3D11VERTEX *vertices)
+{
+	vertices[0].x = -1.0f; vertices[0].y = -1.0f; vertices[0].u = 0.0f; vertices[0].v = 1.0f;
+	vertices[1].x = -1.0f; vertices[1].y =  1.0f; vertices[1].u = 0.0f; vertices[1].v = 0.0f;
+	vertices[2].x =  1.0f; vertices[2].y = -1.0f; vertices[2].u = 1.0f; vertices[2].v = 1.0f;
+	vertices[3].x =  1.0f; vertices[3].y =  1.0f; vertices[3].u = 1.0f; vertices[3].v = 0.0f;
+}
 
 class Direct3D11Display : public IDisplay
 {
@@ -129,7 +191,8 @@ private:
 	bool initializeOffscreen(int w, int h);
 	void updateFiltering(int filter);
 	void calculateVertices();
-	void drawQuad(ID3D11ShaderResourceView *srv, D3D11VERTEX *quad, bool blend);
+	void drawQuad(ID3D11ShaderResourceView *srv, D3D11VERTEX *quad, bool blend,
+	              ID3D11PixelShader *pixelShader = NULL);
 
 	// NVIDIA Image Scaling
 	bool initNis();
@@ -137,6 +200,13 @@ private:
 	void releaseNisTargets();
 	bool updateNisChain(int srcWidth, int srcHeight, int dstWidth, int dstHeight);
 	ID3D11ShaderResourceView *scaleFrameWithNis();
+
+	// AMD FidelityFX Super Resolution 1.0
+	bool initFsr();
+	void releaseFsr();
+	void releaseFsrTargets();
+	bool updateFsrTargets(int dstWidth, int dstHeight);
+	ID3D11ShaderResourceView *scaleFrameWithFsr();
 
 	HWND                  hwnd;
 	ID3D11Device         *pDevice;
@@ -181,6 +251,23 @@ private:
 	int                        nisDstWidth;
 	int                        nisDstHeight;
 
+	// FidelityFX Super Resolution: EASU writes the first target, RCAS the
+	// second one, which is the one that gets drawn.
+	struct FsrTarget
+	{
+		ID3D11Texture2D          *texture;
+		ID3D11ShaderResourceView *srv;
+		ID3D11RenderTargetView   *rtv;
+		int                       width;
+		int                       height;
+	};
+
+	bool                       fsrAvailable;
+	ID3D11PixelShader         *pFsrEasuPS;
+	ID3D11PixelShader         *pFsrRcasPS;
+	ID3D11Buffer              *pFsrCB;
+	FsrTarget                  fsrTargets[FSR_PASS_COUNT];
+
 	DXGI_FORMAT frameFormat;
 	int  width;
 	int  height;
@@ -224,6 +311,11 @@ Direct3D11Display::Direct3D11Display()
 	nisSrcHeight  = 0;
 	nisDstWidth   = 0;
 	nisDstHeight  = 0;
+	fsrAvailable  = false;
+	pFsrEasuPS    = NULL;
+	pFsrRcasPS    = NULL;
+	pFsrCB        = NULL;
+	ZeroMemory(fsrTargets, sizeof(fsrTargets));
 	frameFormat   = DXGI_FORMAT_B8G8R8A8_UNORM;
 	width         = 0;
 	height        = 0;
@@ -254,6 +346,7 @@ void Direct3D11Display::releaseAll()
 {
 	releaseFrameTexture();
 	releaseNis();
+	releaseFsr();
 
 	if (pOverlaySRV)   { pOverlaySRV->Release();   pOverlaySRV = NULL; }
 	if (pOverlayTexture) { pOverlayTexture->Release(); pOverlayTexture = NULL; }
@@ -478,8 +571,10 @@ bool Direct3D11Display::initialize()
 		return false;
 	}
 
-	if (theApp.nisSharpness >= 0)
+	if (theApp.upscaler == UPSCALER_NIS)
 		initNis();
+	else if (theApp.upscaler == UPSCALER_FSR)
+		initFsr();
 
 	filterMode = regQueryDwordValue("d3dFilter", 0);
 	if (filterMode < 0 || filterMode > 3)
@@ -582,11 +677,16 @@ bool Direct3D11Display::initNis()
 		{ NULL, NULL }
 	};
 
-	NisIncludeHandler includeHandler;
+	DWORD sourceSize = 0;
+	const char *source = upscalerShaderSource("NIS_SHADER_MAIN", &sourceSize);
+	if (source == NULL)
+		return false;
+
+	UpscalerIncludeHandler includeHandler;
 	ID3DBlob *blob  = NULL;
 	ID3DBlob *error = NULL;
 
-	HRESULT hr = D3DCompile(g_nisMainShader, strlen(g_nisMainShader), "NIS_Main.hlsl",
+	HRESULT hr = D3DCompile(source, sourceSize, "NIS_Main.hlsl",
 	                        defines, &includeHandler, "main", "cs_5_0", 0, 0,
 	                        &blob, &error);
 	if (FAILED(hr))
@@ -759,7 +859,7 @@ ID3D11ShaderResourceView *Direct3D11Display::scaleFrameWithNis()
 	if (!nisAvailable || pNisCS == NULL || pNisCB == NULL || pFrameSRV == NULL)
 		return NULL;
 
-	if (theApp.nisSharpness < 0)
+	if (theApp.upscaler != UPSCALER_NIS)
 		return NULL;
 
 	// The chain maps the whole frame texture onto the whole back buffer, the
@@ -770,7 +870,7 @@ ID3D11ShaderResourceView *Direct3D11Display::scaleFrameWithNis()
 	if (!updateNisChain(width, height, backWidth, backHeight))
 		return NULL;
 
-	const float sharpness = theApp.nisSharpness / 100.0f;
+	const float sharpness = theApp.upscalerSharpness / 100.0f;
 
 	ID3D11ShaderResourceView *source = pFrameSRV;
 	int srcWidth  = width;
@@ -821,6 +921,270 @@ ID3D11ShaderResourceView *Direct3D11Display::scaleFrameWithNis()
 	return source;
 }
 
+// --- AMD FidelityFX Super Resolution 1.0 ----------------------------------
+//
+// EASU reconstructs the frame at an arbitrary ratio and RCAS sharpens the
+// result; both are pixel shaders, so the frame is drawn twice through the
+// full screen quad with one round trip through a window sized target in
+// between.  The SDK ships host code for its EASU and RCAS constants, but
+// including it here would pull the whole header into this translation unit;
+// the handful of values it computes are repeated below (see FsrEasuCon and
+// FsrRcasCon in ffx_fsr1.h).  They go into the constant buffer as floats and
+// come back out of its uint4 unchanged, since only the bits matter.
+
+// Maps the output pixels onto the whole input frame, the same mapping the
+// textured quad would use for a 1:1 upload.
+static void fsrEasuCon(float *con, float inputViewportWidth, float inputViewportHeight,
+                       float inputWidth, float inputHeight,
+                       float outputWidth, float outputHeight)
+{
+	float rcpOutputWidth  = 1.0f / outputWidth;
+	float rcpOutputHeight = 1.0f / outputHeight;
+
+	float rcpInputWidth  = 1.0f / inputWidth;
+	float rcpInputHeight = 1.0f / inputHeight;
+
+	con[0]  = inputViewportWidth * rcpOutputWidth;
+	con[1]  = inputViewportHeight * rcpOutputHeight;
+	con[2]  = 0.5f * inputViewportWidth * rcpOutputWidth - 0.5f;
+	con[3]  = 0.5f * inputViewportHeight * rcpOutputHeight - 0.5f;
+
+	con[4]  = rcpInputWidth;
+	con[5]  = rcpInputHeight;
+	con[6]  = rcpInputWidth;
+	con[7]  = -rcpInputHeight;
+
+	con[8]  = -rcpInputWidth;
+	con[9]  = 2.0f * rcpInputHeight;
+	con[10] = rcpInputWidth;
+	con[11] = 2.0f * rcpInputHeight;
+
+	con[12] = 0.0f;
+	con[13] = 4.0f * rcpInputHeight;
+	con[14] = 0.0f;
+	con[15] = 0.0f;
+}
+
+// RCAS is given the number of stops the sharpening is reduced by, so it runs
+// the other way round from the percentage the user picks.
+static float fsrRcasCon(int sharpness)
+{
+	float stops = (100.0f - (float)sharpness) / 50.0f;
+
+	return exp2f(-stops);
+}
+
+// Compiles one of the two entry points the FSR wrapper offers.
+static ID3D11PixelShader *compileFsrShader(ID3D11Device *device, const char *source,
+                                           DWORD sourceSize, const char *entry,
+                                           ID3DInclude *include)
+{
+	ID3DBlob *blob  = NULL;
+	ID3DBlob *error = NULL;
+
+	HRESULT hr = D3DCompile(source, sourceSize, "FSR_Main.hlsl", NULL, include, entry,
+	                        "ps_5_0", 0, 0, &blob, &error);
+	if (FAILED(hr))
+	{
+		winlog("FSR: %s failed to compile: %s\n", entry,
+		       error ? (const char *)error->GetBufferPointer() : "?");
+		if (error)
+			error->Release();
+		return NULL;
+	}
+	if (error)
+		error->Release();
+
+	ID3D11PixelShader *shader = NULL;
+	hr = device->CreatePixelShader(blob->GetBufferPointer(), blob->GetBufferSize(), NULL, &shader);
+	blob->Release();
+
+	if (FAILED(hr))
+	{
+		winlog("FSR: CreatePixelShader failed %08x\n", hr);
+		return NULL;
+	}
+
+	return shader;
+}
+
+bool Direct3D11Display::initFsr()
+{
+	if (fsrAvailable)
+		return true;
+
+	if (pDevice == NULL)
+		return false;
+
+	if (featureLevel < D3D_FEATURE_LEVEL_11_0)
+	{
+		winlog("FSR: needs Direct3D feature level 11.0\n");
+		return false;
+	}
+
+	DWORD sourceSize = 0;
+	const char *source = upscalerShaderSource("FSR_SHADER_MAIN", &sourceSize);
+	if (source == NULL)
+		return false;
+
+	UpscalerIncludeHandler includeHandler;
+
+	pFsrEasuPS = compileFsrShader(pDevice, source, sourceSize, "FSR_Easu", &includeHandler);
+	pFsrRcasPS = compileFsrShader(pDevice, source, sourceSize, "FSR_Rcas", &includeHandler);
+	if (pFsrEasuPS == NULL || pFsrRcasPS == NULL)
+	{
+		releaseFsr();
+		return false;
+	}
+
+	D3D11_BUFFER_DESC cbd;
+	ZeroMemory(&cbd, sizeof(cbd));
+	cbd.ByteWidth      = FSR_CONSTANT_FLOATS * sizeof(float);
+	cbd.Usage          = D3D11_USAGE_DYNAMIC;
+	cbd.BindFlags      = D3D11_BIND_CONSTANT_BUFFER;
+	cbd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
+	if (FAILED(pDevice->CreateBuffer(&cbd, NULL, &pFsrCB)))
+	{
+		winlog("FSR: cannot create the constant buffer\n");
+		releaseFsr();
+		return false;
+	}
+
+	fsrAvailable = true;
+	return true;
+}
+
+void Direct3D11Display::releaseFsrTargets()
+{
+	for (int i = 0; i < FSR_PASS_COUNT; i++)
+	{
+		if (fsrTargets[i].rtv)     { fsrTargets[i].rtv->Release();     fsrTargets[i].rtv = NULL; }
+		if (fsrTargets[i].srv)     { fsrTargets[i].srv->Release();     fsrTargets[i].srv = NULL; }
+		if (fsrTargets[i].texture) { fsrTargets[i].texture->Release(); fsrTargets[i].texture = NULL; }
+		fsrTargets[i].width  = 0;
+		fsrTargets[i].height = 0;
+	}
+}
+
+void Direct3D11Display::releaseFsr()
+{
+	releaseFsrTargets();
+
+	if (pFsrCB)     { pFsrCB->Release();     pFsrCB     = NULL; }
+	if (pFsrRcasPS) { pFsrRcasPS->Release(); pFsrRcasPS = NULL; }
+	if (pFsrEasuPS) { pFsrEasuPS->Release(); pFsrEasuPS = NULL; }
+	fsrAvailable = false;
+}
+
+bool Direct3D11Display::updateFsrTargets(int dstWidth, int dstHeight)
+{
+	if (dstWidth <= 0 || dstHeight <= 0)
+		return false;
+
+	if (fsrTargets[0].texture != NULL && fsrTargets[0].width == dstWidth &&
+	    fsrTargets[0].height == dstHeight)
+		return true;
+
+	releaseFsrTargets();
+
+	for (int i = 0; i < FSR_PASS_COUNT; i++)
+	{
+		D3D11_TEXTURE2D_DESC td;
+		ZeroMemory(&td, sizeof(td));
+		td.Width            = dstWidth;
+		td.Height           = dstHeight;
+		td.MipLevels        = 1;
+		td.ArraySize        = 1;
+		td.Format           = DXGI_FORMAT_B8G8R8A8_UNORM;
+		td.SampleDesc.Count = 1;
+		td.Usage            = D3D11_USAGE_DEFAULT;
+		td.BindFlags        = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
+
+		if (FAILED(pDevice->CreateTexture2D(&td, NULL, &fsrTargets[i].texture)) ||
+		    FAILED(pDevice->CreateShaderResourceView(fsrTargets[i].texture, NULL, &fsrTargets[i].srv)) ||
+		    FAILED(pDevice->CreateRenderTargetView(fsrTargets[i].texture, NULL, &fsrTargets[i].rtv)))
+		{
+			winlog("FSR: cannot create the %dx%d pass target\n", dstWidth, dstHeight);
+			releaseFsrTargets();
+			return false;
+		}
+
+		fsrTargets[i].width  = dstWidth;
+		fsrTargets[i].height = dstHeight;
+	}
+
+	return true;
+}
+
+ID3D11ShaderResourceView *Direct3D11Display::scaleFrameWithFsr()
+{
+	if (!fsrAvailable || pFsrEasuPS == NULL || pFsrRcasPS == NULL || pFsrCB == NULL ||
+	    pFrameSRV == NULL)
+		return NULL;
+
+	if (theApp.upscaler != UPSCALER_FSR)
+		return NULL;
+
+	// The passes map the whole frame texture onto the whole back buffer, the
+	// same mapping the textured quad would use.
+	if (theApp.rect.right != width || theApp.rect.bottom != height)
+		return NULL;
+
+	if (!updateFsrTargets(backWidth, backHeight))
+		return NULL;
+
+	float constants[FSR_CONSTANT_FLOATS];
+	ZeroMemory(constants, sizeof(constants));
+	fsrEasuCon(constants, (float)width, (float)height, (float)width, (float)height,
+	           (float)backWidth, (float)backHeight);
+	constants[16] = fsrRcasCon(theApp.upscalerSharpness);
+	// The size of the pass input, so the shader can clamp the RCAS taps.
+	constants[20] = (float)backWidth;
+	constants[21] = (float)backHeight;
+
+	D3D11_MAPPED_SUBRESOURCE mapped;
+	if (FAILED(pContext->Map(pFsrCB, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped)))
+		return NULL;
+	memcpy(mapped.pData, constants, sizeof(constants));
+	pContext->Unmap(pFsrCB, 0);
+
+	D3D11VERTEX fullQuad[4];
+	setFullscreenQuad(fullQuad);
+
+	ID3D11ShaderResourceView *source = pFrameSRV;
+
+	for (int pass = 0; pass < FSR_PASS_COUNT; pass++)
+	{
+		FsrTarget& target = fsrTargets[pass];
+
+		ID3D11RenderTargetView *rtv = target.rtv;
+		pContext->OMSetRenderTargets(1, &rtv, NULL);
+
+		D3D11_VIEWPORT vp;
+		vp.TopLeftX = 0.0f;
+		vp.TopLeftY = 0.0f;
+		vp.Width    = (float)target.width;
+		vp.Height   = (float)target.height;
+		vp.MinDepth = 0.0f;
+		vp.MaxDepth = 1.0f;
+		pContext->RSSetViewports(1, &vp);
+
+		// The first pass reconstructs the frame, the second one sharpens it.
+		ID3D11PixelShader *shader = (pass == 0) ? pFsrEasuPS : pFsrRcasPS;
+
+		pContext->PSSetConstantBuffers(0, 1, &pFsrCB);
+		drawQuad(source, fullQuad, false, shader);
+
+		// The next pass reads what this one wrote, so drop the binding first.
+		ID3D11ShaderResourceView *nullView = NULL;
+		pContext->PSSetShaderResources(0, 1, &nullView);
+
+		source = target.srv;
+	}
+
+	return source;
+}
+
 void Direct3D11Display::clear()
 {}
 
@@ -857,7 +1221,8 @@ void Direct3D11Display::calculateVertices()
 	quad[3].x = r; quad[3].y = t; quad[3].u = u;    quad[3].v = 0.0f;
 }
 
-void Direct3D11Display::drawQuad(ID3D11ShaderResourceView *srv, D3D11VERTEX *vertices, bool blend)
+void Direct3D11Display::drawQuad(ID3D11ShaderResourceView *srv, D3D11VERTEX *vertices,
+                                 bool blend, ID3D11PixelShader *pixelShader)
 {
 	D3D11_MAPPED_SUBRESOURCE mapped;
 	if (FAILED(pContext->Map(pVertexBuffer, 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped)))
@@ -872,7 +1237,7 @@ void Direct3D11Display::drawQuad(ID3D11ShaderResourceView *srv, D3D11VERTEX *ver
 	pContext->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 
 	pContext->VSSetShader(pVS, NULL, 0);
-	pContext->PSSetShader(pPS, NULL, 0);
+	pContext->PSSetShader(pixelShader ? pixelShader : pPS, NULL, 0);
 
 	ID3D11SamplerState *sampler = (filterMode == 0) ? pSamplerPoint : pSamplerLinear;
 	pContext->PSSetSamplers(0, 1, &sampler);
@@ -971,18 +1336,24 @@ void Direct3D11Display::render()
 		}
 	}
 
-	// Optionally let the NIS compute shader scale the frame up to the back
-	// buffer instead of the sampler.
+	// Optionally let an upscaler rebuild the frame at the back buffer size
+	// instead of letting the sampler stretch it.
 	ID3D11ShaderResourceView *frameView = pFrameSRV;
-	bool nisScaled = false;
+	bool scaled1to1 = false;
 
-	if (pFrameSRV != NULL && theApp.nisSharpness >= 0)
+	if (pFrameSRV != NULL && theApp.upscaler != UPSCALER_OFF)
 	{
-		ID3D11ShaderResourceView *scaled = scaleFrameWithNis();
+		ID3D11ShaderResourceView *scaled = NULL;
+
+		if (theApp.upscaler == UPSCALER_NIS)
+			scaled = scaleFrameWithNis();
+		else if (theApp.upscaler == UPSCALER_FSR)
+			scaled = scaleFrameWithFsr();
+
 		if (scaled != NULL)
 		{
 			frameView = scaled;
-			nisScaled = true;
+			scaled1to1 = true;
 		}
 	}
 
@@ -1001,14 +1372,12 @@ void Direct3D11Display::render()
 
 	if (frameView != NULL)
 	{
-		if (nisScaled)
+		if (scaled1to1)
 		{
-			// The NIS output covers exactly the back buffer, so it is drawn 1:1.
+			// The upscaled frame covers exactly the back buffer, so it is
+			// drawn 1:1.
 			D3D11VERTEX fullQuad[4];
-			fullQuad[0].x = -1.0f; fullQuad[0].y = -1.0f; fullQuad[0].u = 0.0f; fullQuad[0].v = 1.0f;
-			fullQuad[1].x = -1.0f; fullQuad[1].y =  1.0f; fullQuad[1].u = 0.0f; fullQuad[1].v = 0.0f;
-			fullQuad[2].x =  1.0f; fullQuad[2].y = -1.0f; fullQuad[2].u = 1.0f; fullQuad[2].v = 1.0f;
-			fullQuad[3].x =  1.0f; fullQuad[3].y =  1.0f; fullQuad[3].u = 1.0f; fullQuad[3].v = 0.0f;
+			setFullscreenQuad(fullQuad);
 
 			int savedFilter = filterMode;
 			filterMode = 0; // 1:1, no sampling needed
@@ -1053,7 +1422,8 @@ void Direct3D11Display::render()
 	}
 
 	// Nothing must stay bound as a shader resource: the next frame writes the
-	// frame texture again and may bind an NIS target as a UAV.
+	// frame texture again and may bind an upscaler target as a UAV or a render
+	// target.
 	ID3D11ShaderResourceView *nullView = NULL;
 	pContext->PSSetShaderResources(0, 1, &nullView);
 
@@ -1109,11 +1479,13 @@ void Direct3D11Display::setOption(const char *option, int value)
 	{
 		updateFiltering(value);
 	}
-	else if (!strcmp(option, "nis"))
+	else if (!strcmp(option, "upscaler"))
 	{
-		// The shaders and the coefficient textures are only built on demand.
-		if (value >= 0 && !nisAvailable && !initNis())
+		// The shaders and the render targets are only built on demand.
+		if (value == UPSCALER_NIS && !nisAvailable && !initNis())
 			systemScreenMessage("NVIDIA Image Scaling is not available on this device");
+		else if (value == UPSCALER_FSR && !fsrAvailable && !initFsr())
+			systemScreenMessage("FidelityFX Super Resolution is not available on this device");
 	}
 }
 

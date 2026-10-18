@@ -562,8 +562,14 @@
     <None Include="..\documentation\Readme.txt" />
     <None Include="..\documentation\TODO.txt" />
     <None Include="..\src\win32\gbadvance.ico" />
-    <None Include="..\src\win32\nis\licence.txt" />
-    <None Include="..\src\win32\nis\README.txt" />
+    <None Include="..\src\win32\upscalers\ffx_a.h" />
+    <None Include="..\src\win32\upscalers\ffx_fsr1.h" />
+    <None Include="..\src\win32\upscalers\FSR_Main.hlsl" />
+    <None Include="..\src\win32\upscalers\licence-ffx.txt" />
+    <None Include="..\src\win32\upscalers\licence.txt" />
+    <None Include="..\src\win32\upscalers\NIS_Main.hlsl" />
+    <None Include="..\src\win32\upscalers\NIS_Scaler.h" />
+    <None Include="..\src\win32\upscalers\README.txt" />
     <None Include="..\src\win32\vba.rc2" />
     <None Include="..\src\win32\VisualBoyAdvance.exe.manifest" />
     <None Include="ClassDiagram1.cd" />
@@ -699,8 +705,7 @@
     <ClInclude Include="..\src\win32\7zip\7zipstreams.h" />
     <ClInclude Include="..\src\win32\7zip\OpenArchive.h" />
     <ClInclude Include="..\src\win32\resource.h" />
-    <ClInclude Include="..\src\win32\nis\NIS_Config.h" />
-    <ClInclude Include="..\src\win32\nis\NIS_Shader.h" />
+    <ClInclude Include="..\src\win32\upscalers\NIS_Config.h" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="..\src\win32\7zip\7zip.rc" />

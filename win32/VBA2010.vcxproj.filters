@@ -640,6 +640,30 @@
     <None Include="..\src\win32\vba.rc2">
       <Filter>Resource Files</Filter>
     </None>
+    <None Include="..\src\win32\upscalers\ffx_a.h">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="..\src\win32\upscalers\ffx_fsr1.h">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="..\src\win32\upscalers\FSR_Main.hlsl">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="..\src\win32\upscalers\NIS_Main.hlsl">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="..\src\win32\upscalers\NIS_Scaler.h">
+      <Filter>Resource Files</Filter>
+    </None>
+    <None Include="..\src\win32\upscalers\licence-ffx.txt">
+      <Filter>Docs</Filter>
+    </None>
+    <None Include="..\src\win32\upscalers\licence.txt">
+      <Filter>Docs</Filter>
+    </None>
+    <None Include="..\src\win32\upscalers\README.txt">
+      <Filter>Docs</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\src\filters\hq2x.h">
@@ -1104,10 +1128,7 @@
     <ClInclude Include="..\src\win32\TextOverlay.h">
       <Filter>Header Files</Filter>
     </ClInclude>
-    <ClInclude Include="..\src\win32\nis\NIS_Config.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="..\src\win32\nis\NIS_Shader.h">
+    <ClInclude Include="..\src\win32\upscalers\NIS_Config.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

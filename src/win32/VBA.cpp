@@ -339,7 +339,8 @@ VBA::VBA() : emulator(::theEmulator)
 	ddrawDebug				= false;
 	ddrawUseVideoMemory		= false;
 	d3dFilter				= 0;
-	nisSharpness			= NIS_SHARPNESS_OFF;
+	upscaler				= UPSCALER_OFF;
+	upscalerSharpness		= 50;
 	glFilter				= 0;
 	glType					= 0;
 	regEnabled				= false;
@@ -1937,9 +1938,12 @@ void VBA::loadSettings()
 	d3dFilter = regQueryDwordValue("d3dFilter", 0);
 	if (d3dFilter < 0 || d3dFilter > 1)
 		d3dFilter = 0;
-	nisSharpness = (int)regQueryDwordValue("nisSharpness", (DWORD)NIS_SHARPNESS_OFF);
-	if (nisSharpness < 0 || nisSharpness > 100)
-		nisSharpness = NIS_SHARPNESS_OFF;
+	upscaler = regQueryDwordValue("upscaler", UPSCALER_OFF);
+	if (upscaler < UPSCALER_OFF || upscaler > UPSCALER_FSR)
+		upscaler = UPSCALER_OFF;
+	upscalerSharpness = regQueryDwordValue("upscalerSharpness", 50);
+	if (upscalerSharpness < 0 || upscalerSharpness > 100)
+		upscalerSharpness = 50;
 	glFilter = regQueryDwordValue("glFilter", 0);
 	if (glFilter < 0 || glFilter > 1)
 		glFilter = 0;
@@ -2209,7 +2213,8 @@ void VBA::saveSettings()
 	regSetDwordValue("vsync", vsync);
 
 	regSetDwordValue("d3dFilter", d3dFilter);
-	regSetDwordValue("nisSharpness", nisSharpness);
+	regSetDwordValue("upscaler", upscaler);
+	regSetDwordValue("upscalerSharpness", upscalerSharpness);
 	regSetDwordValue("glFilter", glFilter);
 	regSetDwordValue("glType", glType);
 

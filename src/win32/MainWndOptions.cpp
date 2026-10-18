@@ -1905,73 +1905,95 @@ void MainWnd::OnUpdateOptionsVideoLcdFilter(CCmdUI *pCmdUI)
 	}
 }
 
-BOOL MainWnd::OnOptionsVideoNis(UINT nID)
+BOOL MainWnd::OnOptionsVideoUpscaler(UINT nID)
 {
-	int sharpness;
+	int upscaler  = theApp.upscaler;
+	int sharpness = theApp.upscalerSharpness;
 
 	switch (nID)
 	{
-	case ID_OPTIONS_VIDEO_NIS_OFF:
-		sharpness = NIS_SHARPNESS_OFF;
+	case ID_OPTIONS_VIDEO_UPSCALER_OFF:
+		upscaler = UPSCALER_OFF;
 		break;
-	case ID_OPTIONS_VIDEO_NIS_SHARP_0:
+	case ID_OPTIONS_VIDEO_UPSCALER_NIS:
+		upscaler = UPSCALER_NIS;
+		break;
+	case ID_OPTIONS_VIDEO_UPSCALER_FSR:
+		upscaler = UPSCALER_FSR;
+		break;
+	case ID_OPTIONS_VIDEO_UPSCALER_SHARP_0:
 		sharpness = 0;
 		break;
-	case ID_OPTIONS_VIDEO_NIS_SHARP_25:
+	case ID_OPTIONS_VIDEO_UPSCALER_SHARP_25:
 		sharpness = 25;
 		break;
-	case ID_OPTIONS_VIDEO_NIS_SHARP_50:
+	case ID_OPTIONS_VIDEO_UPSCALER_SHARP_50:
 		sharpness = 50;
 		break;
-	case ID_OPTIONS_VIDEO_NIS_SHARP_75:
+	case ID_OPTIONS_VIDEO_UPSCALER_SHARP_75:
 		sharpness = 75;
 		break;
-	case ID_OPTIONS_VIDEO_NIS_SHARP_100:
+	case ID_OPTIONS_VIDEO_UPSCALER_SHARP_100:
 		sharpness = 100;
 		break;
 	default:
 		return FALSE;
 	}
 
-	// Only the Direct3D 11 renderer has a scaling filter; the others ignore it
-	// and the setting is applied again when the render method changes.
-	theApp.nisSharpness = sharpness;
+	// Only the Direct3D 11 renderer scales the frame; the others ignore the
+	// settings, and the renderer picks them up again when it is recreated.
+	theApp.upscaler          = upscaler;
+	theApp.upscalerSharpness = sharpness;
 	if (theApp.display)
-		theApp.display->setOption("nis", sharpness);
+		theApp.display->setOption("upscaler", upscaler);
 	return TRUE;
 }
 
-void MainWnd::OnUpdateOptionsVideoNis(CCmdUI *pCmdUI)
+void MainWnd::OnUpdateOptionsVideoUpscaler(CCmdUI *pCmdUI)
 {
-	int sharpness;
+	bool check     = false;
+	bool sharpness = false;
 
 	switch (pCmdUI->m_nID)
 	{
-	case ID_OPTIONS_VIDEO_NIS_OFF:
-		sharpness = NIS_SHARPNESS_OFF;
+	case ID_OPTIONS_VIDEO_UPSCALER_OFF:
+		check = theApp.upscaler == UPSCALER_OFF;
 		break;
-	case ID_OPTIONS_VIDEO_NIS_SHARP_0:
-		sharpness = 0;
+	case ID_OPTIONS_VIDEO_UPSCALER_NIS:
+		check = theApp.upscaler == UPSCALER_NIS;
 		break;
-	case ID_OPTIONS_VIDEO_NIS_SHARP_25:
-		sharpness = 25;
+	case ID_OPTIONS_VIDEO_UPSCALER_FSR:
+		check = theApp.upscaler == UPSCALER_FSR;
 		break;
-	case ID_OPTIONS_VIDEO_NIS_SHARP_50:
-		sharpness = 50;
+	case ID_OPTIONS_VIDEO_UPSCALER_SHARP_0:
+		check     = theApp.upscalerSharpness == 0;
+		sharpness = true;
 		break;
-	case ID_OPTIONS_VIDEO_NIS_SHARP_75:
-		sharpness = 75;
+	case ID_OPTIONS_VIDEO_UPSCALER_SHARP_25:
+		check     = theApp.upscalerSharpness == 25;
+		sharpness = true;
+		break;
+	case ID_OPTIONS_VIDEO_UPSCALER_SHARP_50:
+		check     = theApp.upscalerSharpness == 50;
+		sharpness = true;
+		break;
+	case ID_OPTIONS_VIDEO_UPSCALER_SHARP_75:
+		check     = theApp.upscalerSharpness == 75;
+		sharpness = true;
 		break;
 	default:
-		sharpness = 100;
+		check     = theApp.upscalerSharpness == 100;
+		sharpness = true;
 		break;
 	}
 
-	pCmdUI->SetCheck(theApp.nisSharpness == sharpness);
+	pCmdUI->SetCheck(check);
 
-	// NVIDIA Image Scaling needs the compute stage, so it is only offered for
-	// the Direct3D 11 renderer.
-	pCmdUI->Enable(theApp.display != NULL && theApp.display->getType() == DIRECT_3D11);
+	// Both upscalers need shader model 5.0 support, which the Direct3D 11
+	// renderer is the only one to offer, and the sharpening amount only means
+	// something once one of them is selected.
+	pCmdUI->Enable(theApp.display != NULL && theApp.display->getType() == DIRECT_3D11 &&
+	               (!sharpness || theApp.upscaler != UPSCALER_OFF));
 }
 
 void MainWnd::OnOptionsLanguageSystem()

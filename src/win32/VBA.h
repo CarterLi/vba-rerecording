@@ -42,10 +42,16 @@ enum
 	SOUND_API_XAUDIO2
 };
 
-// NVIDIA Image Scaling (theApp.nisSharpness): the filter is off, or it runs
-// with a sharpening amount in percent.  Only the Direct3D 11 backend
-// implements it; the others ignore the setting.
-#define NIS_SHARPNESS_OFF (-1)
+// Frame upscaling (theApp.upscaler): the frame is either drawn by the sampler
+// or reconstructed by one of the two upscalers that ship with the Direct3D 11
+// backend, which then applies theApp.upscalerSharpness percent of sharpening.
+// The other backends ignore both settings.
+enum
+{
+	UPSCALER_OFF,   // sampler filtering only
+	UPSCALER_NIS,   // NVIDIA Image Scaling
+	UPSCALER_FSR    // AMD FidelityFX Super Resolution 1.0 (EASU + RCAS)
+};
 
 // True for the fixed-size / custom full screen modes (as opposed to the
 // integer window scale factors).
@@ -160,7 +166,8 @@ public:
 	bool		 ddrawDebug;
 	bool		 ddrawUseVideoMemory;
 	int			 d3dFilter;
-	int			 nisSharpness;      // NIS sharpening in percent, NIS_SHARPNESS_OFF = off
+	int			 upscaler;          // UPSCALER_OFF / UPSCALER_NIS / UPSCALER_FSR
+	int			 upscalerSharpness; // upscaler sharpening in percent, 0..100
 	int			 glFilter;
 	int			 glType;
 	bool		 muteWhenInactive;

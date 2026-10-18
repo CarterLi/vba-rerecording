@@ -57,6 +57,22 @@ IDI_ICON                ICON                    "gbadvance.ico"
 
 /////////////////////////////////////////////////////////////////////////////
 //
+// Upscaler shaders
+//
+// The unmodified NVIDIA Image Scaling and AMD FidelityFX Super Resolution
+// sources, plus the small FSR wrapper, that the Direct3D 11 backend compiles
+// while it starts up.  They ship inside the executable, see
+// src/win32/upscalers/README.txt.
+
+NIS_SHADER_MAIN         RCDATA                  "upscalers\\NIS_Main.hlsl"
+NIS_SHADER_SCALER       RCDATA                  "upscalers\\NIS_Scaler.h"
+FSR_SHADER_MAIN         RCDATA                  "upscalers\\FSR_Main.hlsl"
+FSR_SHADER_A            RCDATA                  "upscalers\\ffx_a.h"
+FSR_SHADER_FSR1         RCDATA                  "upscalers\\ffx_fsr1.h"
+
+
+/////////////////////////////////////////////////////////////////////////////
+//
 // Dialog
 //
 
@@ -2006,15 +2022,21 @@ BEGIN
                 MENUITEM "&NSO GBC",                    ID_OPTIONS_VIDEO_LCDFILTER_GBC_NSO
             END
         END
-        POPUP "&Upscaling"
+        POPUP "&Upscaling (Direct3D 11 only)"
         BEGIN
-            MENUITEM "&Off",                        ID_OPTIONS_VIDEO_NIS_OFF, CHECKED
+            MENUITEM "&Off",                        ID_OPTIONS_VIDEO_UPSCALER_OFF, CHECKED
             MENUITEM SEPARATOR
-            MENUITEM "NIS, &no sharpening",         ID_OPTIONS_VIDEO_NIS_SHARP_0
-            MENUITEM "NIS, &25% sharpening",        ID_OPTIONS_VIDEO_NIS_SHARP_25
-            MENUITEM "NIS, &50% sharpening",        ID_OPTIONS_VIDEO_NIS_SHARP_50
-            MENUITEM "NIS, &75% sharpening",        ID_OPTIONS_VIDEO_NIS_SHARP_75
-            MENUITEM "NIS, 1&00% sharpening",       ID_OPTIONS_VIDEO_NIS_SHARP_100
+            MENUITEM "NVIDIA &NIS",                 ID_OPTIONS_VIDEO_UPSCALER_NIS
+            MENUITEM "AMD &FSR 1.0",                ID_OPTIONS_VIDEO_UPSCALER_FSR
+            MENUITEM SEPARATOR
+            POPUP "&Sharpening"
+            BEGIN
+                MENUITEM "&0%",                     ID_OPTIONS_VIDEO_UPSCALER_SHARP_0
+                MENUITEM "&25%",                    ID_OPTIONS_VIDEO_UPSCALER_SHARP_25
+                MENUITEM "&50%",                    ID_OPTIONS_VIDEO_UPSCALER_SHARP_50, CHECKED
+                MENUITEM "&75%",                    ID_OPTIONS_VIDEO_UPSCALER_SHARP_75
+                MENUITEM "1&00%",                   ID_OPTIONS_VIDEO_UPSCALER_SHARP_100
+            END
         END
         POPUP "&Audio"
         BEGIN
