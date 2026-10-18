@@ -65,6 +65,12 @@ void VBALuaClearGui();
 
 char* VBAGetLuaScriptName();
 
+// The engine scripts run on and the file it was loaded from.  The version is
+// read out of the engine itself rather than out of the headers the emulator was
+// built against, so a lua51.dll swapped in next to the exe is reported as it is.
+char* VBALuaEngineVersion();
+char* VBALuaEnginePath();
+
 // And some interesting REVERSE declarations!
 char *VBAGetFreezeFilename(int slot);
 

@@ -554,6 +554,7 @@
 #define IDC_BUTTON_LUAEDIT              1365
 #define IDC_LUACONSOLE_CLEAR            1366
 #define IDC_LUACONSOLE_CHOOSEFONT       1367
+#define IDC_LUACONSOLE_ABOUT            1500
 #define IDC_ACCELEDIT_APPLY             1368
 #define IDC_ACCELEDIT_SELECTALL         1369
 #define IDC_ACCELEDIT_REPLACE           1370
@@ -1120,7 +1121,7 @@
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        193
 #define _APS_NEXT_COMMAND_VALUE         42460
-#define _APS_NEXT_CONTROL_VALUE         1500
+#define _APS_NEXT_CONTROL_VALUE         1501
 #define _APS_NEXT_SYMED_VALUE           43513
 #endif
 #endif

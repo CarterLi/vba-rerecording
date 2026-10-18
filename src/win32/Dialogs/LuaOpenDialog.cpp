@@ -11,6 +11,7 @@
 #include "../Sound.h"
 
 #include "../../common/vbalua.h"
+#include "../../version.h"
 
 HWND LuaConsoleHWnd = NULL;
 HFONT hFont = NULL;
@@ -331,6 +332,20 @@ INT_PTR CALLBACK DlgLuaScriptDialog(HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 			case IDC_LUACONSOLE_CLEAR:
 			{
 				SetWindowText(GetDlgItem(hDlg, IDC_LUACONSOLE), "");
+			}	break;
+
+			case IDC_LUACONSOLE_ABOUT:
+			{
+				CString text;
+
+				// The engine says what it is: see VBALuaEngineVersion, which
+				// reads the version out of the lua51.dll that is loaded.
+				text.Format(VBA_NAME_AND_VERSION " Lua scripting\r\n\r\n"
+				            "Engine  : %s\r\n"
+				            "Lua DLL : %s",
+				            VBALuaEngineVersion(), VBALuaEnginePath());
+
+				MessageBox(hDlg, text, "About Lua Scripting", MB_OK | MB_ICONINFORMATION);
 			}	break;
 		}
 		break;

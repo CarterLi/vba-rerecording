@@ -2335,6 +2335,7 @@ BEGIN
         MENUITEM "&Font...",                    IDC_LUACONSOLE_CHOOSEFONT
         MENUITEM "Clear",                       IDC_LUACONSOLE_CLEAR
     END
+    MENUITEM "&About",                          IDC_LUACONSOLE_ABOUT
 END
 
 

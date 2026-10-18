@@ -5345,3 +5345,87 @@ char *VBAGetLuaScriptName()
 {
 	return luaScriptName;
 }
+
+// The engine scripts run on is the lua51.dll next to the exe, delay loaded, so
+// it is loaded here when no script has needed it yet.  That way what is named
+// is the engine a script would get, not merely the one that happens to be
+// mapped already.
+static HMODULE luaEngineModule()
+{
+	HMODULE module = GetModuleHandle("lua51.dll");
+	if (module == NULL)
+		module = LoadLibrary("lua51.dll");
+
+	return module;
+}
+
+// Names the engine out of the engine itself rather than out of the headers the
+// emulator was built against: _VERSION is what the loaded DLL reports, and the
+// jit table, which only LuaJIT has, carries the build of the engine that is
+// really running.  A state of its own is opened for the reading and closed
+// again, because the state the scripts use may be in the middle of a script on
+// the emulator's thread while this is asked for.
+char *VBALuaEngineVersion()
+{
+	static char version[128];
+
+	version[0] = '\0';
+
+	if (luaEngineModule() == NULL)
+	{
+		sprintf(version, "lua51.dll could not be loaded");
+		return version;
+	}
+
+	lua_State *L = lua_open();
+	if (L == NULL)
+	{
+		sprintf(version, "lua51.dll did not start");
+		return version;
+	}
+
+	luaL_openlibs(L);
+
+	char engine[64]   = "";
+	char language[64] = "";
+
+	lua_getglobal(L, "_VERSION");
+	if (lua_isstring(L, -1))
+		strncpy(language, lua_tostring(L, -1), sizeof(language) - 1);
+	lua_pop(L, 1);
+
+	lua_getglobal(L, "jit");
+	if (lua_istable(L, -1))
+	{
+		lua_getfield(L, -1, "version");
+		if (lua_isstring(L, -1))
+			strncpy(engine, lua_tostring(L, -1), sizeof(engine) - 1);
+		lua_pop(L, 1);
+	}
+	lua_pop(L, 1);
+
+	lua_close(L);
+
+	if (engine[0] != '\0')
+		sprintf(version, "%s (%s)", engine, (language[0] != '\0') ? language : "Lua 5.1");
+	else if (language[0] != '\0')
+		sprintf(version, "%s (no LuaJIT)", language);
+	else
+		sprintf(version, "no version reported");
+
+	return version;
+}
+
+// Where that engine was loaded from, so a stray lua51.dll is named as such.
+char *VBALuaEnginePath()
+{
+	static char path[MAX_PATH];
+
+	path[0] = '\0';
+
+	HMODULE module = luaEngineModule();
+	if (module != NULL)
+		GetModuleFileName(module, path, sizeof(path));
+
+	return path;
+}
