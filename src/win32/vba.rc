@@ -1887,7 +1887,6 @@ BEGIN
                 MENUITEM "    DDraw &Emulation Only",   ID_OPTIONS_VIDEO_DDRAWEMULATIONONLY
                 MENUITEM "    DDraw &Use Video Memory", ID_OPTIONS_VIDEO_DDRAWUSEVIDEOMEMORY
                 MENUITEM "    DDraw &Triple Buffering", ID_OPTIONS_VIDEO_TRIPLEBUFFERING
-                MENUITEM "    DDraw &VSync",            ID_OPTIONS_VIDEO_VSYNC
                 MENUITEM SEPARATOR
                 MENUITEM "Direct3D &11",                ID_OPTIONS_VIDEO_RENDERMETHOD_DIRECT3D11
                 MENUITEM "Direct&3D 9Ex",               ID_OPTIONS_VIDEO_RENDERMETHOD_DIRECT3D
@@ -1900,6 +1899,8 @@ BEGIN
                 MENUITEM "    GL T&riangle",            ID_OPTIONS_VIDEO_RENDEROPTIONS_GLTRIANGLE
                 MENUITEM "    GL &Quads",               ID_OPTIONS_VIDEO_RENDEROPTIONS_GLQUADS
             END
+            MENUITEM SEPARATOR
+            MENUITEM "V&Sync (DDraw, D3D11)",       ID_OPTIONS_VIDEO_VSYNC
             MENUITEM SEPARATOR
             POPUP "&Window Size"
             BEGIN

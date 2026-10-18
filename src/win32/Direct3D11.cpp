@@ -1653,7 +1653,13 @@ void Direct3D11Display::render()
 	ID3D11ShaderResourceView *nullView = NULL;
 	pContext->PSSetShaderResources(0, 1, &nullView);
 
-	pSwapChain->Present(1, 0);
+	// Only wait for the vertical blank when the user asked for it, the same way
+	// DirectDraw waits before its flip, see the VSync video option.  The thread
+	// that comes through here is the one that also feeds the sound device, so a
+	// sync interval of one (a block of a whole vblank per frame) starves the
+	// audio buffer and is heard as crackling.
+	bool fastForward = speedup || theApp.frameSearchSkipping;
+	pSwapChain->Present(theApp.vsync && !fastForward ? 1 : 0, 0);
 }
 
 void Direct3D11Display::resize(int w, int h)
