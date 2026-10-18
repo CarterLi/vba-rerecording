@@ -8,6 +8,7 @@
 #include "resource.h"
 #include "VBA.h"
 #include "AVIWrite.h"
+#include "DarkMode.h"
 #include "Input.h"
 #include "IUpdate.h"
 #include "MainWnd.h"
@@ -515,6 +516,10 @@ BOOL VBA::InitInstance()
 	exeDir = winBuffer;
 
 	regInit(winBuffer);
+
+	// Before the first window: dark mode is a process wide setting and the
+	// visual styles have to be in place before the controls are created.
+	darkMode::init();
 
 	loadSettings();
 	theApp.LuaFastForward = -1;

@@ -544,6 +544,7 @@
     <ClCompile Include="..\src\win32\AcceleratorManager.cpp" />
     <ClCompile Include="..\src\win32\AVIWrite.cpp" />
     <ClCompile Include="..\src\win32\CmdAccelOb.cpp" />
+    <ClCompile Include="..\src\win32\DarkMode.cpp" />
     <ClCompile Include="..\src\win32\Direct3D.cpp" />
     <ClCompile Include="..\src\win32\Direct3D11.cpp" />
     <ClCompile Include="..\src\win32\TextOverlay.cpp" />
@@ -630,6 +631,7 @@
     <ClInclude Include="..\src\win32\AcceleratorManager.h" />
     <ClInclude Include="..\src\win32\AVIWrite.h" />
     <ClInclude Include="..\src\win32\CmdAccelOb.h" />
+    <ClInclude Include="..\src\win32\DarkMode.h" />
     <ClInclude Include="..\src\win32\Controls\BitmapControl.h" />
     <ClInclude Include="..\src\win32\Controls\ColorButton.h" />
     <ClInclude Include="..\src\win32\Controls\ColorControl.h" />
