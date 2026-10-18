@@ -96,6 +96,25 @@ bool direct3D11Available()
 	return d3d11CreateDevice != NULL && d3dCompile != NULL;
 }
 
+// The swap effect the running display presents with, -1 while there is none.
+static int currentSwapEffect = -1;
+
+// Names the presentation model that is in use, or returns NULL while the
+// renderer is not running.  The render method menu asks for this so that the
+// model is visible without digging through the trace log, see
+// MainWndOptions.cpp.
+const char *direct3D11PresentationModel()
+{
+	switch (currentSwapEffect)
+	{
+	case DXGI_SWAP_EFFECT_FLIP_DISCARD:    return "Flip";
+	case DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL: return "Flip sequential";
+	case DXGI_SWAP_EFFECT_DISCARD:         return "Bitblt";
+	}
+
+	return NULL;
+}
+
 struct D3D11VERTEX
 {
 	float x, y;
@@ -420,6 +439,7 @@ void Direct3D11Display::releaseAll()
 	if (pVS)           { pVS->Release();           pVS = NULL; }
 	if (pSwapChain)    { pSwapChain->Release();    pSwapChain = NULL; }
 	flipModel = false;
+	currentSwapEffect = -1;
 	if (pContext)      { pContext->Release();      pContext = NULL; }
 	if (pDevice)       { pDevice->Release();       pDevice = NULL; }
 }
@@ -523,16 +543,21 @@ bool Direct3D11Display::createSwapChain()
 			flipModel  = true;
 
 			// What the swap chain ended up with, so the model that is in use
-			// can be read back out of the trace file instead of assumed.
+			// can be read back out of the trace file (and named by the render
+			// method menu) instead of assumed.
 			DXGI_SWAP_CHAIN_DESC1 actual;
 			ZeroMemory(&actual, sizeof(actual));
-			if (SUCCEEDED(swapChain1->GetDesc1(&actual)))
-				winlog("D3D11: swap effect %d (%s), %d buffers\n",
-				       (int)actual.SwapEffect,
-				       actual.SwapEffect == DXGI_SWAP_EFFECT_FLIP_DISCARD ? "flip discard" : "flip sequential",
-				       (int)actual.BufferCount);
-			else
-				winlog("D3D11: flip model swap chain (swap effect %d)\n", (int)sd.SwapEffect);
+			if (FAILED(swapChain1->GetDesc1(&actual)))
+			{
+				actual.SwapEffect  = sd.SwapEffect;
+				actual.BufferCount = sd.BufferCount;
+			}
+
+			currentSwapEffect = (int)actual.SwapEffect;
+			winlog("D3D11: swap effect %d (%s), %d buffers\n",
+			       (int)actual.SwapEffect,
+			       actual.SwapEffect == DXGI_SWAP_EFFECT_FLIP_DISCARD ? "flip discard" : "flip sequential",
+			       (int)actual.BufferCount);
 		}
 		else
 		{
@@ -564,6 +589,7 @@ bool Direct3D11Display::createSwapChain()
 		}
 		else
 		{
+			currentSwapEffect = (int)sd.SwapEffect;
 			winlog("D3D11: swap effect %d (bitblt), 1 buffer\n", (int)sd.SwapEffect);
 		}
 	}

@@ -32,6 +32,10 @@
 // Defined in Direct3D11.cpp: false when D3D11.DLL or D3DCOMPILER_47.DLL is
 // missing, in which case the renderer is not offered at all.
 extern bool direct3D11Available();
+// Defined in Direct3D11.cpp: the presentation model the Direct3D 11 backend is
+// running with ("Flip", "Flip sequential", "Bitblt"), NULL while it is not the
+// render method that is presenting.
+extern const char *direct3D11PresentationModel();
 
 #define VBA_CONFIRM_MODE WM_APP + 100
 
@@ -558,6 +562,36 @@ void MainWnd::OnUpdateOptionsVideoRendermethodDirect3d11(CCmdUI*pCmdUI)
 	// D3D11.DLL and D3DCOMPILER_47.DLL are not part of Windows 7, so the
 	// renderer is only offered where both of them can be loaded.
 	pCmdUI->Enable(direct3D11Available());
+
+	// The renderer presents in the flip model where the system supports it and
+	// in the bitblt model where it does not, see createSwapChain(), so the entry
+	// names the model that is running.  The plain name is read back from the
+	// menu (the resource carries it) so the two cannot drift apart, and the
+	// accelerator text winAccelMgr appends is left to winAccelMgr.
+	if (pCmdUI->m_pMenu != NULL)
+	{
+		static CString label;
+
+		if (label.IsEmpty())
+		{
+			CString text;
+			pCmdUI->m_pMenu->GetMenuString(pCmdUI->m_nID, text, MF_BYCOMMAND);
+
+			int tab = text.Find('\t');
+			label = (tab >= 0) ? text.Left(tab) : text;
+		}
+
+		const char *presentation =
+		    (theApp.renderMethod == DIRECT_3D11) ? direct3D11PresentationModel() : NULL;
+
+		CString text = label;
+		if (presentation != NULL)
+			text.AppendFormat(" (%s)", presentation);
+
+		pCmdUI->SetText(text);
+		theApp.winAccelMgr.UpdateMenu(pCmdUI->m_pMenu->GetSafeHmenu());
+	}
+
 	pCmdUI->SetCheck(theApp.renderMethod == DIRECT_3D11);
 }
 
