@@ -1640,6 +1640,20 @@ void OpenGL33Display::render()
 
 void OpenGL33Display::clear()
 {
+        if (hglrc == NULL || hDC == NULL)
+                return;
+
+        // The window keeps showing the last swapped buffer until the next
+        // swap, so clearing alone does not remove the picture of a closed
+        // ROM: the swap is what changes what is on screen.
+        wglMakeCurrent(hDC, hglrc);
+
+        glDisable(GL_SCISSOR_TEST);
+        glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+        glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
+
+        SwapBuffers(hDC);
 }
 
 void OpenGL33Display::renderMenu()

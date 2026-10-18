@@ -68,6 +68,7 @@ ON_WM_ACTIVATE()
 ON_WM_ACTIVATEAPP()
 ON_WM_DROPFILES()
 ON_WM_PAINT()
+ON_WM_ERASEBKGND()
 
 ON_COMMAND(ID_HELP_ABOUT, OnHelpAbout)
 ON_COMMAND(ID_HELP_FAQ, OnHelpFaq)
@@ -752,6 +753,25 @@ void MainWnd::OnPaint()
 	{
 		systemRedrawScreen();
 	}
+	else if (!emulating && theApp.display)
+	{
+		// Keep the closed ROM's window black across repaints: a flip model
+		// swap chain is not affected by the window erase.
+		theApp.display->clear();
+	}
+}
+
+BOOL MainWnd::OnEraseBkgnd(CDC *pDC)
+{
+	// The client area is the emulated screen and has nothing to show unless a
+	// display paints it, so it is black.  The window class already carries a
+	// black brush; painting it here as well is what makes the very first
+	// erase of a freshly created window black instead of the default white,
+	// which is visible as a flash when the render method changes.
+	CRect rc;
+	GetClientRect(&rc);
+	pDC->FillSolidRect(&rc, RGB(0, 0, 0));
+	return TRUE;
 }
 
 static bool translatingAccelerator = false;
@@ -1396,6 +1416,12 @@ void MainWnd::winFileClose(bool reopening)
 	theApp.frameSearching	   = false;
 	theApp.frameSearchSkipping = false;
 	emulating = 0;
+
+	// The display keeps the last frame until it is told otherwise.  That is
+	// visible with the flip model swap chain, where erasing the window does
+	// not touch what is on screen.
+	if (theApp.display)
+		theApp.display->clear();
 
 	if (this)
 		RedrawWindow(NULL, NULL, RDW_INVALIDATE | RDW_ERASE | RDW_ALLCHILDREN);

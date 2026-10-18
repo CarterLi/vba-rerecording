@@ -1537,12 +1537,15 @@ void VBA::updateWindowSize(int value)
 
 	if (m_pMainWnd == NULL)
 	{
-		// Create a new window
+		// Create a new window.  It stays hidden until its client area has
+		// been painted black: a window created visible shows the window
+		// manager's default surface first, which reads as a white flash
+		// whenever the render method changes.
 		m_pMainWnd = new MainWnd;
 		m_pMainWnd->CreateEx(styleEx,
 		                     theApp.wndClass,
 		                     VBA_NAME_AND_VERSION,
-		                     style,
+		                     style & ~WS_VISIBLE,
 		                     x, y, winSizeX, winSizeY,
 		                     NULL,
 		                     0);
@@ -1580,7 +1583,22 @@ void VBA::updateWindowSize(int value)
 							y,
 							winSizeX,
 							winSizeY,
-							SWP_NOMOVE | SWP_SHOWWINDOW);
+							SWP_NOMOVE);
+
+	// The size is final now, so the surface can be made black before the
+	// window is shown: this is what the display would draw anyway, and it
+	// removes the white frame the window manager would show first.
+	if (!m_pMainWnd->IsWindowVisible())
+	{
+		HWND wnd    = m_pMainWnd->GetSafeHwnd();
+		HDC  dc     = ::GetDC(wnd);
+		RECT client;
+		::GetClientRect(wnd, &client);
+		::FillRect(dc, &client, (HBRUSH)::GetStockObject(BLACK_BRUSH));
+		::ReleaseDC(wnd, dc);
+
+		m_pMainWnd->ShowWindow(SW_SHOW);
+	}
 
 	adjustDestRect();
 
@@ -1601,12 +1619,26 @@ bool VBA::initDisplay()
 			delete input;
 			input = NULL;
 		}
-		CWnd *pWnd = m_pMainWnd;
 
-		m_pMainWnd = NULL;
-		pWnd->DragAcceptFiles(FALSE);
-		pWnd->DestroyWindow();
-		delete pWnd;
+		// Rebuilding the window makes the whole frame flash on every render
+		// method switch, even when no game is running.  Only the frame style
+		// differs between windowed and fullscreen, so the window is kept when
+		// the switch does not cross that line.
+		CWnd *pWnd   = m_pMainWnd;
+		bool  rebuild = pWnd == NULL ||
+		                ((pWnd->GetStyle() & WS_POPUP) != 0) != isFullscreenOption(videoOption);
+
+		if (pWnd != NULL)
+		{
+			pWnd->DragAcceptFiles(FALSE);
+
+			if (rebuild)
+			{
+				m_pMainWnd = NULL;
+				pWnd->DestroyWindow();
+				delete pWnd;
+			}
+		}
 
 		display = NULL;
 	}

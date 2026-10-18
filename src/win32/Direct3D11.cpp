@@ -575,14 +575,20 @@ Direct3D11Display::~Direct3D11Display()
 
 void Direct3D11Display::cleanup()
 {
-	overlay.destroy();
-	releaseAll();
+        overlay.destroy();
 
-	if (pContext)
-	{
-		pContext->ClearState();
-		pContext->Flush();
-	}
+        // Drop every binding and wait for the GPU before the views and the
+        // swap chain are released.  Releasing them while the context still
+        // points at them is what leaves a device behind that the next
+        // creation trips over, and releaseAll() clears pContext, so this has
+        // to run first.
+        if (pContext)
+        {
+                pContext->ClearState();
+                pContext->Flush();
+        }
+
+        releaseAll();
 }
 
 void Direct3D11Display::releaseAll()
@@ -885,9 +891,15 @@ bool Direct3D11Display::createSamplers()
 
 bool Direct3D11Display::initialize()
 {
-	CWnd *pWnd = theApp.m_pMainWnd;
+        CWnd *pWnd = theApp.m_pMainWnd;
 
-	if (!direct3D11Available())
+        if (pWnd == NULL || pWnd->GetSafeHwnd() == NULL)
+        {
+                winlog("D3D11: no main window to draw into\n");
+                return false;
+        }
+
+        if (!direct3D11Available())
 	{
 		// Same treatment as the other renderers: report what could not be
 		// loaded and let the caller fall back to something else.
@@ -1626,7 +1638,23 @@ ID3D11ShaderResourceView *Direct3D11Display::scaleFrameWithSinglePass(int upscal
 }
 
 void Direct3D11Display::clear()
-{}
+{
+        if (pDevice == NULL || pContext == NULL || pSwapChain == NULL || pRTV == NULL)
+                return;
+
+        // A flip model swap chain owns the window's client area, so erasing or
+        // painting the window does not change what is on screen; only a
+        // present does.  Without this the last frame of a closed ROM stays
+        // visible until something draws again.
+        const float clearColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
+        pContext->OMSetRenderTargets(1, &pRTV, NULL);
+        pContext->ClearRenderTargetView(pRTV, clearColor);
+
+        // In the flip model the back buffer that was just cleared is the one
+        // the swap chain presents, and the view has to be rebuilt for the new
+        // one afterwards, which render() does on its next frame.
+        pSwapChain->Present(0, 0);
+}
 
 void Direct3D11Display::renderMenu()
 {
@@ -1807,11 +1835,16 @@ void Direct3D11Display::render()
 		}
 	}
 
-	// A flip model swap chain hands a different back buffer over with every
-	// Present.  Only buffer 0 can be queried and it is the current one again
-	// after each Present, so the render target view is rebuilt for it here.
-	if (flipModel && !createBackBufferViews())
-		return;
+        // A flip model swap chain hands a different back buffer over with every
+        // Present.  Only buffer 0 can be queried and it is the current one again
+        // after each Present, so the render target view is rebuilt for it here.
+        // A bitblt swap chain keeps its buffer, but the view can still be
+        // missing after a failed resize, so that case rebuilds it as well.
+        if (pRTV == NULL || flipModel)
+        {
+                if (!createBackBufferViews())
+                        return;
+        }
 
 	const float clearColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
 	pContext->OMSetRenderTargets(1, &pRTV, NULL);

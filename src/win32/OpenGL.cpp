@@ -203,7 +203,28 @@ bool OpenGLDisplay::initialize()
 }
 
 void OpenGLDisplay::clear()
-{}
+{
+	if (hglrc == NULL || theApp.m_pMainWnd == NULL)
+		return;
+
+	CDC *dc = theApp.m_pMainWnd->GetDC();
+	if (dc == NULL)
+		return;
+
+	HDC hdc = dc->GetSafeHdc();
+	wglMakeCurrent(hdc, hglrc);
+
+	// The window keeps showing the last swapped buffer until the next swap,
+	// so clearing alone does not remove the picture of a closed ROM.
+	glDisable(GL_SCISSOR_TEST);
+	glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+	glClear(GL_COLOR_BUFFER_BIT);
+
+	SwapBuffers(hdc);
+
+	theApp.m_pMainWnd->ReleaseDC(dc);
+}
 
 void OpenGLDisplay::renderMenu()
 {

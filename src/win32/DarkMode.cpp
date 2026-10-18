@@ -258,10 +258,9 @@ namespace
 		ReleaseDC(hwnd, dc);
 	}
 
-	LRESULT CALLBACK frameProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
+	LRESULT CALLBACK frameProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam,
+	                           UINT_PTR, DWORD_PTR)
 	{
-		WNDPROC old = reinterpret_cast<WNDPROC>(GetPropW(hwnd, L"VbaDarkModeFrameProc"));
-
 		switch (msg)
 		{
 		case WM_UAHDRAWMENU:
@@ -279,26 +278,24 @@ namespace
 				// The theme draws its own light border along the bottom of
 				// the menu bar, after the bar itself has been painted; cover
 				// it once the window is done with the non client area.
-				LRESULT result = old ? CallWindowProc(old, hwnd, msg, wParam, lParam)
-				                     : DefWindowProcW(hwnd, msg, wParam, lParam);
+				LRESULT result = DefSubclassProc(hwnd, msg, wParam, lParam);
 				drawMenuBorder(hwnd);
 				return result;
 			}
 		}
 
-		return old ? CallWindowProc(old, hwnd, msg, wParam, lParam)
-		           : DefWindowProcW(hwnd, msg, wParam, lParam);
+		return DefSubclassProc(hwnd, msg, wParam, lParam);
 	}
 
+	// The emulator is a MultiByte build, so its windows are ANSI ones: the
+	// messages handed to a window procedure carry char strings.  Moving the
+	// procedure with SetWindowLongPtrW() flips the window to Unicode and the
+	// chain then reads a wide WM_SETTEXT as ANSI, which shows up as a caption
+	// consisting of its first character only.  SetWindowSubclass() keeps the
+	// procedure's character set and DefSubclassProc() converts for it.
 	void subclassFrame(HWND hwnd)
 	{
-		if (GetPropW(hwnd, L"VbaDarkModeFrameProc") != NULL)
-			return;
-
-		WNDPROC old = reinterpret_cast<WNDPROC>(
-			SetWindowLongPtrW(hwnd, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(frameProc)));
-
-		SetPropW(hwnd, L"VbaDarkModeFrameProc", reinterpret_cast<HANDLE>(old));
+		SetWindowSubclass(hwnd, frameProc, 1, 0);
 	}
 #endif
 
@@ -308,11 +305,21 @@ namespace
 	{
 		if (g_setDwmAttribute != NULL)
 		{
-			BOOL dark = TRUE;
-			// 20 since Windows 10 2004, 19 on 1809/1903; the failing one is
-			// simply ignored.
-			g_setDwmAttribute(hwnd, 20, &dark, sizeof(dark));
-			g_setDwmAttribute(hwnd, 19, &dark, sizeof(dark));
+			// Windows fades a new top level window in over a white surface.
+			// The emulator creates a window whenever the render method
+			// changes, so the fade is seen as a white flash.
+			BOOL noTransition = TRUE;
+			g_setDwmAttribute(hwnd, 3 /* DWMWA_TRANSITIONS_FORCEDISABLED */,
+			                  &noTransition, sizeof(noTransition));
+
+			if (g_enabled)
+			{
+				BOOL dark = TRUE;
+				// 20 since Windows 10 2004, 19 on 1809/1903; the failing one
+				// is simply ignored.
+				g_setDwmAttribute(hwnd, 20, &dark, sizeof(dark));
+				g_setDwmAttribute(hwnd, 19, &dark, sizeof(dark));
+			}
 		}
 
 #if !defined(WINXP)
@@ -371,6 +378,14 @@ namespace darkMode
 #if defined(WINXP)
 		return;
 #else
+		// Loaded before the colour mode is looked at: turning the window
+		// transitions off has nothing to do with it, and every window the
+		// emulator creates needs that.
+		HMODULE dwmapi = LoadLibraryW(L"dwmapi.dll");
+		if (dwmapi != NULL)
+			g_setDwmAttribute = reinterpret_cast<FnDwmSetWindowAttribute>(
+				GetProcAddress(dwmapi, "DwmSetWindowAttribute"));
+
 		if (!systemUsesDarkMode())
 			return;
 
@@ -388,11 +403,6 @@ namespace darkMode
 			reinterpret_cast<FnFlushMenuThemes>(GetProcAddress(uxtheme, MAKEINTRESOURCEA(136)));
 		FnRefreshImmersiveColorPolicyState refreshPolicy =
 			reinterpret_cast<FnRefreshImmersiveColorPolicyState>(GetProcAddress(uxtheme, MAKEINTRESOURCEA(104)));
-
-		HMODULE dwmapi = LoadLibraryW(L"dwmapi.dll");
-		if (dwmapi != NULL)
-			g_setDwmAttribute = reinterpret_cast<FnDwmSetWindowAttribute>(
-				GetProcAddress(dwmapi, "DwmSetWindowAttribute"));
 
 		// ForceDark is what makes the drop down menus dark; they have no per
 		// window switch of their own.
