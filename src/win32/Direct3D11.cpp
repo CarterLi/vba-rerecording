@@ -1866,11 +1866,14 @@ void Direct3D11Display::render()
 				}
 			}
 
+			// The overlay is a top-down DIB, so its first row is the top of the
+			// text and goes to the top of the screen, the same way the frame's
+			// first row does in calculateVertices().
 			D3D11VERTEX overlayQuad[4];
-			overlayQuad[0].x = -1.0f; overlayQuad[0].y =  1.0f; overlayQuad[0].u = 0.0f; overlayQuad[0].v = 1.0f;
-			overlayQuad[1].x = -1.0f; overlayQuad[1].y = -1.0f; overlayQuad[1].u = 0.0f; overlayQuad[1].v = 0.0f;
-			overlayQuad[2].x =  1.0f; overlayQuad[2].y =  1.0f; overlayQuad[2].u = 1.0f; overlayQuad[2].v = 1.0f;
-			overlayQuad[3].x =  1.0f; overlayQuad[3].y = -1.0f; overlayQuad[3].u = 1.0f; overlayQuad[3].v = 0.0f;
+			overlayQuad[0].x = -1.0f; overlayQuad[0].y =  1.0f; overlayQuad[0].u = 0.0f; overlayQuad[0].v = 0.0f;
+			overlayQuad[1].x = -1.0f; overlayQuad[1].y = -1.0f; overlayQuad[1].u = 0.0f; overlayQuad[1].v = 1.0f;
+			overlayQuad[2].x =  1.0f; overlayQuad[2].y =  1.0f; overlayQuad[2].u = 1.0f; overlayQuad[2].v = 0.0f;
+			overlayQuad[3].x =  1.0f; overlayQuad[3].y = -1.0f; overlayQuad[3].u = 1.0f; overlayQuad[3].v = 1.0f;
 
 			int savedFilter = filterMode;
 			filterMode = 0; // point sampling for a 1:1 overlay
