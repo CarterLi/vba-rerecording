@@ -43,6 +43,12 @@ extern const char *direct3D9PresentationModel();
 // really is ("9Ex", or "9.0c" where Direct3DCreate9Ex is not there), NULL while
 // it is not the render method that is presenting.
 extern const char *direct3D9DeviceName();
+// Defined in XAudio2Sound.cpp: how the running XAudio2 backend is buffering and
+// how often it was left without data, for the sound API menu below.  All zero
+// while no XAudio2 backend is running.
+extern int xaudio2BufferCount();
+extern int xaudio2BufferingMs();
+extern int xaudio2DropoutCount();
 
 // Names the presentation model that a render method entry is running with, so
 // that "Direct3D 11" reads "Direct3D 11 (Flip)".  The plain name comes from the
@@ -87,6 +93,44 @@ static void setRenderMethodModel(CCmdUI *pCmdUI, const char *model, const char *
 
 	if (model != NULL)
 		text.AppendFormat(" (%s)", model);
+
+	pCmdUI->SetText(text);
+	theApp.winAccelMgr.UpdateMenu(pCmdUI->m_pMenu->GetSafeHmenu());
+}
+
+// Names the buffering the XAudio2 backend is running with, so that "XAudio2
+// (2.9)" reads "XAudio2 (2.9) - 4 blocks, 67 ms" and a machine that cannot keep
+// those blocks filled shows how often its voice ran dry.  The blocks times the
+// frame they hold are the latency XAudio2 adds on top of its own processing
+// quantum, which is what it buys over the DirectSound ring; see
+// XAudio2Sound.cpp.  The plain name comes from the resource and the accelerator
+// text is left to winAccelMgr, like setRenderMethodModel above.
+static void setSoundApiBuffering(CCmdUI *pCmdUI)
+{
+	if (pCmdUI->m_pMenu == NULL)
+		return;
+
+	CString text;
+	pCmdUI->m_pMenu->GetMenuString(pCmdUI->m_nID, text, MF_BYCOMMAND);
+
+	int tab = text.Find('\t');
+	if (tab >= 0)
+		text = text.Left(tab);
+
+	// Drop a buffering named by an earlier update before naming this one.
+	int dash = text.Find(" - ");
+	if (dash >= 0)
+		text = text.Left(dash);
+
+	int blocks = xaudio2BufferCount();
+	if (blocks > 0)
+	{
+		text.AppendFormat(" - %d blocks, %d ms", blocks, xaudio2BufferingMs());
+
+		int dropouts = xaudio2DropoutCount();
+		if (dropouts > 0)
+			text.AppendFormat(", %d dropouts", dropouts);
+	}
 
 	pCmdUI->SetText(text);
 	theApp.winAccelMgr.UpdateMenu(pCmdUI->m_pMenu->GetSafeHmenu());
@@ -1410,6 +1454,10 @@ void MainWnd::OnOptionsSoundApiXaudio2()
 
 void MainWnd::OnUpdateOptionsSoundApiXaudio2(CCmdUI*pCmdUI)
 {
+	// The blocks the voice holds and the latency they add are what this backend
+	// is tuned for, so they are shown where the backend is chosen.
+	setSoundApiBuffering(pCmdUI);
+
 	pCmdUI->SetCheck(theApp.soundApi == SOUND_API_XAUDIO2);
 	pCmdUI->Enable(!(theApp.soundRecording || theApp.aviRecording || theApp.nvAudioLog));
 }

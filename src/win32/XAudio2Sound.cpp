@@ -36,9 +36,13 @@
 #include "../common/SystemGlobals.h"
 #include "../common/nesvideos-piece.h"
 
-// Number of blocks the voice may hold at once.  This is the ring size the
-// DirectSound backend uses (soundBufferTotalLen / soundBufferLen).
-#define XAUDIO2_SOUND_BUFFERS 10
+// Number of blocks the voice may hold at once and, because the emulator waits
+// for a free one when this many are queued, the latency this backend adds on
+// top of XAudio2's own ten millisecond processing quantum: one block is one
+// emulated frame of audio, so four blocks are about 67 ms at 44.1 kHz, where
+// the DirectSound backend's ring stands at about 150 ms.  Raise this if a slow
+// machine starts reporting dropouts in the sound API menu.
+#define XAUDIO2_SOUND_BUFFERS 4
 
 typedef HRESULT (WINAPI *XAudio2CreateFn)(IXAudio2 **, UINT32, XAUDIO2_PROCESSOR);
 
@@ -49,6 +53,30 @@ extern void directXMessage(const char *);
 extern u32 linearFrameCount;
 extern u32 linearSoundByteCount;
 extern u32 linearSoundFrameCount;
+
+// How the running backend is faring, read by the sound API menu (see
+// MainWndOptions.cpp): the blocks it holds, the latency they add and how often
+// the voice was left without data.  Zero while no XAudio2 backend is running.
+static int			   xaudio2Buffers  = 0;
+static int			   xaudio2BufferMs = 0;
+static volatile LONG   xaudio2Dropouts = 0;
+
+int xaudio2BufferCount()  { return xaudio2Buffers; }
+int xaudio2BufferingMs()  { return xaudio2BufferMs; }
+int xaudio2DropoutCount() { return (int)xaudio2Dropouts; }
+
+// True while the emulator paces itself against the audio device.  The same
+// conditions gate the wait in write() below and the starvation count in
+// OnVoiceProcessingPassStart(): fast forwarding and the unthrottled speeds let
+// the voice run dry on purpose and would only add noise to that count.
+static bool pacingAgainstDevice()
+{
+	bool fastForward = speedup;
+	fastForward |= theApp.frameSearchSkipping;
+
+	return !fastForward && synchronize && !(theApp.throttle > 100 && theApp.accuratePitchThrottle)
+	       && theApp.throttle >= 6 && theApp.throttle <= 400;
+}
 
 class XAudio2Sound : public ISound, public IXAudio2VoiceCallback
 {
@@ -63,6 +91,8 @@ private:
 	int						 nextBuffer;
 	HANDLE					 bufferFreed;
 	bool					 playing;
+	bool					 submittedAny;	// a block queued since the last flush
+	bool					 starving;		// voice is dry, counted once
 
 public:
 	XAudio2Sound();
@@ -97,6 +127,8 @@ XAudio2Sound::XAudio2Sound()
 	nextBuffer		 = 0;
 	bufferFreed		 = NULL;
 	playing			 = false;
+	submittedAny	 = false;
+	starving		 = false;
 	memset(&wfx, 0, sizeof(wfx));
 
 	for (int i = 0; i < XAUDIO2_SOUND_BUFFERS; i++)
@@ -162,6 +194,11 @@ XAudio2Sound::~XAudio2Sound()
 			buffers[i] = NULL;
 		}
 	}
+
+	// Nothing is left for the sound API menu to describe.
+	xaudio2Buffers  = 0;
+	xaudio2BufferMs = 0;
+	xaudio2Dropouts = 0;
 }
 
 bool XAudio2Sound::init()
@@ -240,6 +277,16 @@ bool XAudio2Sound::init()
 	nextBuffer		 = 0;
 	curRate			 = 0.0f;
 	playing			 = false;
+	submittedAny	 = false;
+	starving		 = false;
+
+	// The sound API menu shows these, so they have to describe this run: the
+	// blocks the voice holds and the frame of audio each of them carries.
+	u32 blockFrames = soundBufferLen / (wfx.nChannels * (wfx.wBitsPerSample / 8));
+	xaudio2Buffers  = XAUDIO2_SOUND_BUFFERS;
+	xaudio2BufferMs = (int)(((u64)blockFrames * XAUDIO2_SOUND_BUFFERS * 1000 + wfx.nSamplesPerSec / 2)
+	                        / wfx.nSamplesPerSec);
+	xaudio2Dropouts = 0;
 
 	systemSoundOn = true;
 
@@ -270,7 +317,9 @@ void XAudio2Sound::reset()
 		pSourceVoice->FlushSourceBuffers();
 	}
 
-	playing = false;
+	playing		 = false;
+	submittedAny = false;
+	starving	 = false;
 }
 
 void XAudio2Sound::setSpeed(float rate)
@@ -368,15 +417,12 @@ void XAudio2Sound::write()
 	memset(&state, 0, sizeof(state));
 	pSourceVoice->GetState(&state, XAUDIO2_VOICE_NOSAMPLESPLAYED);
 
-	bool fastForward = speedup;
-	fastForward |= theApp.frameSearchSkipping;
-
 	// Waits for the device to have played a block, the role the DirectSound
 	// play cursor had.  Skipped while fast forwarding or while the voice is
 	// stopped, in which case nothing would ever be played and this would block
-	// forever.
-	if (!fastForward && synchronize && !(theApp.throttle > 100 && theApp.accuratePitchThrottle)
-		&& theApp.throttle >= 6 && theApp.throttle <= 400)
+	// forever.  pacingAgainstDevice() holds those conditions for the starvation
+	// count as well.
+	if (pacingAgainstDevice())
 	{
 		if (playing)
 		{
@@ -421,12 +467,35 @@ void XAudio2Sound::write()
 
 	pSourceVoice->SubmitSourceBuffer(&buffer);
 
+	// From here on a processing pass with nothing queued is this backend's
+	// failure to keep up, not a voice that has not been fed yet.
+	submittedAny = true;
+
 	soundNextPosition += soundBufferLen;
 	soundNextPosition %= soundBufferTotalLen;
 }
 
+// Called on an XAudio2 thread once per processing pass, just before the voice
+// reads from its queue.  A non-zero byte count means it needed data right away
+// to avoid a gap in the output, that is, the emulator did not keep up with the
+// device.  Counting those shows whether the block count above is large enough
+// for this machine.
 void STDMETHODCALLTYPE XAudio2Sound::OnVoiceProcessingPassStart(UINT32 bytesRequired)
 {
+	if (bytesRequired == 0)
+	{
+		starving = false;
+		return;
+	}
+
+	// One count per starvation rather than one per pass spent starving, and
+	// none for a starvation that fast forwarding or an unthrottled speed
+	// started on purpose.
+	if (!starving && submittedAny && playing && !soundPaused && pacingAgainstDevice())
+	{
+		starving = true;
+		InterlockedIncrement(&xaudio2Dropouts);
+	}
 }
 
 void STDMETHODCALLTYPE XAudio2Sound::OnVoiceProcessingPassEnd()
