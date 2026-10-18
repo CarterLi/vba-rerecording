@@ -13,6 +13,20 @@
 
 extern void directXMessage(const char *);
 
+// How the running backend is faring, read by the sound API menu (see
+// MainWndOptions.cpp): the blocks of audio written ahead of the one being played
+// and the latency they add.  Zero while no DirectSound backend is running.  The
+// ring is ten blocks long (soundBufferTotalLen / soundBufferLen, see init
+// below) and the block the play cursor sits on is the one being heard, so the
+// other nine are what the emulator is running late by - the same quantity
+// XAudio2 reports as the depth of its queue.  See write() below for the wait
+// that keeps the writer from getting further ahead than that.
+static int directSoundBuffers  = 0;
+static int directSoundBufferMs = 0;
+
+int directSoundBufferCount() { return directSoundBuffers; }
+int directSoundBufferingMs() { return directSoundBufferMs; }
+
 class DirectSound : public ISound
 {
 private:
@@ -102,6 +116,10 @@ DirectSound::~DirectSound()
 		FreeLibrary(dsoundDLL);
 		dsoundDLL = NULL;
 	}
+
+	// Nothing is left for the sound API menu to describe.
+	directSoundBuffers  = 0;
+	directSoundBufferMs = 0;
 }
 
 bool DirectSound::init()
@@ -262,6 +280,14 @@ bool DirectSound::init()
 	}
 
 	systemSoundOn = true;
+
+	// The sound API menu shows these, so they have to describe this run: the
+	// blocks the ring holds behind the play cursor and the frame of audio each
+	// of them carries.
+	u32 blockFrames = soundBufferLen / (wfx.nChannels * (wfx.wBitsPerSample / 8));
+	directSoundBuffers  = soundBufferTotalLen / soundBufferLen - 1;
+	directSoundBufferMs = (int)(((u64)blockFrames * directSoundBuffers * 1000 + wfx.nSamplesPerSec / 2)
+	                            / wfx.nSamplesPerSec);
 
 	return true;
 }

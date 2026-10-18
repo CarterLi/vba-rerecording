@@ -49,6 +49,11 @@ extern const char *direct3D9DeviceName();
 extern int xaudio2BufferCount();
 extern int xaudio2BufferingMs();
 extern int xaudio2DropoutCount();
+// Defined in DirectSound.cpp: the same for its ring, which is fixed at ten
+// blocks, of which the one being played is not in flight; all zero while no
+// DirectSound backend is running.
+extern int directSoundBufferCount();
+extern int directSoundBufferingMs();
 
 // Names the presentation model that a render method entry is running with, so
 // that "Direct3D 11" reads "Direct3D 11 (Flip)".  The plain name comes from the
@@ -98,14 +103,16 @@ static void setRenderMethodModel(CCmdUI *pCmdUI, const char *model, const char *
 	theApp.winAccelMgr.UpdateMenu(pCmdUI->m_pMenu->GetSafeHmenu());
 }
 
-// Names the buffering the XAudio2 backend is running with, so that "XAudio2
-// (2.9)" reads "XAudio2 (2.9) - 4 blocks, 67 ms" and a machine that cannot keep
-// those blocks filled shows how often its voice ran dry.  The blocks times the
-// frame they hold are the latency XAudio2 adds on top of its own processing
-// quantum, which is what it buys over the DirectSound ring; see
-// XAudio2Sound.cpp.  The plain name comes from the resource and the accelerator
-// text is left to winAccelMgr, like setRenderMethodModel above.
-static void setSoundApiBuffering(CCmdUI *pCmdUI)
+// Names the buffering the backend this entry stands for is running with, so
+// that "XAudio2 (2.9)" reads "XAudio2 (2.9) - 4 blocks, 67 ms" and the
+// DirectSound entry next to it reads the same way for its ring; a machine that
+// cannot keep those blocks filled shows how often the backend was left without
+// data.  The blocks times the frame they hold are the latency that backend adds
+// on top of its own processing quantum, which is what XAudio2 buys over the
+// DirectSound ring; see XAudio2Sound.cpp and DirectSound.cpp.  The plain name
+// comes from the resource and the accelerator text is left to winAccelMgr, like
+// setRenderMethodModel above.
+static void setSoundApiBuffering(CCmdUI *pCmdUI, int blocks, int ms, int dropouts)
 {
 	if (pCmdUI->m_pMenu == NULL)
 		return;
@@ -122,12 +129,10 @@ static void setSoundApiBuffering(CCmdUI *pCmdUI)
 	if (dash >= 0)
 		text = text.Left(dash);
 
-	int blocks = xaudio2BufferCount();
 	if (blocks > 0)
 	{
-		text.AppendFormat(" - %d blocks, %d ms", blocks, xaudio2BufferingMs());
+		text.AppendFormat(" - %d blocks, %d ms", blocks, ms);
 
-		int dropouts = xaudio2DropoutCount();
 		if (dropouts > 0)
 			text.AppendFormat(", %d dropouts", dropouts);
 	}
@@ -1439,6 +1444,11 @@ void MainWnd::OnOptionsSoundApiDirectsound()
 
 void MainWnd::OnUpdateOptionsSoundApiDirectsound(CCmdUI*pCmdUI)
 {
+	// The ring is fixed at ten blocks and nine of them are in flight; saying so
+	// here is what the XAudio2 entry does with its queue, so the two can be
+	// compared where the backend is chosen.
+	setSoundApiBuffering(pCmdUI, directSoundBufferCount(), directSoundBufferingMs(), 0);
+
 	pCmdUI->SetCheck(theApp.soundApi == SOUND_API_DIRECTSOUND);
 	pCmdUI->Enable(!(theApp.soundRecording || theApp.aviRecording || theApp.nvAudioLog));
 }
@@ -1456,7 +1466,7 @@ void MainWnd::OnUpdateOptionsSoundApiXaudio2(CCmdUI*pCmdUI)
 {
 	// The blocks the voice holds and the latency they add are what this backend
 	// is tuned for, so they are shown where the backend is chosen.
-	setSoundApiBuffering(pCmdUI);
+	setSoundApiBuffering(pCmdUI, xaudio2BufferCount(), xaudio2BufferingMs(), xaudio2DropoutCount());
 
 	pCmdUI->SetCheck(theApp.soundApi == SOUND_API_XAUDIO2);
 	pCmdUI->Enable(!(theApp.soundRecording || theApp.aviRecording || theApp.nvAudioLog));
