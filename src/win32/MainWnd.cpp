@@ -1286,7 +1286,7 @@ bool MainWnd::winFileOpenSelect(int cartridgeType)
 
 	if (dlg.DoModal() == IDOK)
 	{
-		regSetDwordValue("selectedFilter", dlg.m_ofn.nFilterIndex);
+		regSetDwordValue("selectedFilter", dlg.getFilterIndex());
 		theApp.romFilename = dlg.GetPathName();
 		initialDir		   = winGetDirFromFilename(theApp.romFilename);
 

@@ -6,6 +6,7 @@
 #include "GBCheatsDlg.h"
 #include "ram_search.h"
 #include "ramwatch.h"
+#include "ModernFileDialog.h"
 #include "../reg.h"
 #include "../Sound.h"
 #include <cassert>
@@ -464,27 +465,28 @@ int Change_File_L(char *Dest, const char *Dir, const char *Titre, const char *Fi
 
 	SetCurrentDirectory(winGetDestDir(IDS_WATCH_DIR));
 
-	OPENFILENAME ofn;
+	WinFileDialogParams params;
+	params.owner       = hwnd;
+	params.save        = false;
+	params.mustExist   = true;
+	params.title       = Titre;
+	params.initialDir  = Dir;
+	params.fileName    = Dest;
+	params.filter      = Filter;
+	params.filterIndex = 1;
+	params.defaultExt  = Ext;
 
-	memset(&ofn, 0, sizeof(OPENFILENAME));
-
-	ofn.lStructSize = sizeof(OPENFILENAME);
-	ofn.hwndOwner = hwnd;
-	ofn.hInstance = hInst;
-	ofn.lpstrFile = Dest;
-	ofn.nMaxFile = 2047;
-	ofn.lpstrFilter = Filter;
-	ofn.nFilterIndex = 1;
-	ofn.lpstrInitialDir = Dir;
-	ofn.lpstrTitle = Titre;
-	ofn.lpstrDefExt = Ext;
-	ofn.Flags = OFN_FILEMUSTEXIST | OFN_HIDEREADONLY;
+	std::string path;
 
 	systemSoundClearBuffer();
 
-	if (GetOpenFileName(&ofn)) return 1;
+	if (winFileDialog(params, path) != IDOK)
+		return 0;
 
-	return 0;
+	strncpy(Dest, path.c_str(), 1023);
+	Dest[1023] = '\0';
+
+	return 1;
 }
 
 int Change_File_S(char *Dest, const char *Dir, const char *Titre, const char *Filter, const char *Ext, HWND hwnd)
@@ -497,25 +499,25 @@ int Change_File_S(char *Dest, const char *Dir, const char *Titre, const char *Fi
 
 	SetCurrentDirectory(winGetDestDir(IDS_WATCH_DIR));
 
-	OPENFILENAME ofn;
+	WinFileDialogParams params;
+	params.owner       = hwnd;
+	params.save        = true;
+	params.title       = Titre;
+	params.initialDir  = Dir;
+	params.fileName    = Dest;
+	params.filter      = Filter;
+	params.filterIndex = 1;
+	params.defaultExt  = Ext;
 
-	memset(&ofn, 0, sizeof(OPENFILENAME));
+	std::string path;
 
-	ofn.lStructSize = sizeof(OPENFILENAME);
-	ofn.hwndOwner = hwnd;
-	ofn.hInstance = hInst;
-	ofn.lpstrFile = Dest;
-	ofn.nMaxFile = 2047;
-	ofn.lpstrFilter = Filter;
-	ofn.nFilterIndex = 1;
-	ofn.lpstrInitialDir = Dir;
-	ofn.lpstrTitle = Titre;
-	ofn.lpstrDefExt = Ext;
-	ofn.Flags = OFN_PATHMUSTEXIST | OFN_HIDEREADONLY;
+	if (winFileDialog(params, path) != IDOK)
+		return 0;
 
-	if (GetSaveFileName(&ofn)) return 1;
+	strncpy(Dest, path.c_str(), 1023);
+	Dest[1023] = '\0';
 
-	return 0;
+	return 1;
 }
 
 bool Save_Watches()
@@ -525,7 +527,7 @@ bool Save_Watches()
 	char* dot = strrchr(Str_Tmp, '.');
 	if(dot) *dot = 0;
 	strcat(Str_Tmp,".wch");
-	if(Change_File_S(Str_Tmp, winGetDestDir(IDS_WATCH_DIR), "Save Watches", "Watchlist\0*.wch\0All Files\0*.*\0\0", "wch", RamWatchHWnd))
+	if(Change_File_S(Str_Tmp, winGetDestDir(IDS_WATCH_DIR), "Save Watches", "Watchlist|*.wch|All Files|*.*", "wch", RamWatchHWnd))
 	{
 		FILE *WatchFile = fopen(Str_Tmp,"r+b");
 		if (!WatchFile) WatchFile = fopen(Str_Tmp,"w+b");
@@ -630,7 +632,7 @@ bool Load_Watches(bool clear)
 	char* dot = strrchr(Str_Tmp, '.');
 	if(dot) *dot = 0;
 	strcat(Str_Tmp,".wch");
-	if(Change_File_L(Str_Tmp, winGetDestDir(IDS_WATCH_DIR), "Load Watches", "Watchlist\0*.wch\0All Files\0*.*\0\0", "wch", RamWatchHWnd))
+	if(Change_File_L(Str_Tmp, winGetDestDir(IDS_WATCH_DIR), "Load Watches", "Watchlist|*.wch|All Files|*.*", "wch", RamWatchHWnd))
 	{
 		return Load_Watches(clear, Str_Tmp);
 	}

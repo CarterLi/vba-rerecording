@@ -2,31 +2,15 @@
 //
 
 #include "../stdafx.h"
-#include <shlobj.h>
 #include "../resource.h"
 #include "Directories.h"
+#include "ModernFileDialog.h"
 #include "../Reg.h"
 #include "../WinMiscUtil.h"
 #include "../WinResUtil.h"
 
 /////////////////////////////////////////////////////////////////////////////
 // Directories dialog
-
-static int CALLBACK browseCallbackProc(HWND hWnd, UINT msg,
-                                       LPARAM l, LPARAM data)
-{
-	char *buffer = (char *)data;
-	switch (msg)
-	{
-	case BFFM_INITIALIZED:
-		if (buffer[0])
-			SendMessage(hWnd, BFFM_SETSELECTION, TRUE, (LPARAM)buffer);
-		break;
-	default:
-		break;
-	}
-	return 0;
-}
 
 Directories::Directories(CWnd*pParent /*=NULL*/)
 	: CDialog(Directories::IDD, pParent)
@@ -387,34 +371,10 @@ void Directories::OnOK()
 
 CString Directories::browseForDir(CString title)
 {
-	static char  buffer[1024];
-	LPMALLOC     pMalloc;
-	LPITEMIDLIST pidl;
+	std::string path;
 
-	CString res;
+	if (!winBrowseForFolder(m_hWnd, title, initialFolderDir, path))
+		return CString();
 
-	if (SUCCEEDED(SHGetMalloc(&pMalloc)))
-	{
-		BROWSEINFO bi;
-		ZeroMemory(&bi, sizeof(bi));
-		bi.hwndOwner = m_hWnd;
-		bi.lpszTitle = title;
-		bi.pidlRoot  = 0;
-		bi.ulFlags   = BIF_RETURNONLYFSDIRS | BIF_USENEWUI;	// will fail if COINIT_MULTITHREADED
-		bi.lpfn      = browseCallbackProc;
-		bi.lParam    = (LPARAM)(LPCTSTR)initialFolderDir;
-
-		pidl = SHBrowseForFolder(&bi);
-
-		if (pidl)
-		{
-			if (SHGetPathFromIDList(pidl, buffer))
-			{
-				res = buffer;
-			}
-			pMalloc->Free(pidl);
-			pMalloc->Release();
-		}
-	}
-	return res;
+	return CString(path.c_str());
 }

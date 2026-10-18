@@ -503,6 +503,7 @@
     <ClCompile Include="..\src\win32\Dialogs\MemoryViewerAddressSize.cpp" />
     <ClCompile Include="..\src\win32\Dialogs\MemoryViewerDlg.cpp" />
     <ClCompile Include="..\src\win32\Dialogs\ModeConfirm.cpp" />
+    <ClCompile Include="..\src\win32\Dialogs\ModernFileDialog.cpp" />
     <ClCompile Include="..\src\win32\Dialogs\MovieCreate.cpp" />
     <ClCompile Include="..\src\win32\Dialogs\MovieOpen.cpp" />
     <ClCompile Include="..\src\win32\Dialogs\OamView.cpp" />
@@ -668,6 +669,7 @@
     <ClInclude Include="..\src\win32\Dialogs\MemoryViewerAddressSize.h" />
     <ClInclude Include="..\src\win32\Dialogs\MemoryViewerDlg.h" />
     <ClInclude Include="..\src\win32\Dialogs\ModeConfirm.h" />
+    <ClInclude Include="..\src\win32\Dialogs\ModernFileDialog.h" />
     <ClInclude Include="..\src\win32\Dialogs\MovieCreate.h" />
     <ClInclude Include="..\src\win32\Dialogs\MovieOpen.h" />
     <ClInclude Include="..\src\win32\Dialogs\OamView.h" />

@@ -6,38 +6,39 @@
 #endif // _MSC_VER > 1000
 // FileDlg.h : header file
 //
+// Thin MFC wrapper around the file dialogs of ModernFileDialog.h.
 
-struct OPENFILENAMEEX : public OPENFILENAME
-{
-	void *pvReserved;
-	DWORD dwReserved;
-	DWORD FlagsEx;
-};
+#include <string>
 
 /////////////////////////////////////////////////////////////////////////////
 // FileDlg dialog
 
 class FileDlg
 {
-private:
-	CString m_file;
-	CString m_filter;
 public:
-	OPENFILENAMEEX m_ofn;
 	int DoModal();
 	LPCTSTR GetPathName();
 	virtual int getFilterIndex();
-	virtual void OnTypeChange(HWND hwnd);
+
 	FileDlg(CWnd *parent, LPCTSTR file, LPCTSTR filter,
 	        int filterIndex, LPCTSTR ext, LPCTSTR *exts, LPCTSTR initialDir,
 	        LPCTSTR title, bool save, bool noReadOnly = false);
 	virtual ~FileDlg();
+
 protected:
-	bool     isSave;
-	LPCTSTR *extensions;
-protected:
-	//{{AFX_INSERT_LOCATION}}
-	// Microsoft Visual C++ will insert additional declarations immediately before the previous line.
+	CWnd     *m_parent;
+	bool      isSave;
+	bool      noReadOnly;
+	LPCTSTR  *extensions;
+	int       m_filterIndex;
+	std::string m_path;
+
+private:
+	CString m_file;
+	CString m_filter;
+	CString m_ext;
+	CString m_initialDir;
+	CString m_title;
 };
 
 #endif // !defined(AFX_FILEDLG_H__7E4F8B92_1B63_4126_8261_D9334C645940__INCLUDED_)

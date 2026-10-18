@@ -4,6 +4,7 @@
 //#include "../stdafx.h"
 //#include "../resource.h"
 #include "LuaOpenDialog.h"
+#include "ModernFileDialog.h"
 #include "../MainWnd.h"
 #include "../WinResUtil.h"
 #include "../WinMiscUtil.h"
@@ -273,28 +274,23 @@ INT_PTR CALLBACK DlgLuaScriptDialog(HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 				CString title  = winResLoadString(IDS_SELECT_LUA_NAME);
 
 				CString luaName = winGetDestFilename(theApp.gameFilename, IDS_LUA_DIR, ".lua");
-				CString luaDir = winGetDestDir(IDS_LUA_DIR);
+				CString luaDir  = winGetDestDir(IDS_LUA_DIR);
 
-				filter.Replace('|', '\000');
-//				char *p = filter.GetBuffer(0);
-//				while ((p = strchr(p, '|')) != NULL)
-//					*p++ = 0;
+				WinFileDialogParams params;
+				params.owner       = hDlg;
+				params.save        = false;
+				params.mustExist   = true;
+				params.title       = title;
+				params.initialDir  = luaDir;
+				params.fileName    = luaName;
+				params.filter      = filter;
+				params.filterIndex = 1;
+				params.defaultExt  = "lua";
 
-				OPENFILENAME  ofn;
-				ZeroMemory( (LPVOID)&ofn, sizeof(OPENFILENAME) );
-				ofn.lpstrFile       = luaName.GetBuffer(MAX_PATH);
-				ofn.nMaxFile        = MAX_PATH;
-				ofn.lStructSize     = sizeof(OPENFILENAME);
-				ofn.hwndOwner       = hDlg;
-				ofn.lpstrFilter     = filter;
-				ofn.nFilterIndex    = 0;
-				ofn.lpstrInitialDir = luaDir;
-				ofn.lpstrTitle      = title;
-				ofn.lpstrDefExt     = "lua";
-				ofn.Flags           = OFN_HIDEREADONLY | OFN_FILEMUSTEXIST | OFN_ENABLESIZING | OFN_EXPLORER; // hide previously-ignored read-only checkbox (the real read-only box is in the open-movie dialog itself)
-				if(GetOpenFileName( &ofn ))
+				std::string path;
+				if (winFileDialog(params, path) == IDOK)
 				{
-					SetWindowText(GetDlgItem(hDlg, IDC_EDIT_LUAPATH), luaName);
+					SetWindowText(GetDlgItem(hDlg, IDC_EDIT_LUAPATH), path.c_str());
 				}
 				return TRUE;
 			}	break;
