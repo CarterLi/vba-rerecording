@@ -342,6 +342,7 @@ VBA::VBA() : emulator(::theEmulator)
 	d3dFilter				= 0;
 	upscaler				= UPSCALER_OFF;
 	upscalerSharpness		= 50;
+	upscalerMaxScale		= 0;
 	glFilter				= 0;
 	glType					= 0;
 	regEnabled				= false;
@@ -1945,11 +1946,14 @@ void VBA::loadSettings()
 	if (d3dFilter < 0 || d3dFilter > 1)
 		d3dFilter = 0;
 	upscaler = regQueryDwordValue("upscaler", UPSCALER_OFF);
-	if (upscaler < UPSCALER_OFF || upscaler > UPSCALER_FSR)
+	if (upscaler < UPSCALER_OFF || upscaler > UPSCALER_XBRZ)
 		upscaler = UPSCALER_OFF;
 	upscalerSharpness = regQueryDwordValue("upscalerSharpness", 50);
 	if (upscalerSharpness < 0 || upscalerSharpness > 100)
 		upscalerSharpness = 50;
+	upscalerMaxScale = regQueryDwordValue("upscalerMaxScale", 0);
+	if (upscalerMaxScale < 0 || upscalerMaxScale > 8)
+		upscalerMaxScale = 0;
 	glFilter = regQueryDwordValue("glFilter", 0);
 	if (glFilter < 0 || glFilter > 1)
 		glFilter = 0;
@@ -2221,6 +2225,7 @@ void VBA::saveSettings()
 	regSetDwordValue("d3dFilter", d3dFilter);
 	regSetDwordValue("upscaler", upscaler);
 	regSetDwordValue("upscalerSharpness", upscalerSharpness);
+	regSetDwordValue("upscalerMaxScale", upscalerMaxScale);
 	regSetDwordValue("glFilter", glFilter);
 	regSetDwordValue("glType", glType);
 

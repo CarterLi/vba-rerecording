@@ -2036,11 +2036,11 @@ BEGIN
                 MENUITEM "&NSO GBC",                    ID_OPTIONS_VIDEO_LCDFILTER_GBC_NSO
             END
         END
-        POPUP "&Upscaling (Direct3D 11 only)"
+        POPUP "&Upscaling"
         BEGIN
             MENUITEM "&Off",                        ID_OPTIONS_VIDEO_UPSCALER_OFF, CHECKED
             MENUITEM SEPARATOR
-            MENUITEM "NVIDIA &NIS",                 ID_OPTIONS_VIDEO_UPSCALER_NIS
+            MENUITEM "NVIDIA &NIS (Direct3D 11)",   ID_OPTIONS_VIDEO_UPSCALER_NIS
             MENUITEM "AMD &FSR 1.0",                ID_OPTIONS_VIDEO_UPSCALER_FSR
             MENUITEM "&xBRZ (Freescale)",           ID_OPTIONS_VIDEO_UPSCALER_XBRZ
             MENUITEM SEPARATOR
@@ -2051,6 +2051,17 @@ BEGIN
                 MENUITEM "&50%",                    ID_OPTIONS_VIDEO_UPSCALER_SHARP_50, CHECKED
                 MENUITEM "&75%",                    ID_OPTIONS_VIDEO_UPSCALER_SHARP_75
                 MENUITEM "1&00%",                   ID_OPTIONS_VIDEO_UPSCALER_SHARP_100
+            END
+            POPUP "&Max Scale"
+            BEGIN
+                MENUITEM "&Unlimited",              ID_OPTIONS_VIDEO_UPSCALER_MAXSCALE_UNLIMITED, CHECKED
+                MENUITEM SEPARATOR
+                MENUITEM "&2x",                     ID_OPTIONS_VIDEO_UPSCALER_MAXSCALE_2X
+                MENUITEM "&3x",                     ID_OPTIONS_VIDEO_UPSCALER_MAXSCALE_3X
+                MENUITEM "&4x",                     ID_OPTIONS_VIDEO_UPSCALER_MAXSCALE_4X
+                MENUITEM "&5x",                     ID_OPTIONS_VIDEO_UPSCALER_MAXSCALE_5X
+                MENUITEM "&6x",                     ID_OPTIONS_VIDEO_UPSCALER_MAXSCALE_6X
+                MENUITEM "&8x",                     ID_OPTIONS_VIDEO_UPSCALER_MAXSCALE_8X
             END
         END
         POPUP "&Audio"

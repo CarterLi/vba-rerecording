@@ -546,12 +546,15 @@ static bool updateUpscaleTarget(UpscaleTarget &target, int width, int height, co
 	glGenTextures(1, &target.texture);
 	glBindTexture(GL_TEXTURE_2D, target.texture);
 
-	// Drawn into a window sized target and then sampled 1:1 by the quad, and by
-	// the FSR passes through texelFetch, so nothing is ever filtered.
+	// Drawn 1:1 when the target is the size of the window, and stretched by the
+	// sampler when the upscalers were capped, so it follows the same filtering
+	// the frame does; the FSR passes read it with texelFetch, where it does not
+	// come into it.
+	GLint filter = theApp.glFilter == 1 ? GL_LINEAR : GL_NEAREST;
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filter);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filter);
 
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
 	glGenFramebuffers(1, &target.framebuffer);
@@ -1410,7 +1413,13 @@ GLuint OpenGL33Display::scaleFrameWithSinglePass(int upscaler, bool *flipped)
 	if (theApp.rect.right != frameWidth || theApp.rect.bottom != frameHeight)
 		return 0;
 
-	if (!updateUpscaleTarget(state.target, viewWidth, viewHeight, g_singlePassUpscalers[index].name))
+	// The window, unless the user capped the ratio the upscaler may reach; the
+	// quad then stretches what it made over the rest of the window.
+	int targetWidth, targetHeight;
+	upscalerTargetSize(frameWidth, frameHeight, viewWidth, viewHeight,
+	                   theApp.upscalerMaxScale, &targetWidth, &targetHeight);
+
+	if (!updateUpscaleTarget(state.target, targetWidth, targetHeight, g_singlePassUpscalers[index].name))
 		return 0;
 
 	glBindFramebuffer(GL_FRAMEBUFFER, state.target.framebuffer);
@@ -1419,10 +1428,10 @@ GLuint OpenGL33Display::scaleFrameWithSinglePass(int upscaler, bool *flipped)
 	glUseProgram(state.program);
 	glUniform4f(state.sourceSizeLocation, (float)frameWidth, (float)frameHeight,
 	            1.0f / (float)frameWidth, 1.0f / (float)frameHeight);
-	glUniform4f(state.outputSizeLocation, (float)viewWidth, (float)viewHeight,
-	            1.0f / (float)viewWidth, 1.0f / (float)viewHeight);
-	glUniform4f(state.scaleLocation, (float)viewWidth / (float)frameWidth,
-	            (float)viewHeight / (float)frameHeight, 0.0f, 0.0f);
+	glUniform4f(state.outputSizeLocation, (float)targetWidth, (float)targetHeight,
+	            1.0f / (float)targetWidth, 1.0f / (float)targetHeight);
+	glUniform4f(state.scaleLocation, (float)targetWidth / (float)frameWidth,
+	            (float)targetHeight / (float)frameHeight, 0.0f, 0.0f);
 	if (state.sourceLocation >= 0)
 		glUniform1i(state.sourceLocation, 0);
 
@@ -1461,8 +1470,14 @@ GLuint OpenGL33Display::scaleFrameWithFsr()
 	if (theApp.rect.right != frameWidth || theApp.rect.bottom != frameHeight)
 		return 0;
 
-	if (!updateUpscaleTarget(g_fsr.easuTarget, viewWidth, viewHeight, "FSR") ||
-	    !updateUpscaleTarget(g_fsr.rcasTarget, viewWidth, viewHeight, "FSR"))
+	// The window, unless the user capped the ratio the upscaler may reach; the
+	// quad then stretches what it made over the rest of the window.
+	int targetWidth, targetHeight;
+	upscalerTargetSize(frameWidth, frameHeight, viewWidth, viewHeight,
+	                   theApp.upscalerMaxScale, &targetWidth, &targetHeight);
+
+	if (!updateUpscaleTarget(g_fsr.easuTarget, targetWidth, targetHeight, "FSR") ||
+	    !updateUpscaleTarget(g_fsr.rcasTarget, targetWidth, targetHeight, "FSR"))
 		return 0;
 
 	// The constants the AMD headers want, in the block the Direct3D 11 backend
@@ -1470,7 +1485,7 @@ GLuint OpenGL33Display::scaleFrameWithFsr()
 	// as the bits of the floats they are, and the size as integers.
 	float constants[FSR_CONSTANT_FLOATS];
 	fsrWriteConstants(constants, (float)frameWidth, (float)frameHeight,
-	                  (float)viewWidth, (float)viewHeight, theApp.upscalerSharpness);
+	                  (float)targetWidth, (float)targetHeight, theApp.upscalerSharpness);
 
 	const GLuint *bits = (const GLuint *)constants;
 
@@ -1675,6 +1690,23 @@ void OpenGL33Display::setOption(const char *option, int value)
 				continue;
 
 			glBindTexture(GL_TEXTURE_2D, frameTextures[i]);
+			updateFiltering();
+		}
+
+		// The upscaler targets too: when the scaling factor is capped they are
+		// stretched over the window by the sampler instead of drawn 1:1.
+		for (int i = 0; i < (int)SINGLE_PASS_UPSCALER_COUNT; i++)
+		{
+			if (g_singlePassUpscalerState[i].target.texture == 0)
+				continue;
+
+			glBindTexture(GL_TEXTURE_2D, g_singlePassUpscalerState[i].target.texture);
+			updateFiltering();
+		}
+
+		if (g_fsr.rcasTarget.texture != 0)
+		{
+			glBindTexture(GL_TEXTURE_2D, g_fsr.rcasTarget.texture);
 			updateFiltering();
 		}
 	}

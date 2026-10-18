@@ -70,6 +70,27 @@ inline bool isFullscreenOption(int option)
 	return option >= VIDEO_320x240 && option <= VIDEO_OTHER;
 }
 
+// The size an upscaler renders at.  That is the whole window, unless the user
+// capped the scaling factor: the upscalers filter and reconstruct at the ratio
+// they are given, so past a few times the frame size the extra resolution only
+// makes them smear, and the sampler can stretch what they made the rest of the
+// way.  A cap of 0 means no cap.
+inline void upscalerTargetSize(int frameWidth, int frameHeight,
+                               int viewWidth, int viewHeight, int maxScale,
+                               int *width, int *height)
+{
+	*width  = viewWidth;
+	*height = viewHeight;
+
+	if (maxScale > 0)
+	{
+		if (*width > frameWidth * maxScale)
+			*width = frameWidth * maxScale;
+		if (*height > frameHeight * maxScale)
+			*height = frameHeight * maxScale;
+	}
+}
+
 #define REWIND_SIZE 400000
 #define MAX_REWIND_SLOTS 256
 #define SCREEN_MESSAGE_SLOTS 8
@@ -179,6 +200,8 @@ public:
 	int			 upscaler;          // UPSCALER_OFF / UPSCALER_NIS / UPSCALER_FSR /
 	                                // UPSCALER_XBRZ, see the enum above
 	int			 upscalerSharpness; // upscaler sharpening in percent, 0..100
+	int			 upscalerMaxScale;  // largest ratio the upscalers render at, 0 for
+	                                // no limit, see upscalerTargetSize()
 	int			 glFilter;
 	int			 glType;
 	bool		 muteWhenInactive;

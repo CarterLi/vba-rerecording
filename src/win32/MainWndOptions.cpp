@@ -2095,10 +2095,24 @@ void MainWnd::OnUpdateOptionsVideoLcdFilter(CCmdUI *pCmdUI)
 	}
 }
 
+// The largest ratio the upscalers are allowed to render the frame at, in the
+// order of the Max Scale menu; 0 leaves it to the window.  These are not
+// derived from the menu ids because the steps are not even.
+static const int g_upscalerMaxScales[] = { 0, 2, 3, 4, 5, 6, 8 };
+
 BOOL MainWnd::OnOptionsVideoUpscaler(UINT nID)
 {
 	int upscaler  = theApp.upscaler;
 	int sharpness = theApp.upscalerSharpness;
+
+	// How large the upscalers may make the frame before the sampler stretches
+	// the rest; the renderers read it every frame, so nothing has to be told.
+	if (nID >= ID_OPTIONS_VIDEO_UPSCALER_MAXSCALE_UNLIMITED)
+	{
+		theApp.upscalerMaxScale =
+			g_upscalerMaxScales[(int)(nID - ID_OPTIONS_VIDEO_UPSCALER_MAXSCALE_UNLIMITED)];
+		return TRUE;
+	}
 
 	// The upscaler items follow the UPSCALER_* values and the sharpening items
 	// sit above them, so a new upscaler needs no case here (see the ids in
@@ -2129,6 +2143,16 @@ void MainWnd::OnUpdateOptionsVideoUpscaler(CCmdUI *pCmdUI)
 {
 	// The upscalers are shaders, which only some of the render methods run, and
 	// only where they built; the backend that is presenting answers both.
+	if (pCmdUI->m_nID >= ID_OPTIONS_VIDEO_UPSCALER_MAXSCALE_UNLIMITED)
+	{
+		int scale = g_upscalerMaxScales[(int)(pCmdUI->m_nID - ID_OPTIONS_VIDEO_UPSCALER_MAXSCALE_UNLIMITED)];
+
+		pCmdUI->SetCheck(theApp.upscalerMaxScale == scale);
+		pCmdUI->Enable(theApp.upscaler != UPSCALER_OFF && theApp.display != NULL &&
+		               theApp.display->upscalerAvailable(theApp.upscaler));
+		return;
+	}
+
 	if (pCmdUI->m_nID < ID_OPTIONS_VIDEO_UPSCALER_SHARP_0)
 	{
 		int upscaler = UPSCALER_OFF + (int)(pCmdUI->m_nID - ID_OPTIONS_VIDEO_UPSCALER_OFF);

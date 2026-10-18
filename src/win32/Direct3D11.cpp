@@ -1239,7 +1239,11 @@ ID3D11ShaderResourceView *Direct3D11Display::scaleFrameWithNis()
 	if (theApp.rect.right != width || theApp.rect.bottom != height)
 		return NULL;
 
-	if (!updateNisChain(width, height, backWidth, backHeight))
+	int targetWidth, targetHeight;
+	upscalerTargetSize(width, height, backWidth, backHeight,
+	                   theApp.upscalerMaxScale, &targetWidth, &targetHeight);
+
+	if (!updateNisChain(width, height, targetWidth, targetHeight))
 		return NULL;
 
 	const float sharpness = theApp.upscalerSharpness / 100.0f;
@@ -1377,14 +1381,18 @@ ID3D11ShaderResourceView *Direct3D11Display::scaleFrameWithFsr()
 	if (theApp.rect.right != width || theApp.rect.bottom != height)
 		return NULL;
 
-	if (!updateFsrTargets(backWidth, backHeight))
+	int targetWidth, targetHeight;
+	upscalerTargetSize(width, height, backWidth, backHeight,
+	                   theApp.upscalerMaxScale, &targetWidth, &targetHeight);
+
+	if (!updateFsrTargets(targetWidth, targetHeight))
 		return NULL;
 
 	// The constants are the floats the shaders read as the bits of uint4s, plus
 	// the size of the pass input, which they read as integers.
 	float constants[FSR_CONSTANT_FLOATS];
 	fsrWriteConstants(constants, (float)width, (float)height,
-	                  (float)backWidth, (float)backHeight, theApp.upscalerSharpness);
+	                  (float)targetWidth, (float)targetHeight, theApp.upscalerSharpness);
 
 	if (!writeUpscalerConstants(pContext, pFsrCB, constants, sizeof(constants)))
 		return NULL;
@@ -1559,7 +1567,11 @@ ID3D11ShaderResourceView *Direct3D11Display::scaleFrameWithSinglePass(int upscal
 	if (theApp.rect.right != width || theApp.rect.bottom != height)
 		return NULL;
 
-	if (!updateUpscaleTarget(pDevice, state.target, backWidth, backHeight, source.name))
+	int targetWidth, targetHeight;
+	upscalerTargetSize(width, height, backWidth, backHeight,
+	                   theApp.upscalerMaxScale, &targetWidth, &targetHeight);
+
+	if (!updateUpscaleTarget(pDevice, state.target, targetWidth, targetHeight, source.name))
 		return NULL;
 
 	SinglePassConstants constants;
@@ -1567,12 +1579,12 @@ ID3D11ShaderResourceView *Direct3D11Display::scaleFrameWithSinglePass(int upscal
 	constants.sourceSize[1] = (float)height;
 	constants.sourceSize[2] = 1.0f / (float)width;
 	constants.sourceSize[3] = 1.0f / (float)height;
-	constants.outputSize[0] = (float)backWidth;
-	constants.outputSize[1] = (float)backHeight;
-	constants.outputSize[2] = 1.0f / (float)backWidth;
-	constants.outputSize[3] = 1.0f / (float)backHeight;
-	constants.scale[0]      = (float)backWidth  / (float)width;
-	constants.scale[1]      = (float)backHeight / (float)height;
+	constants.outputSize[0] = (float)targetWidth;
+	constants.outputSize[1] = (float)targetHeight;
+	constants.outputSize[2] = 1.0f / (float)targetWidth;
+	constants.outputSize[3] = 1.0f / (float)targetHeight;
+	constants.scale[0]      = (float)targetWidth  / (float)width;
+	constants.scale[1]      = (float)targetHeight / (float)height;
 	constants.scale[2]      = 0.0f;
 	constants.scale[3]      = 0.0f;
 
@@ -1780,8 +1792,14 @@ void Direct3D11Display::render()
 
 		if (scaled != NULL)
 		{
-			frameView = scaled;
-			scaled1to1 = true;
+			// An upscaler that was capped renders smaller than the back buffer
+			// and the quad stretches the rest, so it is not a 1:1 blit.
+			int scaledWidth, scaledHeight;
+			upscalerTargetSize(width, height, backWidth, backHeight,
+			                   theApp.upscalerMaxScale, &scaledWidth, &scaledHeight);
+
+			frameView  = scaled;
+			scaled1to1 = scaledWidth == backWidth && scaledHeight == backHeight;
 		}
 	}
 
