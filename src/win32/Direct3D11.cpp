@@ -435,6 +435,7 @@ private:
 	void releaseFrameTexture();
 	void releaseAll();
 	bool initializeOffscreen(int w, int h);
+	void createOverlayTarget(int w, int h);
 	void updateFiltering(int filter);
 	void calculateVertices();
 	void drawQuad(ID3D11ShaderResourceView *srv, D3D11VERTEX *quad, bool blend,
@@ -1018,27 +1019,43 @@ bool Direct3D11Display::initializeOffscreen(int w, int h)
 	}
 
 	if (pOverlayTexture == NULL && backWidth > 0 && backHeight > 0)
-	{
-		D3D11_TEXTURE2D_DESC od;
-		ZeroMemory(&od, sizeof(od));
-		od.Width            = backWidth;
-		od.Height           = backHeight;
-		od.MipLevels        = 1;
-		od.ArraySize        = 1;
-		od.Format           = DXGI_FORMAT_B8G8R8A8_UNORM;
-		od.SampleDesc.Count = 1;
-		od.Usage            = D3D11_USAGE_DYNAMIC;
-		od.BindFlags        = D3D11_BIND_SHADER_RESOURCE;
-		od.CPUAccessFlags   = D3D11_CPU_ACCESS_WRITE;
-
-		if (SUCCEEDED(pDevice->CreateTexture2D(&od, NULL, &pOverlayTexture)))
-			pDevice->CreateShaderResourceView(pOverlayTexture, NULL, &pOverlaySRV);
-		overlay.create(backWidth, backHeight);
-	}
+		createOverlayTarget(backWidth, backHeight);
 
 	width  = w;
 	height = h;
 	return true;
+}
+
+// The on screen display is the size of the back buffer, so it is made when the
+// swap chain is and remade whenever the window changes size; resize() throws
+// the old one away and nothing else would bring it back.
+void Direct3D11Display::createOverlayTarget(int w, int h)
+{
+	if (pOverlaySRV)     { pOverlaySRV->Release();     pOverlaySRV = NULL; }
+	if (pOverlayTexture) { pOverlayTexture->Release(); pOverlayTexture = NULL; }
+	overlay.destroy();
+
+	if (pDevice == NULL || w <= 0 || h <= 0)
+		return;
+
+	D3D11_TEXTURE2D_DESC od;
+	ZeroMemory(&od, sizeof(od));
+	od.Width            = w;
+	od.Height           = h;
+	od.MipLevels        = 1;
+	od.ArraySize        = 1;
+	od.Format           = DXGI_FORMAT_B8G8R8A8_UNORM;
+	od.SampleDesc.Count = 1;
+	od.Usage            = D3D11_USAGE_DYNAMIC;
+	od.BindFlags        = D3D11_BIND_SHADER_RESOURCE;
+	od.CPUAccessFlags   = D3D11_CPU_ACCESS_WRITE;
+
+	if (SUCCEEDED(pDevice->CreateTexture2D(&od, NULL, &pOverlayTexture)))
+		pDevice->CreateShaderResourceView(pOverlayTexture, NULL, &pOverlaySRV);
+
+	overlay.create(w, h);
+
+	winlog("D3D11: on screen display %dx%d%s\n", w, h, pOverlaySRV != NULL ? "" : ", no view");
 }
 
 void Direct3D11Display::updateFiltering(int filter)
@@ -1842,6 +1859,12 @@ void Direct3D11Display::render()
 		}
 	}
 
+	// The overlay follows the back buffer, so it is made with the swap chain and
+	// remade whenever the window changes size.  This covers a path that
+	// recreated one of them without the other.
+	if (textMethod == 2 && pOverlayTexture == NULL && backWidth > 0 && backHeight > 0)
+		createOverlayTarget(backWidth, backHeight);
+
 	if (textMethod == 2 && pOverlayTexture != NULL && !overlay.empty())
 	{
 		if (overlay.update())
@@ -1921,9 +1944,7 @@ void Direct3D11Display::resize(int w, int h)
 		systemMessage(0, "Failed swap chain resize %08x", hr);
 
 	// Recreate the overlay at the new back buffer size.
-	if (pOverlaySRV)     { pOverlaySRV->Release();     pOverlaySRV = NULL; }
-	if (pOverlayTexture) { pOverlayTexture->Release(); pOverlayTexture = NULL; }
-	overlay.destroy();
+	createOverlayTarget(w, h);
 
 	calculateVertices();
 }

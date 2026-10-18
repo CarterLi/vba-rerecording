@@ -1081,6 +1081,12 @@ bool OpenGL33Display::initialize()
 	theApp.updateFilter();
 	theApp.updateIFB();
 
+	// The on screen display is sized with the window, and resize() is not
+	// called after a render method change - the window is recreated while no
+	// display is there to hear about it - so it is made here as well.
+	overlay.create(viewWidth, viewHeight);
+	createOverlayTexture(viewWidth, viewHeight);
+
 	if (failed)
 		return false;
 
@@ -1240,6 +1246,8 @@ void OpenGL33Display::createOverlayTexture(int w, int h)
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+
+	winlog("OpenGL 3.3: on screen display %dx%d\n", w, h);
 }
 
 void OpenGL33Display::updateFiltering()
@@ -1533,7 +1541,19 @@ GLuint OpenGL33Display::scaleFrameWithFsr()
 void OpenGL33Display::drawOverlay()
 {
 	if (overlayTexture == 0 || overlay.empty())
-		return;
+	{
+		// The overlay is made when the renderer starts and whenever the window
+		// changes size, which covers every path the emulator takes; this is the
+		// last resort for one that recreated the window without telling us.
+		if (viewWidth <= 0 || viewHeight <= 0)
+			return;
+
+		overlay.create(viewWidth, viewHeight);
+		createOverlayTexture(viewWidth, viewHeight);
+
+		if (overlayTexture == 0 || overlay.empty())
+			return;
+	}
 
 	// Redraws the pending message slots and says whether there is anything to
 	// show at all.
