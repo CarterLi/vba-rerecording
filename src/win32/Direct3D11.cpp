@@ -8,6 +8,9 @@
 // NVIDIA Image Scaling (a compute shader) or AMD FidelityFX Super Resolution
 // 1.0 (a reconstruction and a sharpening pixel shader) runs between the frame
 // upload and the quad draw, see the upscaling sections below.
+//
+// The swap chain presents in the flip model where the system supports it and in
+// the bitblt model everywhere else, see createSwapChain().
 
 #include "stdafx.h"
 
@@ -17,6 +20,7 @@
 
 #include <d3d11.h>
 #include <dxgi.h>
+#include <dxgi1_2.h> // IDXGIFactory2, the flip model swap chain (Windows 8)
 #include <d3dcompiler.h>
 
 #include "resource.h"
@@ -48,17 +52,16 @@ extern void winlog(const char *, ...);
 // direct3D11Available() lets the render method menu leave the renderer out when
 // either of them is missing.  The DLLs stay loaded for the lifetime of the
 // process so the entry points stay valid across display recreation.
-typedef HRESULT (WINAPI *PFN_D3D11CreateDeviceAndSwapChain)(
+typedef HRESULT (WINAPI *PFN_D3D11CreateDevice)(
     IDXGIAdapter *, D3D_DRIVER_TYPE, HMODULE, UINT, CONST D3D_FEATURE_LEVEL *, UINT,
-    UINT, CONST DXGI_SWAP_CHAIN_DESC *, IDXGISwapChain **, ID3D11Device **,
-    D3D_FEATURE_LEVEL *, ID3D11DeviceContext **);
+    UINT, ID3D11Device **, D3D_FEATURE_LEVEL *, ID3D11DeviceContext **);
 typedef HRESULT (WINAPI *PFN_D3DCompile)(
     LPCVOID, SIZE_T, LPCSTR, CONST D3D_SHADER_MACRO *, ID3DInclude *,
     LPCSTR, LPCSTR, UINT, UINT, ID3DBlob **, ID3DBlob **);
 
 static HINSTANCE d3d11DLL       = NULL;
 static HINSTANCE d3dcompilerDLL = NULL;
-static PFN_D3D11CreateDeviceAndSwapChain d3d11CreateDeviceAndSwapChain = NULL;
+static PFN_D3D11CreateDevice d3d11CreateDevice = NULL;
 static PFN_D3DCompile d3dCompile = NULL;
 static bool      d3d11Probed    = false;
 
@@ -73,14 +76,14 @@ static void loadD3D11Libraries()
 
 	d3d11DLL = LoadLibrary("D3D11.DLL");
 	if (d3d11DLL != NULL)
-		d3d11CreateDeviceAndSwapChain = (PFN_D3D11CreateDeviceAndSwapChain)
-		    GetProcAddress(d3d11DLL, "D3D11CreateDeviceAndSwapChain");
+		d3d11CreateDevice = (PFN_D3D11CreateDevice)
+		    GetProcAddress(d3d11DLL, "D3D11CreateDevice");
 
 	d3dcompilerDLL = LoadLibrary("D3DCOMPILER_47.DLL");
 	if (d3dcompilerDLL != NULL)
 		d3dCompile = (PFN_D3DCompile)GetProcAddress(d3dcompilerDLL, "D3DCompile");
 
-	if (d3d11CreateDeviceAndSwapChain == NULL)
+	if (d3d11CreateDevice == NULL)
 		winlog("D3D11: D3D11.DLL is not available\n");
 	if (d3dCompile == NULL)
 		winlog("D3D11: D3DCOMPILER_47.DLL is not available\n");
@@ -90,7 +93,7 @@ bool direct3D11Available()
 {
 	loadD3D11Libraries();
 
-	return d3d11CreateDeviceAndSwapChain != NULL && d3dCompile != NULL;
+	return d3d11CreateDevice != NULL && d3dCompile != NULL;
 }
 
 struct D3D11VERTEX
@@ -234,6 +237,7 @@ public:
 
 private:
 	bool createDevice();
+	bool createSwapChain();
 	bool createShaders();
 	bool createSamplers();
 	bool createBackBufferViews();
@@ -263,6 +267,10 @@ private:
 	ID3D11Device         *pDevice;
 	ID3D11DeviceContext  *pContext;
 	IDXGISwapChain       *pSwapChain;
+	// Set when the swap chain presents in the flip model, where every Present
+	// hands a different back buffer over and the render target view has to be
+	// rebuilt for the buffer that is current (see createSwapChain()).
+	bool                  flipModel;
 	ID3D11RenderTargetView *pRTV;
 	ID3D11Texture2D      *pFrameTexture;
 	ID3D11ShaderResourceView *pFrameSRV;
@@ -336,6 +344,7 @@ Direct3D11Display::Direct3D11Display()
 	pDevice       = NULL;
 	pContext      = NULL;
 	pSwapChain    = NULL;
+	flipModel     = false;
 	pRTV          = NULL;
 	pFrameTexture = NULL;
 	pFrameSRV     = NULL;
@@ -410,6 +419,7 @@ void Direct3D11Display::releaseAll()
 	if (pPS)           { pPS->Release();           pPS = NULL; }
 	if (pVS)           { pVS->Release();           pVS = NULL; }
 	if (pSwapChain)    { pSwapChain->Release();    pSwapChain = NULL; }
+	flipModel = false;
 	if (pContext)      { pContext->Release();      pContext = NULL; }
 	if (pDevice)       { pDevice->Release();       pDevice = NULL; }
 }
@@ -425,21 +435,6 @@ bool Direct3D11Display::createDevice()
 	if (!direct3D11Available())
 		return false;
 
-	DXGI_SWAP_CHAIN_DESC sd;
-	ZeroMemory(&sd, sizeof(sd));
-	sd.BufferCount                        = 1;
-	sd.BufferDesc.Width                   = backWidth > 0 ? backWidth : 1;
-	sd.BufferDesc.Height                  = backHeight > 0 ? backHeight : 1;
-	sd.BufferDesc.Format                  = DXGI_FORMAT_B8G8R8A8_UNORM;
-	sd.BufferDesc.RefreshRate.Numerator   = 60;
-	sd.BufferDesc.RefreshRate.Denominator = 1;
-	sd.BufferUsage                        = DXGI_USAGE_RENDER_TARGET_OUTPUT;
-	sd.OutputWindow                       = hwnd;
-	sd.SampleDesc.Count                   = 1;
-	sd.SampleDesc.Quality                 = 0;
-	sd.Windowed                           = TRUE;
-	sd.SwapEffect                         = DXGI_SWAP_EFFECT_DISCARD;
-
 	UINT flags = 0;
 #ifdef _DEBUG
 	flags |= D3D11_CREATE_DEVICE_DEBUG;
@@ -448,31 +443,153 @@ bool Direct3D11Display::createDevice()
 	D3D_FEATURE_LEVEL levels[] = { D3D_FEATURE_LEVEL_11_0, D3D_FEATURE_LEVEL_10_1, D3D_FEATURE_LEVEL_10_0 };
 	D3D_FEATURE_LEVEL obtained;
 
-	HRESULT hr = d3d11CreateDeviceAndSwapChain(NULL,
-	                                           D3D_DRIVER_TYPE_HARDWARE,
-	                                           NULL,
-	                                           flags,
-	                                           levels,
-	                                           sizeof(levels) / sizeof(levels[0]),
-	                                           D3D11_SDK_VERSION,
-	                                           &sd,
-	                                           &pSwapChain,
-	                                           &pDevice,
-	                                           &obtained,
-	                                           &pContext);
+	// The device is created on its own: a flip model swap chain can only be
+	// created from the factory that belongs to the device, see
+	// createSwapChain().
+	HRESULT hr = d3d11CreateDevice(NULL,
+	                               D3D_DRIVER_TYPE_HARDWARE,
+	                               NULL,
+	                               flags,
+	                               levels,
+	                               sizeof(levels) / sizeof(levels[0]),
+	                               D3D11_SDK_VERSION,
+	                               &pDevice,
+	                               &obtained,
+	                               &pContext);
 	if (FAILED(hr))
 	{
-		winlog("D3D11CreateDeviceAndSwapChain failed %08x\n", hr);
+		winlog("D3D11CreateDevice failed %08x\n", hr);
 		return false;
 	}
 
 	featureLevel = obtained;
 
-	return createBackBufferViews();
+	return createSwapChain() && createBackBufferViews();
+}
+
+// A flip model swap chain does not copy the back buffer into a redirection
+// surface the way the bitblt model does, the desktop window manager composes
+// straight from it, which costs one full frame copy less per present and is what
+// lets the window manager send the frames to the display directly.  It needs
+// DXGI 1.2 (Windows 8) to exist at all and DXGI 1.4 (Windows 10) for
+// FLIP_DISCARD, and it cannot be created through the legacy
+// IDXGIFactory::CreateSwapChain, so each level is asked for and the bitblt swap
+// chain below is what is left for systems that support neither.
+bool Direct3D11Display::createSwapChain()
+{
+	IDXGIDevice   *dxgiDevice = NULL;
+	IDXGIAdapter  *adapter    = NULL;
+	IDXGIFactory  *factory    = NULL;
+	IDXGIFactory2 *factory2   = NULL;
+
+	// The factory that owns the device, so no DXGI entry point has to be
+	// imported (see loadD3D11Libraries()).
+	HRESULT hr = pDevice->QueryInterface(__uuidof(IDXGIDevice), (void **)&dxgiDevice);
+	if (SUCCEEDED(hr))
+		hr = dxgiDevice->GetAdapter(&adapter);
+	if (SUCCEEDED(hr))
+		hr = adapter->GetParent(__uuidof(IDXGIFactory), (void **)&factory);
+	if (SUCCEEDED(hr) && factory != NULL)
+		factory->QueryInterface(__uuidof(IDXGIFactory2), (void **)&factory2);
+
+	if (factory2 != NULL)
+	{
+		DXGI_SWAP_CHAIN_DESC1 sd;
+		ZeroMemory(&sd, sizeof(sd));
+		sd.Width              = backWidth > 0 ? backWidth : 1;
+		sd.Height             = backHeight > 0 ? backHeight : 1;
+		sd.Format             = DXGI_FORMAT_B8G8R8A8_UNORM;
+		sd.SampleDesc.Count   = 1; // the flip model does not allow MSAA
+		sd.SampleDesc.Quality = 0;
+		sd.BufferUsage        = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+		sd.BufferCount        = 2; // the minimum, and the lowest latency
+		sd.Scaling            = DXGI_SCALING_STRETCH;
+		sd.SwapEffect         = DXGI_SWAP_EFFECT_FLIP_DISCARD;
+		sd.AlphaMode          = DXGI_ALPHA_MODE_IGNORE;
+
+		// Windows 10 knows FLIP_DISCARD and Windows 8 only FLIP_SEQUENTIAL,
+		// each refuses the other one, so this is what settles the second level.
+		IDXGISwapChain1 *swapChain1 = NULL;
+		hr = factory2->CreateSwapChainForHwnd(pDevice, hwnd, &sd, NULL, NULL, &swapChain1);
+		if (FAILED(hr))
+		{
+			sd.SwapEffect = DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL;
+			hr = factory2->CreateSwapChainForHwnd(pDevice, hwnd, &sd, NULL, NULL, &swapChain1);
+		}
+
+		if (SUCCEEDED(hr))
+		{
+			pSwapChain = swapChain1;
+			flipModel  = true;
+
+			// What the swap chain ended up with, so the model that is in use
+			// can be read back out of the trace file instead of assumed.
+			DXGI_SWAP_CHAIN_DESC1 actual;
+			ZeroMemory(&actual, sizeof(actual));
+			if (SUCCEEDED(swapChain1->GetDesc1(&actual)))
+				winlog("D3D11: swap effect %d (%s), %d buffers\n",
+				       (int)actual.SwapEffect,
+				       actual.SwapEffect == DXGI_SWAP_EFFECT_FLIP_DISCARD ? "flip discard" : "flip sequential",
+				       (int)actual.BufferCount);
+			else
+				winlog("D3D11: flip model swap chain (swap effect %d)\n", (int)sd.SwapEffect);
+		}
+		else
+		{
+			winlog("D3D11: no flip model swap chain (%08x), using the bitblt model\n", hr);
+		}
+	}
+
+	if (pSwapChain == NULL && factory != NULL)
+	{
+		DXGI_SWAP_CHAIN_DESC sd;
+		ZeroMemory(&sd, sizeof(sd));
+		sd.BufferCount                        = 1;
+		sd.BufferDesc.Width                   = backWidth > 0 ? backWidth : 1;
+		sd.BufferDesc.Height                  = backHeight > 0 ? backHeight : 1;
+		sd.BufferDesc.Format                  = DXGI_FORMAT_B8G8R8A8_UNORM;
+		sd.BufferDesc.RefreshRate.Numerator   = 60;
+		sd.BufferDesc.RefreshRate.Denominator = 1;
+		sd.BufferUsage                        = DXGI_USAGE_RENDER_TARGET_OUTPUT;
+		sd.OutputWindow                       = hwnd;
+		sd.SampleDesc.Count                   = 1;
+		sd.SampleDesc.Quality                 = 0;
+		sd.Windowed                           = TRUE;
+		sd.SwapEffect                         = DXGI_SWAP_EFFECT_DISCARD;
+
+		if (FAILED(factory->CreateSwapChain(pDevice, &sd, &pSwapChain)))
+		{
+			winlog("D3D11: CreateSwapChain failed\n");
+			pSwapChain = NULL;
+		}
+		else
+		{
+			winlog("D3D11: swap effect %d (bitblt), 1 buffer\n", (int)sd.SwapEffect);
+		}
+	}
+
+	if (factory2)   factory2->Release();
+	if (factory)    factory->Release();
+	if (adapter)    adapter->Release();
+	if (dxgiDevice) dxgiDevice->Release();
+
+	if (pSwapChain == NULL)
+	{
+		winlog("D3D11: no swap chain\n");
+		return false;
+	}
+
+	return true;
 }
 
 bool Direct3D11Display::createBackBufferViews()
 {
+	if (pRTV)
+	{
+		pRTV->Release();
+		pRTV = NULL;
+	}
+
 	ID3D11Texture2D *backBuffer = NULL;
 	if (FAILED(pSwapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), (void **)&backBuffer)))
 		return false;
@@ -577,8 +694,8 @@ bool Direct3D11Display::initialize()
 		// loaded and let the caller fall back to something else.
 		if (d3d11DLL == NULL)
 			directXMessage("D3D11.DLL");
-		else if (d3d11CreateDeviceAndSwapChain == NULL)
-			directXMessage("D3D11CreateDeviceAndSwapChain");
+		else if (d3d11CreateDevice == NULL)
+			directXMessage("D3D11CreateDevice");
 		else if (d3dcompilerDLL == NULL)
 			directXMessage("D3DCOMPILER_47.DLL");
 		else
@@ -1426,6 +1543,12 @@ void Direct3D11Display::render()
 		}
 	}
 
+	// A flip model swap chain hands a different back buffer over with every
+	// Present.  Only buffer 0 can be queried and it is the current one again
+	// after each Present, so the render target view is rebuilt for it here.
+	if (flipModel && !createBackBufferViews())
+		return;
+
 	const float clearColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
 	pContext->OMSetRenderTargets(1, &pRTV, NULL);
 	pContext->ClearRenderTargetView(pRTV, clearColor);
@@ -1514,7 +1637,9 @@ void Direct3D11Display::resize(int w, int h)
 	}
 	pContext->OMSetRenderTargets(0, NULL, NULL);
 
-	HRESULT hr = pSwapChain->ResizeBuffers(1, w, h, DXGI_FORMAT_B8G8R8A8_UNORM, 0);
+	// The buffer count has to be the one the swap chain was created with, and a
+	// flip model swap chain cannot be resized down to a single buffer.
+	HRESULT hr = pSwapChain->ResizeBuffers(flipModel ? 2 : 1, w, h, DXGI_FORMAT_B8G8R8A8_UNORM, 0);
 	if (SUCCEEDED(hr))
 		createBackBufferViews();
 	else
