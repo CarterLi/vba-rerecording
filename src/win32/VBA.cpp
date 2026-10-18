@@ -110,14 +110,20 @@ void winlog(const char *msg, ...)
 
 	va_start(valist, msg);
 	buffer.FormatV(msg, valist);
-
-	FILE *winout = fopen("vba-trace.log", "w");
-
-	fputs(buffer, winout);
-
-	fclose(winout);
-
 	va_end(valist);
+
+	// One file per run: the first message of a run starts it and everything
+	// after that is appended, so the trace keeps the whole sequence instead of
+	// only whatever was written last.
+	static bool started = false;
+	FILE *winout = fopen("vba-trace.log", started ? "a" : "w");
+	if (winout == NULL)
+		return;
+
+	started = true;
+	fputs(buffer, winout);
+	fputs("\n", winout);
+	fclose(winout);
 }
 
 // code from SDL_main.c for Windows

@@ -1865,9 +1865,28 @@ void Direct3D11Display::render()
 	if (textMethod == 2 && pOverlayTexture == NULL && backWidth > 0 && backHeight > 0)
 		createOverlayTarget(backWidth, backHeight);
 
-	if (textMethod == 2 && pOverlayTexture != NULL && !overlay.empty())
+	if (textMethod == 2)
 	{
-		if (overlay.update())
+		// The on screen display is the one path whose behaviour depends on the
+		// backend, so the trace log says which branch was taken, once per
+		// change rather than once per frame.
+		int state;
+		if (pOverlayTexture == NULL || overlay.empty())
+			state = 0;
+		else if (!overlay.update())
+			state = 1;
+		else
+			state = 2;
+
+		static int tracedState = -1;
+		if (state != tracedState)
+		{
+			static const char *const names[] = { "no target", "nothing visible", "visible" };
+			winlog("D3D11: on screen display %s\n", names[state]);
+			tracedState = state;
+		}
+
+		if (state == 2)
 		{
 			// The overlay is the size of the back buffer and only changes when
 			// a message does, so it is uploaded again only then; the texture
@@ -1886,6 +1905,36 @@ void Direct3D11Display::render()
 						memcpy((unsigned char *)mapped.pData + y * mapped.RowPitch,
 						       src + y * srcPitch, copyBytes);
 					pContext->Unmap(pOverlayTexture, 0);
+
+					// The frame counter is a message like any other and it
+					// changes every frame, so this is only worth saying a few
+					// times - along with how many pixels of the band the
+					// messages are drawn in are not transparent, which is what
+					// says whether the text is in the buffer at all.
+					static int tracedUploads = 0;
+					if (tracedUploads < 3)
+					{
+						int opaque = 0;
+						for (int y = overlay.usedTop(); y < overlay.height(); y++)
+						{
+							const unsigned char *row = src + y * srcPitch;
+							for (int x = 0; x < overlay.width(); x++)
+								opaque += row[x * 4 + 3] != 0;
+						}
+
+						winlog("D3D11: on screen display uploaded, %dx%d, pitch %d, %d opaque pixels\n",
+						       overlay.width(), overlay.height(), (int)mapped.RowPitch, opaque);
+						tracedUploads++;
+					}
+				}
+				else
+				{
+					static bool tracedFailure = false;
+					if (!tracedFailure)
+					{
+						winlog("D3D11: on screen display cannot be mapped\n");
+						tracedFailure = true;
+					}
 				}
 			}
 
@@ -1902,6 +1951,15 @@ void Direct3D11Display::render()
 			filterMode = 0; // point sampling for a 1:1 overlay
 			drawQuad(pOverlaySRV, overlayQuad, true);
 			filterMode = savedFilter;
+
+			static bool tracedDraw = false;
+			if (!tracedDraw)
+			{
+				winlog("D3D11: on screen display drawn, view %s, texture %s\n",
+				       pOverlaySRV != NULL ? "yes" : "no",
+				       pOverlayTexture != NULL ? "yes" : "no");
+				tracedDraw = true;
+			}
 		}
 	}
 
