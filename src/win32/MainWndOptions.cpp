@@ -39,13 +39,19 @@ extern const char *direct3D11PresentationModel();
 // Defined in Direct3D.cpp: the same for the Direct3D 9Ex backend ("Flip",
 // "Bitblt").
 extern const char *direct3D9PresentationModel();
+// Defined in Direct3D.cpp: which Direct3D 9 flavor the device that is running
+// really is ("9Ex", or "9.0c" where Direct3DCreate9Ex is not there), NULL while
+// it is not the render method that is presenting.
+extern const char *direct3D9DeviceName();
 
 // Names the presentation model that a render method entry is running with, so
 // that "Direct3D 11" reads "Direct3D 11 (Flip)".  The plain name comes from the
 // menu item itself (the resource carries it) and the accelerator text is left to
 // winAccelMgr, so nothing here has to be kept in step with the resources by
-// hand.
-static void setRenderMethodModel(CCmdUI *pCmdUI, const char *model)
+// hand.  device, when given, is the Direct3D 9 flavor that is really in use;
+// the entry is named after it because "Direct3D 9Ex" would be a lie on a system
+// where Direct3DCreate9Ex does not exist and the plain 9.0c device is used.
+static void setRenderMethodModel(CCmdUI *pCmdUI, const char *model, const char *device = NULL)
 {
 	if (pCmdUI->m_pMenu == NULL)
 		return;
@@ -69,6 +75,14 @@ static void setRenderMethodModel(CCmdUI *pCmdUI, const char *model)
 			text = text.Left(text.GetLength() - suffix.GetLength());
 			break;
 		}
+	}
+
+	if (device != NULL)
+	{
+		// Undo the flavor an earlier update substituted before naming this one.
+		text.Replace("9.0c", "9Ex");
+		if (strcmp(device, "9Ex") != 0)
+			text.Replace("9Ex", device);
 	}
 
 	if (model != NULL)
@@ -578,8 +592,14 @@ void MainWnd::OnOptionsVideoRendermethodDirect3d()
 
 void MainWnd::OnUpdateOptionsVideoRendermethodDirect3d(CCmdUI*pCmdUI)
 {
-	setRenderMethodModel(pCmdUI, theApp.renderMethod == DIRECT_3D ? direct3D9PresentationModel() : NULL);
-	pCmdUI->SetCheck(theApp.renderMethod == DIRECT_3D);
+	// The backend runs on a 9Ex device where the system has one and on a plain
+	// 9.0c device where Direct3DCreate9Ex is missing, see Direct3D.cpp.
+	bool active = theApp.renderMethod == DIRECT_3D;
+
+	setRenderMethodModel(pCmdUI,
+	                     active ? direct3D9PresentationModel() : NULL,
+	                     active ? direct3D9DeviceName() : NULL);
+	pCmdUI->SetCheck(active);
 }
 
 void MainWnd::OnOptionsVideoRendermethodOpengl()

@@ -53,6 +53,23 @@ typedef IDirect3D9 *(WINAPI *PFN_Direct3DCreate9)(UINT SDKVersion);
 // The swap effect the running display presents with, -1 while there is none.
 static int currentSwapEffect = -1;
 
+// Whether the running device is a Direct3D 9Ex one.  Direct3DCreate9Ex only
+// arrived with Vista; on anything older the renderer gets a plain 9.0c device
+// from Direct3DCreate9 and the render method menu says so rather than claiming
+// 9Ex was used.
+static bool currentDeviceIs9Ex = false;
+
+// Names the Direct3D 9 flavor that is really in use, or returns NULL while the
+// renderer is not running.  The render method menu asks for this, see
+// direct3D9PresentationModel() below and MainWndOptions.cpp.
+const char *direct3D9DeviceName()
+{
+	if (currentSwapEffect < 0)
+		return NULL;
+
+	return currentDeviceIs9Ex ? "9Ex" : "9.0c";
+}
+
 // Names the presentation model that is in use, or returns NULL while the
 // renderer is not running.  The render method menu asks for this so that the
 // model is visible without digging through the trace log, see
@@ -141,7 +158,8 @@ void Direct3DDisplay::cleanup()
 {
 	overlay.destroy();
 
-	currentSwapEffect = -1;
+	currentSwapEffect  = -1;
+	currentDeviceIs9Ex = false;
 
 	if (pOverlayTexture)
 	{
@@ -344,6 +362,7 @@ bool Direct3DDisplay::initialize()
 	// survives, so the reason the flip model was turned down is carried into this
 	// line when there was one.
 	currentSwapEffect = (int)dpp.SwapEffect;
+	currentDeviceIs9Ex = (pDeviceEx != NULL);
 	if (flipRefused != S_OK)
 		winlog("Direct3D 9Ex: no flip model swap chain (%08x), using swap effect %d (bitblt), %d back buffer(s)\n",
 		       (unsigned int)flipRefused,
@@ -351,7 +370,7 @@ bool Direct3DDisplay::initialize()
 		       (int)dpp.BackBufferCount);
 	else
 		winlog("Direct3D 9%s: swap effect %d (%s), %d back buffer(s)\n",
-		       pDeviceEx != NULL ? "Ex" : "",
+		       pDeviceEx != NULL ? "Ex" : ".0c",
 		       (int)dpp.SwapEffect,
 		       dpp.SwapEffect == D3DSWAPEFFECT_FLIPEX ? "flip" : "bitblt",
 		       (int)dpp.BackBufferCount);
@@ -795,6 +814,10 @@ void Direct3DDisplay::resize(int w, int h)
 		if (SUCCEEDED(hr))
 		{
 			currentSwapEffect = (int)dpp.SwapEffect;
+			// A reset keeps the device it was created as, so the flavor does
+			// not change here; this is only for the sake of keeping the two
+			// together.
+			currentDeviceIs9Ex = (pDeviceEx != NULL);
 			restoreDeviceObjects();
 			if (width > 0 && height > 0)
 				initializeOffscreen(width, height);
