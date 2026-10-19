@@ -411,7 +411,7 @@ bool winImportGSACodeFile(CString &fileName)
 	if (len > 1)
 	{
 		GSACodeSelect dlg(f);
-		game = dlg.DoModal();
+		game = (int)dlg.DoModal();
 	}
 	fclose(f);
 

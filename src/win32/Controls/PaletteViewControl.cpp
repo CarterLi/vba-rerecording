@@ -79,7 +79,7 @@ bool PaletteViewControl::saveAdobe(const char *name)
     int g = (c & 0x3e0) >> 2;
     int b = (c & 0x7c00) >> 7;
 
-    u8 data[3] = { r, g, b };
+    u8 data[3] = { (u8)r, (u8)g, (u8)b };
     fwrite(data, 1, 3, f);
   }
   if(colors < 256) {
@@ -122,7 +122,7 @@ bool PaletteViewControl::saveMSPAL(const char *name)
     int g = (c & 0x3e0) >> 2;
     int b = (c & 0x7c00) >> 7;
 
-    u8 data7[4] = { r, g, b, 0 };
+    u8 data7[4] = { (u8)r, (u8)g, (u8)b, 0 };
     fwrite(data7, 1, 4, f);
   }
   if(colors < 256) {

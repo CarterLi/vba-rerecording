@@ -109,7 +109,7 @@ class SeqFileOutStream : public ICountedSequentialOutStream, private CMyUnknownI
 		{
 			int written = 0;
 			if(data)
-				written = fwrite(data, 1, length, file);
+				written = (int)fwrite(data, 1, length, file);
 
 			pos += written;
 			if (bytesWritten)
@@ -284,7 +284,7 @@ public:
 
 		if (data != NULL || length == 0)
 		{
-			int read = fread(data, 1, length, file);
+			int read = (int)fread(data, 1, length, file);
 			
 			if (bytesRead)
 				*bytesRead = read;

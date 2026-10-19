@@ -141,7 +141,7 @@ void regSetStringValue(const char *key, const char *value)
 		                         NULL,
 		                         REG_SZ,
 		                         (const UCHAR *)value,
-		                         strlen(value)+1);
+		                         (DWORD)(strlen(value) + 1));
 	}
 	else
 	{
@@ -239,7 +239,7 @@ bool regCreateFileType(const char *ext, const char *type)
 		                    0,
 		                    REG_SZ,
 		                    (const UCHAR *)type,
-		                    strlen(type)+1);
+		                    (DWORD)(strlen(type) + 1));
 		RegCloseKey(key);
 		return true;
 	}
@@ -266,7 +266,7 @@ bool regAssociateType(const char *type, const char *desc, const char *applicatio
 		                    0,
 		                    REG_SZ,
 		                    (const UCHAR *)desc,
-		                    strlen(desc)+1);
+		                    (DWORD)(strlen(desc) + 1));
 		HKEY key2;
 		res = RegCreateKeyEx(key,
 		                     "Shell\\Open\\Command",
@@ -284,7 +284,7 @@ bool regAssociateType(const char *type, const char *desc, const char *applicatio
 			                    0,
 			                    REG_SZ,
 			                    (const UCHAR *)application,
-			                    strlen(application)+1);
+			                    (DWORD)(strlen(application) + 1));
 			RegCloseKey(key2);
 			RegCloseKey(key);
 			return true;

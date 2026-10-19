@@ -614,7 +614,7 @@ void gbCompareLYToLYC()
 // FIXME: horrible kludge to workaround the frame timing bug
 static int32 s_gbJoymask[4] = { 0, 0, 0, 0 };
 
-void gbWriteMemoryWrapped(register u16 address, register u8 value)
+void gbWriteMemoryWrapped(u16 address, u8 value)
 {
 	if (address < 0x8000)
 	{
@@ -1203,7 +1203,7 @@ void gbWriteMemoryWrapped(register u16 address, register u8 value)
 	gbWriteMemoryQuick(address, value);
 }
 
-u8 gbReadOpcode(register u16 address)
+u8 gbReadOpcode(u16 address)
 {
 	if (gbCheatMap[address])
 		return gbCheatRead(address);
@@ -1272,13 +1272,13 @@ u8 gbReadOpcode(register u16 address)
 	return gbReadMemoryQuick(address);
 }
 
-void gbWriteMemory(register u16 address, register u8 value)
+void gbWriteMemory(u16 address, u8 value)
 {
 	gbWriteMemoryWrapped(address, value);
 	CallRegisteredLuaMemHook(address, 1, value, LUAMEMHOOK_WRITE);
 }
 
-u8 gbReadMemoryWrapped(register u16 address)
+u8 gbReadMemoryWrapped(u16 address)
 {
 	if (gbCheatMap[address])
 		return gbCheatRead(address);
@@ -1457,7 +1457,7 @@ u8 gbReadMemoryWrapped(register u16 address)
 	return gbReadMemoryQuick(address);
 }
 
-u8 gbReadMemory(register u16 address)
+u8 gbReadMemory(u16 address)
 {
 	u8 value = gbReadMemoryWrapped(address);
 	CallRegisteredLuaMemHook(address, 1, value, LUAMEMHOOK_READ);
@@ -1974,7 +1974,7 @@ bool gbReadSaveMBC2(const char *name)
 		return false;
 	}
 
-	int read = fread(&gbMemory[0xa000],
+	int read = (int)fread(&gbMemory[0xa000],
 	                 1,
 	                 256,
 	                 file);
@@ -2064,7 +2064,7 @@ bool gbReadSaveMBC7(const char *name)
 		return false;
 	}
 
-	int read = fread(&gbMemory[0xa000],
+	int read = (int)fread(&gbMemory[0xa000],
 	                 1,
 	                 256,
 	                 file);
@@ -2246,7 +2246,7 @@ bool gbReadBatteryFromStream(gzFile gzfile)
 {
 	// the GB save code is ugly, so rather than convert it all to use gzFiles, just copy it to temp RAM...
 #define TEMP_SAVE_FNAME ("tempvbaread.sav")
-	int	  pos	 = gztell(gzfile);
+	int	  pos	 = (int)gztell(gzfile);
 	int	  buflen = 1024;
 	// ...make a temp file and write it there...
 	FILE *fileTemp = fopen(TEMP_SAVE_FNAME, "wb");
@@ -2319,12 +2319,12 @@ bool gbReadGSASnapshot(const char *fileName)
 	case 0x1b:
 	case 0x1e:
 	case 0xff:
-		read   = fread(gbRam, 1, gbRamSize, file);
+		read   = (int)fread(gbRam, 1, gbRamSize, file);
 		toRead = gbRamSize;
 		break;
 	case 0x06:
 	case 0x22:
-		read   = fread(&gbMemory[0xa000], 1, 256, file);
+		read   = (int)fread(&gbMemory[0xa000], 1, 256, file);
 		toRead = 256;
 		break;
 	default:
@@ -2525,7 +2525,7 @@ bool gbWriteMemSaveState(char *memory, int available)
 
 	bool res = gbWriteSaveStateToStream(gzFile);
 
-	long pos = utilGzTell(gzFile) + 8;
+	z_off_t pos = utilGzTell(gzFile) + 8;
 
 	if (pos >= (available))
 		res = false;
@@ -3317,7 +3317,7 @@ void gbEmulate(int ticksToStop)
 		}
 		else
 		{
-			register int opcode = gbReadOpcode(PC.W);
+			int opcode = gbReadOpcode(PC.W);
 			CallRegisteredLuaMemHook(PC.W, 1, opcode, LUAMEMHOOK_EXEC);
 			PC.W++;
 

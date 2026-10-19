@@ -4,6 +4,7 @@
 
 #define DIRECTINPUT_VERSION 0x0500
 #include "dinput.h"
+#include <cstddef>
 
 #include "resource.h"
 #include "Input.h"
@@ -799,27 +800,27 @@ static void checkJoypads()
 			LONG old   = 0;
 			switch (pDevices[i].axis[j].offset)
 			{
-			case DIJOFS_X:
+			case offsetof(DIJOYSTATE, lX):
 				value = joystick.lX;
 				old   = pDevices[i].state.lX;
 				break;
-			case DIJOFS_Y:
+			case offsetof(DIJOYSTATE, lY):
 				value = joystick.lY;
 				old   = pDevices[i].state.lY;
 				break;
-			case DIJOFS_Z:
+			case offsetof(DIJOYSTATE, lZ):
 				value = joystick.lZ;
 				old   = pDevices[i].state.lZ;
 				break;
-			case DIJOFS_RX:
+			case offsetof(DIJOYSTATE, lRx):
 				value = joystick.lRx;
 				old   = pDevices[i].state.lRx;
 				break;
-			case DIJOFS_RY:
+			case offsetof(DIJOYSTATE, lRy):
 				value = joystick.lRy;
 				old   = pDevices[i].state.lRy;
 				break;
-			case DIJOFS_RZ:
+			case offsetof(DIJOYSTATE, lRz):
 				value = joystick.lRz;
 				old   = pDevices[i].state.lRz;
 				break;
@@ -884,22 +885,22 @@ BOOL checkKey(LONG_PTR key)
 			LONG     value = pDevices[dev].axis[axis].center;
 			switch (pDevices[dev].axis[axis].offset)
 			{
-			case DIJOFS_X:
+			case offsetof(DIJOYSTATE, lX):
 				value = pDevices[dev].state.lX;
 				break;
-			case DIJOFS_Y:
+			case offsetof(DIJOYSTATE, lY):
 				value = pDevices[dev].state.lY;
 				break;
-			case DIJOFS_Z:
+			case offsetof(DIJOYSTATE, lZ):
 				value = pDevices[dev].state.lZ;
 				break;
-			case DIJOFS_RX:
+			case offsetof(DIJOYSTATE, lRx):
 				value = pDevices[dev].state.lRx;
 				break;
-			case DIJOFS_RY:
+			case offsetof(DIJOYSTATE, lRy):
 				value = pDevices[dev].state.lRy;
 				break;
-			case DIJOFS_RZ:
+			case offsetof(DIJOYSTATE, lRz):
 				value = pDevices[dev].state.lRz;
 				break;
 			case DIJOFS_SLIDER(0):

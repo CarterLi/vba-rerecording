@@ -323,7 +323,7 @@ void MainWnd::OnUpdateOptionsFrameskipThrottle1000(CCmdUI*pCmdUI)
 void MainWnd::OnOptionsFrameskipThrottleOther()
 {
 	Throttle dlg;
-	int      v = dlg.DoModal();
+	int      v = (int)dlg.DoModal();
 	if (v)
 		systemSetThrottle(v);
 }
@@ -1065,7 +1065,7 @@ void MainWnd::OnUpdateOptionsEmulatorAutohidemenu(CCmdUI*pCmdUI)
 void MainWnd::OnOptionsEmulatorRewindinterval()
 {
 	RewindInterval dlg((float)theApp.rewindTimer/6.0f, theApp.rewindSlots);
-	int v = dlg.DoModal();
+	int v = (int)dlg.DoModal();
 
 	if (v >= 0)
 	{

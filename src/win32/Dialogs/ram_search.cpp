@@ -158,7 +158,7 @@ void ResetMemoryRegions()
 				MemoryRegion &region = *iter;
 				if (region.softwareAddress == regionStart)
 				{
-					unsigned int size = regionSearchGranularity + (regionEnd - regionStart);
+					unsigned int size = (unsigned int)(regionSearchGranularity + (regionEnd - regionStart));
 					if (size <= region.size)
 					{
 						discard = true;
@@ -1345,7 +1345,7 @@ LRESULT CustomDraw(LPARAM lParam)
 			rv = CDRF_NEWFONT;
 		}
 
-		if (!IsSatisfied(lplvcd->nmcd.dwItemSpec))
+		if (!IsSatisfied((int)lplvcd->nmcd.dwItemSpec))
 		{
 			// tint red any items that would be eliminated if a search were to run now
 			lplvcd->clrText = RGB(192, 64, 64);
@@ -2011,7 +2011,7 @@ invalid_field:
 			// time-saving trick #2:
 			// take advantage of the fact that the listbox items must be in the same order as the regions
 			MemoryList::iterator iter = s_activeMemoryRegions.begin();
-			int numHardwareAddrRanges = selHardwareAddrs.size();
+			int numHardwareAddrRanges = (int)selHardwareAddrs.size();
 			for (int i = 0, j = 16; i < numHardwareAddrRanges; ++i, --j)
 			{
 				int	 addr	  = selHardwareAddrs[i].addr;

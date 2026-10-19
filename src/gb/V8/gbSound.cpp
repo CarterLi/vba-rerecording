@@ -87,7 +87,7 @@ extern int32 soundShiftClock[16];
 
 bool8 gbDigitalSound = false;
 
-void gbSoundEvent(register u16 address, register int data)
+void gbSoundEvent(u16 address, int data)
 {
 	int freq = 0;
 

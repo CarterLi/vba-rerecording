@@ -6,6 +6,7 @@
 #include <cctype>
 #include <cmath>
 #include <ctime>
+#include <cstdint>
 
 #include <vector>
 #include <map>
@@ -78,10 +79,10 @@ extern "C"
 
 #include "../SFMT/SFMT.c"
 
-static void (*info_print)(int uid, const char *str);
-static void (*info_onstart)(int uid);
-static void (*info_onstop)(int uid);
-static int	info_uid;
+static void (*info_print)(std::intptr_t uid, const char *str);
+static void (*info_onstart)(std::intptr_t uid);
+static void (*info_onstop)(std::intptr_t uid);
+static std::intptr_t	info_uid;
 
 #ifndef countof
 	#define countof(a)  (sizeof(a) / sizeof(a[0]))
@@ -625,7 +626,7 @@ defcase: default:
 				std::find(s_tableAddressStack.begin(), s_tableAddressStack.end(), lua_topointer(L, i));
 			if (foundCycleIter != s_tableAddressStack.end())
 			{
-				int parentNum = s_tableAddressStack.end() - foundCycleIter;
+				int parentNum = (int)(s_tableAddressStack.end() - foundCycleIter);
 				if (parentNum > 1)
 					APPENDSPRINT("%s:parent^%d", luaL_typename(L, i), parentNum)
 				else
@@ -798,7 +799,7 @@ static int print(lua_State *L)
 {
 	const char *str = toCString(L);
 
-	int uid = info_uid; //luaStateToUIDMap[L->l_G->mainthread];
+	std::intptr_t uid = info_uid; //luaStateToUIDMap[L->l_G->mainthread];
 	//LuaContextInfo& info = GetCurrentInfo();
 
 	if (info_print)
@@ -819,7 +820,7 @@ static int printerror(lua_State *L, int idx)
 
 	const char *str = rawToCString(L, idx);
 
-	int uid = info_uid; //luaStateToUIDMap[L->l_G->mainthread];
+	std::intptr_t uid = info_uid; //luaStateToUIDMap[L->l_G->mainthread];
 	//LuaContextInfo& info = GetCurrentInfo();
 
 	if (info_print)
@@ -863,7 +864,7 @@ static int copytable(lua_State *L)
 		return 1;
 	}
 
-	lua_createtable(L, lua_objlen(L, 1), 0);
+	lua_createtable(L, (int)lua_objlen(L, 1), 0);
 	int copyIndex = lua_gettop(L);
 
 	lua_pushnil(L); // first key
@@ -972,7 +973,7 @@ static int memory_getregister(lua_State *L)
 	for (int cpu = 0; cpu < sizeof(cpuToRegisterMaps) / sizeof(*cpuToRegisterMaps); cpu++)
 	{
 		cpuToRegisterMap ctrm = cpuToRegisterMaps[cpu];
-		int cpuNameLen		  = strlen(ctrm.cpuName);
+		size_t cpuNameLen		  = strlen(ctrm.cpuName);
 		if (!strnicmp(qualifiedRegisterName, ctrm.cpuName, cpuNameLen))
 		{
 			qualifiedRegisterName += cpuNameLen;
@@ -1011,7 +1012,7 @@ static int memory_setregister(lua_State *L)
 	for (int cpu = 0; cpu < sizeof(cpuToRegisterMaps) / sizeof(*cpuToRegisterMaps); cpu++)
 	{
 		cpuToRegisterMap ctrm = cpuToRegisterMaps[cpu];
-		int cpuNameLen		  = strlen(ctrm.cpuName);
+		size_t cpuNameLen		  = strlen(ctrm.cpuName);
 		if (!strnicmp(qualifiedRegisterName, ctrm.cpuName, cpuNameLen))
 		{
 			qualifiedRegisterName += cpuNameLen;
@@ -1159,7 +1160,7 @@ struct TieredRegion
 
 	__forceinline int NotEmpty()
 	{
-		return broad.islands.size();
+		return (int)broad.islands.size();
 	}
 
 	// note: it is illegal to call this if NotEmpty() returns 0
@@ -1193,7 +1194,7 @@ static void CalculateMemHookRegions(LuaMemHookType hookType)
 				{
 					if (lua_isfunction(L, -1))
 					{
-						unsigned int addr = lua_tointeger(L, -2);
+						unsigned int addr = (unsigned int)lua_tointeger(L, -2);
 						hookedBytes.push_back(addr);
 					}
 					lua_pop(L, 1);
@@ -1278,7 +1279,7 @@ void CallRegisteredLuaMemHook(unsigned int address, int size, unsigned int value
 static int memory_registerHook(lua_State *L, LuaMemHookType hookType, int defaultSize)
 {
 	// get first argument: address
-	unsigned int addr = luaL_checkinteger(L, 1);
+	unsigned int addr = (unsigned int)luaL_checkinteger(L, 1);
 	//if((addr & ~0xFFFFFF) == ~0xFFFFFF)
 	//	addr &= 0xFFFFFF;
 
@@ -1287,7 +1288,7 @@ static int memory_registerHook(lua_State *L, LuaMemHookType hookType, int defaul
 	int funcIdx = 2;
 	if (lua_isnumber(L, 2))
 	{
-		size = luaL_checkinteger(L, 2);
+		size = (int)luaL_checkinteger(L, 2);
 		if (size < 0)
 		{
 			size  = -size;
@@ -1444,7 +1445,7 @@ static int memory_readbyte(lua_State *L)
 	u32 addr;
 	u8	val;
 
-	addr = luaL_checkinteger(L, 1);
+	addr = (u32)luaL_checkinteger(L, 1);
 	if (systemIsRunningGBA())
 	{
 		val = CPUReadByteQuick(addr);
@@ -1463,7 +1464,7 @@ static int memory_readbytesigned(lua_State *L)
 	u32 addr;
 	s8	val;
 
-	addr = luaL_checkinteger(L, 1);
+	addr = (u32)luaL_checkinteger(L, 1);
 	if (systemIsRunningGBA())
 	{
 		val = (s8) CPUReadByteQuick(addr);
@@ -1482,7 +1483,7 @@ static int memory_readword(lua_State *L)
 	u32 addr;
 	u16 val;
 
-	addr = luaL_checkinteger(L, 1);
+	addr = (u32)luaL_checkinteger(L, 1);
 	if (systemIsRunningGBA())
 	{
 		val = CPUReadHalfWordQuick(addr);
@@ -1501,7 +1502,7 @@ static int memory_readwordsigned(lua_State *L)
 	u32 addr;
 	s16 val;
 
-	addr = luaL_checkinteger(L, 1);
+	addr = (u32)luaL_checkinteger(L, 1);
 	if (systemIsRunningGBA())
 	{
 		val = (s16) CPUReadHalfWordQuick(addr);
@@ -1520,7 +1521,7 @@ static int memory_readdword(lua_State *L)
 	u32 addr;
 	u32 val;
 
-	addr = luaL_checkinteger(L, 1);
+	addr = (u32)luaL_checkinteger(L, 1);
 	if (systemIsRunningGBA())
 	{
 		val = CPUReadMemoryQuick(addr);
@@ -1543,7 +1544,7 @@ static int memory_readdwordsigned(lua_State *L)
 	u32 addr;
 	s32 val;
 
-	addr = luaL_checkinteger(L, 1);
+	addr = (u32)luaL_checkinteger(L, 1);
 	if (systemIsRunningGBA())
 	{
 		val = (s32) CPUReadMemoryQuick(addr);
@@ -1559,8 +1560,8 @@ static int memory_readdwordsigned(lua_State *L)
 
 static int memory_readbyterange(lua_State *L)
 {
-	uint32 address = luaL_checkinteger(L, 1);
-	int	   length  = luaL_checkinteger(L, 2);
+	uint32 address = (uint32)luaL_checkinteger(L, 1);
+	int	   length  = (int)luaL_checkinteger(L, 2);
 
 	if (length < 0)
 	{
@@ -1597,8 +1598,8 @@ static int memory_writebyte(lua_State *L)
 	u32 addr;
 	int val;
 
-	addr = luaL_checkinteger(L, 1);
-	val	 = luaL_checkinteger(L, 2);
+	addr = (u32)luaL_checkinteger(L, 1);
+	val	 = (int)luaL_checkinteger(L, 2);
 	if (systemIsRunningGBA())
 	{
 		CPUWriteByteQuick(addr, val);
@@ -1617,8 +1618,8 @@ static int memory_writeword(lua_State *L)
 	u32 addr;
 	int val;
 
-	addr = luaL_checkinteger(L, 1);
-	val	 = luaL_checkinteger(L, 2);
+	addr = (u32)luaL_checkinteger(L, 1);
+	val	 = (int)luaL_checkinteger(L, 2);
 	if (systemIsRunningGBA())
 	{
 		CPUWriteHalfWordQuick(addr, val);
@@ -1637,8 +1638,8 @@ static int memory_writedword(lua_State *L)
 	u32 addr;
 	u32 val;
 
-	addr = luaL_checkinteger(L, 1);
-	val	 = (s64)luaL_checknumber(L, 2);
+	addr = (u32)luaL_checkinteger(L, 1);
+	val	 = (u32)(s64)luaL_checknumber(L, 2);
 	if (systemIsRunningGBA())
 	{
 		CPUWriteMemoryQuick(addr, val);
@@ -1657,7 +1658,7 @@ static int memory_gbromreadbyte(lua_State *L)
 	u32 addr;
 	u8	val;
 
-	addr = luaL_checkinteger(L, 1);
+	addr = (u32)luaL_checkinteger(L, 1);
 	if (systemIsRunningGBA())
 	{
 		lua_pushnil(L);
@@ -1677,7 +1678,7 @@ static int memory_gbromreadbytesigned(lua_State *L)
 	u32 addr;
 	s8	val;
 
-	addr = luaL_checkinteger(L, 1);
+	addr = (u32)luaL_checkinteger(L, 1);
 	if (systemIsRunningGBA())
 	{
 		lua_pushnil(L);
@@ -1697,7 +1698,7 @@ static int memory_gbromreadword(lua_State *L)
 	u32 addr;
 	u16 val;
 
-	addr = luaL_checkinteger(L, 1);
+	addr = (u32)luaL_checkinteger(L, 1);
 	if (systemIsRunningGBA())
 	{
 		lua_pushnil(L);
@@ -1717,7 +1718,7 @@ static int memory_gbromreadwordsigned(lua_State *L)
 	u32 addr;
 	s16 val;
 
-	addr = luaL_checkinteger(L, 1);
+	addr = (u32)luaL_checkinteger(L, 1);
 	if (systemIsRunningGBA())
 	{
 		lua_pushnil(L);
@@ -1737,7 +1738,7 @@ static int memory_gbromreaddword(lua_State *L)
 	u32 addr;
 	u32 val;
 
-	addr = luaL_checkinteger(L, 1);
+	addr = (u32)luaL_checkinteger(L, 1);
 	if (systemIsRunningGBA())
 	{
 		lua_pushnil(L);
@@ -1761,7 +1762,7 @@ static int memory_gbromreaddwordsigned(lua_State *L)
 	u32 addr;
 	s32 val;
 
-	addr = luaL_checkinteger(L, 1);
+	addr = (u32)luaL_checkinteger(L, 1);
 	if (systemIsRunningGBA())
 	{
 		lua_pushnil(L);
@@ -1778,8 +1779,8 @@ static int memory_gbromreaddwordsigned(lua_State *L)
 
 static int memory_gbromreadbyterange(lua_State *L)
 {
-	uint32 address = luaL_checkinteger(L, 1);
-	int	   length  = luaL_checkinteger(L, 2);
+	uint32 address = (uint32)luaL_checkinteger(L, 1);
+	int	   length  = (int)luaL_checkinteger(L, 2);
 
 	if (length < 0)
 	{
@@ -1838,7 +1839,7 @@ static enum LuaJoypadType joypad_parse_type(lua_State* L, int numArg)
 //  Reads the joypad input that comes from the specified source.
 static int joy_get_internal(lua_State *L, bool reportUp, bool reportDown, enum LuaJoypadType type)
 {
-	int which = luaL_checkinteger(L, 1);
+	int which = (int)luaL_checkinteger(L, 1);
 	
 	if (which < 0 || which > 4)
 	{
@@ -1928,7 +1929,7 @@ static int joypad_getup(lua_State *L)
 static int joy_set_internal(lua_State *L, enum LuaJoypadType type)
 {
 	// Which joypad we're tampering with
-	int which = luaL_checkinteger(L, 1);
+	int which = (int)luaL_checkinteger(L, 1);
 	if (which < 0 || which > 4)
 	{
 		luaL_error(L, "Invalid output port (valid range 0-4, specified %d)", which);
@@ -2084,7 +2085,7 @@ static int savestate_create(lua_State *L)
 	int which = -1;
 	if (lua_gettop(L) >= 1)
 	{
-		which = luaL_checkinteger(L, 1);
+		which = (int)luaL_checkinteger(L, 1);
 		if (which < 1 || which > 12)
 		{
 			luaL_error(L, "invalid player's savestate %d", which);
@@ -2189,7 +2190,7 @@ int vba_framecount(lua_State *L)
 int vba_remapinputdisplay(lua_State* L)
 {
 	// Reads the joypads as inputted by the user
-	int which = luaL_checkinteger(L, 1);
+	int which = (int)luaL_checkinteger(L, 1);
 
 	if (which < 0 || which > 4)
 	{
@@ -2303,7 +2304,7 @@ static int movie_rerecordcount(lua_State *L)
 static int movie_setrerecordcount(lua_State *L)
 {
 	if (VBAMovieIsActive())
-		VBAMovieSetRerecordCount(luaL_checkinteger(L, 1));
+		VBAMovieSetRerecordCount((uint32)luaL_checkinteger(L, 1));
 	return 0;
 }
 
@@ -2751,7 +2752,7 @@ static inline bool str2colour(uint32 *colour, lua_State *L, const char *str)
 		int color;
 		sscanf(str + 1, "%X", &color);
 
-		int len		= strlen(str + 1);
+		int len		= (int)strlen(str + 1);
 		int missing = max(0, 8 - len);
 		color <<= missing << 2;
 		if (missing >= 2)
@@ -2818,8 +2819,8 @@ static inline uint32 gui_getcolour_wrapped(lua_State *L, int offset, bool hasDef
 			{
 				bool keyIsString = (lua_type(L, keyIndex) == LUA_TSTRING);
 				bool keyIsNumber = (lua_type(L, keyIndex) == LUA_TNUMBER);
-				int	 key		 = keyIsString ? tolower(*lua_tostring(L, keyIndex)) : (keyIsNumber ? lua_tointeger(L, keyIndex) : 0);
-				int	 value		 = lua_tointeger(L, valueIndex);
+				int	 key		 = (int)(keyIsString ? tolower(*lua_tostring(L, keyIndex)) : (keyIsNumber ? lua_tointeger(L, keyIndex) : 0));
+				int	 value		 = (int)lua_tointeger(L, valueIndex);
 				if (value < 0) value = 0;
 				if (value > 255) value = 255;
 				switch (key)
@@ -2891,8 +2892,8 @@ static uint32 gui_optcolour(lua_State *L, int offset, uint32 defaultColour)
 // gui.drawpixel(x,y,colour)
 static int gui_drawpixel(lua_State *L)
 {
-	int x = luaL_checkinteger(L, 1);
-	int y = luaL_checkinteger(L, 2);
+	int x = (int)luaL_checkinteger(L, 1);
+	int y = (int)luaL_checkinteger(L, 2);
 
 	uint32 colour = gui_getcolour(L, 3);
 
@@ -2910,10 +2911,10 @@ static int gui_drawline(lua_State *L)
 {
 	int	   x1, y1, x2, y2;
 	uint32 color;
-	x1	  = luaL_checkinteger(L, 1);
-	y1	  = luaL_checkinteger(L, 2);
-	x2	  = luaL_checkinteger(L, 3);
-	y2	  = luaL_checkinteger(L, 4);
+	x1	  = (int)luaL_checkinteger(L, 1);
+	y1	  = (int)luaL_checkinteger(L, 2);
+	x2	  = (int)luaL_checkinteger(L, 3);
+	y2	  = (int)luaL_checkinteger(L, 4);
 	color = gui_optcolour(L, 5, LUA_BUILD_PIXEL(255, 255, 255, 255));
 	int skipFirst = lua_toboolean(L, 6);
 
@@ -2931,10 +2932,10 @@ static int gui_drawbox(lua_State *L)
 	uint32 fillcolor;
 	uint32 outlinecolor;
 
-	x1 = luaL_checkinteger(L, 1);
-	y1 = luaL_checkinteger(L, 2);
-	x2 = luaL_checkinteger(L, 3);
-	y2 = luaL_checkinteger(L, 4);
+	x1 = (int)luaL_checkinteger(L, 1);
+	y1 = (int)luaL_checkinteger(L, 2);
+	x2 = (int)luaL_checkinteger(L, 3);
+	y2 = (int)luaL_checkinteger(L, 4);
 	fillcolor	 = gui_optcolour(L, 5, LUA_BUILD_PIXEL(63, 255, 255, 255));
 	outlinecolor = gui_optcolour(L, 6, LUA_BUILD_PIXEL(255, LUA_PIXEL_R(fillcolor), LUA_PIXEL_G(fillcolor), LUA_PIXEL_B(fillcolor)));
 
@@ -2958,9 +2959,9 @@ static int gui_drawcircle(lua_State *L)
 	int	   x, y, r;
 	uint32 colour;
 
-	x	   = luaL_checkinteger(L, 1);
-	y	   = luaL_checkinteger(L, 2);
-	r	   = luaL_checkinteger(L, 3);
+	x	   = (int)luaL_checkinteger(L, 1);
+	y	   = (int)luaL_checkinteger(L, 2);
+	r	   = (int)luaL_checkinteger(L, 3);
 	colour = gui_getcolour(L, 4);
 
 	gui_prepare();
@@ -2976,10 +2977,10 @@ static int gui_fillbox(lua_State *L)
 	int	   x1, y1, x2, y2;
 	uint32 colour;
 
-	x1	   = luaL_checkinteger(L, 1);
-	y1	   = luaL_checkinteger(L, 2);
-	x2	   = luaL_checkinteger(L, 3);
-	y2	   = luaL_checkinteger(L, 4);
+	x1	   = (int)luaL_checkinteger(L, 1);
+	y1	   = (int)luaL_checkinteger(L, 2);
+	x2	   = (int)luaL_checkinteger(L, 3);
+	y2	   = (int)luaL_checkinteger(L, 4);
 	colour = gui_getcolour(L, 5);
 
 	//	if (!gui_check_boundary(x1, y1))
@@ -3003,9 +3004,9 @@ static int gui_fillcircle(lua_State *L)
 	int	   x, y, r;
 	uint32 colour;
 
-	x	   = luaL_checkinteger(L, 1);
-	y	   = luaL_checkinteger(L, 2);
-	r	   = luaL_checkinteger(L, 3);
+	x	   = (int)luaL_checkinteger(L, 1);
+	y	   = (int)luaL_checkinteger(L, 2);
+	r	   = (int)luaL_checkinteger(L, 3);
 	colour = gui_getcolour(L, 4);
 
 	gui_prepare();
@@ -3017,8 +3018,8 @@ static int gui_fillcircle(lua_State *L)
 
 static int gui_getpixel(lua_State *L)
 {
-	int x = luaL_checkinteger(L, 1);
-	int y = luaL_checkinteger(L, 2);
+	int x = (int)luaL_checkinteger(L, 1);
+	int y = (int)luaL_checkinteger(L, 2);
 
 	int pixWidth, pixHeight;
 	int scrWidth, scrHeight;
@@ -3379,7 +3380,7 @@ static int strlinelen(const char *string)
 		s++;
 	if (*s)
 		s++;
-	return s - string;
+	return (int)(s - string);
 }
 
 static void LuaDisplayString(const char *string, int y, int x, uint32 color, uint32 outlineColor)
@@ -3389,7 +3390,7 @@ static void LuaDisplayString(const char *string, int y, int x, uint32 color, uin
 
 	gui_prepare();
 
-	PutTextInternal(string, strlen(string), x, y, color, outlineColor);
+	PutTextInternal(string, (int)strlen(string), x, y, color, outlineColor);
 
 	/*
 	const char* ptr = string;
@@ -3442,8 +3443,8 @@ static int gui_text(lua_State *L)
 	int			x, y;
 	uint32		colour, borderColour;
 
-	x = luaL_checkinteger(L, 1);
-	y = luaL_checkinteger(L, 2);
+	x = (int)luaL_checkinteger(L, 1);
+	y = (int)luaL_checkinteger(L, 2);
 	//msg = luaL_checkstring(L, 3);
 	msg = toCString(L, 3);
 
@@ -3476,9 +3477,9 @@ static int gui_gdoverlay(lua_State *L)
 	int index = 1;
 	if (lua_type(L, index) == LUA_TNUMBER)
 	{
-		xStartDst = lua_tointeger(L, index++);
+		xStartDst = (int)lua_tointeger(L, index++);
 		if (lua_type(L, index) == LUA_TNUMBER)
-			yStartDst = lua_tointeger(L, index++);
+			yStartDst = (int)lua_tointeger(L, index++);
 	}
 
 	luaL_checktype(L, index, LUA_TSTRING);
@@ -3507,10 +3508,10 @@ static int gui_gdoverlay(lua_State *L)
 
 	if ((argCount - index + 1) >= 4)
 	{
-		xStartSrc = luaL_checkinteger(L, index++);
-		yStartSrc = luaL_checkinteger(L, index++);
-		width	  = luaL_checkinteger(L, index++);
-		height	  = luaL_checkinteger(L, index++);
+		xStartSrc = (int)luaL_checkinteger(L, index++);
+		yStartSrc = (int)luaL_checkinteger(L, index++);
+		width	  = (int)luaL_checkinteger(L, index++);
+		height	  = (int)luaL_checkinteger(L, index++);
 	}
 
 	int alphaMul = transparencyModifier;
@@ -4577,7 +4578,7 @@ bool luabitop_validate(lua_State *L) // originally named as luaopen_bit
 
 static int bit_bshift_emulua(lua_State *L)
 {
-	int shift = luaL_checkinteger(L, 2);
+	int shift = (int)luaL_checkinteger(L, 2);
 	if (shift < 0)
 	{
 		lua_pushinteger(L, -shift);
@@ -4594,7 +4595,7 @@ static int bitbit(lua_State *L)
 	int numArgs = lua_gettop(L);
 	for (int i = 1; i <= numArgs; i++)
 	{
-		int where = luaL_checkinteger(L, i);
+		int where = (int)luaL_checkinteger(L, i);
 		if (where >= 0 && where < 32)
 			rv |= (1 << where);
 	}
@@ -5073,7 +5074,7 @@ int VBALoadLuaCode(const char *filename)
 	if (!LuaConsoleHWnd)
 		LuaConsoleHWnd = CreateDialog(AfxGetInstanceHandle(), MAKEINTRESOURCE(IDD_LUA),
 			AfxGetMainWnd()->GetSafeHwnd(), (DLGPROC)DlgLuaScriptDialog);
-	info_uid = (int)LuaConsoleHWnd;
+	info_uid = (std::intptr_t)LuaConsoleHWnd;
 #else
 	info_print = NULL;
 	info_onstart = NULL;

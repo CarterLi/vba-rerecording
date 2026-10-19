@@ -763,7 +763,7 @@ bool CPUWriteMemState(char *memory, int available)
 
 	bool res = CPUWriteStateToStream(gzFile);
 
-	long pos = utilGzTell(gzFile) + 8;
+	z_off_t pos = utilGzTell(gzFile) + 8;
 	if (pos >= (available))
 		res = false;
 

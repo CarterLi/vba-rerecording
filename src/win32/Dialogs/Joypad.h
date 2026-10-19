@@ -90,7 +90,7 @@ protected:
 
 	// Implementation
 protected:
-	UINT timerId;
+	UINT_PTR timerId;
 	int  which;
 
 	void showPage(int page);
@@ -149,7 +149,7 @@ protected:
 	//}}AFX_MSG
 	DECLARE_MESSAGE_MAP()
 private:
-	UINT timerId;
+	UINT_PTR timerId;
 };
 //{{AFX_INSERT_LOCATION}}
 // Microsoft Visual C++ will insert additional declarations immediately before the previous line.

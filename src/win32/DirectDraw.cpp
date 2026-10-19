@@ -766,7 +766,7 @@ void DirectDrawDisplay::render()
 							        theApp.dest.left+10+xd[i],
 							        theApp.dest.bottom - 20*(slot+1)+yd[i],
 							        theApp.screenMessageBuffer[slot],
-							        strlen(theApp.screenMessageBuffer[slot]));
+							        (int)strlen(theApp.screenMessageBuffer[slot]));
 						}
 					}
 				}
@@ -811,7 +811,7 @@ void DirectDrawDisplay::render()
 					    (!theApp.disableStatusMessage || slot == 1 || slot == 2))
 					{
 						TextOut(hdc, theApp.dest.left+10, theApp.dest.bottom - 20*(slot+1), theApp.screenMessageBuffer[slot],
-						        strlen(theApp.screenMessageBuffer[slot]));
+						        (int)strlen(theApp.screenMessageBuffer[slot]));
 					}
 				}
 			}

@@ -861,9 +861,9 @@ void GBACheatList::OnEnable()
 				if (item.state & LVIS_SELECTED)
 				{
 					if (cheatsList[item.lParam].enabled)
-						cheatsDisable(item.lParam);
+						cheatsDisable((int)item.lParam);
 					else
-						cheatsEnable(item.lParam);
+						cheatsEnable((int)item.lParam);
 				}
 			}
 		}
@@ -889,7 +889,7 @@ void GBACheatList::OnRemove()
 			{
 				if (item.state & LVIS_SELECTED)
 				{
-					cheatsDelete(item.lParam, restoreValues);
+					cheatsDelete((int)item.lParam, restoreValues);
 				}
 			}
 		}
@@ -936,9 +936,9 @@ void GBACheatList::OnItemchangedCheatList(NMHDR*pNMHDR, LRESULT*pResult)
 			    (((l->uNewState & LVIS_STATEIMAGEMASK)>>12)))
 			{
 				if (m_list.GetCheck(l->iItem))
-					cheatsEnable(l->lParam);
+					cheatsEnable((int)l->lParam);
 				else
-					cheatsDisable(l->lParam);
+					cheatsDisable((int)l->lParam);
 				refresh();
 			}
 		}

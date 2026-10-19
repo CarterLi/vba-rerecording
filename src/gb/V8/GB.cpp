@@ -759,7 +759,7 @@ void gbCompareLYToWY()
 		}
 }
 
-void gbWriteMemoryWrapped(register u16 address, register u8 value)
+void gbWriteMemoryWrapped(u16 address, u8 value)
 {
 	if (address < 0x8000)
 	{
@@ -1664,13 +1664,13 @@ void gbWriteMemoryWrapped(register u16 address, register u8 value)
 	gbMemory[address] = value;
 }
 
-void gbWriteMemory(register u16 address, register u8 value)
+void gbWriteMemory(u16 address, u8 value)
 {
 	gbWriteMemoryWrapped(address, value);
 	CallRegisteredLuaMemHook(address, 1, value, LUAMEMHOOK_WRITE);
 }
 
-u8 gbReadOpcode(register u16 address)
+u8 gbReadOpcode(u16 address)
 {
 	if (gbCheatMap[address])
 		return gbCheatRead(address);
@@ -1839,7 +1839,7 @@ u8 gbReadOpcode(register u16 address)
 	return gbMemoryMap[address >> 12][address & 0x0fff];
 }
 
-u8 gbReadMemoryWrapped(register u16 address)
+u8 gbReadMemoryWrapped(u16 address)
 {
 	if (gbCheatMap[address])
 		return gbCheatRead(address);
@@ -2134,7 +2134,7 @@ u8 gbReadMemoryWrapped(register u16 address)
 	return gbMemoryMap[address >> 12][address & 0x0fff];
 }
 
-u8 gbReadMemory(register u16 address)
+u8 gbReadMemory(u16 address)
 {
 	u8 value = gbReadMemoryWrapped(address);
 	CallRegisteredLuaMemHook(address, 1, value, LUAMEMHOOK_READ);
@@ -3712,7 +3712,7 @@ static bool gbReadBatteryFromStream(gzFile gzfile)
 {
 	// the GB save code is ugly, so rather than convert it all to use gzFiles, just copy it to temp RAM...
 #define TEMP_SAVE_FNAME ("tempvbaread.sav")
-	int	  pos	 = gztell(gzfile);
+	int	  pos	 = (int)gztell(gzfile);
 	int	  buflen = 1024;
 	// ...make a temp file and write it there...
 	FILE *fileTemp = fopen(TEMP_SAVE_FNAME, "wb");
@@ -3884,7 +3884,7 @@ static bool gbWriteSaveStateToStream(gzFile gzFile)
 	}
 
 #define WRITE_MEM_MAP(to, from, rel) \
-	utilWriteInt(gzFile, gbMemoryMap[to] - rel);
+	utilWriteInt(gzFile, (int)(gbMemoryMap[to] - rel));
 	{
 		WRITE_MEM_MAP(0x00, 0x0000, gbRom);
 		WRITE_MEM_MAP(0x01, 0x1000, gbRom);
@@ -3990,7 +3990,7 @@ bool gbWriteMemSaveState(char *memory, int available)
 
 	bool res = gbWriteSaveStateToStream(gzFile);
 
-	long pos = utilGzTell(gzFile) + 8;
+	z_off_t pos = utilGzTell(gzFile) + 8;
 
 	if (pos >= (available))
 		res = false;
@@ -5147,7 +5147,7 @@ void gbEmulate(int ticksToStop)
 			// First we apply the gbClockTicks, then we execute the opcodes.
 			execute = true;
 
-			register int opcode;
+			int opcode;
 			opcode2 = opcode1 = opcode = gbReadOpcode(PC.W);
 			CallRegisteredLuaMemHook(PC.W, 1, opcode, LUAMEMHOOK_EXEC);
 			PC.W++;

@@ -298,7 +298,7 @@ void UpdateRW_RMenu(HMENU menu, unsigned int mitem, unsigned int baseid)
 		char *tmp = atltmp.GetBuffer(0);
 
 		// Insert the menu item
-		moo.cch = strlen(tmp);
+		moo.cch = (UINT)strlen(tmp);
 		moo.fType = 0;
 		moo.wID = baseid + x;
 		moo.dwTypeData = tmp;

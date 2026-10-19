@@ -257,7 +257,7 @@ void memoryUpdateMBC3Clock()
 			                           (gbDataMBC3.mapperDays > 255 ? 1 : 0);
 		}
 	}
-	gbDataMBC3.mapperLastTime = now;
+	gbDataMBC3.mapperLastTime = (u32)now;
 }
 
 // MBC3 ROM write registers
@@ -341,7 +341,7 @@ void mapperMBC3RAM(u16 address, u8 value)
 		else
 		{
 			if (VBAMovieIsActive() || VBAMovieIsLoading())
-				gbDataMBC3.mapperLastTime = VBAMovieGetId() + VBAMovieGetFrameCounter() / VBAMovieGetFrameRate();
+				gbDataMBC3.mapperLastTime = (u32)(VBAMovieGetId() + VBAMovieGetFrameCounter() / VBAMovieGetFrameRate());
 			else
 				gbDataMBC3.mapperLastTime = u32(time(NULL));
 			time_t tmp = time_t(gbDataMBC3.mapperLastTime); //64 bit kludge

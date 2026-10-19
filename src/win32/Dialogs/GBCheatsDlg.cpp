@@ -951,9 +951,9 @@ void GBCheatList::OnEnable()
 		if (m_list.GetItem(&item))
 		{
 			if (gbCheatList[item.lParam].enabled)
-				gbCheatDisable(item.lParam);
+				gbCheatDisable((int)item.lParam);
 			else
-				gbCheatEnable(item.lParam);
+				gbCheatEnable((int)item.lParam);
 			refresh();
 		}
 	}
@@ -971,7 +971,7 @@ void GBCheatList::OnRemove()
 		item.iItem = mark;
 		if (m_list.GetItem(&item))
 		{
-			gbCheatRemove(item.lParam);
+			gbCheatRemove((int)item.lParam);
 			refresh();
 		}
 	}
@@ -1005,9 +1005,9 @@ void GBCheatList::OnItemchangedCheatList(NMHDR*pNMHDR, LRESULT*pResult)
 			    (((l->uNewState & LVIS_STATEIMAGEMASK)>>12)))
 			{
 				if (m_list.GetCheck(l->iItem))
-					gbCheatEnable(l->lParam);
+					gbCheatEnable((int)l->lParam);
 				else
-					gbCheatDisable(l->lParam);
+					gbCheatDisable((int)l->lParam);
 				refresh();
 			}
 		}

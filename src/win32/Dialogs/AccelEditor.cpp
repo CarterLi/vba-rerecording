@@ -345,7 +345,7 @@ void AccelEditor::OnAssign()
 	if (index < 0)
 		index = 0;
 	m_currents.InsertItem(index, szBuffer);
-	m_currents.SetItemData(index, reinterpret_cast<DWORD>(pAccel));
+	m_currents.SetItemData(index, reinterpret_cast<DWORD_PTR>(pAccel));
 	m_currents.SetItemState(-1, 0, LVIS_SELECTED);	// deselect other items first
 	m_currents.SetItemState(index, LVIS_FOCUSED | LVIS_SELECTED, LVIS_FOCUSED | LVIS_SELECTED);
 	GetDlgItem(IDC_REMOVE)->EnableWindow(TRUE);
@@ -538,7 +538,7 @@ void AccelEditor::OnTvnSelchangedCommands(NMHDR *pNMHDR, LRESULT *pResult)
 			pAccel->GetString(szBuffer);
 			int index = m_currents.InsertItem(m_currents.GetItemCount(), szBuffer);
 			// and a pointer to the accel object.
-			m_currents.SetItemData(index, (DWORD)pAccel);
+			m_currents.SetItemData(index, (DWORD_PTR)pAccel);
 		}
 
 		m_currents.SetItemState(0, LVIS_FOCUSED | LVIS_SELECTED, LVIS_FOCUSED | LVIS_SELECTED);

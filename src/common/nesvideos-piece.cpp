@@ -143,7 +143,7 @@ private:
         
         if(KnowAudio && KnowVideo)
         {
-            unsigned last_offs;
+            size_t last_offs;
             
             // Flush Audio
             
@@ -153,11 +153,11 @@ private:
                 unsigned bytes = rate / (fps_scaled / FPS_SCALE);
                 bytes *= chans*(bits/8);
                 
-                unsigned remain = AudioBuffer.size() - last_offs;
-                if(bytes > remain) bytes = remain;
+                size_t remain = AudioBuffer.size() - last_offs;
+                if(bytes > remain) bytes = (unsigned)remain;
                 if(!bytes) break;
                 
-                unsigned begin = last_offs;
+                size_t begin = last_offs;
                 last_offs += bytes;
                 SendAudioFrame(&AudioBuffer[begin], bytes);
             }
@@ -169,11 +169,11 @@ private:
             while(last_offs < VideoBuffer.size())
             {
                 unsigned bytes  = width*height*2;
-                unsigned remain = VideoBuffer.size() - last_offs;
-                if(bytes > remain) bytes = remain;
+                size_t remain = VideoBuffer.size() - last_offs;
+                if(bytes > remain) bytes = (unsigned)remain;
                 if(!bytes)break;
                 
-                unsigned begin = last_offs;
+                size_t begin = last_offs;
                 last_offs += bytes;
                 SendVideoFrame(&VideoBuffer[begin], bytes);
             }
@@ -436,12 +436,12 @@ extern "C"
 					fclose(fp);
 	                
 					std::vector<unsigned short> result(width*height);
-					for(unsigned pos=0, max=result.size(); pos<max; ++pos)
+					for(size_t pos=0, max=result.size(); pos<max; ++pos)
 					{
-						unsigned usepos = pos;
+						unsigned usepos = (unsigned)pos;
 						if(yflip)
 						{
-							unsigned y = pos/width;
+							unsigned y = (unsigned)(pos/width);
 							usepos = (usepos%width) + (height-y-1)*width;
 						}
 	                    
@@ -498,7 +498,7 @@ static void FlushWrite(FILE* fp, const unsigned char*buf, unsigned length)
 ///	const static int FAILURE_THRESH = 8092; // don't want to loop infinitely if we keep failing to make progress - actually maybe you would want this, so the checking is disabled
     while(length > 0 /*&& failures < FAILURE_THRESH*/)
     {
-        unsigned written = fwrite(buf, 1, length, fp);
+        unsigned written = (unsigned)fwrite(buf, 1, length, fp);
 ///		if(written == 0)
 ///			failures++;
 ///		else

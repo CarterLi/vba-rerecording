@@ -227,7 +227,7 @@ void GBColorDlg::OnSelchangePredefined()
 
 	if (sel != -1)
 	{
-		int data = m_predefined.GetItemData(sel);
+		int data = (int)m_predefined.GetItemData(sel);
 		for (int i = 0; i < 8; i++)
 		{
 			colorControls[i].setColor(defaultPalettes[data][i]);

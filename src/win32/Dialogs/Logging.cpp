@@ -216,7 +216,7 @@ BOOL Logging::OnInitDialog()
 
 void Logging::log(const char *s)
 {
-	int size = ::SendMessage(m_log, WM_GETTEXTLENGTH, 0, 0);
+	int size = (int)::SendMessage(m_log, WM_GETTEXTLENGTH, 0, 0);
 	m_log.SetSel(size, size);
 	m_log.ReplaceSel(s);
 }

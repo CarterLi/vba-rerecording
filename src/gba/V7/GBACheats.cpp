@@ -698,7 +698,7 @@ void cheatsDisable(int i)
 
 bool cheatsVerifyCheatCode(const char *code, const char *desc)
 {
-	int len = strlen(code);
+	int len = (int)strlen(code);
 	if (len != 11 && len != 13 && len != 17)
 	{
 		systemMessage(MSG_INVALID_CHEAT_CODE, N_("Invalid cheat code '%s'"), code);

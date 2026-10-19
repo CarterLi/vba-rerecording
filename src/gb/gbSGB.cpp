@@ -122,7 +122,7 @@ void gbSgbFillScreen(u16 color)
 		{
 			int yLine = (y + gbBorderRowSkip + 1) * (gbBorderLineSkip + 2) + gbBorderColumnSkip;
 			u16 *dest = (u16 *)pix + yLine;
-			for (register int x = 0; x < 160; x++)
+			for (int x = 0; x < 160; x++)
 				gbSgbDraw16Bit(dest++, color);
 		}
 	}
@@ -133,7 +133,7 @@ void gbSgbFillScreen(u16 color)
 		{
 			int yLine = (y + gbBorderRowSkip) * gbBorderLineSkip + gbBorderColumnSkip;
 			u8 *dest  = (u8 *)pix + yLine * 3;
-			for (register int x = 0; x < 160; x++)
+			for (int x = 0; x < 160; x++)
 			{
 				gbSgbDraw24Bit(dest, color);
 				dest += 3;
@@ -147,7 +147,7 @@ void gbSgbFillScreen(u16 color)
 		{
 			int	 yLine = (y + gbBorderRowSkip + 1) * (gbBorderLineSkip + 1) + gbBorderColumnSkip;
 			u32 *dest  = (u32 *)pix + yLine;
-			for (register int x = 0; x < 160; x++)
+			for (int x = 0; x < 160; x++)
 			{
 				gbSgbDraw32Bit(dest++, color);
 			}

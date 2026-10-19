@@ -60,7 +60,7 @@ BOOL CKeyboardEdit::PreTranslateMessage(MSG *pMsg)
 {
 	if (pMsg->message == WM_KEYDOWN || pMsg->message == WM_SYSKEYDOWN)
 	{
-		int key = pMsg->wParam;
+		int key = (int)pMsg->wParam;
 		m_keys[key] = true;
 		switch (key)
 		{
@@ -104,7 +104,7 @@ BOOL CKeyboardEdit::PreTranslateMessage(MSG *pMsg)
 	}
 	else if (pMsg->message == WM_KEYUP || pMsg->message == WM_SYSKEYUP)
 	{
-		int key = pMsg->wParam;
+		int key = (int)pMsg->wParam;
 		m_keys[key] = false;
 		switch (key)
 		{

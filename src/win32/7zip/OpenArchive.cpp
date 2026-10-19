@@ -551,7 +551,7 @@ LRESULT CALLBACK ArchiveFileChooser(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM 
 			// populate list
 			for(size_t i = 0; i < files.size(); i++)
 			{
-				int listIndex = SendDlgItemMessage(hDlg, IDC_LIST1, LB_ADDSTRING, (WPARAM) 0, (LONG) (LPTSTR) files[i].name.c_str());
+				int listIndex = (int)SendDlgItemMessage(hDlg, IDC_LIST1, LB_ADDSTRING, (WPARAM) 0, (LPARAM)(LPCSTR) files[i].name.c_str());
 				s_listToItemsMap[listIndex] = files[i].itemIndex;
 			}
 
@@ -674,7 +674,7 @@ LRESULT CALLBACK ArchiveFileChooser(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM 
 
 				case IDOK:
 				{	
-					int listIndex = SendDlgItemMessage(hDlg, IDC_LIST1, LB_GETCURSEL, (WPARAM) 0, (LPARAM) 0);
+					int listIndex = (int)SendDlgItemMessage(hDlg, IDC_LIST1, LB_GETCURSEL, (WPARAM) 0, (LPARAM) 0);
 					s_archiveFileChooserResult = s_listToItemsMap[listIndex];
 					s_listToItemsMap.clear();
 					//if(Full_Screen)

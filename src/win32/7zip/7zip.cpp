@@ -155,7 +155,7 @@ ArchiveFile::ArchiveFile(const char* filename, const char* displayFilename)
 		fseek(file, 0, SEEK_SET);
 		
 		std::string& formatSig = s_formatInfos[i].signature;
-		int len = formatSig.size();
+		int len = (int)formatSig.size();
 
 		if(len == 0)
 			continue; // because some formats have no signature
@@ -164,7 +164,7 @@ ArchiveFile::ArchiveFile(const char* filename, const char* displayFilename)
 		fread(fileSig, 1, len, file);
 
 		if(!memcmp(formatSig.c_str(), fileSig, len))
-			m_typeIndex = i;
+			m_typeIndex = (int)i;
 	}
 
 	// if no signature match has been found, detect archive type using filename.
@@ -181,7 +181,7 @@ ArchiveFile::ArchiveFile(const char* filename, const char* displayFilename)
 				{
 					if(!_stricmp(formatExts[j].c_str(), fileExt))
 					{
-						m_typeIndex = i;
+						m_typeIndex = (int)i;
 						break;
 					}
 				}
@@ -328,7 +328,7 @@ int ArchiveFile::ExtractItem(int index, unsigned char* outBuffer, int bufSize) c
 			if(SUCCEEDED(object->Open(ifs,0,0)))
 			{
 				OutStream* os = new OutStream(index, outBuffer, item.size);
-				const UInt32 indices [1] = {index};
+				const UInt32 indices [1] = {(UInt32)index};
 				hr = object->Extract(indices, 1, 0, os);
 				object->Close();
 			}
@@ -372,7 +372,7 @@ int ArchiveFile::ExtractItem(int index, const char* outFilename) const
 			if(SUCCEEDED(object->Open(ifs,0,0)))
 			{
 				OutStream* os = new OutStream(index, outFilename);
-				const UInt32 indices [1] = {index};
+				const UInt32 indices [1] = {(UInt32)index};
 				hr = object->Extract(indices, 1, 0, os);
 				object->Close();
 			}

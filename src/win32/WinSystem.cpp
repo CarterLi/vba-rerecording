@@ -765,7 +765,7 @@ void systemFrame()
 			if (theApp.wasPaused)
 				diff = 0;
 
-			int target = (100000 / (systemGetFrameRate() * theApp.throttle));
+			int target = (int)(100000 / (systemGetFrameRate() * theApp.throttle));
 			int d	   = (target - diff);
 
 			if (d > 1000) // added to avoid 500-day waits for vba to start emulating.

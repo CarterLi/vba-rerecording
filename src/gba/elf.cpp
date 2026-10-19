@@ -3021,7 +3021,7 @@ bool elfRead(const char *name, int &siz, FILE *f)
 	long size = ftell(f);
 	elfFileData = (u8 *)malloc(size);
 	fseek(f, 0, SEEK_SET);
-	int res = fread(elfFileData, 1, size, f);
+	int res = (int)fread(elfFileData, 1, size, f);
 	fclose(f);
 
 	if (res < 0)

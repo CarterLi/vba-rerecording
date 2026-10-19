@@ -87,7 +87,7 @@ static HRESULT WINAPI addVideoMode(LPDDSURFACEDESC2 surf, LPVOID lpContext)
 		{
 			sprintf(buffer, "%4dx%4dx%2d", surf->dwWidth, surf->dwHeight,
 			        surf->ddpfPixelFormat.dwRGBBitCount);
-			int pos = ::SendMessage(h, LB_ADDSTRING, 0, (LPARAM)buffer);
+			int pos = (int)::SendMessage(h, LB_ADDSTRING, 0, (LPARAM)buffer);
 			::SendMessage(h, LB_SETITEMDATA, pos,
 			              (surf->ddpfPixelFormat.dwRGBBitCount << 24) |
 			              ((surf->dwWidth & 4095) << 12) |
@@ -159,7 +159,7 @@ int winVideoModeSelect(CWnd *pWnd, GUID **guid)
 	{
 		VideoDriverSelect d(pWnd);
 
-		selected = d.DoModal();
+		selected = (int)d.DoModal();
 
 		if (selected == -1)
 		{
@@ -199,7 +199,7 @@ int winVideoModeSelect(CWnd *pWnd, GUID **guid)
 
 	VideoMode dlg(ddraw, pWnd);
 
-	int res = dlg.DoModal();
+	int res = (int)dlg.DoModal();
 
 	if (res != -1)
 	{
@@ -264,7 +264,7 @@ void VideoMode::OnOk()
 
 	if (cur != -1)
 	{
-		cur = m_modes.GetItemData(cur);
+		cur = (int)m_modes.GetItemData(cur);
 	}
 	EndDialog(cur);
 }

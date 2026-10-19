@@ -76,7 +76,7 @@ extern int32 soundShiftClock[16];
 
 bool8 gbDigitalSound = false;
 
-void gbSoundEvent(register u16 address, register int data)
+void gbSoundEvent(u16 address, int data)
 {
 	int freq = 0;
 
@@ -240,13 +240,13 @@ void gbSoundEvent(register u16 address, register int data)
 		freq		 = soundFreqRatio[data & 7];
 		sound4NSteps = data & 0x08;
 
-		sound4Skip = freq * NOISE_MAGIC;
+		sound4Skip = (int)(freq * NOISE_MAGIC);
 
 		sound4Clock = data >> 4;
 
 		freq = freq / soundShiftClock[sound4Clock];
 
-		sound4ShiftSkip = freq * NOISE_MAGIC;
+		sound4ShiftSkip = (int)(freq * NOISE_MAGIC);
 
 		break;
 	case NR44:
@@ -266,13 +266,13 @@ void gbSoundEvent(register u16 address, register int data)
 
 			freq = soundFreqRatio[gbMemory[NR43] & 7];
 
-			sound4Skip = freq * NOISE_MAGIC;
+			sound4Skip = (int)(freq * NOISE_MAGIC);
 
 			sound4NSteps = gbMemory[NR43] & 0x08;
 
 			freq = freq / soundShiftClock[gbMemory[NR43] >> 4];
 
-			sound4ShiftSkip = freq * NOISE_MAGIC;
+			sound4ShiftSkip = (int)(freq * NOISE_MAGIC);
 			if (sound4NSteps)
 				sound4ShiftRight = 0x7f;
 			else

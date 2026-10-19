@@ -35,6 +35,6 @@ extern void gbSoundTick();
 extern void gbSoundReset();
 extern void gbSoundSaveGame(gzFile);
 extern void gbSoundReadGame(int, gzFile);
-extern void gbSoundEvent(register u16, register int);
+extern void gbSoundEvent(u16, int);
 
 #endif // VBA_GB_SOUND_H

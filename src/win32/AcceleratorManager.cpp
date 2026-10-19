@@ -236,7 +236,7 @@ bool CAcceleratorManager::UpdateWndTable()
 		}
 	}
 
-	int     nAccel  = arrayACCEL.GetSize();
+	int     nAccel  = (int)arrayACCEL.GetSize();
 	LPACCEL lpAccel = (LPACCEL)LocalAlloc(LPTR, nAccel * sizeof(ACCEL));
 	if (!lpAccel)
 	{
@@ -636,7 +636,7 @@ bool CAcceleratorManager::Write()
 	}
 	//  AccelsDatasArray.InsertAt(0, MAKELONG(65535, iCount));
 
-	int    count = AccelsDatasArray.GetSize();
+	int    count = (int)AccelsDatasArray.GetSize();
 	DWORD *data  = (DWORD *)malloc(count * sizeof(DWORD));
 	ASSERT(data != NULL);
 

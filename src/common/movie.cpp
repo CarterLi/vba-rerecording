@@ -157,7 +157,7 @@ static void reserve_movie_buffer_space(uint32 space_needed)
 {
 	if (space_needed > Movie.inputBufferSize)
 	{
-		uint32 ptr_offset	= Movie.inputBufferPtr - Movie.inputBuffer;
+		size_t ptr_offset	= (size_t)(Movie.inputBufferPtr - Movie.inputBuffer);
 		uint32 alloc_chunks = (space_needed - 1) / BUFFER_GROWTH_SIZE + 1;
 		uint32 old_size		= Movie.inputBufferSize;
 		Movie.inputBufferSize = BUFFER_GROWTH_SIZE * alloc_chunks;
@@ -1143,7 +1143,7 @@ void VBAUpdateButtonPressDisplay()
 	const int  BufferSize = 64;
 	      char buffer[BufferSize] = "                    ";
 	const char whiteSpaces[] = "    ";
-	const int  whiteOffset = strlen(whiteSpaces);
+	const int  whiteOffset = (int)strlen(whiteSpaces);
 #ifdef WIN32
 	const bool eraseAll = !theApp.inputDisplay;
 	char grayList[BufferSize]; // FIXME: no grey available at the moment

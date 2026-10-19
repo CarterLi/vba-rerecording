@@ -865,7 +865,7 @@ u8 *utilLoad(const char *file,
 		size = fileSize;
 	}
 	int read = fileSize <= size ? fileSize : size;
-	int r	 = fread(image, 1, read, f);
+	int r	 = (int)fread(image, 1, read, f);
 	fclose(f);
 
 	if (r != (int)read)

@@ -327,7 +327,7 @@ LRESULT GBMapView::OnMapInfo(WPARAM wParam, LPARAM lParam)
 	mapViewZoom.setColors(colors);
 
 	int x = wParam & 0xffff;
-	int y = (wParam >> 16);
+	int y = (int)(wParam >> 16);
 
 	CString buffer;
 	buffer.Format("(%d,%d)", x, y);

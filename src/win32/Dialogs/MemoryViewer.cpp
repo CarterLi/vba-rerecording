@@ -596,7 +596,7 @@ void MemoryViewer::moveAddress(s32 offset, int nibbleOff)
 
 LRESULT MemoryViewer::OnWMChar(WPARAM wParam, LPARAM LPARAM)
 {
-	if (OnEditInput(wParam))
+	if (OnEditInput((UINT)wParam))
 		return 0;
 	return 1;
 }
