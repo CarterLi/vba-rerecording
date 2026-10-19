@@ -1,4 +1,4 @@
-// MainWnd.cpp : implementation file
+﻿// MainWnd.cpp : implementation file
 //
 
 #include "stdafx.h"

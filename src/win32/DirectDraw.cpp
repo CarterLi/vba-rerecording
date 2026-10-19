@@ -1,4 +1,4 @@
-#include "stdafx.h"
+﻿#include "stdafx.h"
 
 #define DIRECTDRAW_VERSION 0x0700
 #include "ddraw.h"

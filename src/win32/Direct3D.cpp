@@ -1,4 +1,4 @@
-#include "stdafx.h"
+﻿#include "stdafx.h"
 
 #pragma comment( lib, "d3d9" )
 #pragma comment( lib, "d3dx9" )

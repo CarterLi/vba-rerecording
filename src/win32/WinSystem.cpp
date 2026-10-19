@@ -1,4 +1,4 @@
-// System.cpp : Defines the system behaviors for the emulator.
+﻿// System.cpp : Defines the system behaviors for the emulator.
 //
 #include "stdafx.h"
 #include "Sound.h"

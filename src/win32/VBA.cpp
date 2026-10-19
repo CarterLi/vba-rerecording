@@ -1,4 +1,4 @@
-// VBA.cpp : Defines the class behaviors for the application.
+﻿// VBA.cpp : Defines the class behaviors for the application.
 //
 #include "stdafx.h"
 #include <mmsystem.h>

@@ -1,4 +1,4 @@
-#include "stdafx.h"
+﻿#include "stdafx.h"
 #include <gl/GL.h>
 
 #include "resource.h"
