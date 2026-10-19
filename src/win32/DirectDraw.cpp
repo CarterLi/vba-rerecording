@@ -224,7 +224,7 @@ bool DirectDrawDisplay::initialize()
 
 	DWORD flags = DDSCL_NORMAL;
 
-	if (theApp.videoOption >= VIDEO_320x240)
+	if (isFullscreenOption(theApp.videoOption))
 		flags = DDSCL_ALLOWMODEX |
 		        DDSCL_ALLOWREBOOT |
 		        DDSCL_EXCLUSIVE |
@@ -239,7 +239,7 @@ bool DirectDrawDisplay::initialize()
 		return FALSE;
 	}
 
-	if (theApp.videoOption > VIDEO_4X)
+	if (isFullscreenOption(theApp.videoOption))
 	{
 		hret = pDirectDraw->SetDisplayMode(theApp.fsWidth,
 		                                   theApp.fsHeight,
@@ -260,7 +260,7 @@ bool DirectDrawDisplay::initialize()
 	ddsd.dwFlags        = DDSD_CAPS;
 	ddsd.ddsCaps.dwCaps = DDSCAPS_PRIMARYSURFACE;
 
-	if (theApp.videoOption > VIDEO_4X && theApp.tripleBuffering)
+	if (isFullscreenOption(theApp.videoOption) && theApp.tripleBuffering)
 	{
 		// setup triple buffering
 		ddsd.dwFlags		  |= DDSD_BACKBUFFERCOUNT;
@@ -288,7 +288,7 @@ bool DirectDrawDisplay::initialize()
 		winlog("Primary CAPS 4: %08x\n", caps.dwCaps4);
 	}
 
-	if (theApp.videoOption > VIDEO_4X && theApp.tripleBuffering)
+	if (isFullscreenOption(theApp.videoOption) && theApp.tripleBuffering)
 	{
 		DDSCAPS2 caps;
 		ZeroMemory(&caps, sizeof(caps));
@@ -308,12 +308,12 @@ bool DirectDrawDisplay::initialize()
 	}
 
 	// create clipper in all modes to avoid paint problems
-	//  if(videoOption <= VIDEO_4X) {
+	//  if(!isFullscreenOption(videoOption)) {
 	hret = pDirectDraw->CreateClipper(0, &ddsClipper, NULL);
 	if (hret == DD_OK)
 	{
 		ddsClipper->SetHWnd(0, pWnd->m_hWnd);
-		if (theApp.videoOption > VIDEO_4X)
+		if (isFullscreenOption(theApp.videoOption))
 		{
 			if (theApp.tripleBuffering)
 				ddsFlip->SetClipper(ddsClipper);
@@ -556,7 +556,7 @@ bool DirectDrawDisplay::initializeOffscreen(int w, int h)
 
 void DirectDrawDisplay::clear()
 {
-	if (theApp.videoOption <= VIDEO_4X || !theApp.tripleBuffering || ddsFlip == NULL)
+	if (!isFullscreenOption(theApp.videoOption) || !theApp.tripleBuffering || ddsFlip == NULL)
 		return;
 
 	DDBLTFX fx;
@@ -719,7 +719,7 @@ gbaLoop24bit:
 gbaLoopEnd:
 			}
 		}
-		if (theApp.showSpeed && theApp.videoOption > VIDEO_4X)
+		if (theApp.showSpeed && isFullscreenOption(theApp.videoOption))
 		{
 			char buffer[30];
 			if (theApp.showSpeed == 1)
@@ -761,7 +761,7 @@ gbaLoopEnd:
 		}
 
 		ddsOffscreen->PageLock(0);
-		if (theApp.tripleBuffering && theApp.videoOption > VIDEO_4X)
+		if (theApp.tripleBuffering && isFullscreenOption(theApp.videoOption))
 		{
 			hret = ddsFlip->Blt(&theApp.dest, ddsOffscreen, NULL, DDBLT_WAIT, NULL);
 			if (hret == DD_OK)

@@ -150,6 +150,10 @@ ON_UPDATE_COMMAND_UI(ID_OPTIONS_VIDEO_X1, OnUpdateOptionsVideoX1)
 ON_UPDATE_COMMAND_UI(ID_OPTIONS_VIDEO_X2, OnUpdateOptionsVideoX2)
 ON_UPDATE_COMMAND_UI(ID_OPTIONS_VIDEO_X3, OnUpdateOptionsVideoX3)
 ON_UPDATE_COMMAND_UI(ID_OPTIONS_VIDEO_X4, OnUpdateOptionsVideoX4)
+ON_UPDATE_COMMAND_UI(ID_OPTIONS_VIDEO_X5, OnUpdateOptionsVideoX5)
+ON_UPDATE_COMMAND_UI(ID_OPTIONS_VIDEO_X6, OnUpdateOptionsVideoX6)
+ON_UPDATE_COMMAND_UI(ID_OPTIONS_VIDEO_X7, OnUpdateOptionsVideoX7)
+ON_UPDATE_COMMAND_UI(ID_OPTIONS_VIDEO_X8, OnUpdateOptionsVideoX8)
 ON_UPDATE_COMMAND_UI(ID_OPTIONS_VIDEO_FULLSCREEN320X240, OnUpdateOptionsVideoFullscreen320x240)
 ON_UPDATE_COMMAND_UI(ID_OPTIONS_VIDEO_FULLSCREEN640X480, OnUpdateOptionsVideoFullscreen640x480)
 ON_UPDATE_COMMAND_UI(ID_OPTIONS_VIDEO_FULLSCREEN800X600, OnUpdateOptionsVideoFullscreen800x600)
@@ -522,6 +526,10 @@ ON_COMMAND(ID_OPTIONS_VIDEO_FULLSCREENMAXSCALE, OnOptionsVideoFullscreenmaxscale
 
 ON_COMMAND_EX_RANGE(ID_OPTIONS_VIDEO_FRAMESKIP_0, ID_OPTIONS_VIDEO_FRAMESKIP_9, OnOptionsFrameskip)
 ON_COMMAND_EX_RANGE(ID_OPTIONS_VIDEO_X1, ID_OPTIONS_VIDEO_X4, OnOptionVideoSize)
+ON_COMMAND_EX(ID_OPTIONS_VIDEO_X5, OnOptionVideoSize)
+ON_COMMAND_EX(ID_OPTIONS_VIDEO_X6, OnOptionVideoSize)
+ON_COMMAND_EX(ID_OPTIONS_VIDEO_X7, OnOptionVideoSize)
+ON_COMMAND_EX(ID_OPTIONS_VIDEO_X8, OnOptionVideoSize)
 ON_COMMAND_EX_RANGE(ID_OPTIONS_VIDEO_LAYERS_BG0, ID_OPTIONS_VIDEO_LAYERS_OBJWIN, OnVideoLayer)
 ON_UPDATE_COMMAND_UI_RANGE(ID_OPTIONS_VIDEO_LAYERS_BG0, ID_OPTIONS_VIDEO_LAYERS_OBJWIN, OnUpdateVideoLayer)
 ON_COMMAND(ID_SYSTEM_MINIMIZE, OnSystemMinimize)
@@ -646,7 +654,7 @@ void MainWnd::OnSize(UINT nType, int cx, int cy)
 	{
 		if (this)
 		{
-			if (theApp.videoOption <= VIDEO_4X)
+			if (!isFullscreenOption(theApp.videoOption))
 			{
 				theApp.surfaceSizeX = cx;
 				theApp.surfaceSizeY = cy;
@@ -967,7 +975,7 @@ void MainWnd::OnActivateApp(BOOL bActive, DWORD hTask)
 {
 	CWnd::OnActivateApp(bActive, hTask);
 
-	if (theApp.tripleBuffering && theApp.videoOption > VIDEO_4X)
+	if (theApp.tripleBuffering && isFullscreenOption(theApp.videoOption))
 	{
 		if (bActive)
 		{
@@ -1215,7 +1223,7 @@ romcheck_exit:
 void MainWnd::winMouseOn()
 {
 	SetCursor(arrow);
-	if (theApp.videoOption > VIDEO_4X)
+	if (isFullscreenOption(theApp.videoOption))
 	{
 		theApp.mouseCounter = 120;
 	}
@@ -1225,7 +1233,7 @@ void MainWnd::winMouseOn()
 
 void MainWnd::winConfirmMode()
 {
-	if (theApp.renderMethod == DIRECT_DRAW && theApp.videoOption > VIDEO_4X)
+	if (theApp.renderMethod == DIRECT_DRAW && isFullscreenOption(theApp.videoOption))
 	{
 		theApp.winCheckFullscreen();
 		ModeConfirm dlg(this);
@@ -1481,7 +1489,7 @@ bool MainWnd::winFileRun(bool reopening)
 
 	theApp.updateFrameSkip();
 
-	if (theApp.autoHideMenu && theApp.videoOption > VIDEO_4X && theApp.menuToggle)
+	if (theApp.autoHideMenu && isFullscreenOption(theApp.videoOption) && theApp.menuToggle)
 		OnFileTogglemenu();
 
 	if (theApp.autoLoadMostRecent && !VBAMovieIsActive() && !VBAMovieIsLoading()) // would cause desync in movies...

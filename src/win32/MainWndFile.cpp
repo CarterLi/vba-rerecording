@@ -614,7 +614,7 @@ void MainWnd::OnFileTogglemenu()
 	if (theApp.menuToggle)
 	{
 		SetMenu(&theApp.m_menu);
-		if (theApp.videoOption > VIDEO_4X && theApp.tripleBuffering)
+		if (isFullscreenOption(theApp.videoOption) && theApp.tripleBuffering)
 		{
 			if (theApp.display)
 				theApp.display->renderMenu();

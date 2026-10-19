@@ -59,7 +59,7 @@ void MainWnd::OnToolsDisassemble()
 
 void MainWnd::OnUpdateToolsDisassemble(CCmdUI *pCmdUI)
 {
-	pCmdUI->Enable(theApp.videoOption <= VIDEO_4X);
+	pCmdUI->Enable(!isFullscreenOption(theApp.videoOption));
 }
 
 void MainWnd::OnToolsLogging()
@@ -69,7 +69,7 @@ void MainWnd::OnToolsLogging()
 
 void MainWnd::OnUpdateToolsLogging(CCmdUI *pCmdUI)
 {
-	pCmdUI->Enable(theApp.videoOption <= VIDEO_4X);
+	pCmdUI->Enable(!isFullscreenOption(theApp.videoOption));
 }
 
 void MainWnd::OnToolsIoviewer()
@@ -81,7 +81,7 @@ void MainWnd::OnToolsIoviewer()
 
 void MainWnd::OnUpdateToolsIoviewer(CCmdUI *pCmdUI)
 {
-	pCmdUI->Enable(theApp.videoOption <= VIDEO_4X && systemCartridgeType == IMAGE_GBA);
+	pCmdUI->Enable(!isFullscreenOption(theApp.videoOption) && systemCartridgeType == IMAGE_GBA);
 }
 
 void MainWnd::OnToolsMapview()
@@ -102,7 +102,7 @@ void MainWnd::OnToolsMapview()
 
 void MainWnd::OnUpdateToolsMapview(CCmdUI *pCmdUI)
 {
-	pCmdUI->Enable(theApp.videoOption <= VIDEO_4X);
+	pCmdUI->Enable(!isFullscreenOption(theApp.videoOption));
 }
 
 void MainWnd::OnToolsMemoryviewer()
@@ -123,7 +123,7 @@ void MainWnd::OnToolsMemoryviewer()
 
 void MainWnd::OnUpdateToolsMemoryviewer(CCmdUI *pCmdUI)
 {
-	pCmdUI->Enable(theApp.videoOption <= VIDEO_4X);
+	pCmdUI->Enable(!isFullscreenOption(theApp.videoOption));
 }
 
 void MainWnd::OnToolsOamviewer()
@@ -144,7 +144,7 @@ void MainWnd::OnToolsOamviewer()
 
 void MainWnd::OnUpdateToolsOamviewer(CCmdUI *pCmdUI)
 {
-	pCmdUI->Enable(theApp.videoOption <= VIDEO_4X);
+	pCmdUI->Enable(!isFullscreenOption(theApp.videoOption));
 }
 
 void MainWnd::OnToolsPaletteview()
@@ -165,7 +165,7 @@ void MainWnd::OnToolsPaletteview()
 
 void MainWnd::OnUpdateToolsPaletteview(CCmdUI *pCmdUI)
 {
-	pCmdUI->Enable(theApp.videoOption <= VIDEO_4X);
+	pCmdUI->Enable(!isFullscreenOption(theApp.videoOption));
 }
 
 void MainWnd::OnToolsTileviewer()
@@ -186,7 +186,7 @@ void MainWnd::OnToolsTileviewer()
 
 void MainWnd::OnUpdateToolsTileviewer(CCmdUI *pCmdUI)
 {
-	pCmdUI->Enable(theApp.videoOption <= VIDEO_4X);
+	pCmdUI->Enable(!isFullscreenOption(theApp.videoOption));
 }
 
 void MainWnd::OnDebugNextframe()
@@ -409,7 +409,7 @@ void MainWnd::OnToolsDebugGdb()
 
 void MainWnd::OnUpdateToolsDebugGdb(CCmdUI *pCmdUI)
 {
-	pCmdUI->Enable(theApp.videoOption <= VIDEO_4X && remoteSocket == -1);
+	pCmdUI->Enable(!isFullscreenOption(theApp.videoOption) && remoteSocket == -1);
 }
 
 void MainWnd::OnToolsDebugLoadandwait()
@@ -443,7 +443,7 @@ void MainWnd::OnToolsDebugLoadandwait()
 
 void MainWnd::OnUpdateToolsDebugLoadandwait(CCmdUI *pCmdUI)
 {
-	pCmdUI->Enable(theApp.videoOption <= VIDEO_4X && remoteSocket == -1);
+	pCmdUI->Enable(!isFullscreenOption(theApp.videoOption) && remoteSocket == -1);
 }
 
 void MainWnd::OnToolsDebugBreak()
@@ -463,7 +463,7 @@ void MainWnd::OnToolsDebugBreak()
 
 void MainWnd::OnUpdateToolsDebugBreak(CCmdUI *pCmdUI)
 {
-	pCmdUI->Enable(theApp.videoOption <= VIDEO_4X && remoteSocket != -1);
+	pCmdUI->Enable(!isFullscreenOption(theApp.videoOption) && remoteSocket != -1);
 }
 
 void MainWnd::OnToolsDebugDisconnect()
@@ -474,7 +474,7 @@ void MainWnd::OnToolsDebugDisconnect()
 
 void MainWnd::OnUpdateToolsDebugDisconnect(CCmdUI *pCmdUI)
 {
-	pCmdUI->Enable(theApp.videoOption <= VIDEO_4X && remoteSocket != -1);
+	pCmdUI->Enable(!isFullscreenOption(theApp.videoOption) && remoteSocket != -1);
 }
 
 void MainWnd::OnToolsSoundRecording()

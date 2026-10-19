@@ -206,7 +206,7 @@ void GDIDisplay::render()
 		dataPitch = filterPitch;
 	}
 
-	if (theApp.showSpeed && theApp.videoOption > VIDEO_4X)
+	if (theApp.showSpeed && isFullscreenOption(theApp.videoOption))
 	{
 		char buffer[30];
 		if (theApp.showSpeed == 1)

@@ -1877,6 +1877,10 @@ BEGIN
             MENUITEM "&2x Window Size",             ID_OPTIONS_VIDEO_X2
             MENUITEM "&3x Window Size",             ID_OPTIONS_VIDEO_X3
             MENUITEM "&4x Window Size",             ID_OPTIONS_VIDEO_X4
+            MENUITEM "&5x Window Size",             ID_OPTIONS_VIDEO_X5
+            MENUITEM "&6x Window Size",             ID_OPTIONS_VIDEO_X6
+            MENUITEM "&7x Window Size",             ID_OPTIONS_VIDEO_X7
+            MENUITEM "&8x Window Size",             ID_OPTIONS_VIDEO_X8
             MENUITEM SEPARATOR
             MENUITEM "Full Screen (320x240)",       ID_OPTIONS_VIDEO_FULLSCREEN320X240
             MENUITEM "Full Screen (640x480)",       ID_OPTIONS_VIDEO_FULLSCREEN640X480

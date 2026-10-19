@@ -513,7 +513,7 @@ BOOL VBA::InitInstance()
 
 	if (!initDisplay())
 	{
-		if (videoOption >= VIDEO_320x240)
+		if (isFullscreenOption(videoOption))
 		{
 			regSetDwordValue("video", VIDEO_1X);
 			if (pVideoDriverGUID)
@@ -664,8 +664,8 @@ BOOL VBA::InitInstance()
 					int size = atoi(argv[++i]);
 					if (size < 1)
 						size = 1;
-					if (size > 4)
-						size = 4;
+					if (size > 8)
+						size = 8;
 					switch (size)
 					{
 					case 1:
@@ -676,6 +676,14 @@ BOOL VBA::InitInstance()
 						videoOption = VIDEO_3X; break;
 					case 4:
 						videoOption = VIDEO_4X; break;
+					case 5:
+						videoOption = VIDEO_5X; break;
+					case 6:
+						videoOption = VIDEO_6X; break;
+					case 7:
+						videoOption = VIDEO_7X; break;
+					case 8:
+						videoOption = VIDEO_8X; break;
 					}
 				}
 				else if (_stricmp(argv[i], "-hideMenu") == 0)
@@ -707,7 +715,7 @@ invalidArgument:
 					            "-throttleKeepPitch val \t if throttle and synch, don't change sound freq (0 = off, 1 = on)\n"
 					            "-quitAfter val \t\t close program when frame counter == val\n"
 					            "-pauseAt val \t\t pause (movie) once when frame counter == val\n"
-					            "-videoScale val \t\t sets the video size (val = 1 for 1X, 2 for 2X, 3 for 3X, or 4 for 4X)\n"
+					            "-videoScale val \t\t sets the video size (val = 1..8 for 1X..8X)\n"
 					            "-hideMenu \t\t hides the menu until program exit\n"
 					            "\n"
 					            "-videoLog args \t does (nesvideos) video+audio logging with the given arguments\n"
@@ -762,7 +770,7 @@ void VBA::adjustDestRect()
 	dest.bottom = point.y;
 	dest.right	= point.x;
 
-	if (videoOption > VIDEO_4X)
+	if (isFullscreenOption(videoOption))
 	{
 		int menuSkip = 0;
 		if (menuToggle)
@@ -1239,6 +1247,22 @@ void VBA::updateVideoSize(UINT id)
 		value		= VIDEO_4X;
 		forceUpdate = true;
 		break;
+	case ID_OPTIONS_VIDEO_X5:
+		value		= VIDEO_5X;
+		forceUpdate = true;
+		break;
+	case ID_OPTIONS_VIDEO_X6:
+		value		= VIDEO_6X;
+		forceUpdate = true;
+		break;
+	case ID_OPTIONS_VIDEO_X7:
+		value		= VIDEO_7X;
+		forceUpdate = true;
+		break;
+	case ID_OPTIONS_VIDEO_X8:
+		value		= VIDEO_8X;
+		forceUpdate = true;
+		break;
 	case ID_OPTIONS_VIDEO_FULLSCREEN320X240:
 		value		 = VIDEO_320x240;
 		fsWidth		 = 320;
@@ -1279,7 +1303,7 @@ void VBA::updateWindowSize(int value)
 	}
 
 	if (display &&
-	    (((value >= VIDEO_320x240 || videoOption >= VIDEO_320x240) && videoOption != value) ||
+	    (((isFullscreenOption(value) || isFullscreenOption(videoOption)) && videoOption != value) ||
 	     fsForceChange))
 	{
 		fsForceChange = false;
@@ -1314,6 +1338,26 @@ void VBA::updateWindowSize(int value)
 		scale = 4;
 		surfaceSizeX = sizeX * 4;
 		surfaceSizeY = sizeY * 4;
+		break;
+	case VIDEO_5X:
+		scale = 5;
+		surfaceSizeX = sizeX * 5;
+		surfaceSizeY = sizeY * 5;
+		break;
+	case VIDEO_6X:
+		scale = 6;
+		surfaceSizeX = sizeX * 6;
+		surfaceSizeY = sizeY * 6;
+		break;
+	case VIDEO_7X:
+		scale = 7;
+		surfaceSizeX = sizeX * 7;
+		surfaceSizeY = sizeY * 7;
+		break;
+	case VIDEO_8X:
+		scale = 8;
+		surfaceSizeX = sizeX * 8;
+		surfaceSizeY = sizeY * 8;
 		break;
 	case VIDEO_320x240:
 	case VIDEO_640x480:
@@ -1352,7 +1396,7 @@ void VBA::updateWindowSize(int value)
 	DWORD style	  = WS_POPUP | WS_VISIBLE;
 	DWORD styleEx = alwaysOnTop ? WS_EX_TOPMOST : 0;
 
-	if (videoOption <= VIDEO_4X)
+	if (!isFullscreenOption(videoOption))
 	{
 		style |= WS_OVERLAPPEDWINDOW;
 
@@ -1415,7 +1459,7 @@ void VBA::updateWindowSize(int value)
 	updateMenuBar(); // add menubar first of all, or winGetMenuBarHeight() will get random height.
 	winAccelMgr.UpdateMenu(menu);
 
-	if (videoOption <= VIDEO_4X)
+	if (!isFullscreenOption(videoOption))
 	{
 		RECT clientRect;
 		m_pMainWnd->GetClientRect(&clientRect);
@@ -1546,7 +1590,7 @@ bool VBA::updateRenderMethod(bool force)
 
 void VBA::winCheckFullscreen()
 {
-	if (videoOption > VIDEO_4X && tripleBuffering)
+	if (isFullscreenOption(videoOption) && tripleBuffering)
 	{
 		if (display)
 			display->checkFullScreen();
@@ -1793,7 +1837,7 @@ void VBA::loadSettings()
 		pVideoDriverGUID = &videoDriverGUID;
 
 	videoOption = regQueryDwordValue("video", 0);
-	if (videoOption < 0 || videoOption > VIDEO_OTHER)
+	if (videoOption < 0 || videoOption > VIDEO_8X)
 		videoOption = 0;
 	switch (videoOption)
 	{

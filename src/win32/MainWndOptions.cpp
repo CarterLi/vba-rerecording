@@ -346,6 +346,26 @@ void MainWnd::OnUpdateOptionsVideoX4(CCmdUI*pCmdUI)
 	pCmdUI->SetCheck(theApp.videoOption == VIDEO_4X);
 }
 
+void MainWnd::OnUpdateOptionsVideoX5(CCmdUI*pCmdUI)
+{
+	pCmdUI->SetCheck(theApp.videoOption == VIDEO_5X);
+}
+
+void MainWnd::OnUpdateOptionsVideoX6(CCmdUI*pCmdUI)
+{
+	pCmdUI->SetCheck(theApp.videoOption == VIDEO_6X);
+}
+
+void MainWnd::OnUpdateOptionsVideoX7(CCmdUI*pCmdUI)
+{
+	pCmdUI->SetCheck(theApp.videoOption == VIDEO_7X);
+}
+
+void MainWnd::OnUpdateOptionsVideoX8(CCmdUI*pCmdUI)
+{
+	pCmdUI->SetCheck(theApp.videoOption == VIDEO_8X);
+}
+
 void MainWnd::OnUpdateOptionsVideoFullscreen320x240(CCmdUI*pCmdUI)
 {
 	pCmdUI->Enable(theApp.mode320Available);

@@ -176,6 +176,10 @@ protected:
 	afx_msg void OnUpdateOptionsVideoX2(CCmdUI*pCmdUI);
 	afx_msg void OnUpdateOptionsVideoX3(CCmdUI*pCmdUI);
 	afx_msg void OnUpdateOptionsVideoX4(CCmdUI*pCmdUI);
+	afx_msg void OnUpdateOptionsVideoX5(CCmdUI*pCmdUI);
+	afx_msg void OnUpdateOptionsVideoX6(CCmdUI*pCmdUI);
+	afx_msg void OnUpdateOptionsVideoX7(CCmdUI*pCmdUI);
+	afx_msg void OnUpdateOptionsVideoX8(CCmdUI*pCmdUI);
 	afx_msg void OnUpdateOptionsVideoFullscreen320x240(CCmdUI*pCmdUI);
 	afx_msg void OnUpdateOptionsVideoFullscreen640x480(CCmdUI*pCmdUI);
 	afx_msg void OnUpdateOptionsVideoFullscreen800x600(CCmdUI*pCmdUI);

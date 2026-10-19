@@ -418,7 +418,7 @@ void systemShowSpeed(int speed)
 	systemSpeed = speed;
 	theApp.showRenderedFrames = theApp.renderedFrames;
 	theApp.renderedFrames	  = 0;
-	if (theApp.videoOption <= VIDEO_4X && theApp.showSpeed)
+	if (!isFullscreenOption(theApp.videoOption) && theApp.showSpeed)
 	{
 		CString buffer;
 		if (theApp.showSpeed == 1)

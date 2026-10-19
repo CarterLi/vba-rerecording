@@ -26,8 +26,18 @@
 enum
 {
 	VIDEO_1X, VIDEO_2X, VIDEO_3X, VIDEO_4X,
-	VIDEO_320x240, VIDEO_640x480, VIDEO_800x600, VIDEO_OTHER
+	VIDEO_320x240, VIDEO_640x480, VIDEO_800x600, VIDEO_OTHER,
+	// Appended so the values stored in the registry by older builds keep
+	// meaning the same thing.
+	VIDEO_5X, VIDEO_6X, VIDEO_7X, VIDEO_8X
 };
+
+// True for the fixed-size / custom full screen modes (as opposed to the
+// integer window scale factors).
+inline bool isFullscreenOption(int option)
+{
+	return option >= VIDEO_320x240 && option <= VIDEO_OTHER;
+}
 
 #define REWIND_SIZE 400000
 #define MAX_REWIND_SLOTS 256
