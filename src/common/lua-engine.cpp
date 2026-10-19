@@ -12,7 +12,9 @@
 #include <string>
 #include <algorithm>
 
-using namespace std;
+using std::string;
+using std::vector;
+using std::map;
 
 #ifdef __linux
 	#include <unistd.h> // for unlink
@@ -70,7 +72,6 @@ extern "C"
 #include "../lua/src/lua.h"
 #include "../lua/src/lauxlib.h"
 #include "../lua/src/lualib.h"
-#include "../lua/src/lstate.h"
 }
 #include "vbalua.h"
 
@@ -590,28 +591,19 @@ static void toCStringConverter(lua_State *L, int i, char * &ptr, int &remaining)
 	case LUA_TNUMBER:
 		APPENDSPRINT("%.12Lg", lua_tonumber(L, i)) break;
 	case LUA_TFUNCTION:
-		if ((L->base + i - 1)->value.gc->cl.c.isC)
 		{
-			//lua_CFunction func = lua_tocfunction(L, i);
-			//std::map<lua_CFunction, const char*>::iterator iter = s_cFuncInfoMap.find(func);
-			//if(iter == s_cFuncInfoMap.end())
-			goto defcase;
-			//APPENDSPRINT("function(%s)", iter->second)
-		}
-		else
-		{
-			APPENDSPRINT("function(")
-			Proto * p = (L->base + i - 1)->value.gc->cl.l.p;
-			int numParams = p->numparams + (p->is_vararg ? 1 : 0);
-			for (int n = 0; n < p->numparams; n++)
+			// LuaJIT does not expose the Lua 5.1 Proto internals, so report the
+			// source location instead of the parameter list.
+			lua_Debug ar;
+			lua_pushvalue(L, i);
+			if (lua_getinfo(L, ">S", &ar) && ar.what[0] != 'C')
 			{
-				APPENDSPRINT("%s", getstr(p->locvars[n].varname))
-				if (n != numParams - 1)
-					APPENDSPRINT(",")
+				APPENDSPRINT("function(%s:%d)", ar.short_src, ar.linedefined)
 			}
-			if (p->is_vararg)
-				APPENDSPRINT("...")
-				APPENDSPRINT(")")
+			else
+			{
+				goto defcase;
+			}
 		}
 		break;
 defcase: default:
@@ -1048,9 +1040,9 @@ static int memory_setregister(lua_State *L)
 
 void HandleCallbackError(lua_State *L)
 {
-	if (L->errfunc || L->errorJmp)
-		luaL_error(L, "%s", lua_tostring(L, -1));
-	else
+	// Called right after lua_pcall() returned an error, so there is no active
+	// protected frame left to rethrow into.  LuaJIT keeps lua_State opaque, so
+	// the old errfunc/errorJmp probe is gone and we always report directly.
 	{
 		lua_pushnil(LUA);
 		lua_setfield(LUA, LUA_REGISTRYINDEX, guiCallbackTable);
@@ -4673,7 +4665,7 @@ static void VBALuaHookFunction(lua_State *L, lua_Debug *dbg)
 	}
 }
 
-static const struct luaL_reg vbalib[] = {
+static const struct luaL_Reg vbalib[] = {
 	//	{"speedmode", vba_speedmode},	// TODO: NYI
 	{ "frameadvance",	vba_frameadvance	 },
 	{ "pause",			vba_pause			 },
@@ -4696,7 +4688,7 @@ static const struct luaL_reg vbalib[] = {
 	{ NULL,				NULL				 }
 };
 
-static const struct luaL_reg memorylib[] = {
+static const struct luaL_Reg memorylib[] = {
 	{ "readbyte",				memory_readbyte				},
 	{ "readbytesigned",			memory_readbytesigned		},
 	{ "readword",				memory_readword				},
@@ -4751,7 +4743,7 @@ static const struct luaL_reg memorylib[] = {
 	{ NULL,				   NULL							 }
 };
 
-static const struct luaL_reg joypadlib[] = {
+static const struct luaL_Reg joypadlib[] = {
 	{ "get",	  joypad_get	  },
 	{ "getdown",  joypad_getdown  },
 	{ "getup",	  joypad_getup	  },
@@ -4765,7 +4757,7 @@ static const struct luaL_reg joypadlib[] = {
 	{ NULL,		  NULL			  }
 };
 
-static const struct luaL_reg savestatelib[] = {
+static const struct luaL_Reg savestatelib[] = {
 	{ "create", savestate_create },
 	{ "save",	savestate_save	 },
 	{ "load",	savestate_load	 },
@@ -4773,7 +4765,7 @@ static const struct luaL_reg savestatelib[] = {
 	{ NULL,		NULL			 }
 };
 
-static const struct luaL_reg movielib[] = {
+static const struct luaL_Reg movielib[] = {
 	{ "active",			  movie_isactive				},
 	{ "recording",		  movie_isrecording				},
 	{ "playing",		  movie_isplaying				},
@@ -4801,7 +4793,7 @@ static const struct luaL_reg movielib[] = {
 	{ NULL,				  NULL							}
 };
 
-static const struct luaL_reg guilib[] = {
+static const struct luaL_Reg guilib[] = {
 	{ "register",	  gui_register		   },
 	{ "text",		  gui_text			   },
 	{ "box",		  gui_drawbox		   },
@@ -4830,7 +4822,7 @@ static const struct luaL_reg guilib[] = {
 	{ NULL,			  NULL				   }
 };
 
-static const struct luaL_reg inputlib[] = {
+static const struct luaL_Reg inputlib[] = {
 	{ "get",  input_getcurrentinputstatus  },
 
 	// alternative names
@@ -4838,7 +4830,7 @@ static const struct luaL_reg inputlib[] = {
 	{ NULL,	  NULL						   }
 };
 
-static const struct luaL_reg soundlib[] = {
+static const struct luaL_Reg soundlib[] = {
 	{ "get",  sound_get					   },
 
 	// alternative names
@@ -4847,7 +4839,7 @@ static const struct luaL_reg soundlib[] = {
 
 // gocha: since vba dumps avi so badly,
 // I add avilib as a workaround for enhanced video encoding.
-static const struct luaL_reg avilib[] = {
+static const struct luaL_Reg avilib[] = {
 	{ "framecount", avi_framecount },
 	{ "pause",		avi_pause	   },
 	{ "resume",		avi_resume	   },
