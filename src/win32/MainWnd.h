@@ -299,10 +299,7 @@ protected:
 	afx_msg void OnUpdateOptionsEmulatorUsebiosfile(CCmdUI*pCmdUI);
 	afx_msg void OnOptionsEmulatorSkipbios();
 	afx_msg void OnUpdateOptionsEmulatorSkipbios(CCmdUI*pCmdUI);
-	afx_msg void OnOptionsEmulatorPngformat();
-	afx_msg void OnUpdateOptionsEmulatorPngformat(CCmdUI*pCmdUI);
-	afx_msg void OnOptionsEmulatorBmpformat();
-	afx_msg void OnUpdateOptionsEmulatorBmpformat(CCmdUI*pCmdUI);
+	afx_msg void OnOptionsEmulatorCaptureFormat(UINT nID);
 
 	afx_msg void OnOptionsSoundDisable();
 	afx_msg void OnUpdateOptionsSoundDisable(CCmdUI*pCmdUI);
@@ -455,8 +452,8 @@ protected:
 	afx_msg void OnToolsStopAVIRecording();
 	afx_msg void OnToolsAVIRecording();
 	afx_msg void OnUpdateToolsAVIRecording(CCmdUI*pCmdUI);
-	afx_msg void OnToolsRecordAviScaled();
-	afx_msg void OnUpdateToolsRecordAviScaled(CCmdUI*pCmdUI);
+	afx_msg void OnToolsCaptureScaled();
+	afx_msg void OnUpdateToolsCaptureScaled(CCmdUI*pCmdUI);
 	afx_msg void OnUpdateToolsPauseAVIRecording(CCmdUI*pCmdUI);
 
 	afx_msg void OnToolsRecordMovie();

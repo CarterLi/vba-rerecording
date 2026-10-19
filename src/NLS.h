@@ -46,5 +46,12 @@
 #define MSG_INVALID_CBA_CODE               39
 #define MSG_CBA_CODE_WARNING               40
 #define MSG_OUT_OF_MEMORY                  41
+// The number is the string resource id as well (winResLoadString loads by id),
+// so this one sits in the gap the retired PNG filter string left.
+#define MSG_ERROR_SAVING_IMAGE            107
+// Same rule: this is IDS_ERROR_ENCODER_MISSING, the next free string id.
+#define MSG_ERROR_ENCODER_MISSING         193
+// And IDS_ERROR_NO_WIC: this Windows has no WIC at all, which means XP.
+#define MSG_ERROR_NO_WIC                  194
 
 #endif // VBA_NLS_H

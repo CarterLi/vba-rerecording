@@ -23,6 +23,7 @@
 #include "../gb/GB.h"
 #include "../gb/gbGlobals.h"
 #include "../common/SystemGlobals.h"
+#include "../common/ImageWrite.h"
 #include "../common/movie.h"
 #include "../common/vbalua.h"
 
@@ -546,45 +547,27 @@ void MainWnd::OnFileScreencapture()
 {
 	theApp.winCheckFullscreen();
 
-	LPCTSTR exts[] = { ".png", ".bmp", NULL };
+	CString captureName = winGetDestFilename(theApp.gameFilename, IDS_CAPTURE_DIR, imageCaptureExtension());
+	CString captureDir  = winGetDestDir(IDS_CAPTURE_DIR);
 
-	CString filter = winResLoadFilter(IDS_FILTER_PNG);
-	CString title  = winResLoadString(IDS_SELECT_CAPTURE_NAME);
+	captureName = winImageSaveDlg(this,
+	                              captureName,
+	                              captureDir,
+	                              winResLoadString(IDS_SELECT_CAPTURE_NAME));
 
-	CString ext;
-
-	if (theApp.captureFormat != 0)
-		ext.Format(".bmp");
-	else
-		ext.Format(".png");
-
-	CString captureName = winGetDestFilename(theApp.gameFilename, IDS_CAPTURE_DIR, ext);
-	CString captureDir	= winGetDestDir(IDS_CAPTURE_DIR);
-
-	FileDlg dlg(this,
-	            captureName,
-	            filter,
-	            theApp.captureFormat ? 2 : 1,
-	            theApp.captureFormat ? "BMP" : "PNG",
-	            exts,
-	            captureDir,
-	            title,
-	            true);
-
-	if (dlg.DoModal() == IDCANCEL)
+	if (captureName.IsEmpty())
 		return;
 
-	if (dlg.getFilterIndex() == 2)
-		theApp.emulator.emuWriteBMP(dlg.GetPathName());
-	else
-		theApp.emulator.emuWritePNG(dlg.GetPathName());
+	if (!winWriteScreenshotFile(captureName))
+		return;
 
 	systemScreenMessage(winResLoadString(IDS_SCREEN_CAPTURE));
 }
 
 void MainWnd::OnUpdateFileScreencapture(CCmdUI *pCmdUI)
 {
-	pCmdUI->Enable(emulating);
+	// XP has no WIC, and there is no other writer left to fall back on.
+	pCmdUI->Enable(emulating && imageWriteAvailable());
 }
 
 void MainWnd::OnFileRominformation()

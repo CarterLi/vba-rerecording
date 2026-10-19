@@ -597,7 +597,7 @@ void MainWnd::OnToolsStartAVIRecording()
 
 		// When recording the filtered window contents the frame is the size the
 		// emulator is displayed at, not the raw LCD resolution.
-		if (theApp.aviRecordScaled && theApp.surfaceSizeX > 0 && theApp.surfaceSizeY > 0)
+		if (theApp.captureScaled && theApp.surfaceSizeX > 0 && theApp.surfaceSizeY > 0)
 		{
 			width  = theApp.surfaceSizeX;
 			height = theApp.surfaceSizeY;
@@ -665,14 +665,14 @@ void MainWnd::OnUpdateToolsAVIRecording(CCmdUI *pCmdUI)
 	pCmdUI->Enable(emulating);
 }
 
-void MainWnd::OnToolsRecordAviScaled()
+void MainWnd::OnToolsCaptureScaled()
 {
-	theApp.aviRecordScaled = !theApp.aviRecordScaled;
+	theApp.captureScaled = !theApp.captureScaled;
 }
 
-void MainWnd::OnUpdateToolsRecordAviScaled(CCmdUI *pCmdUI)
+void MainWnd::OnUpdateToolsCaptureScaled(CCmdUI *pCmdUI)
 {
-	pCmdUI->SetCheck(theApp.aviRecordScaled);
+	pCmdUI->SetCheck(theApp.captureScaled);
 	pCmdUI->Enable(emulating);
 }
 

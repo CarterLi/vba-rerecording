@@ -28,6 +28,21 @@ extern void winCorrectPath(CString &path);
 extern void winCorrectPath(char *path);
 
 int winScreenCapture(int captureNumber = 0);
+
+// Writes the frame the "window size and filter" capture option renders: the
+// active pixel filter at the size the emulator is drawn.  Returns false when no
+// such frame could be produced.  Defined in WinSystem.cpp.
+bool winWriteFilteredScreenshot(const char *fileName);
+
+// Saves a screenshot to `fileName`, honouring that option; without it the plain
+// emulator screenshot is written.  False when nothing could be written.
+bool winWriteScreenshotFile(const CString &fileName);
+
+// Writes a BGR image produced by one of the viewer dialogs.  The encoders can
+// refuse a format, so a failure is reported the way a failed screenshot is:
+// the reason goes to the trace, the message box only points at it.
+void winWriteImageBGR(const CString &fileName, int width, int height,
+                      const unsigned char *bgr, int stride);
 bool winImportGSACodeFile(CString& fileName);
 void winLoadCheatList(const char *name);
 void winSaveCheatList(const char *name);

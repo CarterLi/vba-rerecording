@@ -28,6 +28,7 @@
 #include "../common/SystemGlobals.h"
 #include "../common/inputGlobal.h"
 #include "../common/movie.h"
+#include "../common/ImageWrite.h"
 #include "../version.h"
 
 // Defined in Direct3D11.cpp: false when D3D11.DLL or D3DCOMPILER_47.DLL is
@@ -1341,24 +1342,9 @@ void MainWnd::OnOptionsEmulatorSelectbiosfile()
 	}
 }
 
-void MainWnd::OnOptionsEmulatorPngformat()
+void MainWnd::OnOptionsEmulatorCaptureFormat(UINT nID)
 {
-	theApp.captureFormat = 0;
-}
-
-void MainWnd::OnUpdateOptionsEmulatorPngformat(CCmdUI*pCmdUI)
-{
-	pCmdUI->SetCheck(theApp.captureFormat == 0);
-}
-
-void MainWnd::OnOptionsEmulatorBmpformat()
-{
-	theApp.captureFormat = 1;
-}
-
-void MainWnd::OnUpdateOptionsEmulatorBmpformat(CCmdUI*pCmdUI)
-{
-	pCmdUI->SetCheck(theApp.captureFormat == 1);
+	imageCaptureSelectIndex((int)(nID - ID_OPTIONS_EMULATOR_FORMAT_FIRST));
 }
 
 void MainWnd::OnOptionsSoundDisable()

@@ -19,8 +19,6 @@ private:
 	// Construction
 public:
 	void processData(u8 *data);
-	void saveAsPNG(const char *name);
-	void saveAsBMP(const char *name);
 	GBPrinterDlg(CWnd*pParent = NULL);  // standard constructor
 
 	// Dialog Data

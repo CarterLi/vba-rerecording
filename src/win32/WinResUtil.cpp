@@ -1,5 +1,10 @@
 #include "stdafx.h"
 #include "WinResUtil.h"
+#include "Dialogs/FileDlg.h"
+#include "../common/ImageWrite.h"
+#include "../common/Util.h"
+
+#include <string>
 
 static HINSTANCE winResGetInstance(LPCTSTR resType, LPCTSTR resName)
 {
@@ -96,4 +101,96 @@ CString winResLoadFilter(UINT id)
 	res.Replace('_', '|');
 
 	return res;
+}
+
+CString winImageSaveDlg(CWnd *parent, const CString &initialName,
+                        const CString &initialDir, const CString &title)
+{
+	// Without WIC nothing can be written, so do not open a dialog whose only
+	// possible outcome is a failed save.
+	if (!imageWriteAvailable())
+	{
+		utilReportImageSaveFailure(initialName);
+		return CString();
+	}
+
+	ImageWriteFormatInfo formats[16];
+	const int            count     = imageWriteFormats(formats, 16);
+	const int            index     = imageCaptureFormatIndex();
+	const CString        extension = imageCaptureExtension();
+
+	// One entry per format WIC can write, so the user may save in any of them,
+	// plus the extensions the dialog uses to keep a typed name in sync.  Fixed
+	// arrays keep the extension pointers valid for the whole call.
+	std::string extensionStorage[17];
+	LPCTSTR     extensions[17];
+	int         extensionCount = 0;
+
+	CString filter;
+
+	for (int i = 0; i < count && extensionCount < 16; ++i)
+	{
+		CString label = formats[i].name;
+		label.Replace(" Encoder", "");
+		label.Trim();
+
+		CString       pattern;
+		const CString list = formats[i].extensions;
+		for (int start = 0; start <= list.GetLength(); )
+		{
+			const int comma = list.Find(',', start);
+			CString   entry = comma < 0 ? list.Mid(start)
+			                           : list.Mid(start, comma - start);
+			entry.Trim();
+			if (!entry.IsEmpty())
+			{
+				if (!pattern.IsEmpty())
+					pattern += ";";
+				pattern += "*";
+				pattern += entry;
+
+				if (extensionStorage[i].empty())
+					extensionStorage[i] = entry;
+			}
+
+			if (comma < 0)
+				break;
+			start = comma + 1;
+		}
+
+		extensions[extensionCount++] = extensionStorage[i].c_str();
+
+		CString item;
+		item.Format("%s Image|%s|", (LPCTSTR)label, (LPCTSTR)pattern);
+		filter += item;
+	}
+
+	extensions[extensionCount] = NULL;
+	filter += "All Files|*.*|";
+
+	CString name = initialName;
+	if (!name.IsEmpty() && !extension.IsEmpty() &&
+	    name.Right(extension.GetLength()).CompareNoCase(extension) != 0)
+		name += extension;
+
+	FileDlg dlg(parent,
+	            name,
+	            filter,
+	            index >= 0 ? index + 1 : 1,
+	            extension,
+	            extensionCount > 0 ? extensions : NULL,
+	            initialDir,
+	            title,
+	            true);
+
+	if (dlg.DoModal() == IDCANCEL)
+		return CString();
+
+	// The user may have picked another format; make it the capture format so the
+	// extension of the file and what the writer puts in it stay in step.
+	const int picked = dlg.getFilterIndex();
+	if (picked >= 1 && picked <= count)
+		imageCaptureSelectIndex(picked - 1);
+
+	return dlg.GetPathName();
 }

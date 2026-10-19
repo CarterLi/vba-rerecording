@@ -1,12 +1,11 @@
 #ifndef VBA_UTIL_H
 #define VBA_UTIL_H
 
-#if _MSC_VER > 1000
 #pragma once
-#endif // _MSC_VER > 1000
 
 #include "zlib.h"
 #include "../Port.h"
+#include "ImageWrite.h"
 
 enum IMAGE_TYPE
 {
@@ -24,8 +23,10 @@ typedef struct
 } variable_desc;
 
 extern void utilWriteBMP(u8 *out, int w, int h, int dstDepth, const u8 *in);
-extern bool utilWriteBMPFile(const char *, int, int, const u8 *);
-extern bool utilWritePNGFile(const char *, int, int, const u8 *);
+extern bool utilWriteImageFile(const char *fileName, int w, int h, const u8 *pix);
+// Puts up the message for a failed image save; `fileName` is the one that could
+// not be written.  Shared by the screenshot path and the viewer dialogs.
+extern void utilReportImageSaveFailure(const char *fileName);
 extern void utilApplyIPS(const char *ips, u8 * *rom, int *size);
 extern bool utilIsGBAImage(const char *);
 extern bool utilIsGBABios(const char *file);

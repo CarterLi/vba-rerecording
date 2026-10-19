@@ -2362,14 +2362,15 @@ BEGIN
         END
         MENUITEM "Pause/Resume AVI &Recording", ID_TOOLS_PAUSEAVIRECORDING
         MENUITEM "Start/Stop &AVI Recording...", ID_TOOLS_AVIRECORDING
-        MENUITEM "Record AVI at &Window Size and Filter", ID_TOOLS_AVIRECORDSCALED
+        MENUITEM "Record AVI/Screenshot at &Window Size and Filter", ID_TOOLS_CAPTURESCALED
         MENUITEM "Start/Stop &WAV Recording...", ID_TOOLS_SOUNDRECORDING
         MENUITEM SEPARATOR
         MENUITEM "Screenshot &Capture...",      ID_FILE_SCREENCAPTURE
+        // "Screenshot &Format" is replaced at run time with one entry per WIC
+        // encoder; see MainWnd::OnInitMenuPopup and ImageWrite.h.
         POPUP "Screenshot &Format"
         BEGIN
-            MENUITEM "&PNG",                        ID_OPTIONS_EMULATOR_PNGFORMAT
-            MENUITEM "&BMP",                        ID_OPTIONS_EMULATOR_BMPFORMAT
+            MENUITEM "&PNG",                        ID_OPTIONS_EMULATOR_FORMAT_FIRST
         END
     END
     POPUP "&Help"
@@ -2559,6 +2560,16 @@ END
 
 STRINGTABLE
 BEGIN
+    IDS_ERROR_ENCODER_MISSING "Image encoder for %s is not installed.\n\nWindows could not start the codec for this format. Install the matching Windows image codec (the HEIF and JPEG XL ones are Microsoft Store extensions), then try again.\n\nSee vba-trace.log for details."
+END
+
+STRINGTABLE
+BEGIN
+    IDS_ERROR_NO_WIC "Image export needs the Windows Imaging Component, which this version of Windows does not have.\n\nWindows XP has no WIC, so screenshots cannot be saved there. They work on Windows Vista and later."
+END
+
+STRINGTABLE
+BEGIN
     IDS_UNSUPPORTED_CHEAT_LIST_TYPE "Unsupported cheat list type %d"
     IDS_INVALID_GSA_CODE    "Invalid GSA code. Format is XXXXXXXXYYYYYYYY."
     IDS_CANNOT_IMPORT_SNAPSHOT_FOR 
@@ -2691,7 +2702,7 @@ BEGIN
     IDS_FILTER_ROM          "All Gameboy / Gameboy Advance_*.bin;*.agb;*.gba;*.mb;*.elf;*.gb;*.sgb;*.cgb;*.gbc;*.zip;*.z;*.gz;*.7z;*.rar;*.lzma;*.bz2;*.bzip2;*.tar_All GB / GBA (uncompressed only)_*.bin;*.agb;*.gba;*.mb;*.elf;*.gb;*.sgb;*.cgb;*.gbc_Gameboy Advance (uncompressed only)_*.bin;*.agb;*.gba_Gameboy (uncompressed only)_*.gb;*.sgb;*.cgb;*.gbc_Archive Files_*.zip;*.z;*.gz;*.7z;*.rar;*.lzma;*.bz2;*.bzip2;*.tar_All Files_*.*__"
     IDS_FILTER_SGM          "VisualBoyAdvance Save Game_*.sgm_All Files_*.*__"
     IDS_FILTER_CHEAT_LIST   "VisualBoyAdvance Cheat List_*.clt_All Files_*.*__"
-    IDS_FILTER_PNG          "PNG Image_*.png_BMP Image_*.bmp_All Files_*.*__"
+    IDS_ERROR_SAVING_IMAGE  "Error saving image %s\n\nSee vba-trace.log for details."
     IDS_FILTER_SPS          "Gameshark Snapshot_*.sps_All Files_*.*__"
     IDS_SELECT_SNAPSHOT_FILE "Select snapshot file"
     IDS_FILTER_SAV          "Battery file_*.sav_Flash save_*.dat_All Files_*.*__"

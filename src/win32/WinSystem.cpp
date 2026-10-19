@@ -279,23 +279,25 @@ struct ScaleAxisMap
 	}
 };
 
-// Records the current frame at the size the AVI was opened with, applying the
-// active pixel filter and scaling up to the window magnification.  The raw
-// frame carries the emulator's border padding and is 16 or 32 bpp; an AVI
-// frame is a bottom-up 24-bit DIB without padding, so convert and scale in a
-// single pass (nearest neighbour, matching what the GDI renderer shows).
-static void systemRecordScaledAviFrame()
+// Renders the current frame at outWidth x outHeight with the active pixel filter
+// applied and scaled up to the window magnification.  The raw frame carries the
+// emulator's border padding and is 16 or 32 bpp, so it is converted to 24-bit
+// BGR in a single pass (nearest neighbour, matching what the GDI renderer
+// shows).  AVI frames are bottom-up DIB rows, screenshots are top-down.  The
+// buffer is cached and stays valid until the next call, or NULL when there is
+// nothing to render.
+static u8 *systemRenderScaledFrame(int outWidth, int outHeight, bool bottomUp)
 {
 	const int depth = systemColorDepth / 8;
 
-	const int outWidth  = theApp.aviRecorder->videoWidth();
-	const int outHeight = theApp.aviRecorder->videoHeight();
+	if (depth != 2 && depth != 4)
+		return NULL;
 
 	const int rectWidth  = theApp.rect.right  - theApp.rect.left;
 	const int rectHeight = theApp.rect.bottom - theApp.rect.top;
 
 	if (outWidth <= 0 || outHeight <= 0 || rectWidth <= 0 || rectHeight <= 0)
-		return;
+		return NULL;
 
 	const int srcPitch  = theApp.filterWidth * depth + 4;
 	const int filtPitch = rectWidth * depth;
@@ -323,19 +325,19 @@ static void systemRecordScaledAviFrame()
 		framePitch = filtPitch;
 	}
 
-	static u8 *bmpScaled	 = NULL;
-	static int bmpScaledSize = 0;
+	static u8 *scaled	 = NULL;
+	static int scaledSize = 0;
 	const int outPitch = outWidth * 3;
 	const int outBytes = outPitch * outHeight;
-	if (bmpScaledSize < outBytes)
+	if (scaledSize < outBytes)
 	{
-		delete[] bmpScaled;
-		bmpScaled	  = new u8[outBytes];
-		bmpScaledSize = outBytes;
+		delete[] scaled;
+		scaled	  = new u8[outBytes];
+		scaledSize = outBytes;
 	}
 
-	if (!bmpScaled)
-		return;
+	if (!scaled)
+		return NULL;
 
 	static ScaleAxisMap xMap;
 	static ScaleAxisMap yMap;
@@ -349,7 +351,8 @@ static void systemRecordScaledAviFrame()
 	const int	 bShift = systemBlueShift;
 	const size_t rowStep = (size_t)framePitch;
 
-	u8 *dst = bmpScaled + outPitch * (outHeight - 1);
+	u8 *dst		 = bottomUp ? scaled + outPitch * (outHeight - 1) : scaled;
+	const int step = bottomUp ? -outPitch : outPitch;
 
 	if (depth == 2)
 	{
@@ -366,7 +369,7 @@ static void systemRecordScaledAviFrame()
 				*d++ = (u8)(((v >> rShift) & 0x1f) << 3);
 			}
 
-			dst -= outPitch;
+			dst += step;
 		}
 	}
 	else
@@ -384,11 +387,41 @@ static void systemRecordScaledAviFrame()
 				*d++ = (u8)(((v >> rShift) & 0x1f) << 3);
 			}
 
-			dst -= outPitch;
+			dst += step;
 		}
 	}
 
-	theApp.aviRecorder->AddFrame(bmpScaled);
+	return scaled;
+}
+
+static void systemRecordScaledAviFrame()
+{
+	u8 *frame = systemRenderScaledFrame(theApp.aviRecorder->videoWidth(),
+	                                    theApp.aviRecorder->videoHeight(),
+	                                    true);
+	if (frame != NULL)
+		theApp.aviRecorder->AddFrame(frame);
+}
+
+// Writes a screenshot rendered the way an AVI frame is: with the active pixel
+// filter and at the size the emulator is drawn, matching the "window size and
+// filter" capture option.  Returns false when no such frame could be produced.
+bool winWriteFilteredScreenshot(const char *fileName)
+{
+	int width  = theApp.surfaceSizeX;
+	int height = theApp.surfaceSizeY;
+
+	if (width <= 0 || height <= 0)
+	{
+		width  = theApp.rect.right - theApp.rect.left;
+		height = theApp.rect.bottom - theApp.rect.top;
+	}
+
+	const u8 *frame = systemRenderScaledFrame(width, height, false);
+	if (frame == NULL)
+		return false;
+
+	return utilWriteImageBGR(fileName, width, height, frame, width * 3);
 }
 
 static void systemRecordAviFrame(int width, int height)
@@ -421,7 +454,7 @@ static void systemRecordAviFrame(int width, int height)
 
 				// When recording the filtered window contents the frame is the
 				// size the emulator is displayed at, not the raw LCD resolution.
-				if (theApp.aviRecordScaled && theApp.surfaceSizeX > 0 && theApp.surfaceSizeY > 0)
+				if (theApp.captureScaled && theApp.surfaceSizeX > 0 && theApp.surfaceSizeY > 0)
 				{
 					width  = theApp.surfaceSizeX;
 					height = theApp.surfaceSizeY;
@@ -446,7 +479,7 @@ static void systemRecordAviFrame(int width, int height)
 
 			if (theApp.aviRecorder != NULL && !theApp.aviRecorder->IsPaused())
 			{
-				if (theApp.aviRecordScaled &&
+				if (theApp.captureScaled &&
 				    (systemColorDepth == 16 || systemColorDepth == 32))
 				{
 					systemRecordScaledAviFrame();

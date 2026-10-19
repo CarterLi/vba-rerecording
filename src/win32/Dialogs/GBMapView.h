@@ -36,8 +36,6 @@ public:
 	void update();
 	void paint();
 	void render();
-	void savePNG(const char *name);
-	void saveBMP(const char *name);
 	~GBMapView();
 	GBMapView(CWnd*pParent = NULL);  // standard constructor
 

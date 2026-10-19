@@ -126,7 +126,7 @@
       <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
-      <AdditionalIncludeDirectories>lib/zlib;lib/libpng;../src/lua/src;defaultconfig</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>lib/zlib;../src/lua/src;defaultconfig</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>NDEBUG;WIN32;HAVE_STDINT_H;OEMRESOURCE;FINAL_VERSION;BKPT_SUPPORT;_CRT_SECURE_NO_WARNINGS;_USE_32BIT_TIME_T;EXTRACT_ONLY;_NO_CRYPTO;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <StringPooling>true</StringPooling>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
@@ -142,7 +142,7 @@
     </ClCompile>
     <Link>
       <AdditionalOptions>/WHOLEARCHIVE:wlib7zip.lib %(AdditionalOptions)</AdditionalOptions>
-      <AdditionalDependencies>d3d9.lib;wsock32.lib;mpr.lib;ddraw.lib;dxguid.lib;winmm.lib;dinput8.lib;vfw32.lib;opengl32.lib;nafxcw.lib;libcmt.lib;lua51.lib;version.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>d3d9.lib;wsock32.lib;mpr.lib;ddraw.lib;dxguid.lib;winmm.lib;dinput8.lib;vfw32.lib;opengl32.lib;nafxcw.lib;libcmt.lib;lua51.lib;ole32.lib;version.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <OutputFile>$(TargetPath)</OutputFile>
       <AdditionalLibraryDirectories>lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <IgnoreSpecificDefaultLibraries>libci.lib;nafxcw.lib;libcmt.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
@@ -179,7 +179,7 @@
       <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
-      <AdditionalIncludeDirectories>lib/zlib;lib/libpng;../src/lua/src;defaultconfig;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>lib/zlib;../src/lua/src;defaultconfig;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>NDEBUG;WIN32;HAVE_STDINT_H;OEMRESOURCE;FINAL_VERSION;BKPT_SUPPORT;_CRT_SECURE_NO_WARNINGS;_USE_32BIT_TIME_T;EXTRACT_ONLY;_NO_CRYPTO;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <StringPooling>true</StringPooling>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
@@ -196,7 +196,7 @@
     </ClCompile>
     <Link>
       <AdditionalOptions>/WHOLEARCHIVE:wlib7zip.lib %(AdditionalOptions)</AdditionalOptions>
-      <AdditionalDependencies>d3d9.lib;wsock32.lib;mpr.lib;ddraw.lib;dxguid.lib;winmm.lib;dinput8.lib;vfw32.lib;opengl32.lib;nafxcw.lib;libcmt.lib;lua51.lib;version.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>d3d9.lib;wsock32.lib;mpr.lib;ddraw.lib;dxguid.lib;winmm.lib;dinput8.lib;vfw32.lib;opengl32.lib;nafxcw.lib;libcmt.lib;lua51.lib;ole32.lib;version.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <OutputFile>$(OutDir)$(ProjectName)_release.exe</OutputFile>
       <AdditionalLibraryDirectories>lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <IgnoreSpecificDefaultLibraries>libci.lib;nafxcw.lib;libcmt.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
@@ -228,7 +228,7 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='V82XD|Win32'">
     <ClCompile>
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
-      <AdditionalIncludeDirectories>lib/zlib;lib/libpng;../src/lua/src;defaultconfig</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>lib/zlib;../src/lua/src;defaultconfig</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>_DEBUG;WIN32;HAVE_STDINT_H;OEMRESOURCE;BKPT_SUPPORT;_CRT_SECURE_NO_WARNINGS;_ITERATOR_DEBUG_LEVEL=1;_USE_32BIT_TIME_T;LUA_USE_APICHECK;EXTRACT_ONLY;_NO_CRYPTO;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
@@ -243,7 +243,7 @@
     </ClCompile>
     <Link>
       <AdditionalOptions>/WHOLEARCHIVE:wlib7zip.lib %(AdditionalOptions)</AdditionalOptions>
-      <AdditionalDependencies>d3d9.lib;wsock32.lib;mpr.lib;ddraw.lib;dxguid.lib;winmm.lib;dinput8.lib;vfw32.lib;opengl32.lib;nafxcwd.lib;libcmtd.lib;lua51.lib;version.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>d3d9.lib;wsock32.lib;mpr.lib;ddraw.lib;dxguid.lib;winmm.lib;dinput8.lib;vfw32.lib;opengl32.lib;nafxcwd.lib;libcmtd.lib;lua51.lib;ole32.lib;version.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <OutputFile>$(TargetPath)</OutputFile>
       <AdditionalLibraryDirectories>lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <IgnoreSpecificDefaultLibraries>libci.lib;nafxcwd.lib;libcmtd.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
@@ -275,7 +275,7 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='V72XD|Win32'">
     <ClCompile>
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
-      <AdditionalIncludeDirectories>lib/zlib;lib/libpng;../src/lua/src;defaultconfig</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>lib/zlib;../src/lua/src;defaultconfig</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>_DEBUG;WIN32;HAVE_STDINT_H;OEMRESOURCE;BKPT_SUPPORT;_CRT_SECURE_NO_WARNINGS;_USE_32BIT_TIME_T;LUA_USE_APICHECK;EXTRACT_ONLY;_NO_CRYPTO;USE_GB_CORE_V7;USE_GBA_CORE_V7;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
@@ -289,7 +289,7 @@
     </ClCompile>
     <Link>
       <AdditionalOptions>/WHOLEARCHIVE:wlib7zip.lib %(AdditionalOptions)</AdditionalOptions>
-      <AdditionalDependencies>d3d9.lib;wsock32.lib;mpr.lib;ddraw.lib;dxguid.lib;winmm.lib;dinput8.lib;vfw32.lib;opengl32.lib;nafxcwd.lib;libcmtd.lib;lua51.lib;version.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>d3d9.lib;wsock32.lib;mpr.lib;ddraw.lib;dxguid.lib;winmm.lib;dinput8.lib;vfw32.lib;opengl32.lib;nafxcwd.lib;libcmtd.lib;lua51.lib;ole32.lib;version.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <OutputFile>$(TargetPath)</OutputFile>
       <AdditionalLibraryDirectories>lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <IgnoreSpecificDefaultLibraries>libci.lib;nafxcwd.lib;libcmtd.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
@@ -331,7 +331,7 @@
       <OmitFramePointers>true</OmitFramePointers>
       <EnableFiberSafeOptimizations>true</EnableFiberSafeOptimizations>
       <WholeProgramOptimization>true</WholeProgramOptimization>
-      <AdditionalIncludeDirectories>lib/zlib;lib/libpng;../src/lua/src;defaultconfig</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>lib/zlib;../src/lua/src;defaultconfig</AdditionalIncludeDirectories>
       <WarningLevel>Level3</WarningLevel>
       <DisableSpecificWarnings>4244;4996;4800;%(DisableSpecificWarnings)</DisableSpecificWarnings>
     </ClCompile>
@@ -339,7 +339,7 @@
       <OutputFile>$(TargetPath)</OutputFile>
       <AdditionalLibraryDirectories>lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalOptions>/WHOLEARCHIVE:wlib7zip.lib %(AdditionalOptions)</AdditionalOptions>
-      <AdditionalDependencies>d3d9.lib;wsock32.lib;mpr.lib;ddraw.lib;dxguid.lib;winmm.lib;dinput8.lib;vfw32.lib;opengl32.lib;nafxcw.lib;libcmt.lib;lua51.lib;version.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>d3d9.lib;wsock32.lib;mpr.lib;ddraw.lib;dxguid.lib;winmm.lib;dinput8.lib;vfw32.lib;opengl32.lib;nafxcw.lib;libcmt.lib;lua51.lib;ole32.lib;version.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <IgnoreSpecificDefaultLibraries>libci.lib;nafxcw.lib;libcmt.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
       <SubSystem>Windows</SubSystem>
       <OptimizeReferences>true</OptimizeReferences>
@@ -361,7 +361,7 @@
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Template|Win32'">
     <ClCompile>
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
-      <AdditionalIncludeDirectories>lib/zlib;lib/libpng;../src/lua/src;defaultconfig</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>lib/zlib;../src/lua/src;defaultconfig</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <OutputFile>$(TargetPath)</OutputFile>
@@ -372,6 +372,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\src\common\CheatSearch.cpp" />
+    <ClCompile Include="..\src\common\ImageWrite.cpp" />
     <ClCompile Include="..\src\common\lua-engine.cpp" />
     <ClCompile Include="..\src\common\memgzio.c" />
     <ClCompile Include="..\src\common\movie.cpp" />
@@ -404,23 +405,6 @@
     <ClCompile Include="..\src\gba\RTC.cpp" />
     <ClCompile Include="..\src\gba\GBASound.cpp" />
     <ClCompile Include="..\src\gba\Sram.cpp" />
-    <ClCompile Include="lib\libpng\png.c" />
-    <ClCompile Include="lib\libpng\pngerror.c" />
-    <ClCompile Include="lib\libpng\pnggccrd.c" />
-    <ClCompile Include="lib\libpng\pngget.c" />
-    <ClCompile Include="lib\libpng\pngmem.c" />
-    <ClCompile Include="lib\libpng\pngpread.c" />
-    <ClCompile Include="lib\libpng\pngread.c" />
-    <ClCompile Include="lib\libpng\pngrio.c" />
-    <ClCompile Include="lib\libpng\pngrtran.c" />
-    <ClCompile Include="lib\libpng\pngrutil.c" />
-    <ClCompile Include="lib\libpng\pngset.c" />
-    <ClCompile Include="lib\libpng\pngtrans.c" />
-    <ClCompile Include="lib\libpng\pngvcrd.c" />
-    <ClCompile Include="lib\libpng\pngwio.c" />
-    <ClCompile Include="lib\libpng\pngwrite.c" />
-    <ClCompile Include="lib\libpng\pngwtran.c" />
-    <ClCompile Include="lib\libpng\pngwutil.c" />
     <ClCompile Include="lib\zlib\adler32.c" />
     <ClCompile Include="lib\zlib\compress.c" />
     <ClCompile Include="lib\zlib\crc32.c" />

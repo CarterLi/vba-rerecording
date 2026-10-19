@@ -2891,18 +2891,11 @@ bool gbReadSaveState(const char *name)
 	return res;
 }
 
-bool gbWritePNGFile(const char *fileName)
+bool gbWriteImageFile(const char *fileName)
 {
 	if (gbBorderOn)
-		return utilWritePNGFile(fileName, 256, 224, pix);
-	return utilWritePNGFile(fileName, 160, 144, pix);
-}
-
-bool gbWriteBMPFile(const char *fileName)
-{
-	if (gbBorderOn)
-		return utilWriteBMPFile(fileName, 256, 224, pix);
-	return utilWriteBMPFile(fileName, 160, 144, pix);
+		return utilWriteImageFile(fileName, 256, 224, pix);
+	return utilWriteImageFile(fileName, 160, 144, pix);
 }
 
 void gbCleanUp()
@@ -3775,10 +3768,8 @@ struct EmulatedSystem GBSystem =
 	gbReadMemSaveState,
 	// emuWriteMemState
 	gbWriteMemSaveState,
-	// emuWritePNG
-	gbWritePNGFile,
-	// emuWriteBMP
-	gbWriteBMPFile,
+	// emuWriteImage
+	gbWriteImageFile,
 	// emuUpdateCPSR
 	NULL,
 	// emuHasDebugger

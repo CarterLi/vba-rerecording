@@ -107,7 +107,7 @@
 #define IDS_FILTER_ROM                  104
 #define IDS_FILTER_SGM                  105
 #define IDS_FILTER_CHEAT_LIST           106
-#define IDS_FILTER_PNG                  107
+#define IDS_ERROR_SAVING_IMAGE          107
 #define IDS_FILTER_SPS                  108
 #define IDS_SELECT_SNAPSHOT_FILE        109
 #define IDS_FILTER_SAV                  110
@@ -193,6 +193,8 @@
 #define IDS_RESUMEAVIRECORDING          190
 #define IDS_STARTSOUNDRECORDING         191
 #define IDS_STOPSOUNDRECORDING          192
+#define IDS_ERROR_ENCODER_MISSING       193
+#define IDS_ERROR_NO_WIC                194
 #define IDR_MENU                        401
 #define IDR_ACCELERATOR                 405
 #define IDR_GB_PRINTER                  406
@@ -763,8 +765,12 @@
 #define ID_DEBUG_NEXTFRAME              40137
 #define ID_TOOLS_MAPVIEW                40138
 #define ID_TOOLS_PALETTEVIEW            40139
-#define ID_OPTIONS_EMULATOR_PNGFORMAT   40140
-#define ID_OPTIONS_EMULATOR_BMPFORMAT   40141
+// The capture formats are whatever image encoders WIC reports at run time (see
+// ImageWrite.h), so the "Screenshot Format" menu is built from these ids rather
+// than listing formats here.  MainWnd.cpp fills it and MainWndOptions.cpp reads
+// the picked id back out.
+#define ID_OPTIONS_EMULATOR_FORMAT_FIRST 40720
+#define ID_OPTIONS_EMULATOR_FORMAT_LAST  40739
 #define ID_TOOLS_CUSTOMIZE_COMMON       40142
 #define ID_TOOLS_MEMORYVIEWER           40143
 #define ID_TOOLS_OAMVIEWER              40144
@@ -890,7 +896,7 @@
 #define ID_OPTIONS_VIDEO_LCDFILTER_GBC_NONE   40687
 #define ID_OPTIONS_VIDEO_LCDFILTER_GBC_CGB    40688
 #define ID_OPTIONS_VIDEO_LCDFILTER_GBC_NSO    40689
-#define ID_TOOLS_AVIRECORDSCALED        40690
+#define ID_TOOLS_CAPTURESCALED          40690
 #define ID_OPTIONS_SOUND_API_DIRECTSOUND 40691
 #define ID_OPTIONS_SOUND_API_XAUDIO2    40692
 // The upscaling menu: the upscaler items come first, in the order of the

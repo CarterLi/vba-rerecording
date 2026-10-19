@@ -32,8 +32,6 @@ public:
 	void paint();
 	void render();
 	void renderTile(int tile, int x, int y, u8 *charBase);
-	void savePNG(const char *name);
-	void saveBMP(const char *name);
 	GBTileView(CWnd*pParent = NULL);  // standard constructor
 	virtual ~GBTileView();
 

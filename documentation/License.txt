@@ -16,8 +16,8 @@ Copyright for the modifications to the files mentioned above:
   Copyright (C) 2005-2013 nitsuja and the VBA-rr development team
 
 All files excluding precompiled libraries or executables in win32,
-7-zip files under the restrictions of unRAR license, libjpeg, libpng,
-Lua, SFMT, zlib, modified files from zlib, or when stated otherwise
+7-zip files under the restrictions of unRAR license, Lua, SFMT, zlib,
+modified files from zlib, or when stated otherwise
 in the source file are distributed under the GNU GPL v2:
 
 This program is free software; you can redistribute it and/or modify

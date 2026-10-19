@@ -779,7 +779,7 @@ gzFile file;
 	return destroy((mem_stream *)file);
 }
 
-long ZEXPORT memtell(file)
+z_off_t ZEXPORT memtell(file)
 gzFile file;
 {
 	mem_stream *s = (mem_stream *)file;
@@ -787,5 +787,5 @@ gzFile file;
 	if (s == NULL)
 		return Z_STREAM_ERROR;
 
-	return memTell(s->file);
+	return (z_off_t)memTell(s->file);
 }

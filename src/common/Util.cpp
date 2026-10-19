@@ -3,9 +3,7 @@
 #include <cstring>
 #include <zlib.h>
 
-extern "C" {
-#include <png.h>
-}
+#include "ImageWrite.h"
 
 #if 0
 #include "unrarlib.h"
@@ -140,286 +138,47 @@ void utilWriteBMP(u8 *b, int w, int h, int dstDepth, const u8 *pix)
 	}
 }
 
-bool utilWriteBMPFile(const char *fileName, int w, int h, const u8 *pix)
+// Reports a failed image save.  No WIC at all (XP) and a missing or broken
+// codec each get their own message, because the fix is different; everything
+// else is a plain failure and the reason is in the trace either way.
+void utilReportImageSaveFailure(const char *fileName)
 {
-	u8 writeBuffer[256 * 3];
-
-	FILE *fp = fopen(fileName, "wb");
-
-	if (!fp)
+	if (!imageWriteAvailable())
 	{
-		systemMessage(MSG_ERROR_CREATING_FILE, N_("Error creating file %s"), fileName);
-		return false;
+		systemMessage(MSG_ERROR_NO_WIC,
+		              N_("Image export needs the Windows Imaging Component, which this "
+		                 "version of Windows does not have.\n\n"
+		                 "Windows XP has no WIC, so screenshots cannot be saved there. "
+		                 "They work on Windows Vista and later."));
+		return;
 	}
 
-	struct
+	if (imageWriteEncoderUnavailable())
 	{
-		u8 ident[2];
-		u8 filesize[4];
-		u8 reserved[4];
-		u8 dataoffset[4];
-		u8 headersize[4];
-		u8 width[4];
-		u8 height[4];
-		u8 planes[2];
-		u8 bitsperpixel[2];
-		u8 compression[4];
-		u8 datasize[4];
-		u8 hres[4];
-		u8 vres[4];
-		u8 colors[4];
-		u8 importantcolors[4];
-		//    u8 pad[2];
-	} bmpheader;
-	memset(&bmpheader, 0, sizeof(bmpheader));
-
-	bmpheader.ident[0] = 'B';
-	bmpheader.ident[1] = 'M';
-
-	u32 fsz = sizeof(bmpheader) + w * h * 3;
-	utilPutDword(bmpheader.filesize, fsz);
-	utilPutDword(bmpheader.dataoffset, 0x36);
-	utilPutDword(bmpheader.headersize, 0x28);
-	utilPutDword(bmpheader.width, w);
-	utilPutDword(bmpheader.height, h);
-	utilPutDword(bmpheader.planes, 1);
-	utilPutDword(bmpheader.bitsperpixel, 24);
-	utilPutDword(bmpheader.datasize, 3 * w * h);
-
-	fwrite(&bmpheader, 1, sizeof(bmpheader), fp);
-
-#if 0
-	// FIXME: need sufficient buffer
-	utilWriteBMP(writeBuffer, w, h, systemColorDepth, pix);
-#else
-	u8 *b = writeBuffer;
-
-	int sizeX = w;
-	int sizeY = h;
-
-	switch (systemColorDepth)
-	{
-	case 16:
-	{
-		const u16 *p = (const u16 *)(pix + (w + 2) * (h) * 2); // skip first black line
-		for (int y = 0; y < sizeY; y++)
-		{
-			for (int x = 0; x < sizeX; x++)
-			{
-				u16 v = *p++;
-
-				*b++ = ((v >> systemBlueShift) & 0x01f) << 3; // B
-				*b++ = ((v >> systemGreenShift) & 0x001f) << 3; // G
-				*b++ = ((v >> systemRedShift) & 0x001f) << 3; // R
-			}
-			p++; // skip black pixel for filters
-			p++; // skip black pixel for filters
-			p -= 2 * (w + 2);
-			fwrite(writeBuffer, 1, 3 * w, fp);
-
-			b = writeBuffer;
-		}
-		break;
+		systemMessage(MSG_ERROR_ENCODER_MISSING,
+		              N_("Image encoder for %s is not installed.\n\n"
+		                 "Windows could not start the codec for this format. Install the "
+		                 "matching Windows image codec (the HEIF and JPEG XL ones are "
+		                 "Microsoft Store extensions), then try again.\n\n"
+		                 "See vba-trace.log for details."),
+		              imageCaptureExtension());
+		return;
 	}
-	case 24:
-	{
-		const u8 *pixU8 = (const u8 *)pix + 3 * w * (h - 1);
-		for (int y = 0; y < sizeY; y++)
-		{
-			for (int x = 0; x < sizeX; x++)
-			{
-				if (systemRedShift > systemBlueShift)
-				{
-					*b++ = *pixU8++; // B
-					*b++ = *pixU8++; // G
-					*b++ = *pixU8++; // R
-				}
-				else
-				{
-					int red	  = *pixU8++;
-					int green = *pixU8++;
-					int blue  = *pixU8++;
 
-					*b++ = blue;
-					*b++ = green;
-					*b++ = red;
-				}
-			}
-			pixU8 -= 2 * 3 * w;
-			fwrite(writeBuffer, 1, 3 * w, fp);
-
-			b = writeBuffer;
-		}
-		break;
-	}
-	case 32:
-	{
-		const u32 *pixU32 = (const u32 *)(pix + 4 * (w + 1) * (h));
-		for (int y = 0; y < sizeY; y++)
-		{
-			for (int x = 0; x < sizeX; x++)
-			{
-				u32 v = *pixU32++;
-
-				*b++ = ((v >> systemBlueShift) & 0x001f) << 3; // B
-				*b++ = ((v >> systemGreenShift) & 0x001f) << 3; // G
-				*b++ = ((v >> systemRedShift) & 0x001f) << 3; // R
-			}
-			pixU32++;
-			pixU32 -= 2 * (w + 1);
-
-			fwrite(writeBuffer, 1, 3 * w, fp);
-
-			b = writeBuffer;
-		}
-		break;
-	}
-	}
-#endif
-
-	fclose(fp);
-
-	return true;
+	systemMessage(MSG_ERROR_SAVING_IMAGE,
+	              N_("Error saving image %s\n\nSee vba-trace.log for details."),
+	              fileName);
 }
 
-bool utilWritePNGFile(const char *fileName, int w, int h, const u8 *pix)
+bool utilWriteImageFile(const char *fileName, int w, int h, const u8 *pix)
 {
-	u8 writeBuffer[256 * 3];
-
-	FILE *fp = fopen(fileName, "wb");
-
-	if (!fp)
+	if (!utilWriteImageFromDisplay(fileName, w, h, pix,
+	                               systemColorDepth, systemRedShift,
+	                               systemGreenShift, systemBlueShift))
 	{
-		systemMessage(MSG_ERROR_CREATING_FILE, N_("Error creating file %s"), fileName);
+		utilReportImageSaveFailure(fileName);
 		return false;
 	}
-
-	png_structp png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING,
-	                                              NULL,
-	                                              NULL,
-	                                              NULL);
-	if (!png_ptr)
-	{
-		fclose(fp);
-		return false;
-	}
-
-	png_infop info_ptr = png_create_info_struct(png_ptr);
-
-	if (!info_ptr)
-	{
-		png_destroy_write_struct(&png_ptr, NULL);
-		fclose(fp);
-		return false;
-	}
-
-	if (setjmp(png_jmpbuf(png_ptr)))
-	{
-		png_destroy_write_struct(&png_ptr, NULL);
-		fclose(fp);
-		return false;
-	}
-
-	png_init_io(png_ptr, fp);
-
-	png_set_IHDR(png_ptr,
-	             info_ptr,
-	             w,
-	             h,
-	             8,
-	             PNG_COLOR_TYPE_RGB,
-	             PNG_INTERLACE_NONE,
-	             PNG_COMPRESSION_TYPE_DEFAULT,
-	             PNG_FILTER_TYPE_DEFAULT);
-
-	png_write_info(png_ptr, info_ptr);
-
-	u8 *b = writeBuffer;
-
-	int sizeX = w;
-	int sizeY = h;
-
-	switch (systemColorDepth)
-	{
-	case 16:
-	{
-		const u16 *p = (const u16 *)(pix + (w + 2) * 2); // skip first black line
-		for (int y = 0; y < sizeY; y++)
-		{
-			for (int x = 0; x < sizeX; x++)
-			{
-				u16 v = *p++;
-
-				*b++ = ((v >> systemRedShift) & 0x001f) << 3; // R
-				*b++ = ((v >> systemGreenShift) & 0x001f) << 3; // G
-				*b++ = ((v >> systemBlueShift) & 0x01f) << 3; // B
-			}
-			p++; // skip black pixel for filters
-			p++; // skip black pixel for filters
-			png_write_row(png_ptr, writeBuffer);
-
-			b = writeBuffer;
-		}
-		break;
-	}
-	case 24:
-	{
-		const u8 *pixU8 = (const u8 *)pix;
-		for (int y = 0; y < sizeY; y++)
-		{
-			for (int x = 0; x < sizeX; x++)
-			{
-				if (systemRedShift < systemBlueShift)
-				{
-					*b++ = *pixU8++; // R
-					*b++ = *pixU8++; // G
-					*b++ = *pixU8++; // B
-				}
-				else
-				{
-					int blue  = *pixU8++;
-					int green = *pixU8++;
-					int red	  = *pixU8++;
-
-					*b++ = red;
-					*b++ = green;
-					*b++ = blue;
-				}
-			}
-			png_write_row(png_ptr, writeBuffer);
-
-			b = writeBuffer;
-		}
-		break;
-	}
-	case 32:
-	{
-		const u32 *pixU32 = (const u32 *)(pix + 4 * (w + 1));
-		for (int y = 0; y < sizeY; y++)
-		{
-			for (int x = 0; x < sizeX; x++)
-			{
-				u32 v = *pixU32++;
-
-				*b++ = ((v >> systemRedShift) & 0x001f) << 3; // R
-				*b++ = ((v >> systemGreenShift) & 0x001f) << 3; // G
-				*b++ = ((v >> systemBlueShift) & 0x001f) << 3; // B
-			}
-			pixU32++;
-
-			png_write_row(png_ptr, writeBuffer);
-
-			b = writeBuffer;
-		}
-		break;
-	}
-	}
-
-	png_write_end(png_ptr, info_ptr);
-
-	png_destroy_write_struct(&png_ptr, &info_ptr);
-
-	fclose(fp);
 
 	return true;
 }

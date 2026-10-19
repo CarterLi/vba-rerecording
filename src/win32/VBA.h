@@ -190,7 +190,6 @@ public:
 	bool  rewindSaveNeeded;
 	int	  rewindTimer;
 	int	  rewindSlots;
-	int	  captureFormat;
 	bool  tripleBuffering;
 	bool  autoHideMenu;
 	bool  speedupToggle;
@@ -252,7 +251,7 @@ public:
 	AVIWrite *	 aviRecorder;
 	CString		 aviRecordName;
 	bool		 altAviRecordMethod;
-	bool		 aviRecordScaled;  // record AVI at the window size, with filters
+	bool		 captureScaled;  // record AVI/screenshots at the window size, with filters
 	bool		 nvVideoLog;
 	bool		 nvAudioLog;
 	bool		 painting;  // for systemDrawScreen()

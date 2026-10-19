@@ -278,10 +278,7 @@ ON_COMMAND(ID_EMULATION_V20_GB_FRAME_HACK, OnOptionsEmulatorUseV20GBFrameHack)
 ON_UPDATE_COMMAND_UI(ID_EMULATION_V20_GB_FRAME_HACK, OnUpdateOptionsEmulatorUseV20GBFrameHack)
 #endif
 
-ON_COMMAND(ID_OPTIONS_EMULATOR_PNGFORMAT, OnOptionsEmulatorPngformat)
-ON_UPDATE_COMMAND_UI(ID_OPTIONS_EMULATOR_PNGFORMAT, OnUpdateOptionsEmulatorPngformat)
-ON_COMMAND(ID_OPTIONS_EMULATOR_BMPFORMAT, OnOptionsEmulatorBmpformat)
-ON_UPDATE_COMMAND_UI(ID_OPTIONS_EMULATOR_BMPFORMAT, OnUpdateOptionsEmulatorBmpformat)
+ON_COMMAND_RANGE(ID_OPTIONS_EMULATOR_FORMAT_FIRST, ID_OPTIONS_EMULATOR_FORMAT_LAST, OnOptionsEmulatorCaptureFormat)
 ON_COMMAND(ID_OPTIONS_SOUND_DISABLE, OnOptionsSoundDisable)
 ON_UPDATE_COMMAND_UI(ID_OPTIONS_SOUND_DISABLE, OnUpdateOptionsSoundDisable)
 ON_COMMAND(ID_OPTIONS_SOUND_MUTE, OnOptionsSoundMute)
@@ -430,8 +427,8 @@ ON_COMMAND(ID_TOOLS_SOUNDRECORDING, OnToolsSoundRecording)
 ON_UPDATE_COMMAND_UI(ID_TOOLS_SOUNDRECORDING, OnUpdateToolsSoundRecording)
 ON_COMMAND(ID_TOOLS_AVIRECORDING, OnToolsAVIRecording)
 ON_UPDATE_COMMAND_UI(ID_TOOLS_AVIRECORDING, OnUpdateToolsAVIRecording)
-ON_COMMAND(ID_TOOLS_AVIRECORDSCALED, OnToolsRecordAviScaled)
-ON_UPDATE_COMMAND_UI(ID_TOOLS_AVIRECORDSCALED, OnUpdateToolsRecordAviScaled)
+ON_COMMAND(ID_TOOLS_CAPTURESCALED, OnToolsCaptureScaled)
+ON_UPDATE_COMMAND_UI(ID_TOOLS_CAPTURESCALED, OnUpdateToolsCaptureScaled)
 ON_COMMAND(ID_TOOLS_PAUSEAVIRECORDING, OnToolsPauseAVIRecording)
 ON_UPDATE_COMMAND_UI(ID_TOOLS_PAUSEAVIRECORDING, OnUpdateToolsPauseAVIRecording)
 
@@ -937,6 +934,56 @@ static void InitMenuKludge(CMenu *pParentMenu, CMenu *pMenu, CCmdTarget *pWnd)
 	}
 }
 
+// Rebuilds a "Screenshot Format" popup from the formats WIC can actually write
+// (see ImageWrite.h).  Recognises the popup by the id range of its items, so it
+// also does the initial fill that replaces the placeholder the resources carry.
+// Returns true when the popup was one of ours.
+static bool winUpdateCaptureFormatMenu(CMenu *pMenu)
+{
+	int count = pMenu->GetMenuItemCount();
+
+	bool ours = false;
+	for (int i = 0; i < count; ++i)
+	{
+		const UINT id = pMenu->GetMenuItemID(i);
+		if (id >= ID_OPTIONS_EMULATOR_FORMAT_FIRST && id <= ID_OPTIONS_EMULATOR_FORMAT_LAST)
+		{
+			ours = true;
+			break;
+		}
+	}
+
+	if (!ours)
+		return false;
+
+	ImageWriteFormatInfo formats[16];
+	const int            formatCount = imageWriteFormats(formats, 16);
+	const int            current     = imageCaptureFormatIndex();
+
+	while (pMenu->GetMenuItemCount() > 0)
+		pMenu->DeleteMenu(0, MF_BYPOSITION);
+
+	if (formatCount == 0)
+	{
+		pMenu->AppendMenu(MF_STRING | MF_GRAYED, ID_OPTIONS_EMULATOR_FORMAT_FIRST,
+		                  imageWriteAvailable() ? "Unavailable" : "Not available on this Windows");
+		return true;
+	}
+
+	for (int i = 0; i < formatCount; ++i)
+	{
+		CString label = formats[i].name;
+		label.Replace(" Encoder", "");
+		label.Trim();
+
+		pMenu->AppendMenu(MF_STRING | (i == current ? MF_CHECKED : 0),
+		                  ID_OPTIONS_EMULATOR_FORMAT_FIRST + i,
+		                  label);
+	}
+
+	return true;
+}
+
 void MainWnd::OnInitMenuPopup(CMenu *pMenu, UINT nIndex, BOOL bSysMenu)
 {
 	ASSERT(pMenu != NULL);
@@ -986,6 +1033,10 @@ void MainWnd::OnInitMenuPopup(CMenu *pMenu, UINT nIndex, BOOL bSysMenu)
 	InitMenuKludge(state.m_pParentMenu, state.m_pMenu, this);
 
 	recursiveCall = false;
+
+	// Fill the screenshot format popup after the command UI pass so the checks
+	// put on its items survive.
+	winUpdateCaptureFormatMenu(pMenu);
 }
 
 void MainWnd::OnInitMenu(CMenu *pMenu)

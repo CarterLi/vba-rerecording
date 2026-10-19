@@ -32,8 +32,6 @@ private:
 public:
 	void updateScrollInfo();
 	void save();
-	void savePNG(const char *name);
-	void saveBMP(const char *name);
 	void render();
 	void setAttributes(int y, int x, int tile, int flags);
 	void paint();

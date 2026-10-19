@@ -7,16 +7,13 @@
 #include "FileDlg.h"
 #include "../Reg.h"
 #include "../WinResUtil.h"
+#include "../WinMiscUtil.h"
 #include "../VBA.h"
 
 //#include "../../common/System.h"
 #include "../../gb/gbGlobals.h"
 #include "../../NLS.h"
 #include "../../common/Util.h"
-
-extern "C" {
-#include <png.h>
-}
 
 /////////////////////////////////////////////////////////////////////////////
 // GBOamView dialog
@@ -229,194 +226,17 @@ void GBOamView::render()
 		}
 	}
 }
-
-void GBOamView::saveBMP(const char *name)
-{
-	u8 writeBuffer[1024 * 3];
-
-	FILE *fp = fopen(name, "wb");
-
-	if (!fp)
-	{
-		systemMessage(MSG_ERROR_CREATING_FILE, "Error creating file %s", name);
-		return;
-	}
-
-	struct
-	{
-		u8 ident[2];
-		u8 filesize[4];
-		u8 reserved[4];
-		u8 dataoffset[4];
-		u8 headersize[4];
-		u8 width[4];
-		u8 height[4];
-		u8 planes[2];
-		u8 bitsperpixel[2];
-		u8 compression[4];
-		u8 datasize[4];
-		u8 hres[4];
-		u8 vres[4];
-		u8 colors[4];
-		u8 importantcolors[4];
-		u8 pad[2];
-	} bmpheader;
-	memset(&bmpheader, 0, sizeof(bmpheader));
-
-	bmpheader.ident[0] = 'B';
-	bmpheader.ident[1] = 'M';
-
-	u32 fsz = sizeof(bmpheader) + w*h*3;
-	utilPutDword(bmpheader.filesize, fsz);
-	utilPutDword(bmpheader.dataoffset, 0x38);
-	utilPutDword(bmpheader.headersize, 0x28);
-	utilPutDword(bmpheader.width, w);
-	utilPutDword(bmpheader.height, h);
-	utilPutDword(bmpheader.planes, 1);
-	utilPutDword(bmpheader.bitsperpixel, 24);
-	utilPutDword(bmpheader.datasize, 3*w*h);
-
-	fwrite(&bmpheader, 1, sizeof(bmpheader), fp);
-
-	u8 *b = writeBuffer;
-
-	int sizeX = w;
-	int sizeY = h;
-
-	u8 *pixU8 = (u8 *)data+3*w*(h-1);
-	for (int y = 0; y < sizeY; y++)
-	{
-		for (int x = 0; x < sizeX; x++)
-		{
-			*b++ = *pixU8++; // B
-			*b++ = *pixU8++; // G
-			*b++ = *pixU8++; // R
-		}
-		pixU8 -= 2*3*w;
-		fwrite(writeBuffer, 1, 3*w, fp);
-
-		b = writeBuffer;
-	}
-
-	fclose(fp);
-}
-
-void GBOamView::savePNG(const char *name)
-{
-	u8 writeBuffer[1024 * 3];
-
-	FILE *fp = fopen(name, "wb");
-
-	if (!fp)
-	{
-		systemMessage(MSG_ERROR_CREATING_FILE, "Error creating file %s", name);
-		return;
-	}
-
-	png_structp png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING,
-	                                              NULL,
-	                                              NULL,
-	                                              NULL);
-	if (!png_ptr)
-	{
-		fclose(fp);
-		return;
-	}
-
-	png_infop info_ptr = png_create_info_struct(png_ptr);
-
-	if (!info_ptr)
-	{
-		png_destroy_write_struct(&png_ptr, NULL);
-		fclose(fp);
-		return;
-	}
-
-	if (setjmp(png_jmpbuf(png_ptr)))
-	{
-		png_destroy_write_struct(&png_ptr, NULL);
-		fclose(fp);
-		return;
-	}
-
-	png_init_io(png_ptr, fp);
-
-	png_set_IHDR(png_ptr,
-	             info_ptr,
-	             w,
-	             h,
-	             8,
-	             PNG_COLOR_TYPE_RGB,
-	             PNG_INTERLACE_NONE,
-	             PNG_COMPRESSION_TYPE_DEFAULT,
-	             PNG_FILTER_TYPE_DEFAULT);
-
-	png_write_info(png_ptr, info_ptr);
-
-	u8 *b = writeBuffer;
-
-	int sizeX = w;
-	int sizeY = h;
-
-	u8 *pixU8 = (u8 *)data;
-	for (int y = 0; y < sizeY; y++)
-	{
-		for (int x = 0; x < sizeX; x++)
-		{
-			int blue  = *pixU8++;
-			int green = *pixU8++;
-			int red   = *pixU8++;
-
-			*b++ = red;
-			*b++ = green;
-			*b++ = blue;
-		}
-		png_write_row(png_ptr, writeBuffer);
-
-		b = writeBuffer;
-	}
-
-	png_write_end(png_ptr, info_ptr);
-
-	png_destroy_write_struct(&png_ptr, &info_ptr);
-
-	fclose(fp);
-}
-
 void GBOamView::save()
 {
-	CString captureBuffer;
+	CString name = winImageSaveDlg(this,
+	                               "oam",
+	                               "",
+	                               winResLoadString(IDS_SELECT_CAPTURE_NAME));
 
-	if (theApp.captureFormat == 0)
-		captureBuffer = "oam.png";
-	else
-		captureBuffer = "oam.bmp";
-
-	LPCTSTR exts[] = {".png", ".bmp", NULL };
-
-	CString filter = winResLoadFilter(IDS_FILTER_PNG);
-	CString title  = winResLoadString(IDS_SELECT_CAPTURE_NAME);
-
-	FileDlg dlg(this,
-	            captureBuffer,
-	            filter,
-	            theApp.captureFormat ? 2 : 1,
-	            theApp.captureFormat ? "BMP" : "PNG",
-	            exts,
-	            "",
-	            title,
-	            true);
-
-	if (dlg.DoModal() == IDCANCEL)
-	{
+	if (name.IsEmpty())
 		return;
-	}
-	captureBuffer = dlg.GetPathName();
 
-	if (dlg.getFilterIndex() == 2)
-		saveBMP(captureBuffer);
-	else
-		savePNG(captureBuffer);
+	winWriteImageBGR(name, w, h, data, 3 * w);
 }
 
 BOOL GBOamView::OnInitDialog()

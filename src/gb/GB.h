@@ -35,8 +35,7 @@ bool gbWriteMemSaveState(const char *, int);
 bool gbReadSaveState(const char *);
 bool gbReadMemSaveState(char *, int);
 void gbSgbRenderBorder();
-bool gbWritePNGFile(const char *);
-bool gbWriteBMPFile(const char *);
+bool gbWriteImageFile(const char *);
 bool gbReadGSASnapshot(const char *);
 
 extern struct EmulatedSystem GBSystem;

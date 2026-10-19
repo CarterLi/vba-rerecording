@@ -1408,14 +1408,9 @@ bool CPUReadBatteryFile(const char *fileName)
 	return true;
 }
 
-bool CPUWritePNGFile(const char *fileName)
+bool CPUWriteImageFile(const char *fileName)
 {
-	return utilWritePNGFile(fileName, 240, 160, pix);
-}
-
-bool CPUWriteBMPFile(const char *fileName)
-{
-	return utilWriteBMPFile(fileName, 240, 160, pix);
+	return utilWriteImageFile(fileName, 240, 160, pix);
 }
 
 void CPUCleanUp()
@@ -4249,10 +4244,8 @@ struct EmulatedSystem GBASystem =
 	CPUReadMemState,
 	// emuWriteMemState
 	CPUWriteMemState,
-	// emuWritePNG
-	CPUWritePNGFile,
-	// emuWriteBMP
-	CPUWriteBMPFile,
+	// emuWriteImage
+	CPUWriteImageFile,
 	// emuUpdateCPSR
 	CPUUpdateCPSR,
 	// emuHasDebugger

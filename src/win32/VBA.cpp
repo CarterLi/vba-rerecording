@@ -28,6 +28,7 @@
 #include "../gb/gbPrinter.h"
 #include "../common/CheatSearch.h"
 #include "../gba/RTC.h"
+#include "../common/ImageWrite.h"
 #include "../common/SystemGlobals.h"
 #include "../common/Util.h"
 #include "../common/Text.h"
@@ -118,10 +119,68 @@ void winlog(const char *msg, ...)
 	if (winout == NULL)
 		return;
 
+	// The trace is UTF-8.  Windows hands back localized text (encoder names,
+	// FormatMessage output) in the ANSI code page, and anything that reads the
+	// file as UTF-8 turns that into mojibake.  The byte order mark goes in once,
+	// when a run starts the file, so editors that guess the encoding guess right.
+	if (!started)
+		fwrite("\xEF\xBB\xBF", 1, 3, winout);
 	started = true;
-	fputs(buffer, winout);
+
+	// Most lines are plain ASCII and can be written as they are.
+	bool ascii = true;
+	for (const char *p = buffer; *p != '\0' && ascii; ++p)
+		ascii = ((unsigned char)*p) < 0x80;
+
+	bool written = false;
+	if (!ascii)
+	{
+		const int length     = buffer.GetLength();
+		const int wideLength = MultiByteToWideChar(CP_ACP, 0, buffer, length, NULL, 0);
+
+		if (wideLength > 0)
+		{
+			wchar_t *wide = new wchar_t[wideLength];
+
+			if (MultiByteToWideChar(CP_ACP, 0, buffer, length, wide, wideLength) == wideLength)
+			{
+				const int utf8Length = WideCharToMultiByte(CP_UTF8, 0, wide, wideLength,
+				                                           NULL, 0, NULL, NULL);
+
+				if (utf8Length > 0)
+				{
+					char *utf8 = new char[utf8Length];
+
+					if (WideCharToMultiByte(CP_UTF8, 0, wide, wideLength,
+					                        utf8, utf8Length, NULL, NULL) == utf8Length)
+					{
+						fwrite(utf8, 1, (size_t)utf8Length, winout);
+						written = true;
+					}
+
+					delete[] utf8;
+				}
+			}
+
+			delete[] wide;
+		}
+	}
+
+	// ASCII already, or the conversion failed: keep the bytes rather than drop
+	// the line.
+	if (!written)
+		fputs(buffer, winout);
+
 	fputs("\n", winout);
 	fclose(winout);
+}
+
+// The image writers live in src/common and only know a one argument callback,
+// so wrap the variadic trace logger for them.  The "%s" keeps a file name with
+// a percent sign in it from being read as a format.
+static void winImageWriteLog(const char *message)
+{
+	winlog("%s", message);
 }
 
 // code from SDL_main.c for Windows
@@ -262,6 +321,10 @@ VBA::VBA() : emulator(::theEmulator)
 #endif
 	}
 
+	// The image writers report every step and every encoder refusal to the
+	// trace; the message box only points at it.
+	imageWriteSetLogger(winImageWriteLog);
+
 	mode320Available	 = false;
 	mode640Available	 = false;
 	mode800Available	 = false;
@@ -327,7 +390,6 @@ VBA::VBA() : emulator(::theEmulator)
 	rewindCount		  = 0;
 	rewindSaveNeeded  = false;
 	rewindTimer		  = 0;
-	captureFormat	  = 0;
 	tripleBuffering	  = true;
 	autoHideMenu	  = false;
 	throttle		  = 100;
@@ -2175,8 +2237,8 @@ void VBA::loadSettings()
 
 	filenamePreference = regQueryDwordValue("filenamePreference", 0);
 	altAviRecordMethod = regQueryDwordValue("altAviRecordMethod", false) ? true : false;
-	aviRecordScaled = regQueryDwordValue("aviRecordScaled", false) ? true : false;
-	captureFormat	   = regQueryDwordValue("captureFormat", 0);
+	captureScaled = regQueryDwordValue("captureScaled", regQueryDwordValue("aviRecordScaled", false)) ? true : false;
+	imageCaptureSelect(regQueryStringValue("captureFormat", ".png"));
 
 	rewindTimer = regQueryDwordValue("rewindTimer", 0);
 	rewindSlots = regQueryDwordValue("rewindSlots", 64);
@@ -2384,8 +2446,8 @@ void VBA::saveSettings()
 
 	regSetDwordValue("filenamePreference", filenamePreference);
 	regSetDwordValue("altAviRecordMethod", altAviRecordMethod);
-	regSetDwordValue("aviRecordScaled", aviRecordScaled);
-	regSetDwordValue("captureFormat", captureFormat);
+	regSetDwordValue("captureScaled", captureScaled);
+	regSetStringValue("captureFormat", imageCaptureExtension());
 
 	regSetDwordValue("cheatsEnabled", cheatsEnabled);
 	regSetDwordValue("autoSaveCheatList", autoSaveLoadCheatList);

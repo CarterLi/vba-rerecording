@@ -7,15 +7,12 @@
 #include "FileDlg.h"
 #include "../Reg.h"
 #include "../WinResUtil.h"
+#include "../WinMiscUtil.h"
 #include "../VBA.h"
 
 //#include "../../common/System.h"
 #include "../../NLS.h"
 #include "../../common/Util.h"
-
-extern "C" {
-#include <png.h>
-}
 
 /////////////////////////////////////////////////////////////////////////////
 // GBPrinter dialog
@@ -84,192 +81,36 @@ END_MESSAGE_MAP()
 
 /////////////////////////////////////////////////////////////////////////////
 // GBPrinter message handlers
-
-void GBPrinterDlg::saveAsBMP(const char *name)
-{
-	u8 writeBuffer[512 * 3];
-
-	FILE *fp = fopen(name, "wb");
-
-	if (!fp)
-	{
-		systemMessage(MSG_ERROR_CREATING_FILE, "Error creating file %s", name);
-		return;
-	}
-
-	struct
-	{
-		u8 ident[2];
-		u8 filesize[4];
-		u8 reserved[4];
-		u8 dataoffset[4];
-		u8 headersize[4];
-		u8 width[4];
-		u8 height[4];
-		u8 planes[2];
-		u8 bitsperpixel[2];
-		u8 compression[4];
-		u8 datasize[4];
-		u8 hres[4];
-		u8 vres[4];
-		u8 colors[4];
-		u8 importantcolors[4];
-		u8 pad[2];
-	} bmpheader;
-	memset(&bmpheader, 0, sizeof(bmpheader));
-
-	bmpheader.ident[0] = 'B';
-	bmpheader.ident[1] = 'M';
-
-	u32 fsz = sizeof(bmpheader) + 160*144*3;
-	utilPutDword(bmpheader.filesize, fsz);
-	utilPutDword(bmpheader.dataoffset, 0x38);
-	utilPutDword(bmpheader.headersize, 0x28);
-	utilPutDword(bmpheader.width, 160);
-	utilPutDword(bmpheader.height, 144);
-	utilPutDword(bmpheader.planes, 1);
-	utilPutDword(bmpheader.bitsperpixel, 24);
-	utilPutDword(bmpheader.datasize, 160*144);
-
-	fwrite(&bmpheader, 1, sizeof(bmpheader), fp);
-
-	u8 *b    = writeBuffer;
-	u8 *data = (u8 *)bitmapData;
-	u8 *p    = data + (160*143);
-	for (int y = 0; y < 144; y++)
-	{
-		for (int x = 0; x < 160; x++)
-		{
-			u8 c = *p++;
-
-			*b++ = bitmap->bmiColors[c].rgbBlue;
-			*b++ = bitmap->bmiColors[c].rgbGreen;
-			*b++ = bitmap->bmiColors[c].rgbRed;
-		}
-		p -= 2*(160);
-		fwrite(writeBuffer, 1, 3*160, fp);
-
-		b = writeBuffer;
-	}
-
-	fclose(fp);
-}
-
-void GBPrinterDlg::saveAsPNG(const char *name)
-{
-	u8 writeBuffer[160 * 3];
-
-	FILE *fp = fopen(name, "wb");
-
-	if (!fp)
-	{
-		systemMessage(MSG_ERROR_CREATING_FILE, "Error creating file %s",
-		              name);
-		return;
-	}
-
-	png_structp png_ptr = png_create_write_struct(PNG_LIBPNG_VER_STRING,
-	                                              NULL,
-	                                              NULL,
-	                                              NULL);
-	if (!png_ptr)
-	{
-		fclose(fp);
-		return;
-	}
-
-	png_infop info_ptr = png_create_info_struct(png_ptr);
-
-	if (!info_ptr)
-	{
-		png_destroy_write_struct(&png_ptr, NULL);
-		fclose(fp);
-		return;
-	}
-
-	if (setjmp(png_jmpbuf(png_ptr)))
-	{
-		png_destroy_write_struct(&png_ptr, NULL);
-		fclose(fp);
-		return;
-	}
-
-	png_init_io(png_ptr, fp);
-
-	png_set_IHDR(png_ptr,
-	             info_ptr,
-	             160,
-	             144,
-	             8,
-	             PNG_COLOR_TYPE_RGB,
-	             PNG_INTERLACE_NONE,
-	             PNG_COMPRESSION_TYPE_DEFAULT,
-	             PNG_FILTER_TYPE_DEFAULT);
-
-	png_write_info(png_ptr, info_ptr);
-
-	u8 *b = writeBuffer;
-
-	int sizeX = 160;
-	int sizeY = 144;
-
-	u8 *pixU8 = (u8 *)bitmapData;
-	for (int y = 0; y < sizeY; y++)
-	{
-		for (int x = 0; x < sizeX; x++)
-		{
-			u8 c = *pixU8++;
-			*b++ = bitmap->bmiColors[c].rgbRed;
-			*b++ = bitmap->bmiColors[c].rgbGreen;
-			*b++ = bitmap->bmiColors[c].rgbBlue;
-		}
-		png_write_row(png_ptr, writeBuffer);
-
-		b = writeBuffer;
-	}
-
-	png_write_end(png_ptr, info_ptr);
-
-	png_destroy_write_struct(&png_ptr, &info_ptr);
-
-	fclose(fp);
-}
-
 void GBPrinterDlg::OnSave()
 {
-	CString captureBuffer;
+	CString name = winImageSaveDlg(this,
+	                               "printer",
+	                               "",
+	                               winResLoadString(IDS_SELECT_CAPTURE_NAME));
 
-	if (theApp.captureFormat == 0)
-		captureBuffer = "printer.png";
-	else
-		captureBuffer = "printer.bmp";
-
-	LPCTSTR exts[] = {".png", ".bmp", NULL };
-
-	CString filter = winResLoadFilter(IDS_FILTER_PNG);
-	CString title  = winResLoadString(IDS_SELECT_CAPTURE_NAME);
-
-	FileDlg dlg(this,
-	            captureBuffer,
-	            filter,
-	            theApp.captureFormat ? 2 : 1,
-	            theApp.captureFormat ? "BMP" : "PNG",
-	            exts,
-	            "",
-	            title,
-	            true);
-
-	if (dlg.DoModal() == IDCANCEL)
-	{
+	if (name.IsEmpty())
 		return;
+
+	// bitmapData is the printed page, 160x144 of 4-bit palette indices; expand
+	// it to the BGR the writer wants.
+	u8         bgr[160 * 144 * 3];
+	const int  stride = 160 * 3;
+
+	for (int y = 0; y < 144; ++y)
+	{
+		const u8 *source = bitmapData + y * 160;
+		u8       *dest   = bgr + y * stride;
+
+		for (int x = 0; x < 160; ++x)
+		{
+			const RGBQUAD &color = bitmap->bmiColors[source[x]];
+			dest[x * 3 + 0] = color.rgbBlue;
+			dest[x * 3 + 1] = color.rgbGreen;
+			dest[x * 3 + 2] = color.rgbRed;
+		}
 	}
 
-	captureBuffer = dlg.GetPathName();
-
-	if (dlg.getFilterIndex() == 2)
-		saveAsBMP(captureBuffer);
-	else
-		saveAsPNG(captureBuffer);
+	winWriteImageBGR(name, 160, 144, bgr, stride);
 }
 
 void GBPrinterDlg::OnPrint()

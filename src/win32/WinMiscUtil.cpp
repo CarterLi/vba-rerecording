@@ -6,6 +6,8 @@
 #include "VBA.h"
 #include "Reg.h"
 #include "../common/SystemGlobals.h"
+#include "../common/System.h"
+#include "../common/ImageWrite.h"
 #include "../common/movie.h"
 #include <direct.h>
 #include <algorithm>
@@ -318,17 +320,37 @@ void winCorrectPath(char *path)
 
 // some file I/O
 
+// Saves a screenshot to `fileName`.  With the "window size and filter" capture
+// option on this is exactly what an AVI frame would contain (pixel filter plus
+// window magnification); otherwise it is the plain emulator screenshot.
+bool winWriteScreenshotFile(const CString &fileName)
+{
+	if (theApp.captureScaled && winWriteFilteredScreenshot(fileName))
+		return true;
+
+	return theApp.emulator.emuWriteImage(fileName);
+}
+
+// Writes an image a viewer dialog built.  These used to ignore the result and
+// fail without a word; now the reason is in the trace and the user is told
+// where to look, same as for a failed screenshot.
+void winWriteImageBGR(const CString &fileName, int width, int height,
+                      const unsigned char *bgr, int stride)
+{
+	if (utilWriteImageBGR(fileName, width, height, bgr, stride))
+		return;
+
+	utilReportImageSaveFailure(fileName);
+}
+
 int winScreenCapture(int captureNumber)
 {
-	CString ext;
 	CString captureName;
 
 	do
 	{
-		if (theApp.captureFormat == 0)
-			ext.Format("_%03d.png", captureNumber);
-		else
-			ext.Format("_%03d.bmp", captureNumber);
+		CString ext;
+		ext.Format("_%03d%s", captureNumber, imageCaptureExtension());
 
 		captureName = winGetDestFilename(theApp.gameFilename, IDS_CAPTURE_DIR, ext);
 		++captureNumber;
@@ -340,10 +362,8 @@ int winScreenCapture(int captureNumber)
 		return 0;
 	}
 
-	if (theApp.captureFormat == 0)
-		theApp.emulator.emuWritePNG(captureName);
-	else
-		theApp.emulator.emuWriteBMP(captureName);
+	if (!winWriteScreenshotFile(captureName))
+		return captureNumber;
 
 	systemScreenMessage(winResLoadString(IDS_SCREEN_CAPTURE));
 
