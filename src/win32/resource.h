@@ -1150,6 +1150,9 @@
 #define IDC_PROMPT_TEXT2                43411
 #define IDC_PROMPT_EDIT                 43412
 
+// Embedded 7z.dll (see 7zip/7zapi.cpp and the RCDATA entry in VBA.rc)
+#define IDR_SEVENZ_DLL                  310
+
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED

@@ -12,11 +12,11 @@ libgbcom_a_SOURCES = \
 	SystemGlobals.h		\
 	Text.cpp		\
 	Text.h			\
-	unzip.cpp		\
-	unzip.h			\
 	Util.cpp		\
 	Util.h			\
-	vbalua.h
+	vbalua.h		\
+	ziparchive.cpp		\
+	ziparchive.h
 
 AM_CPPFLAGS = \
 	-I$(top_srcdir)/src		\

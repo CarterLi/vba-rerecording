@@ -53,7 +53,8 @@ ARFLAGS = cru
 libgbcom_a_AR = $(AR) $(ARFLAGS)
 libgbcom_a_LIBADD =
 am_libgbcom_a_OBJECTS = lua-engine.$(OBJEXT) memgzio.$(OBJEXT) \
-	movie.$(OBJEXT) Text.$(OBJEXT) unzip.$(OBJEXT) Util.$(OBJEXT)
+	movie.$(OBJEXT) Text.$(OBJEXT) Util.$(OBJEXT) \
+	ziparchive.$(OBJEXT)
 libgbcom_a_OBJECTS = $(patsubst %,$(OBJDIR)/%,$(am_libgbcom_a_OBJECTS))
 DEFAULT_INCLUDES = -I.@am__isrc@
 depcomp = $(SHELL) $(top_srcdir)/depcomp
@@ -216,11 +217,11 @@ libgbcom_a_SOURCES = \
 	SystemGlobals.h		\
 	Text.cpp		\
 	Text.h			\
-	unzip.cpp		\
-	unzip.h			\
 	Util.cpp		\
 	Util.h			\
-	vbalua.h
+	vbalua.h\
+	ziparchive.cpp\
+	ziparchive.h
 
 AM_CPPFLAGS = \
 	-I$(top_srcdir)/src		\
@@ -281,7 +282,7 @@ distclean-compile:
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/lua-engine.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/memgzio.Po@am__quote@
 @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/movie.Po@am__quote@
-@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/unzip.Po@am__quote@
+@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/ziparchive.Po@am__quote@
 
 $(OBJDIR)/%.o: %.c
 @am__fastdepCC_TRUE@	$(COMPILE) -MT $@ -MD -MP -MF $(DEPDIR)/$*.Tpo -c -o $@ $<

@@ -1,0 +1,275 @@
+// Must come before any interface header: it defines INITGUID, so this is
+// the single translation unit that provides the 7-Zip interface GUIDs.
+#include "7z/CPP/Common/MyInitGuid.h"
+#include "7zapi.h"
+
+#include <cstdio>
+#include <cstring>
+#include <oleauto.h>
+
+// Version the interface headers were taken from (C/7zVersion.h).
+#include "7z/C/7zVersion.h"
+
+// Resource id of the embedded 7z.dll (see VBA.rc).
+#ifdef SEVENZ_EMBED
+#include "../resource.h"
+#endif
+
+extern void winlog(const char* msg, ...);
+
+typedef HRESULT (WINAPI* SevenZipGetNumberOfFormats)(UINT32* numFormats);
+typedef HRESULT (WINAPI* SevenZipGetHandlerProperty2)(UInt32 formatIndex, PROPID propID, PROPVARIANT* value);
+typedef HRESULT (WINAPI* SevenZipCreateObject)(const GUID* clsid, const GUID* iid, void** outObject);
+typedef HRESULT (WINAPI* SevenZipGetModuleProp)(PROPID propID, PROPVARIANT* value);
+
+// NModulePropID::kVersion (CPP/7zip/ICoder.h) reports a VT_UI4 holding
+// (major << 16) | minor, which is exactly how the headers encode MY_VERSION.
+static const PROPID kSevenZipVersionProp = 1;
+
+static HMODULE s_module = NULL;
+static SevenZipGetNumberOfFormats s_getNumberOfFormats = NULL;
+static SevenZipGetHandlerProperty2 s_getHandlerProperty2 = NULL;
+static SevenZipCreateObject s_createObject = NULL;
+static SevenZipGetModuleProp s_getModuleProp = NULL;
+
+static bool SevenZipResolve(HMODULE module)
+{
+	s_getNumberOfFormats = (SevenZipGetNumberOfFormats)GetProcAddress(module, "GetNumberOfFormats");
+	s_getHandlerProperty2 = (SevenZipGetHandlerProperty2)GetProcAddress(module, "GetHandlerProperty2");
+	s_createObject = (SevenZipCreateObject)GetProcAddress(module, "CreateObject");
+
+	// Optional: only used to report the version.  Older DLLs may not export it.
+	s_getModuleProp = (SevenZipGetModuleProp)GetProcAddress(module, "GetModuleProp");
+
+	if (!s_getNumberOfFormats || !s_getHandlerProperty2 || !s_createObject)
+	{
+		s_getNumberOfFormats = NULL;
+		s_getHandlerProperty2 = NULL;
+		s_createObject = NULL;
+		s_getModuleProp = NULL;
+		return false;
+	}
+	return true;
+}
+
+// Says which DLL was loaded and whether it agrees with the headers the archive
+// callbacks were compiled against.  A differing patch level is fine (the
+// interfaces do not change between those), a differing major version is not.
+static void SevenZipLogVersion(const char* path)
+{
+	unsigned major = 0;
+	unsigned minor = 0;
+	bool known = false;
+
+	if (s_getModuleProp)
+	{
+		PROPVARIANT var;
+		var.vt = VT_EMPTY;
+
+		if (s_getModuleProp(kSevenZipVersionProp, &var) == S_OK && var.vt == VT_UI4)
+		{
+			major = (var.ulVal >> 16) & 0xFFFF;
+			minor = var.ulVal & 0xFFFF;
+			known = (major != 0);
+		}
+
+		VariantClear((VARIANTARG*)&var);
+	}
+
+	char version[32];
+	if (known)
+		_snprintf(version, sizeof(version), "%u.%02u", major, minor);
+	else
+		strcpy(version, "unknown");
+
+	const char* verdict;
+	if (!known)
+		verdict = "the DLL reports no version, the headers may not match";
+	else if (major == MY_VER_MAJOR && minor == MY_VER_MINOR)
+		verdict = "exact match";
+	else if (major == MY_VER_MAJOR)
+		verdict = "patch level only, acceptable";
+	else
+		verdict = "MISMATCH";
+
+	winlog("7-Zip: loaded %s (%s, version %s); headers %s, %s\n",
+	       path, (sizeof(void*) == 8) ? "x64" : "x86", version,
+	       MY_VERSION_NUMBERS, verdict);
+}
+
+static bool SevenZipTryLoad(const char* path)
+{
+	HMODULE module = LoadLibraryA(path);
+	if (!module)
+		return false;
+
+	if (!SevenZipResolve(module))
+	{
+		FreeLibrary(module);
+		return false;
+	}
+
+	s_module = module;
+	SevenZipLogVersion(path);
+	return true;
+}
+
+static bool SevenZipExeDllPath(char* path, size_t size)
+{
+	DWORD length = GetModuleFileNameA(NULL, path, (DWORD)size);
+	if (length == 0 || length >= size)
+		return false;
+
+	char* slash = strrchr(path, '\\');
+	if (!slash)
+		return false;
+	slash[1] = '\0';
+
+	if (strlen(path) + strlen("7z.dll") >= size)
+		return false;
+	strcat(path, "7z.dll");
+	return true;
+}
+
+static bool SevenZipCachePath(char* path, size_t size)
+{
+	char directory[MAX_PATH];
+	DWORD length = GetEnvironmentVariableA("LOCALAPPDATA", directory, (DWORD)sizeof(directory));
+
+	if (length == 0 || length >= sizeof(directory))
+	{
+		if (GetTempPathA((DWORD)sizeof(directory), directory) == 0)
+			return false;
+	}
+
+	// Make sure the path ends with a separator before appending the folder.
+	size_t used = strlen(directory);
+	if (used == 0 || directory[used - 1] != '\\')
+	{
+		if (used + 1 >= sizeof(directory))
+			return false;
+		directory[used++] = '\\';
+		directory[used] = '\0';
+	}
+
+	if (used + strlen("VBA-M") >= sizeof(directory))
+		return false;
+	strcat(directory, "VBA-M");
+	CreateDirectoryA(directory, NULL);
+
+	const char* arch = (sizeof(void*) == 8) ? "x64" : "x86";
+	int written = _snprintf(path, size, "%s\\7z-%s-%s.dll", directory, arch, SEVENZ_DLL_TAG);
+	if (written < 0 || (size_t)written >= size)
+		return false;
+	return true;
+}
+
+#ifdef SEVENZ_EMBED
+static bool SevenZipExtractEmbedded(const char* path)
+{
+	HRSRC info = FindResourceA(NULL, MAKEINTRESOURCEA(IDR_SEVENZ_DLL), RT_RCDATA);
+	if (!info)
+		return false;
+
+	DWORD size = SizeofResource(NULL, info);
+	HGLOBAL handle = LoadResource(NULL, info);
+	if (!handle || size == 0)
+		return false;
+
+	const void* data = LockResource(handle);
+	if (!data)
+		return false;
+
+	// Reuse the cached copy when it already has the expected size.
+	FILE* file = fopen(path, "rb");
+	if (file)
+	{
+		fseek(file, 0, SEEK_END);
+		long existing = ftell(file);
+		fclose(file);
+		if (existing == (long)size)
+			return true;
+	}
+
+	file = fopen(path, "wb");
+	if (!file)
+		return false;
+
+	size_t written = fwrite(data, 1, size, file);
+	fclose(file);
+	return written == size;
+}
+#endif
+
+bool SevenZipLoad()
+{
+	if (s_module)
+		return true;
+
+	char path[MAX_PATH];
+
+	// 1. A copy next to the executable wins, so the user can replace it.
+	if (SevenZipExeDllPath(path, sizeof(path)) && SevenZipTryLoad(path))
+		return true;
+
+	// 2. Fall back to the embedded copy (extracted once into the user profile).
+#ifdef SEVENZ_EMBED
+	if (SevenZipCachePath(path, sizeof(path)) && SevenZipExtractEmbedded(path) && SevenZipTryLoad(path))
+		return true;
+#endif
+
+	// 3. Finally accept a previously cached copy.
+	if (SevenZipCachePath(path, sizeof(path)) && SevenZipTryLoad(path))
+		return true;
+
+	winlog("7-Zip: no usable 7z.dll was found; archives other than .zip stay disabled\n");
+	return false;
+}
+
+void SevenZipUnload()
+{
+	if (s_module)
+	{
+		FreeLibrary(s_module);
+		s_module = NULL;
+	}
+
+	s_getNumberOfFormats = NULL;
+	s_getHandlerProperty2 = NULL;
+	s_createObject = NULL;
+	s_getModuleProp = NULL;
+}
+
+bool SevenZipIsLoaded()
+{
+	return s_module != NULL;
+}
+
+STDAPI GetNumberOfFormats(UINT32* numFormats)
+{
+	if (!s_getNumberOfFormats)
+	{
+		if (numFormats)
+			*numFormats = 0;
+		return E_FAIL;
+	}
+	return s_getNumberOfFormats(numFormats);
+}
+
+STDAPI GetHandlerProperty2(UInt32 formatIndex, PROPID propID, PROPVARIANT* value)
+{
+	if (!s_getHandlerProperty2)
+		return E_FAIL;
+	return s_getHandlerProperty2(formatIndex, propID, value);
+}
+
+STDAPI CreateObject(const GUID* clsid, const GUID* iid, void** outObject)
+{
+	if (!s_createObject)
+	{
+		if (outObject)
+			*outObject = NULL;
+		return E_FAIL;
+	}
+	return s_createObject(clsid, iid, outObject);
+}

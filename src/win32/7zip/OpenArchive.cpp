@@ -411,6 +411,19 @@ restart:
 	while(true)
 	{
 		ArchiveFile archive (PhysicalName, LogicalName);
+
+		if(archive.IsUnsupportedArchive())
+		{
+			char message[1024];
+			_snprintf(message, sizeof(message),
+			          "Archive support is unavailable, so \"%s\" cannot be opened.\n\n"
+			          "Extract the file and load it directly, or repack it as a .zip archive.",
+			          LogicalName);
+			MessageBox(GetArchiveParentHWND(), message, "Archive support unavailable",
+			           MB_OK | MB_ICONWARNING);
+			return false;
+		}
+
 		if(!archive.IsCompressed())
 		{
 			if(archive.GetNumItems() > 0)

@@ -9,7 +9,7 @@
 #include "unrarlib.h"
 #endif
 
-#include "unzip.h"
+#include "ziparchive.h"
 
 #include "../NLS.h"
 #include "System.h"
@@ -466,63 +466,38 @@ IMAGE_TYPE utilFindType(const char *file)
 
 	if (utilIsZipFile(file))
 	{
-		unzFile unz = unzOpen(file);
+		ZipArchive zip(file);
 
-		if (unz == NULL)
+		if (!zip.IsValid())
 		{
 			systemMessage(MSG_CANNOT_OPEN_FILE, N_("Cannot open file %s"), file);
 			return IMAGE_UNKNOWN;
 		}
 
-		int r = unzGoToFirstFile(unz);
-
-		if (r != UNZ_OK)
-		{
-			unzClose(unz);
-			systemMessage(MSG_BAD_ZIP_FILE, N_("Bad ZIP file %s"), file);
-			return IMAGE_UNKNOWN;
-		}
-
 		IMAGE_TYPE found = IMAGE_UNKNOWN;
 
-		unz_file_info info;
-
-		while (true)
+		for (int i = 0; i < zip.GetEntryCount(); i++)
 		{
-			r = unzGetCurrentFileInfo(unz,
-			                          &info,
-			                          buffer,
-			                          sizeof(buffer),
-			                          NULL,
-			                          0,
-			                          NULL,
-			                          0);
+			ZipEntryInfo info;
 
-			if (r != UNZ_OK)
+			if (!zip.GetEntryInfo(i, &info))
 			{
-				unzClose(unz);
 				systemMessage(MSG_BAD_ZIP_FILE, N_("Bad ZIP file %s"), file);
 				return IMAGE_UNKNOWN;
 			}
 
-			if (utilIsGBAImage(buffer))
+			if (utilIsGBAImage(info.name))
 			{
 				found = IMAGE_GBA;
 				break;
 			}
 
-			if (utilIsGBImage(buffer))
+			if (utilIsGBImage(info.name))
 			{
 				found = IMAGE_GB;
 				break;
 			}
-
-			r = unzGoToNextFile(unz);
-
-			if (r != UNZ_OK)
-				break;
 		}
-		unzClose(unz);
 
 		if (found == IMAGE_UNKNOWN)
 		{
@@ -591,77 +566,42 @@ static u8 *utilLoadFromZip(const char *file,
                            u8 *data,
                            int &size)
 {
-	char buffer[2048];
+	ZipArchive zip(file);
 
-	unzFile unz = unzOpen(file);
-
-	if (unz == NULL)
+	if (!zip.IsValid())
 	{
 		systemMessage(MSG_CANNOT_OPEN_FILE, N_("Cannot open file %s"), file);
 		return NULL;
 	}
-	int r = unzGoToFirstFile(unz);
 
-	if (r != UNZ_OK)
+	int found = -1;
+	ZipEntryInfo info;
+
+	for (int i = 0; i < zip.GetEntryCount(); i++)
 	{
-		unzClose(unz);
-		systemMessage(MSG_BAD_ZIP_FILE, N_("Bad ZIP file %s"), file);
-		return NULL;
-	}
-
-	bool found = false;
-
-	unz_file_info info;
-
-	while (true)
-	{
-		r = unzGetCurrentFileInfo(unz,
-		                          &info,
-		                          buffer,
-		                          sizeof(buffer),
-		                          NULL,
-		                          0,
-		                          NULL,
-		                          0);
-
-		if (r != UNZ_OK)
+		if (!zip.GetEntryInfo(i, &info))
 		{
-			unzClose(unz);
 			systemMessage(MSG_BAD_ZIP_FILE, N_("Bad ZIP file %s"), file);
 			return NULL;
 		}
 
-		if (accept(buffer))
+		if (accept(info.name))
 		{
-			found = true;
+			found = i;
 			break;
 		}
-
-		r = unzGoToNextFile(unz);
-
-		if (r != UNZ_OK)
-			break;
 	}
 
-	if (!found)
+	if (found < 0)
 	{
-		unzClose(unz);
 		systemMessage(MSG_NO_IMAGE_ON_ZIP,
 		              N_("No image found on ZIP file %s"), file);
 		return NULL;
 	}
 
-	int fileSize = info.uncompressed_size;
+	int fileSize = (int)info.uncompressedSize;
 	if (size == 0)
 		size = fileSize;
-	r = unzOpenCurrentFile(unz);
-
-	if (r != UNZ_OK)
-	{
-		unzClose(unz);
-		systemMessage(MSG_ERROR_OPENING_IMAGE, N_("Error opening image %s"), buffer);
-		return NULL;
-	}
 
 	u8 *image = data;
 
@@ -670,8 +610,6 @@ static u8 *utilLoadFromZip(const char *file,
 		image = (u8 *)malloc(utilGetSize(size));
 		if (image == NULL)
 		{
-			unzCloseCurrentFile(unz);
-			unzClose(unz);
 			systemMessage(MSG_OUT_OF_MEMORY, N_("Failed to allocate memory for %s"),
 			              "data");
 			return NULL;
@@ -679,17 +617,12 @@ static u8 *utilLoadFromZip(const char *file,
 		size = fileSize;
 	}
 	int read = fileSize <= size ? fileSize : size;
-	r = unzReadCurrentFile(unz,
-	                       image,
-	                       read);
+	int r = zip.ExtractEntry(found, image, (unsigned int)read);
 
-	unzCloseCurrentFile(unz);
-	unzClose(unz);
-
-	if (r != (int)read)
+	if (r != read)
 	{
 		systemMessage(MSG_ERROR_READING_IMAGE,
-		              N_("Error reading image %s"), buffer);
+		              N_("Error reading image %s"), info.name);
 		if (data == NULL)
 			free(image);
 		return NULL;

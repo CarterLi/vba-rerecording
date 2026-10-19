@@ -2808,8 +2808,30 @@ BEGIN
     IDS_AUTOFIRE_LEFT       "turbo Left on"
 END
 
+/////////////////////////////////////////////////////////////////////////////
+//
+// Dialog: pick a file inside an archive
+//
+
+IDD_ARCHIVEFILECHOOSER DIALOGEX 0, 0, 182, 113
+STYLE DS_SETFONT | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_THICKFRAME
+CAPTION "Choose File"
+FONT 8, "MS Shell Dlg", 400, 0, 0x1
+BEGIN
+    DEFPUSHBUTTON   "&OK",IDOK,128,94,50,16
+    PUSHBUTTON      "&Cancel",ID_CANCEL,73,94,50,16
+    LISTBOX         IDC_LIST1,4,4,173,87,LBS_NOINTEGRALHEIGHT | WS_VSCROLL | WS_TABSTOP
+END
+
 #endif    // English (United States) resources
 /////////////////////////////////////////////////////////////////////////////
+
+// Optional: embed the official 7z.dll so the emulator does not depend on a
+// separately shipped file.  Put the DLL matching the build architecture into
+// src\win32\7zip\ and define SEVENZ_EMBED for the project.
+#ifdef SEVENZ_EMBED
+IDR_SEVENZ_DLL          RCDATA                  "7zip\\7z.dll"
+#endif
 
 
 

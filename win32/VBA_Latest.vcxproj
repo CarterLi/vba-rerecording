@@ -208,8 +208,7 @@
       <UndefinePreprocessorDefinitions>USE_GB_CORE_V7;USE_GBA_CORE_V7</UndefinePreprocessorDefinitions>
     </ClCompile>
     <Link>
-      <AdditionalOptions>/WHOLEARCHIVE:wlib7zip.lib %(AdditionalOptions)</AdditionalOptions>
-      <AdditionalDependencies>d3d9.lib;wsock32.lib;mpr.lib;ddraw.lib;dxguid.lib;winmm.lib;dinput8.lib;vfw32.lib;opengl32.lib;nafxcw.lib;libcmt.lib;lua51.lib;ole32.lib;version.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>d3d9.lib;wsock32.lib;mpr.lib;ddraw.lib;dxguid.lib;winmm.lib;dinput8.lib;vfw32.lib;opengl32.lib;nafxcw.lib;libcmt.lib;lua51.lib;ole32.lib;oleaut32.lib;uuid.lib;version.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <OutputFile>$(TargetPath)</OutputFile>
       <AdditionalLibraryDirectories>lib\x86;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <IgnoreSpecificDefaultLibraries>libci.lib;nafxcw.lib;libcmt.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
@@ -230,8 +229,9 @@
       <Command>defaultconfig\SubWCRev.bat</Command>
     </PreBuildEvent>
     <PostBuildEvent>
-      <Command>if not exist "$(OutDir)lua51.dll" copy /y "$(ProjectDir)lib\x86\lua51.dll" "$(OutDir)"</Command>
-      <Message>Copying the Lua engine next to the emulator</Message>
+      <Command>if not exist "$(OutDir)lua51.dll" copy /y "$(ProjectDir)lib\x86\lua51.dll" "$(OutDir)"
+copy /y "$(ProjectDir)lib\x86\7z.dll" "$(OutDir)"</Command>
+      <Message>Copying the Lua engine and the 7-Zip library next to the emulator</Message>
     </PostBuildEvent>
     <ResourceCompile>
       <PreprocessorDefinitions>NDEBUG;_AFXDLL;WIN32;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -260,8 +260,7 @@
       <UndefinePreprocessorDefinitions>USE_GB_CORE_V7;USE_GBA_CORE_V7</UndefinePreprocessorDefinitions>
     </ClCompile>
     <Link>
-      <AdditionalOptions>/WHOLEARCHIVE:wlib7zip.lib %(AdditionalOptions)</AdditionalOptions>
-      <AdditionalDependencies>d3d9.lib;wsock32.lib;mpr.lib;ddraw.lib;dxguid.lib;winmm.lib;dinput8.lib;vfw32.lib;opengl32.lib;nafxcw.lib;libcmt.lib;lua51.lib;ole32.lib;version.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>d3d9.lib;wsock32.lib;mpr.lib;ddraw.lib;dxguid.lib;winmm.lib;dinput8.lib;vfw32.lib;opengl32.lib;nafxcw.lib;libcmt.lib;lua51.lib;ole32.lib;oleaut32.lib;uuid.lib;version.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <OutputFile>$(TargetPath)</OutputFile>
       <AdditionalLibraryDirectories>lib\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <IgnoreSpecificDefaultLibraries>libci.lib;nafxcw.lib;libcmt.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
@@ -281,8 +280,9 @@
       <Command>defaultconfig\SubWCRev.bat</Command>
     </PreBuildEvent>
     <PostBuildEvent>
-      <Command>if not exist "$(OutDir)lua51.dll" copy /y "$(ProjectDir)lib\x64\lua51.dll" "$(OutDir)"</Command>
-      <Message>Copying the Lua engine next to the emulator</Message>
+      <Command>if not exist "$(OutDir)lua51.dll" copy /y "$(ProjectDir)lib\x64\lua51.dll" "$(OutDir)"
+copy /y "$(ProjectDir)lib\x64\7z.dll" "$(OutDir)"</Command>
+      <Message>Copying the Lua engine and the 7-Zip library next to the emulator</Message>
     </PostBuildEvent>
     <ResourceCompile>
       <PreprocessorDefinitions>NDEBUG;_AFXDLL;WIN32;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -312,8 +312,7 @@
       <EnableFiberSafeOptimizations>true</EnableFiberSafeOptimizations>
     </ClCompile>
     <Link>
-      <AdditionalOptions>/WHOLEARCHIVE:wlib7zip.lib %(AdditionalOptions)</AdditionalOptions>
-      <AdditionalDependencies>d3d9.lib;wsock32.lib;mpr.lib;ddraw.lib;dxguid.lib;winmm.lib;dinput8.lib;vfw32.lib;opengl32.lib;nafxcw.lib;libcmt.lib;lua51.lib;ole32.lib;version.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>d3d9.lib;wsock32.lib;mpr.lib;ddraw.lib;dxguid.lib;winmm.lib;dinput8.lib;vfw32.lib;opengl32.lib;nafxcw.lib;libcmt.lib;lua51.lib;ole32.lib;oleaut32.lib;uuid.lib;version.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <OutputFile>$(OutDir)$(ProjectName)_release.exe</OutputFile>
       <AdditionalLibraryDirectories>lib\x86;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <IgnoreSpecificDefaultLibraries>libci.lib;nafxcw.lib;libcmt.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
@@ -333,8 +332,9 @@
       <Command>defaultconfig\SubWCRev.bat</Command>
     </PreBuildEvent>
     <PostBuildEvent>
-      <Command>if not exist "$(OutDir)lua51.dll" copy /y "$(ProjectDir)lib\x86\lua51.dll" "$(OutDir)"</Command>
-      <Message>Copying the Lua engine next to the emulator</Message>
+      <Command>if not exist "$(OutDir)lua51.dll" copy /y "$(ProjectDir)lib\x86\lua51.dll" "$(OutDir)"
+copy /y "$(ProjectDir)lib\x86\7z.dll" "$(OutDir)"</Command>
+      <Message>Copying the Lua engine and the 7-Zip library next to the emulator</Message>
     </PostBuildEvent>
     <ResourceCompile>
       <PreprocessorDefinitions>NDEBUG;_AFXDLL;WIN32;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -363,8 +363,7 @@
       <EnableFiberSafeOptimizations>true</EnableFiberSafeOptimizations>
     </ClCompile>
     <Link>
-      <AdditionalOptions>/WHOLEARCHIVE:wlib7zip.lib %(AdditionalOptions)</AdditionalOptions>
-      <AdditionalDependencies>d3d9.lib;wsock32.lib;mpr.lib;ddraw.lib;dxguid.lib;winmm.lib;dinput8.lib;vfw32.lib;opengl32.lib;nafxcw.lib;libcmt.lib;lua51.lib;ole32.lib;version.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>d3d9.lib;wsock32.lib;mpr.lib;ddraw.lib;dxguid.lib;winmm.lib;dinput8.lib;vfw32.lib;opengl32.lib;nafxcw.lib;libcmt.lib;lua51.lib;ole32.lib;oleaut32.lib;uuid.lib;version.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <OutputFile>$(OutDir)$(ProjectName)_release.exe</OutputFile>
       <AdditionalLibraryDirectories>lib\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <IgnoreSpecificDefaultLibraries>libci.lib;nafxcw.lib;libcmt.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
@@ -383,8 +382,9 @@
       <Command>defaultconfig\SubWCRev.bat</Command>
     </PreBuildEvent>
     <PostBuildEvent>
-      <Command>if not exist "$(OutDir)lua51.dll" copy /y "$(ProjectDir)lib\x64\lua51.dll" "$(OutDir)"</Command>
-      <Message>Copying the Lua engine next to the emulator</Message>
+      <Command>if not exist "$(OutDir)lua51.dll" copy /y "$(ProjectDir)lib\x64\lua51.dll" "$(OutDir)"
+copy /y "$(ProjectDir)lib\x64\7z.dll" "$(OutDir)"</Command>
+      <Message>Copying the Lua engine and the 7-Zip library next to the emulator</Message>
     </PostBuildEvent>
     <ResourceCompile>
       <PreprocessorDefinitions>NDEBUG;_AFXDLL;WIN32;%(PreprocessorDefinitions)</PreprocessorDefinitions>
@@ -408,8 +408,7 @@
       <UndefinePreprocessorDefinitions>USE_GB_CORE_V7;USE_GBA_CORE_V7</UndefinePreprocessorDefinitions>
     </ClCompile>
     <Link>
-      <AdditionalOptions>/WHOLEARCHIVE:wlib7zip.lib %(AdditionalOptions)</AdditionalOptions>
-      <AdditionalDependencies>d3d9.lib;wsock32.lib;mpr.lib;ddraw.lib;dxguid.lib;winmm.lib;dinput8.lib;vfw32.lib;opengl32.lib;nafxcwd.lib;libcmtd.lib;lua51.lib;ole32.lib;version.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>d3d9.lib;wsock32.lib;mpr.lib;ddraw.lib;dxguid.lib;winmm.lib;dinput8.lib;vfw32.lib;opengl32.lib;nafxcwd.lib;libcmtd.lib;lua51.lib;ole32.lib;oleaut32.lib;uuid.lib;version.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <OutputFile>$(TargetPath)</OutputFile>
       <AdditionalLibraryDirectories>lib\x86;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <IgnoreSpecificDefaultLibraries>libci.lib;nafxcwd.lib;libcmtd.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
@@ -434,8 +433,9 @@
     </ResourceCompile>
     <PreBuildEvent />
     <PostBuildEvent>
-      <Command>if not exist "$(OutDir)lua51.dll" copy /y "$(ProjectDir)lib\x86\lua51.dll" "$(OutDir)"</Command>
-      <Message>Copying the Lua engine next to the emulator</Message>
+      <Command>if not exist "$(OutDir)lua51.dll" copy /y "$(ProjectDir)lib\x86\lua51.dll" "$(OutDir)"
+copy /y "$(ProjectDir)lib\x86\7z.dll" "$(OutDir)"</Command>
+      <Message>Copying the Lua engine and the 7-Zip library next to the emulator</Message>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='V82XD|x64'">
@@ -455,8 +455,7 @@
       <UndefinePreprocessorDefinitions>USE_GB_CORE_V7;USE_GBA_CORE_V7</UndefinePreprocessorDefinitions>
     </ClCompile>
     <Link>
-      <AdditionalOptions>/WHOLEARCHIVE:wlib7zip.lib %(AdditionalOptions)</AdditionalOptions>
-      <AdditionalDependencies>d3d9.lib;wsock32.lib;mpr.lib;ddraw.lib;dxguid.lib;winmm.lib;dinput8.lib;vfw32.lib;opengl32.lib;nafxcwd.lib;libcmtd.lib;lua51.lib;ole32.lib;version.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>d3d9.lib;wsock32.lib;mpr.lib;ddraw.lib;dxguid.lib;winmm.lib;dinput8.lib;vfw32.lib;opengl32.lib;nafxcwd.lib;libcmtd.lib;lua51.lib;ole32.lib;oleaut32.lib;uuid.lib;version.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <OutputFile>$(TargetPath)</OutputFile>
       <AdditionalLibraryDirectories>lib\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <IgnoreSpecificDefaultLibraries>libci.lib;nafxcwd.lib;libcmtd.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
@@ -480,8 +479,9 @@
     </ResourceCompile>
     <PreBuildEvent />
     <PostBuildEvent>
-      <Command>if not exist "$(OutDir)lua51.dll" copy /y "$(ProjectDir)lib\x64\lua51.dll" "$(OutDir)"</Command>
-      <Message>Copying the Lua engine next to the emulator</Message>
+      <Command>if not exist "$(OutDir)lua51.dll" copy /y "$(ProjectDir)lib\x64\lua51.dll" "$(OutDir)"
+copy /y "$(ProjectDir)lib\x64\7z.dll" "$(OutDir)"</Command>
+      <Message>Copying the Lua engine and the 7-Zip library next to the emulator</Message>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='V72XD|Win32'">
@@ -500,8 +500,7 @@
       <Optimization>Disabled</Optimization>
     </ClCompile>
     <Link>
-      <AdditionalOptions>/WHOLEARCHIVE:wlib7zip.lib %(AdditionalOptions)</AdditionalOptions>
-      <AdditionalDependencies>d3d9.lib;wsock32.lib;mpr.lib;ddraw.lib;dxguid.lib;winmm.lib;dinput8.lib;vfw32.lib;opengl32.lib;nafxcwd.lib;libcmtd.lib;lua51.lib;ole32.lib;version.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>d3d9.lib;wsock32.lib;mpr.lib;ddraw.lib;dxguid.lib;winmm.lib;dinput8.lib;vfw32.lib;opengl32.lib;nafxcwd.lib;libcmtd.lib;lua51.lib;ole32.lib;oleaut32.lib;uuid.lib;version.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <OutputFile>$(TargetPath)</OutputFile>
       <AdditionalLibraryDirectories>lib\x86;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <IgnoreSpecificDefaultLibraries>libci.lib;nafxcwd.lib;libcmtd.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
@@ -525,8 +524,9 @@
     </ResourceCompile>
     <PreBuildEvent />
     <PostBuildEvent>
-      <Command>if not exist "$(OutDir)lua51.dll" copy /y "$(ProjectDir)lib\x86\lua51.dll" "$(OutDir)"</Command>
-      <Message>Copying the Lua engine next to the emulator</Message>
+      <Command>if not exist "$(OutDir)lua51.dll" copy /y "$(ProjectDir)lib\x86\lua51.dll" "$(OutDir)"
+copy /y "$(ProjectDir)lib\x86\7z.dll" "$(OutDir)"</Command>
+      <Message>Copying the Lua engine and the 7-Zip library next to the emulator</Message>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='V72XD|x64'">
@@ -545,8 +545,7 @@
       <Optimization>Disabled</Optimization>
     </ClCompile>
     <Link>
-      <AdditionalOptions>/WHOLEARCHIVE:wlib7zip.lib %(AdditionalOptions)</AdditionalOptions>
-      <AdditionalDependencies>d3d9.lib;wsock32.lib;mpr.lib;ddraw.lib;dxguid.lib;winmm.lib;dinput8.lib;vfw32.lib;opengl32.lib;nafxcwd.lib;libcmtd.lib;lua51.lib;ole32.lib;version.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>d3d9.lib;wsock32.lib;mpr.lib;ddraw.lib;dxguid.lib;winmm.lib;dinput8.lib;vfw32.lib;opengl32.lib;nafxcwd.lib;libcmtd.lib;lua51.lib;ole32.lib;oleaut32.lib;uuid.lib;version.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <OutputFile>$(TargetPath)</OutputFile>
       <AdditionalLibraryDirectories>lib\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <IgnoreSpecificDefaultLibraries>libci.lib;nafxcwd.lib;libcmtd.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
@@ -569,8 +568,9 @@
     </ResourceCompile>
     <PreBuildEvent />
     <PostBuildEvent>
-      <Command>if not exist "$(OutDir)lua51.dll" copy /y "$(ProjectDir)lib\x64\lua51.dll" "$(OutDir)"</Command>
-      <Message>Copying the Lua engine next to the emulator</Message>
+      <Command>if not exist "$(OutDir)lua51.dll" copy /y "$(ProjectDir)lib\x64\lua51.dll" "$(OutDir)"
+copy /y "$(ProjectDir)lib\x64\7z.dll" "$(OutDir)"</Command>
+      <Message>Copying the Lua engine and the 7-Zip library next to the emulator</Message>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='V72XR|Win32'">
@@ -594,8 +594,7 @@
     <Link>
       <OutputFile>$(TargetPath)</OutputFile>
       <AdditionalLibraryDirectories>lib\x86;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalOptions>/WHOLEARCHIVE:wlib7zip.lib %(AdditionalOptions)</AdditionalOptions>
-      <AdditionalDependencies>d3d9.lib;wsock32.lib;mpr.lib;ddraw.lib;dxguid.lib;winmm.lib;dinput8.lib;vfw32.lib;opengl32.lib;nafxcw.lib;libcmt.lib;lua51.lib;ole32.lib;version.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>d3d9.lib;wsock32.lib;mpr.lib;ddraw.lib;dxguid.lib;winmm.lib;dinput8.lib;vfw32.lib;opengl32.lib;nafxcw.lib;libcmt.lib;lua51.lib;ole32.lib;oleaut32.lib;uuid.lib;version.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <IgnoreSpecificDefaultLibraries>libci.lib;nafxcw.lib;libcmt.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
       <SubSystem>Windows</SubSystem>
       <OptimizeReferences>true</OptimizeReferences>
@@ -610,8 +609,9 @@
       <Command>defaultconfig\SubWCRev.bat</Command>
     </PreBuildEvent>
     <PostBuildEvent>
-      <Command>if not exist "$(OutDir)lua51.dll" copy /y "$(ProjectDir)lib\x86\lua51.dll" "$(OutDir)"</Command>
-      <Message>Copying the Lua engine next to the emulator</Message>
+      <Command>if not exist "$(OutDir)lua51.dll" copy /y "$(ProjectDir)lib\x86\lua51.dll" "$(OutDir)"
+copy /y "$(ProjectDir)lib\x86\7z.dll" "$(OutDir)"</Command>
+      <Message>Copying the Lua engine and the 7-Zip library next to the emulator</Message>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='V72XR|x64'">
@@ -635,8 +635,7 @@
     <Link>
       <OutputFile>$(TargetPath)</OutputFile>
       <AdditionalLibraryDirectories>lib\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalOptions>/WHOLEARCHIVE:wlib7zip.lib %(AdditionalOptions)</AdditionalOptions>
-      <AdditionalDependencies>d3d9.lib;wsock32.lib;mpr.lib;ddraw.lib;dxguid.lib;winmm.lib;dinput8.lib;vfw32.lib;opengl32.lib;nafxcw.lib;libcmt.lib;lua51.lib;ole32.lib;version.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>d3d9.lib;wsock32.lib;mpr.lib;ddraw.lib;dxguid.lib;winmm.lib;dinput8.lib;vfw32.lib;opengl32.lib;nafxcw.lib;libcmt.lib;lua51.lib;ole32.lib;oleaut32.lib;uuid.lib;version.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <IgnoreSpecificDefaultLibraries>libci.lib;nafxcw.lib;libcmt.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
       <SubSystem>Windows</SubSystem>
       <OptimizeReferences>true</OptimizeReferences>
@@ -651,8 +650,9 @@
       <Command>defaultconfig\SubWCRev.bat</Command>
     </PreBuildEvent>
     <PostBuildEvent>
-      <Command>if not exist "$(OutDir)lua51.dll" copy /y "$(ProjectDir)lib\x64\lua51.dll" "$(OutDir)"</Command>
-      <Message>Copying the Lua engine next to the emulator</Message>
+      <Command>if not exist "$(OutDir)lua51.dll" copy /y "$(ProjectDir)lib\x64\lua51.dll" "$(OutDir)"
+copy /y "$(ProjectDir)lib\x64\7z.dll" "$(OutDir)"</Command>
+      <Message>Copying the Lua engine and the 7-Zip library next to the emulator</Message>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <!-- The machine type follows the platform, so adding a configuration in the
@@ -682,7 +682,7 @@
     <ClCompile Include="..\src\common\System.cpp" />
     <ClCompile Include="..\src\common\SystemGlobals.cpp" />
     <ClCompile Include="..\src\common\Text.cpp" />
-    <ClCompile Include="..\src\common\unzip.cpp" />
+    <ClCompile Include="..\src\common\ziparchive.cpp" />
     <ClCompile Include="..\src\common\Util.cpp" />
     <ClCompile Include="..\src\gba\agbprint.cpp" />
     <ClCompile Include="..\src\gba\armdis.cpp" />
@@ -859,6 +859,7 @@
     <ClCompile Include="..\src\win32\VBA.cpp" />
     <ClCompile Include="..\src\win32\WavWriter.cpp" />
     <ClCompile Include="..\src\win32\WinResUtil.cpp" />
+    <ClCompile Include="..\src\win32\7zip\7zapi.cpp" />
     <ClCompile Include="..\src\win32\7zip\7zip.cpp" />
     <ClCompile Include="..\src\win32\7zip\OpenArchive.cpp" />
   </ItemGroup>
@@ -881,7 +882,7 @@
     <ClInclude Include="..\src\Port.h" />
     <ClInclude Include="..\src\common\System.h" />
     <ClInclude Include="..\src\common\Text.h" />
-    <ClInclude Include="..\src\common\unzip.h" />
+    <ClInclude Include="..\src\common\ziparchive.h" />
     <ClInclude Include="..\src\common\Util.h" />
     <ClInclude Include="..\src\common\vbalua.h" />
     <ClInclude Include="..\src\version.h" />
@@ -993,6 +994,7 @@
     <ClInclude Include="..\src\win32\WinHelper.h" />
     <ClInclude Include="..\src\win32\WinMiscUtil.h" />
     <ClInclude Include="..\src\win32\WinResUtil.h" />
+    <ClInclude Include="..\src\win32\7zip\7zapi.h" />
     <ClInclude Include="..\src\win32\7zip\7zip.h" />
     <ClInclude Include="..\src\win32\7zip\7zipstreams.h" />
     <ClInclude Include="..\src\win32\7zip\OpenArchive.h" />
@@ -1001,14 +1003,7 @@
     <ClInclude Include="..\src\win32\upscalers\UpscalerFsr.h" />
   </ItemGroup>
   <ItemGroup>
-    <ResourceCompile Include="..\src\win32\7zip\7zip.rc" />
     <ResourceCompile Include="..\src\win32\VBA.rc" />
-  </ItemGroup>
-  <ItemGroup>
-    <ProjectReference Include="..\src\win32\7zip\7z\7zip_2010.vcxproj">
-      <Project>{5646c572-a578-49f8-9da9-3e00a8cbfe3f}</Project>
-      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
-    </ProjectReference>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

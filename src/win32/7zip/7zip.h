@@ -8,9 +8,12 @@
 void InitDecoder();
 void CleanupDecoder();
 const char* GetSupportedFormatsFilter();
+bool IsArchiveSupportAvailable();
 
 // simplest way of extracting a file after calling InitDecoder():
 // int size = ArchiveFile(filename).ExtractItem(0, buf, sizeof(buf));
+
+class ZipArchive;
 
 struct ArchiveFile
 {
@@ -26,6 +29,9 @@ struct ArchiveFile
 	bool IsCompressed();
 	const char* GetArchiveTypeName();
 	const char* GetArchiveFileName() { return m_displayFilename ? m_displayFilename : m_filename; }
+	// True when the name looks like an archive but archive support is not
+	// available, so the caller can report that instead of loading the raw file.
+	bool IsUnsupportedArchive() const { return m_unsupportedArchive; }
 
 	bool m_userMadeSelection;
 
@@ -38,6 +44,8 @@ protected:
 	ArchiveItem* m_items;
 	int m_numItems;
 	int m_typeIndex;
+	bool m_unsupportedArchive;
+	ZipArchive* m_zip; // built-in ZIP reader, used when 7z.dll is unavailable
 	char* m_filename;
 	char* m_displayFilename;
 };

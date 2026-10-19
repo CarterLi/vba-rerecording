@@ -5,14 +5,12 @@
 
 #include <string>
 #include <vector>
-#include <cassert>
 #include <malloc.h>
 
 #include "7zipstreams.h" // defines OutStream and InFileStream
+#include "../../common/ziparchive.h" // built-in ZIP reader used when 7z.dll is missing
 
-STDAPI GetNumberOfFormats(UINT32 *numFormats);
-STDAPI GetHandlerProperty2(UInt32 formatIndex, PROPID propID, PROPVARIANT *value);
-STDAPI CreateObject(const GUID *clsid, const GUID *iid, void **outObject);
+#include "7zapi.h" // loads 7z.dll and forwards its exported functions
 
 struct ArchiveFormatInfo
 {
@@ -66,7 +64,6 @@ static std::vector<std::string> tokenize(const std::string & str, const std::str
 static std::string s_supportedFormatsFilter;
 const char* GetSupportedFormatsFilter()
 {
-	assert(!s_formatInfos.empty());
 	if(s_supportedFormatsFilter.empty())
 	{
 		s_supportedFormatsFilter = "";
@@ -85,6 +82,9 @@ const char* GetSupportedFormatsFilter()
 void InitDecoder()
 {
 	CleanupDecoder();
+
+	if(!SevenZipLoad())
+		return; // archive support unavailable; ArchiveFile() degrades to plain files
 
 	UINT32 numFormats = 0;
 	GetNumberOfFormats(&numFormats);
@@ -122,19 +122,94 @@ void CleanupDecoder()
 {
 	s_formatInfos.clear();
 	s_supportedFormatsFilter.clear();
+	SevenZipUnload();
+}
+
+bool IsArchiveSupportAvailable()
+{
+	return SevenZipIsLoaded();
+}
+
+// Extensions that must never be handed to the ROM loaders as raw data when
+// archive support is missing.  With 7z.dll available, detection uses format
+// signatures instead and this list is not consulted.
+static bool LooksLikeArchive(const char* filename)
+{
+	static const char* extensions[] = {
+		"7z", "rar", "r00", "lzma", "bz2", "bzip2", "tar", "gz", "z", "xz",
+		"cab", "iso"
+	};
+
+	const char* ext = strrchr(filename, '.');
+	if(!ext++)
+		return false;
+
+	for(size_t i = 0; i < sizeof(extensions) / sizeof(*extensions); i++)
+	{
+		if(!_stricmp(ext, extensions[i]))
+			return true;
+	}
+	return false;
 }
 
 
 ArchiveFile::ArchiveFile(const char* filename, const char* displayFilename)
 {
-	assert(!s_formatInfos.empty());
-
 	m_typeIndex = -1;
 	m_numItems = 0;
 	m_items = NULL;
 	m_filename = NULL;
 	m_displayFilename = NULL;
 	m_userMadeSelection = false;
+	m_unsupportedArchive = false;
+	m_zip = NULL;
+
+	if(!SevenZipIsLoaded())
+	{
+		// No 7z.dll: fall back to the built-in ZIP reader for .zip files.
+		const char* ext = strrchr(filename, '.');
+		if(ext && !_stricmp(ext, ".zip"))
+		{
+			m_zip = new ZipArchive(filename);
+			if(!m_zip->IsValid())
+			{
+				delete m_zip;
+				m_zip = NULL;
+				m_unsupportedArchive = true;
+				return;
+			}
+
+			m_numItems = m_zip->GetEntryCount();
+			m_items = new ArchiveItem[m_numItems];
+
+			for(int i = 0; i < m_numItems; i++)
+			{
+				ZipEntryInfo info;
+				m_zip->GetEntryInfo(i, &info);
+
+				m_items[i].size = info.uncompressedSize > 0x7FFFFFFFu
+				                ? 0 : (int)info.uncompressedSize;
+				m_items[i].name = new char[strlen(info.name) + 1];
+				strcpy(m_items[i].name, info.name);
+			}
+
+			m_filename = new char[strlen(filename)+1];
+			strcpy(m_filename, filename);
+
+			if(displayFilename)
+			{
+				m_displayFilename = new char[strlen(displayFilename)+1];
+				strcpy(m_displayFilename, displayFilename);
+			}
+			return;
+		}
+
+		if(LooksLikeArchive(filename))
+		{
+			m_unsupportedArchive = true;
+			return;
+		}
+	}
 
 	FILE* file = fopen(filename, "rb");
 	if(!file)
@@ -224,7 +299,7 @@ ArchiveFile::ArchiveFile(const char* filename, const char* displayFilename)
 					item.size = var.uhVal.LowPart;
 
 					object->GetProperty(i, kpidPath, &var);
-					std::string& path = wstrToStr(var.bstrVal);
+					const std::string path = wstrToStr(var.bstrVal);
 					item.name = new char[path.size()+1];
 					strcpy(item.name, path.c_str());
 
@@ -234,13 +309,8 @@ ArchiveFile::ArchiveFile(const char* filename, const char* displayFilename)
 					//strcpy(item.method, method.c_str());
 
 					object->GetProperty(i, kpidEncrypted, &var);
-#ifdef _NO_CRYPTO
 					if(var.boolVal)
-						item.size = 0; // don't support decompressing it, pretend size zero
-#else
-					#error password support NYI... see client7z.cpp
-					item.encrypted = !!var.boolVal;
-#endif
+						item.size = 0; // encrypted entries cannot be extracted, hide them
 
 					VariantClear((VARIANTARG*)&var);
 				}
@@ -262,13 +332,15 @@ ArchiveFile::~ArchiveFile()
 		delete[] m_items[i].name;
 	}
 	delete[] m_items;
+	delete m_zip;
 	delete[] m_filename;
 	delete[] m_displayFilename;
 }
 
 const char* ArchiveFile::GetArchiveTypeName()
 {
-	assert(!s_formatInfos.empty());
+	if(m_zip)
+		return "Zip";
 
 	if((size_t)m_typeIndex >= s_formatInfos.size())
 		return "";
@@ -283,7 +355,6 @@ int ArchiveFile::GetNumItems()
 
 int ArchiveFile::GetItemSize(int item)
 {
-	assert(item >= 0 && item < m_numItems);
 	if(!(item >= 0 && item < m_numItems)) return 0;
 	return m_items[item].size;
 }
@@ -297,12 +368,11 @@ const char* ArchiveFile::GetItemName(int item)
 
 bool ArchiveFile::IsCompressed()
 {
-	return (m_typeIndex >= 0);
+	return (m_typeIndex >= 0) || (m_zip != NULL);
 }
 
 int ArchiveFile::ExtractItem(int index, unsigned char* outBuffer, int bufSize) const
 {
-	assert(!s_formatInfos.empty());
 	//assert(index >= 0 && index < m_numItems);
 	if(!(index >= 0 && index < m_numItems)) return 0;
 
@@ -310,6 +380,9 @@ int ArchiveFile::ExtractItem(int index, unsigned char* outBuffer, int bufSize) c
 
 	if(bufSize < item.size)
 		return 0;
+
+	if(m_zip)
+		return m_zip->ExtractEntry(index, outBuffer, (unsigned int)item.size);
 
 	if(m_typeIndex < 0)
 	{
@@ -345,7 +418,6 @@ int ArchiveFile::ExtractItem(int index, unsigned char* outBuffer, int bufSize) c
 
 int ArchiveFile::ExtractItem(int index, const char* outFilename) const
 {
-	assert(!s_formatInfos.empty());
 	//assert(index >= 0 && index < m_numItems);
 	if(!(index >= 0 && index < m_numItems)) return 0;
 
@@ -353,10 +425,36 @@ int ArchiveFile::ExtractItem(int index, const char* outFilename) const
 	int rv = item.size;
 
 	DWORD outAttributes = GetFileAttributes(outFilename);
-	if(outAttributes & FILE_ATTRIBUTE_READONLY)
+	// INVALID_FILE_ATTRIBUTES is all ones, so testing the bit alone would
+	// wrongly mark a freshly created file read-only afterwards.
+	bool restoreReadOnly = outAttributes != INVALID_FILE_ATTRIBUTES &&
+	                       (outAttributes & FILE_ATTRIBUTE_READONLY) != 0;
+	if(restoreReadOnly)
 		SetFileAttributes(outFilename, outAttributes & ~FILE_ATTRIBUTE_READONLY); // temporarily remove read-only attribute so we can decompress to there
 
-	if(m_typeIndex < 0)
+	if(m_zip)
+	{
+		unsigned char* buffer = (unsigned char*)malloc(item.size);
+		if(!buffer)
+			rv = 0;
+		else
+		{
+			int got = m_zip->ExtractEntry(index, buffer, (unsigned int)item.size);
+			if(got == item.size)
+			{
+				FILE* file = fopen(outFilename, "wb");
+				if(!file || fwrite(buffer, 1, item.size, file) != (size_t)item.size)
+					rv = 0;
+				if(file)
+					fclose(file);
+			}
+			else
+				rv = 0;
+
+			free(buffer);
+		}
+	}
+	else if(m_typeIndex < 0)
 	{
 		// uncompressed
 		if(!CopyFile(m_filename, outFilename, false))
@@ -382,7 +480,7 @@ int ArchiveFile::ExtractItem(int index, const char* outFilename) const
 			rv = 0;
 	}
 
-	if(outAttributes & FILE_ATTRIBUTE_READONLY)
+	if(restoreReadOnly)
 		SetFileAttributes(outFilename, outAttributes); // restore read-only attribute
 
 	return rv;
