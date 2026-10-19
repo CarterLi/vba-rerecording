@@ -1,16 +1,14 @@
 ﻿#include "stdafx.h"
 
 #pragma comment( lib, "d3d9" )
-#pragma comment( lib, "d3dx9" )
-#pragma comment( lib, "DxErr" )
 
-#include "d3d9.h"
-#include "d3dx9.h"
+#include <d3d9.h>
 
 #include "resource.h"
 #include "MainWnd.h"
 #include "Reg.h"
 #include "VBA.h"
+#include "TextOverlay.h"
 
 //#include "../common/System.h"
 #include "../common/SystemGlobals.h"
@@ -37,17 +35,20 @@ typedef struct _D3DTLVERTEX
 	float    tu; /* Texture coordinates */
 	float    tv;
 	_D3DTLVERTEX() { }
-	_D3DTLVERTEX(const D3DVECTOR& v, float _rhw,
+	_D3DTLVERTEX(float _x, float _y, float _z, float _rhw,
 	             D3DCOLOR _color,
 	             float _tu, float _tv)
 	{
-		sx    = v.x; sy = v.y; sz = v.z; rhw = _rhw;
+		sx    = _x; sy = _y; sz = _z; rhw = _rhw;
 		color = _color;
 		tu    = _tu; tv = _tv;
 	}
 } D3DTLVERTEX, *LPD3DTLVERTEX;
 
 #define D3DFVF_TLVERTEX D3DFVF_XYZRHW|D3DFVF_DIFFUSE|D3DFVF_TEX1
+
+typedef HRESULT (WINAPI *PFN_Direct3DCreate9Ex)(UINT SDKVersion, IDirect3D9Ex * *ppD3D);
+typedef IDirect3D9 *(WINAPI *PFN_Direct3DCreate9)(UINT SDKVersion);
 
 class Direct3DDisplay : public IDisplay
 {
@@ -70,36 +71,41 @@ public:
 private:
 	HINSTANCE             d3dDLL;
 	LPDIRECT3D9           pD3D;
+	LPDIRECT3D9EX         pD3DEx;
 	LPDIRECT3DDEVICE9     pDevice;
+	LPDIRECT3DDEVICE9EX   pDeviceEx;
 	LPDIRECT3DTEXTURE9    pTexture;
+	LPDIRECT3DTEXTURE9    pOverlayTexture;
 	D3DSURFACE_DESC       dsdBackBuffer;
 	D3DPRESENT_PARAMETERS dpp;
 	D3DFORMAT             screenFormat;
 	int  width;
 	int  height;
 	bool filterDisabled;
-	ID3DXFont *pFont;
-	ID3DXSprite *pFontSprite;
 	bool       failed;
 	unsigned int textureSize;
 	D3DTLVERTEX verts[4];
-
+	TextOverlay overlay;
 
 	void restoreDeviceObjects();
 	void invalidateDeviceObjects();
+	void releaseTextures();
 	bool initializeOffscreen(int w, int h);
 	void updateFiltering(int);
 	void calculateVertices();
+	void present();
+	void drawTextOverlay();
 };
 
 Direct3DDisplay::Direct3DDisplay()
 {
 	d3dDLL         = NULL;
 	pD3D           = NULL;
+	pD3DEx         = NULL;
 	pDevice        = NULL;
+	pDeviceEx      = NULL;
 	pTexture       = NULL;
-	pFont          = NULL;
-	pFontSprite    = NULL;
+	pOverlayTexture = NULL;
 	screenFormat   = D3DFMT_R5G6B5;
 	width          = 0;
 	height         = 0;
@@ -115,39 +121,50 @@ Direct3DDisplay::~Direct3DDisplay()
 
 void Direct3DDisplay::cleanup()
 {
-	if (pD3D != NULL)
+	overlay.destroy();
+
+	if (pOverlayTexture)
 	{
-		if (pFont)
-		{
-			pFont->Release();
-			pFont = NULL;
-		}
-		if (pFontSprite)
-		{
-			pFontSprite->Release();
-			pFontSprite = NULL;
-		}
+		pOverlayTexture->Release();
+		pOverlayTexture = NULL;
+	}
 
-		if (pTexture)
-		{
-			pTexture->Release();
-			pTexture = NULL;
-		}
+	if (pTexture)
+	{
+		pTexture->Release();
+		pTexture = NULL;
+	}
 
-		if (pDevice)
-		{
-			pDevice->Release();
-			pDevice = NULL;
-		}
+	// pDevice / pDeviceEx and pD3D / pD3DEx may point at the same object, so
+	// only one Release() per object is issued here.
+	if (pDeviceEx)
+	{
+		pDeviceEx->Release();
+		pDeviceEx = NULL;
+		pDevice   = NULL;
+	}
+	else if (pDevice)
+	{
+		pDevice->Release();
+		pDevice = NULL;
+	}
 
+	if (pD3DEx)
+	{
+		pD3DEx->Release();
+		pD3DEx = NULL;
+		pD3D   = NULL;
+	}
+	else if (pD3D)
+	{
 		pD3D->Release();
 		pD3D = NULL;
+	}
 
-		if (d3dDLL != NULL)
-		{
-			FreeLibrary(d3dDLL);
-			d3dDLL = NULL;
-		}
+	if (d3dDLL != NULL)
+	{
+		FreeLibrary(d3dDLL);
+		d3dDLL = NULL;
 	}
 }
 
@@ -162,12 +179,32 @@ bool Direct3DDisplay::initialize()
 		return FALSE;
 	}
 
-	pD3D = Direct3DCreate9(D3D_SDK_VERSION);
+	// Prefer Direct3D 9Ex (Vista and later); fall back to plain 9.0c.
+	PFN_Direct3DCreate9Ex create9Ex =
+	    (PFN_Direct3DCreate9Ex)GetProcAddress(d3dDLL, "Direct3DCreate9Ex");
+	if (create9Ex != NULL)
+		create9Ex(D3D_SDK_VERSION, &pD3DEx);
 
-	if (pD3D == NULL)
+	if (pD3DEx != NULL)
 	{
-		winlog("Error creating Direct3D object\n");
-		return FALSE;
+		pD3D = pD3DEx;
+		winlog("Direct3D 9Ex device selected\n");
+	}
+	else
+	{
+		PFN_Direct3DCreate9 create9 =
+		    (PFN_Direct3DCreate9)GetProcAddress(d3dDLL, "Direct3DCreate9");
+		if (create9 == NULL)
+		{
+			winlog("Error creating Direct3D object\n");
+			return FALSE;
+		}
+		pD3D = create9(D3D_SDK_VERSION);
+		if (pD3D == NULL)
+		{
+			winlog("Error creating Direct3D object\n");
+			return FALSE;
+		}
 	}
 
 	theApp.mode320Available = false;
@@ -230,13 +267,29 @@ bool Direct3DDisplay::initialize()
 	dpp.BackBufferWidth  = theApp.surfaceSizeX;
 	dpp.BackBufferHeight = theApp.surfaceSizeY;
 
-	HRESULT hret = pD3D->CreateDevice(D3DADAPTER_DEFAULT,
-	                                  D3DDEVTYPE_HAL,
-	                                  pWnd->GetSafeHwnd(),
-	                                  D3DCREATE_SOFTWARE_VERTEXPROCESSING | D3DCREATE_FPU_PRESERVE,
-	                                  &dpp,
-	                                  &pDevice);
-	if (!SUCCEEDED(hret))
+	HRESULT hret;
+	if (pD3DEx != NULL)
+	{
+		hret = pD3DEx->CreateDeviceEx(D3DADAPTER_DEFAULT,
+		                              D3DDEVTYPE_HAL,
+		                              pWnd->GetSafeHwnd(),
+		                              D3DCREATE_SOFTWARE_VERTEXPROCESSING | D3DCREATE_FPU_PRESERVE,
+		                              &dpp,
+		                              NULL,
+		                              &pDeviceEx);
+		if (SUCCEEDED(hret))
+			pDevice = pDeviceEx;
+	}
+	else
+	{
+		hret = pD3D->CreateDevice(D3DADAPTER_DEFAULT,
+		                          D3DDEVTYPE_HAL,
+		                          pWnd->GetSafeHwnd(),
+		                          D3DCREATE_SOFTWARE_VERTEXPROCESSING | D3DCREATE_FPU_PRESERVE,
+		                          &dpp,
+		                          &pDevice);
+	}
+	if (!SUCCEEDED(hret) || pDevice == NULL)
 	{
 		winlog("Error creating Direct3DDevice %08x\n", hret);
 		return false;
@@ -280,6 +333,20 @@ bool Direct3DDisplay::initialize()
 	return TRUE;
 }
 
+void Direct3DDisplay::releaseTextures()
+{
+	if (pOverlayTexture)
+	{
+		pOverlayTexture->Release();
+		pOverlayTexture = NULL;
+	}
+	if (pTexture)
+	{
+		pTexture->Release();
+		pTexture = NULL;
+	}
+}
+
 bool Direct3DDisplay::initializeOffscreen(int w, int h)
 {
 	int size = 256;
@@ -289,42 +356,42 @@ bool Direct3DDisplay::initializeOffscreen(int w, int h)
 		size = 512;
 	textureSize = size;
 
-	UINT      ww     = size;
-	UINT      hh     = size;
-	D3DFORMAT format = screenFormat;
+	D3DCAPS9 caps;
+	ZeroMemory(&caps, sizeof(caps));
+	pDevice->GetDeviceCaps(&caps);
 
-	if (SUCCEEDED(D3DXCheckTextureRequirements(pDevice,
-	                                           &ww,
-	                                           &hh,
-	                                           NULL,
-	                                           0,
-	                                           &format,
-	                                           D3DPOOL_MANAGED)))
+	int maxSize = (int)caps.MaxTextureWidth;
+	if ((int)caps.MaxTextureHeight < maxSize)
+		maxSize = (int)caps.MaxTextureHeight;
+	if (maxSize > 0 && size > maxSize)
+		size = maxSize;
+	textureSize = size;
+
+	if (size < w || size < h)
 	{
-		if ((int)ww < w || (int)hh < h)
+		if (theApp.filterFunction)
 		{
-			if (theApp.filterFunction)
-			{
-				filterDisabled        = true;
-				theApp.filterFunction = NULL;
-				systemMessage(0, "3D card cannot support needed texture size for filter function. Disabling it");
-			}
+			filterDisabled        = true;
+			theApp.filterFunction = NULL;
+			systemMessage(0, "3D card cannot support needed texture size for filter function. Disabling it");
 		}
-		else
-			filterDisabled = false;
-		if (SUCCEEDED(D3DXCreateTexture(pDevice,
-		                                ww,
-		                                hh,
-		                                0,
-		                                0,
-		                                format,
-		                                D3DPOOL_MANAGED,
-		                                &pTexture)))
-		{
-			width  = w;
-			height = h;
-			return true;
-		}
+		return false;
+	}
+
+	// Direct3D 9Ex does not support the managed pool, so a dynamic default
+	// pool texture is used and fully rewritten every frame.
+	if (SUCCEEDED(pDevice->CreateTexture(size,
+	                                     size,
+	                                     1,
+	                                     D3DUSAGE_DYNAMIC,
+	                                     screenFormat,
+	                                     D3DPOOL_DEFAULT,
+	                                     &pTexture,
+	                                     NULL)))
+	{
+		width  = w;
+		height = h;
+		return true;
 	}
 	return false;
 }
@@ -376,33 +443,22 @@ void Direct3DDisplay::restoreDeviceObjects()
 	pDevice->SetRenderState(D3DRS_DITHERENABLE,   TRUE);
 	pDevice->SetRenderState(D3DRS_ZENABLE,        FALSE);
 
-	// Set the projection matrix
-	D3DXMATRIX matProj;
-	FLOAT      fAspect = ((FLOAT)dsdBackBuffer.Width) / dsdBackBuffer.Height;
-	D3DXMatrixPerspectiveFovLH(&matProj, D3DX_PI/4, fAspect, 1.0f, 100.0f);
-	pDevice->SetTransform(D3DTS_PROJECTION, &matProj);
-
 	// turn off lighting
 	pDevice->SetRenderState(D3DRS_LIGHTING, FALSE);
 
-	if (pFont)
+	// Text overlay texture, sized 1:1 with the back buffer.
+	if (pOverlayTexture == NULL && dpp.BackBufferWidth > 0 && dpp.BackBufferHeight > 0)
 	{
-		pFont->Release();
-		pFont = NULL;
+		pDevice->CreateTexture(dpp.BackBufferWidth,
+		                       dpp.BackBufferHeight,
+		                       1,
+		                       D3DUSAGE_DYNAMIC,
+		                       D3DFMT_A8R8G8B8,
+		                       D3DPOOL_DEFAULT,
+		                       &pOverlayTexture,
+		                       NULL);
+		overlay.create(dpp.BackBufferWidth, dpp.BackBufferHeight);
 	}
-	if (pFontSprite)
-	{
-		pFontSprite->Release();
-		pFontSprite = NULL;
-	}
-	// Create a D3D font using D3DX
-	D3DXCreateFont(pDevice, 14, 0, FW_BOLD, 0, FALSE, ANSI_CHARSET, OUT_DEFAULT_PRECIS, ANTIALIASED_QUALITY, DEFAULT_PITCH | FF_DONTCARE, TEXT("Arial"), &pFont);
-	if (pFont != NULL)
-	{
-		pFont->OnResetDevice();
-	}
-	// Create a font sprite
-	D3DXCreateSprite(pDevice, &pFontSprite);
 }
 
 void Direct3DDisplay::clear()
@@ -442,17 +498,68 @@ void Direct3DDisplay::calculateVertices()
 //#define D3D_DRAW_SINGLE_RECTANGLE
 #ifdef D3D_DRAW_SINGLE_RECTANGLE
 	// set up a rectangle
-	verts[0] = D3DTLVERTEX(D3DXVECTOR3(left,  top,    z), rhw, col, 0.0f,     0.0f);
-	verts[1] = D3DTLVERTEX(D3DXVECTOR3(right, top,    z), rhw, col, textureX, 0.0f);
-	verts[2] = D3DTLVERTEX(D3DXVECTOR3(right, bottom, z), rhw, col, textureX, textureY);
-	verts[3] = D3DTLVERTEX(D3DXVECTOR3(left,  bottom, z), rhw, col, 0.0f,     textureY);
+	verts[0] = D3DTLVERTEX(left,  top,    z, rhw, col, 0.0f,     0.0f);
+	verts[1] = D3DTLVERTEX(right, top,    z, rhw, col, textureX, 0.0f);
+	verts[2] = D3DTLVERTEX(right, bottom, z, rhw, col, textureX, textureY);
+	verts[3] = D3DTLVERTEX(left,  bottom, z, rhw, col, 0.0f,     textureY);
 #else
 	// set up triangles
-	verts[0] = D3DTLVERTEX(D3DXVECTOR3(left,  bottom, z), rhw, col, 0.0f,     textureY);
-	verts[1] = D3DTLVERTEX(D3DXVECTOR3(left,  top,    z), rhw, col, 0.0f,     0.0f);
-	verts[2] = D3DTLVERTEX(D3DXVECTOR3(right, bottom, z), rhw, col, textureX, textureY);
-	verts[3] = D3DTLVERTEX(D3DXVECTOR3(right, top,    z), rhw, col, textureX, 0.0f);
+	verts[0] = D3DTLVERTEX(left,  bottom, z, rhw, col, 0.0f,     textureY);
+	verts[1] = D3DTLVERTEX(left,  top,    z, rhw, col, 0.0f,     0.0f);
+	verts[2] = D3DTLVERTEX(right, bottom, z, rhw, col, textureX, textureY);
+	verts[3] = D3DTLVERTEX(right, top,    z, rhw, col, textureX, 0.0f);
 #endif
+}
+
+void Direct3DDisplay::drawTextOverlay()
+{
+	if (textMethod != 2)
+		return;
+	if (pOverlayTexture == NULL || overlay.empty())
+		return;
+
+	if (!overlay.update())
+		return;
+
+	D3DLOCKED_RECT locked;
+	if (FAILED(pOverlayTexture->LockRect(0, &locked, NULL, D3DLOCK_DISCARD)))
+		return;
+
+	const unsigned char *src = overlay.pixels();
+	int srcPitch = overlay.pitch();
+	int copyW    = overlay.width() * 4;
+	if (copyW > (int)locked.Pitch)
+		copyW = (int)locked.Pitch;
+	for (int y = 0; y < overlay.height(); y++)
+		memcpy((unsigned char *)locked.pBits + y * locked.Pitch, src + y * srcPitch, copyW);
+
+	pOverlayTexture->UnlockRect(0);
+
+	pDevice->SetSamplerState(0, D3DSAMP_MINFILTER, D3DTEXF_POINT);
+	pDevice->SetSamplerState(0, D3DSAMP_MAGFILTER, D3DTEXF_POINT);
+	pDevice->SetRenderState(D3DRS_ALPHABLENDENABLE, TRUE);
+	pDevice->SetRenderState(D3DRS_SRCBLEND,  D3DBLEND_SRCALPHA);
+	pDevice->SetRenderState(D3DRS_DESTBLEND, D3DBLEND_INVSRCALPHA);
+
+	pDevice->SetTexture(0, pOverlayTexture);
+
+	D3DTLVERTEX quad[4];
+	D3DCOLOR col = 0xFFFFFFFF;
+	FLOAT z   = 1.0f;
+	FLOAT rhw = 1.0f / (z * 990.0f + 10.0f);
+	quad[0] = D3DTLVERTEX(-0.5f,                              dpp.BackBufferHeight - 0.5f, z, rhw, col, 0.0f, 1.0f);
+	quad[1] = D3DTLVERTEX(-0.5f,                              -0.5f,                       z, rhw, col, 0.0f, 0.0f);
+	quad[2] = D3DTLVERTEX(dpp.BackBufferWidth - 0.5f,         dpp.BackBufferHeight - 0.5f, z, rhw, col, 1.0f, 1.0f);
+	quad[3] = D3DTLVERTEX(dpp.BackBufferWidth - 0.5f,         -0.5f,                       z, rhw, col, 1.0f, 0.0f);
+
+	pDevice->DrawPrimitiveUP(D3DPT_TRIANGLESTRIP, 2, quad, sizeof(D3DTLVERTEX));
+
+	pDevice->SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
+
+	int filter = regQueryDwordValue("d3dFilter", 0);
+	if (filter < 0 || filter > 3)
+		filter = 0;
+	updateFiltering(filter);
 }
 
 void Direct3DDisplay::render()
@@ -480,7 +587,7 @@ void Direct3DDisplay::render()
 	if (SUCCEEDED(pDevice->BeginScene()))
 	{
 		D3DLOCKED_RECT locked;
-		if (pTexture && SUCCEEDED(pTexture->LockRect(0, &locked, NULL, 0)))
+		if (pTexture && SUCCEEDED(pTexture->LockRect(0, &locked, NULL, D3DLOCK_DISCARD)))
 		{
 			if (theApp.filterFunction)
 			{
@@ -553,7 +660,7 @@ gbaLoopEnd:
 				}
 			}
 
-			if (theApp.videoOption > VIDEO_4X && theApp.showSpeed)
+			if (isFullscreenOption(theApp.videoOption) && theApp.showSpeed)
 			{
 				char buffer[30];
 				if (theApp.showSpeed == 1)
@@ -600,95 +707,25 @@ gbaLoopEnd:
 #endif
 		}
 
-		if (textMethod == 2)
-		{
-			for (int slot = 0; slot < SCREEN_MESSAGE_SLOTS; slot++)
-			{
-				if (theApp.screenMessage[slot])
-				{
-					if ((theApp.screenMessageDuration[slot] < 0 || 
-						(int)(GetTickCount() - theApp.screenMessageTime[slot]) < theApp.screenMessageDuration[slot]) &&
-					    (!theApp.disableStatusMessage || slot == 1 || slot == 2) && pFont != NULL && pFontSprite != NULL)
-					{
-						pFontSprite->Begin(D3DXSPRITE_ALPHABLEND | D3DXSPRITE_SORT_TEXTURE);
-
-						RECT     r;
-						D3DCOLOR color;
-
-						r.left   = 10;
-						r.top    = dpp.BackBufferHeight - 20*(slot+1);
-						r.right  = dpp.BackBufferWidth - 10;
-						r.bottom = r.top + 20;
-
-						if (outlinedText)
-						{
-							color = textColor != 7 ? D3DCOLOR_ARGB(255, 0, 0, 0) : D3DCOLOR_ARGB(255, 255, 255, 255);
-
-							// draw outline
-							const static int xd [8] = {-1, 0, 1, 1, 1, 0, -1, -1};
-							const static int yd [8] = {-1, -1, -1, 0, 1, 1, 1, 0};
-							for (int i = 0; i < 8; i++)
-							{
-								RECT r2 = r;
-								r2.left += xd[i]; r2.right += xd[i];
-								r2.top  += yd[i]; r2.bottom += yd[i];
-
-								pFont->DrawText(pFontSprite, theApp.screenMessageBuffer[slot], -1, &r2, 0, color);
-							}
-						}
-
-						// draw center text
-						switch (textColor)
-						{
-						case 0:
-							color = D3DCOLOR_ARGB(255, 255, 255, 255); break;
-						case 1:
-							color = D3DCOLOR_ARGB(255, 255, 0, 0); break;
-						case 2:
-							color = D3DCOLOR_ARGB(255, 255, 255, 0); break;
-						case 3:
-							color = D3DCOLOR_ARGB(255, 0, 255, 0); break;
-						case 4:
-							color = D3DCOLOR_ARGB(255, 0, 255, 255); break;
-						case 5:
-							color = D3DCOLOR_ARGB(255, 0, 0, 255); break;
-						case 6:
-							color = D3DCOLOR_ARGB(255, 255, 0, 255); break;
-						case 7:
-							color = D3DCOLOR_ARGB(255, 0, 0, 0); break;
-						}
-						pFont->DrawText(pFontSprite, theApp.screenMessageBuffer[slot], -1, &r, 0, color);
-
-						pFontSprite->End();
-					}
-					else
-					{
-						theApp.screenMessage[slot] = false;
-					}
-				}
-			}
-		}
+		drawTextOverlay();
 
 		pDevice->EndScene();
-
-		pDevice->Present(NULL, NULL, NULL, NULL);
 	}
+
+	present();
+}
+
+void Direct3DDisplay::present()
+{
+	if (pDeviceEx != NULL)
+		pDeviceEx->PresentEx(NULL, NULL, NULL, NULL, 0);
+	else
+		pDevice->Present(NULL, NULL, NULL, NULL);
 }
 
 void Direct3DDisplay::invalidateDeviceObjects()
 {
-	if (pFontSprite)
-	{
-		pFontSprite->Release();
-	}
-	pFontSprite = NULL;
-
-	if (pFont)
-	{
-		pFont->OnLostDevice();
-		pFont->Release();
-	}
-	pFont = NULL;
+	overlay.destroy();
 }
 
 void Direct3DDisplay::resize(int w, int h)
@@ -699,9 +736,16 @@ void Direct3DDisplay::resize(int w, int h)
 		dpp.BackBufferHeight = h;
 		HRESULT hr;
 		invalidateDeviceObjects();
-		if (SUCCEEDED(hr = pDevice->Reset(&dpp)))
+		releaseTextures();
+		if (pDeviceEx != NULL)
+			hr = pDeviceEx->ResetEx(&dpp, NULL);
+		else
+			hr = pDevice->Reset(&dpp);
+		if (SUCCEEDED(hr))
 		{
 			restoreDeviceObjects();
+			if (width > 0 && height > 0)
+				initializeOffscreen(width, height);
 		}
 		else
 			systemMessage(0, "Failed device reset %08x", hr);
@@ -753,4 +797,3 @@ IDisplay *newDirect3DDisplay()
 {
 	return new Direct3DDisplay();
 }
-

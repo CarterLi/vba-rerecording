@@ -1862,7 +1862,7 @@ BEGIN
                 MENUITEM "    DDraw &Triple Buffering", ID_OPTIONS_VIDEO_TRIPLEBUFFERING
                 MENUITEM "    DDraw &VSync",            ID_OPTIONS_VIDEO_VSYNC
                 MENUITEM SEPARATOR
-                MENUITEM "Direct&3D",                   ID_OPTIONS_VIDEO_RENDERMETHOD_DIRECT3D
+                MENUITEM "Direct&3D 9Ex",               ID_OPTIONS_VIDEO_RENDERMETHOD_DIRECT3D
                 MENUITEM "    D3D &Nearest",            ID_OPTIONS_VIDEO_RENDEROPTIONS_D3DNOFILTER
                 MENUITEM "    D3D &Bilinear",           ID_OPTIONS_VIDEO_RENDEROPTIONS_D3DBILINEAR
                 MENUITEM SEPARATOR
