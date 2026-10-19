@@ -38,7 +38,7 @@ protected:
 	afx_msg void OnOk();
 	afx_msg void OnDestroy();
 	virtual BOOL OnInitDialog();
-	afx_msg void OnTimer(UINT nIDEvent);
+	afx_msg void OnTimer(UINT_PTR nIDEvent);
 	//}}AFX_MSG
 	DECLARE_MESSAGE_MAP()
 };

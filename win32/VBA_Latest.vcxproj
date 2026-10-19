@@ -1,16 +1,24 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="Current" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="V72XD|x64">
+      <Configuration>V72XD</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="V72XR|x64">
+      <Configuration>V72XR</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
     <ProjectConfiguration Include="V82XD|Win32">
       <Configuration>V82XD</Configuration>
       <Platform>Win32</Platform>
     </ProjectConfiguration>
+    <ProjectConfiguration Include="V82XD|x64">
+      <Configuration>V82XD</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
     <ProjectConfiguration Include="V82XR|Win32">
       <Configuration>V82XR</Configuration>
-      <Platform>Win32</Platform>
-    </ProjectConfiguration>
-    <ProjectConfiguration Include="Template|Win32">
-      <Configuration>Template</Configuration>
       <Platform>Win32</Platform>
     </ProjectConfiguration>
     <ProjectConfiguration Include="V72XD|Win32">
@@ -20,6 +28,10 @@
     <ProjectConfiguration Include="V72XR|Win32">
       <Configuration>V72XR</Configuration>
       <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="V82XR|x64">
+      <Configuration>V82XR</Configuration>
+      <Platform>x64</Platform>
     </ProjectConfiguration>
   </ItemGroup>
   <PropertyGroup Label="Globals">
@@ -36,13 +48,32 @@
     <UseOfMfc>Static</UseOfMfc>
     <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='V82XD|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <PlatformToolset>$(DefaultPlatformToolset)</PlatformToolset>
+    <UseOfMfc>Static</UseOfMfc>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='V72XD|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <PlatformToolset>$(DefaultPlatformToolset)</PlatformToolset>
     <UseOfMfc>Static</UseOfMfc>
     <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='V72XD|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <PlatformToolset>$(DefaultPlatformToolset)</PlatformToolset>
+    <UseOfMfc>Static</UseOfMfc>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='V82XR|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <PlatformToolset>$(DefaultPlatformToolset)</PlatformToolset>
+    <UseOfMfc>Static</UseOfMfc>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
+    <CharacterSet>MultiByte</CharacterSet>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='V82XR|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <PlatformToolset>$(DefaultPlatformToolset)</PlatformToolset>
     <UseOfMfc>Static</UseOfMfc>
@@ -56,15 +87,16 @@
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>
-  <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='V72XR|Win32'">
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='V72XR|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <PlatformToolset>$(DefaultPlatformToolset)</PlatformToolset>
+    <UseOfMfc>Static</UseOfMfc>
+    <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='V72XR|Win32'">
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <UseOfMfc>Static</UseOfMfc>
-  </PropertyGroup>
-  <PropertyGroup Label="Configuration" Condition="'$(Configuration)|$(Platform)'=='Template|Win32'">
-    <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
   <ImportGroup Label="ExtensionSettings">
@@ -72,48 +104,83 @@
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='V82XD|Win32'" Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" />
   </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='V82XD|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" />
+  </ImportGroup>
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='V72XD|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='V72XD|x64'" Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" />
   </ImportGroup>
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='V82XR|Win32'" Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" />
   </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='V82XR|x64'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" />
+  </ImportGroup>
   <ImportGroup Condition="'$(Configuration)|$(Platform)'=='V72XR|Win32'" Label="PropertySheets">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" />
+  </ImportGroup>
+  <ImportGroup Condition="'$(Configuration)|$(Platform)'=='V72XR|x64'" Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" />
   </ImportGroup>
   <PropertyGroup Label="UserMacros" />
   <PropertyGroup>
     <_ProjectFileVersion>10.0.21006.1</_ProjectFileVersion>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='V82XR|x64'">$(SolutionDir)x64\$(Configuration)\</OutDir>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='V82XD|x64'">$(SolutionDir)x64\$(Configuration)\</OutDir>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='V72XR|x64'">$(SolutionDir)x64\$(Configuration)\</OutDir>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='V72XD|x64'">$(SolutionDir)x64\$(Configuration)\</OutDir>
     <OutDir Condition="'$(Configuration)|$(Platform)'=='V82XR|Win32'">$(SolutionDir)__V82Xbins\</OutDir>
     <OutDir Condition="'$(Configuration)|$(Platform)'=='V72XR|Win32'">$(SolutionDir)__bins\</OutDir>
     <IntDir Condition="'$(Configuration)|$(Platform)'=='V82XR|Win32'">$(SolutionDir).VS_Latest\$(Configuration)\$(Platform)\</IntDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='V82XR|x64'">$(SolutionDir).VS_Latest\$(Configuration)\$(Platform)\</IntDir>
     <IntDir Condition="'$(Configuration)|$(Platform)'=='V72XR|Win32'">$(SolutionDir).VS_Latest\$(Configuration)\$(Platform)\</IntDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='V72XR|x64'">$(SolutionDir).VS_Latest\$(Configuration)\$(Platform)\</IntDir>
     <OutDir Condition="'$(Configuration)|$(Platform)'=='V82XD|Win32'">$(SolutionDir)__V82Xbins\</OutDir>
     <OutDir Condition="'$(Configuration)|$(Platform)'=='V72XD|Win32'">$(SolutionDir)__V72Xbins\</OutDir>
     <IntDir Condition="'$(Configuration)|$(Platform)'=='V82XD|Win32'">$(SolutionDir).VS_Latest\$(Configuration)\$(Platform)\</IntDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='V82XD|x64'">$(SolutionDir).VS_Latest\$(Configuration)\$(Platform)\</IntDir>
     <IntDir Condition="'$(Configuration)|$(Platform)'=='V72XD|Win32'">$(SolutionDir).VS_Latest\$(Configuration)\$(Platform)\</IntDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='V72XD|x64'">$(SolutionDir).VS_Latest\$(Configuration)\$(Platform)\</IntDir>
     <CodeAnalysisRuleSet Condition="'$(Configuration)|$(Platform)'=='V82XD|Win32'">AllRules.ruleset</CodeAnalysisRuleSet>
+    <CodeAnalysisRuleSet Condition="'$(Configuration)|$(Platform)'=='V82XD|x64'">AllRules.ruleset</CodeAnalysisRuleSet>
     <CodeAnalysisRuleSet Condition="'$(Configuration)|$(Platform)'=='V72XD|Win32'">AllRules.ruleset</CodeAnalysisRuleSet>
+    <CodeAnalysisRuleSet Condition="'$(Configuration)|$(Platform)'=='V72XD|x64'">AllRules.ruleset</CodeAnalysisRuleSet>
     <CodeAnalysisRules Condition="'$(Configuration)|$(Platform)'=='V82XD|Win32'" />
+    <CodeAnalysisRules Condition="'$(Configuration)|$(Platform)'=='V82XD|x64'" />
     <CodeAnalysisRules Condition="'$(Configuration)|$(Platform)'=='V72XD|Win32'" />
+    <CodeAnalysisRules Condition="'$(Configuration)|$(Platform)'=='V72XD|x64'" />
     <CodeAnalysisRuleAssemblies Condition="'$(Configuration)|$(Platform)'=='V82XD|Win32'" />
+    <CodeAnalysisRuleAssemblies Condition="'$(Configuration)|$(Platform)'=='V82XD|x64'" />
     <CodeAnalysisRuleAssemblies Condition="'$(Configuration)|$(Platform)'=='V72XD|Win32'" />
+    <CodeAnalysisRuleAssemblies Condition="'$(Configuration)|$(Platform)'=='V72XD|x64'" />
     <CodeAnalysisRuleSet Condition="'$(Configuration)|$(Platform)'=='V82XR|Win32'">AllRules.ruleset</CodeAnalysisRuleSet>
+    <CodeAnalysisRuleSet Condition="'$(Configuration)|$(Platform)'=='V82XR|x64'">AllRules.ruleset</CodeAnalysisRuleSet>
     <CodeAnalysisRuleSet Condition="'$(Configuration)|$(Platform)'=='V72XR|Win32'">AllRules.ruleset</CodeAnalysisRuleSet>
+    <CodeAnalysisRuleSet Condition="'$(Configuration)|$(Platform)'=='V72XR|x64'">AllRules.ruleset</CodeAnalysisRuleSet>
     <CodeAnalysisRules Condition="'$(Configuration)|$(Platform)'=='V82XR|Win32'" />
+    <CodeAnalysisRules Condition="'$(Configuration)|$(Platform)'=='V82XR|x64'" />
     <CodeAnalysisRules Condition="'$(Configuration)|$(Platform)'=='V72XR|Win32'" />
+    <CodeAnalysisRules Condition="'$(Configuration)|$(Platform)'=='V72XR|x64'" />
     <CodeAnalysisRuleAssemblies Condition="'$(Configuration)|$(Platform)'=='V82XR|Win32'" />
+    <CodeAnalysisRuleAssemblies Condition="'$(Configuration)|$(Platform)'=='V82XR|x64'" />
     <CodeAnalysisRuleAssemblies Condition="'$(Configuration)|$(Platform)'=='V72XR|Win32'" />
+    <CodeAnalysisRuleAssemblies Condition="'$(Configuration)|$(Platform)'=='V72XR|x64'" />
     <TargetName Condition="'$(Configuration)|$(Platform)'=='V82XD|Win32'">$(ProjectName)_$(Configuration)</TargetName>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='V82XD|x64'">$(ProjectName)_$(Configuration)</TargetName>
     <TargetName Condition="'$(Configuration)|$(Platform)'=='V72XD|Win32'">$(ProjectName)_$(Configuration)</TargetName>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='V72XD|x64'">$(ProjectName)_$(Configuration)</TargetName>
     <TargetName Condition="'$(Configuration)|$(Platform)'=='V82XR|Win32'">$(ProjectName)_$(Configuration)</TargetName>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='V82XR|x64'">$(ProjectName)_$(Configuration)</TargetName>
     <TargetName Condition="'$(Configuration)|$(Platform)'=='V72XR|Win32'">$(ProjectName)_release</TargetName>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='V72XR|x64'">$(ProjectName)_release</TargetName>
     <OutDir Condition="'$(Configuration)|$(Platform)'=='V72XR|Win32'">$(SolutionDir)__V72Xbins\</OutDir>
     <IntDir Condition="'$(Configuration)|$(Platform)'=='V72XR|Win32'">$(SolutionDir).VS_Latest\$(Configuration)\$(Platform)\</IntDir>
+    <IntDir Condition="'$(Configuration)|$(Platform)'=='V72XR|x64'">$(SolutionDir).VS_Latest\$(Configuration)\$(Platform)\</IntDir>
     <TargetName Condition="'$(Configuration)|$(Platform)'=='V72XR|Win32'">$(ProjectName)_$(Configuration)</TargetName>
-    <OutDir Condition="'$(Configuration)|$(Platform)'=='Template|Win32'">$(SolutionDir)__bins\</OutDir>
-    <IntDir Condition="'$(Configuration)|$(Platform)'=='Template|Win32'">$(SolutionDir).VS_Latest\$(Configuration)\$(Platform)\</IntDir>
-    <TargetName Condition="'$(Configuration)|$(Platform)'=='Template|Win32'">$(ProjectName)_$(Configuration)</TargetName>
+    <TargetName Condition="'$(Configuration)|$(Platform)'=='V72XR|x64'">$(ProjectName)_$(Configuration)</TargetName>
   </PropertyGroup>
   <ItemDefinitionGroup>
     <Link>
@@ -144,7 +211,7 @@
       <AdditionalOptions>/WHOLEARCHIVE:wlib7zip.lib %(AdditionalOptions)</AdditionalOptions>
       <AdditionalDependencies>d3d9.lib;wsock32.lib;mpr.lib;ddraw.lib;dxguid.lib;winmm.lib;dinput8.lib;vfw32.lib;opengl32.lib;nafxcw.lib;libcmt.lib;lua51.lib;ole32.lib;version.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <OutputFile>$(TargetPath)</OutputFile>
-      <AdditionalLibraryDirectories>lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>lib\x86;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <IgnoreSpecificDefaultLibraries>libci.lib;nafxcw.lib;libcmt.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
       <SubSystem>Windows</SubSystem>
       <OptimizeReferences>true</OptimizeReferences>
@@ -163,7 +230,58 @@
       <Command>defaultconfig\SubWCRev.bat</Command>
     </PreBuildEvent>
     <PostBuildEvent>
-      <Command>if not exist "$(OutDir)lua51.dll" copy /y "$(ProjectDir)lib\lua51.dll" "$(OutDir)"</Command>
+      <Command>if not exist "$(OutDir)lua51.dll" copy /y "$(ProjectDir)lib\x86\lua51.dll" "$(OutDir)"</Command>
+      <Message>Copying the Lua engine next to the emulator</Message>
+    </PostBuildEvent>
+    <ResourceCompile>
+      <PreprocessorDefinitions>NDEBUG;_AFXDLL;WIN32;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <Culture>0x0409</Culture>
+      <UndefinePreprocessorDefinitions>USE_GB_CORE_V7;USE_GBA_CORE_V7</UndefinePreprocessorDefinitions>
+    </ResourceCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='V82XR|x64'">
+    <ClCompile>
+      <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
+      <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
+      <AdditionalIncludeDirectories>lib/zlib;../src/lua/src;defaultconfig</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>NDEBUG;WIN32;HAVE_STDINT_H;OEMRESOURCE;FINAL_VERSION;BKPT_SUPPORT;_CRT_SECURE_NO_WARNINGS;EXTRACT_ONLY;_NO_CRYPTO;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <StringPooling>true</StringPooling>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <BufferSecurityCheck>false</BufferSecurityCheck>
+      <DisableSpecificWarnings>4244;4996;4800;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <OmitFramePointers>true</OmitFramePointers>
+      <Optimization>Full</Optimization>
+      <EnableFiberSafeOptimizations>true</EnableFiberSafeOptimizations>
+      <WarningLevel>Level3</WarningLevel>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <UndefinePreprocessorDefinitions>USE_GB_CORE_V7;USE_GBA_CORE_V7</UndefinePreprocessorDefinitions>
+    </ClCompile>
+    <Link>
+      <AdditionalOptions>/WHOLEARCHIVE:wlib7zip.lib %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalDependencies>d3d9.lib;wsock32.lib;mpr.lib;ddraw.lib;dxguid.lib;winmm.lib;dinput8.lib;vfw32.lib;opengl32.lib;nafxcw.lib;libcmt.lib;lua51.lib;ole32.lib;version.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <OutputFile>$(TargetPath)</OutputFile>
+      <AdditionalLibraryDirectories>lib\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <IgnoreSpecificDefaultLibraries>libci.lib;nafxcw.lib;libcmt.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <SubSystem>Windows</SubSystem>
+      <OptimizeReferences>true</OptimizeReferences>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
+      <DelayLoadDLLs>lua51.dll</DelayLoadDLLs>
+    </Link>
+    <Midl>
+      <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <MkTypLibCompatible>true</MkTypLibCompatible>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+      <TypeLibraryName>$(OutDir)$(TargetName).tlb</TypeLibraryName>
+    </Midl>
+    <PreBuildEvent>
+      <Command>defaultconfig\SubWCRev.bat</Command>
+    </PreBuildEvent>
+    <PostBuildEvent>
+      <Command>if not exist "$(OutDir)lua51.dll" copy /y "$(ProjectDir)lib\x64\lua51.dll" "$(OutDir)"</Command>
       <Message>Copying the Lua engine next to the emulator</Message>
     </PostBuildEvent>
     <ResourceCompile>
@@ -197,7 +315,7 @@
       <AdditionalOptions>/WHOLEARCHIVE:wlib7zip.lib %(AdditionalOptions)</AdditionalOptions>
       <AdditionalDependencies>d3d9.lib;wsock32.lib;mpr.lib;ddraw.lib;dxguid.lib;winmm.lib;dinput8.lib;vfw32.lib;opengl32.lib;nafxcw.lib;libcmt.lib;lua51.lib;ole32.lib;version.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <OutputFile>$(OutDir)$(ProjectName)_release.exe</OutputFile>
-      <AdditionalLibraryDirectories>lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>lib\x86;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <IgnoreSpecificDefaultLibraries>libci.lib;nafxcw.lib;libcmt.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
       <SubSystem>Windows</SubSystem>
       <OptimizeReferences>true</OptimizeReferences>
@@ -215,7 +333,57 @@
       <Command>defaultconfig\SubWCRev.bat</Command>
     </PreBuildEvent>
     <PostBuildEvent>
-      <Command>if not exist "$(OutDir)lua51.dll" copy /y "$(ProjectDir)lib\lua51.dll" "$(OutDir)"</Command>
+      <Command>if not exist "$(OutDir)lua51.dll" copy /y "$(ProjectDir)lib\x86\lua51.dll" "$(OutDir)"</Command>
+      <Message>Copying the Lua engine next to the emulator</Message>
+    </PostBuildEvent>
+    <ResourceCompile>
+      <PreprocessorDefinitions>NDEBUG;_AFXDLL;WIN32;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <Culture>0x0409</Culture>
+    </ResourceCompile>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='V72XR|x64'">
+    <ClCompile>
+      <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
+      <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
+      <AdditionalIncludeDirectories>lib/zlib;../src/lua/src;defaultconfig;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>NDEBUG;WIN32;HAVE_STDINT_H;OEMRESOURCE;FINAL_VERSION;BKPT_SUPPORT;_CRT_SECURE_NO_WARNINGS;EXTRACT_ONLY;_NO_CRYPTO;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <StringPooling>true</StringPooling>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <BufferSecurityCheck>false</BufferSecurityCheck>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <WarningLevel>Level3</WarningLevel>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <DisableSpecificWarnings>4244;4996;4800;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <OmitFramePointers>true</OmitFramePointers>
+      <Optimization>Full</Optimization>
+      <EnableFiberSafeOptimizations>true</EnableFiberSafeOptimizations>
+    </ClCompile>
+    <Link>
+      <AdditionalOptions>/WHOLEARCHIVE:wlib7zip.lib %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalDependencies>d3d9.lib;wsock32.lib;mpr.lib;ddraw.lib;dxguid.lib;winmm.lib;dinput8.lib;vfw32.lib;opengl32.lib;nafxcw.lib;libcmt.lib;lua51.lib;ole32.lib;version.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <OutputFile>$(OutDir)$(ProjectName)_release.exe</OutputFile>
+      <AdditionalLibraryDirectories>lib\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <IgnoreSpecificDefaultLibraries>libci.lib;nafxcw.lib;libcmt.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <SubSystem>Windows</SubSystem>
+      <OptimizeReferences>true</OptimizeReferences>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
+    </Link>
+    <Midl>
+      <PreprocessorDefinitions>NDEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <MkTypLibCompatible>true</MkTypLibCompatible>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+      <TypeLibraryName>$(OutDir)$(TargetName).tlb</TypeLibraryName>
+    </Midl>
+    <PreBuildEvent>
+      <Command>defaultconfig\SubWCRev.bat</Command>
+    </PreBuildEvent>
+    <PostBuildEvent>
+      <Command>if not exist "$(OutDir)lua51.dll" copy /y "$(ProjectDir)lib\x64\lua51.dll" "$(OutDir)"</Command>
       <Message>Copying the Lua engine next to the emulator</Message>
     </PostBuildEvent>
     <ResourceCompile>
@@ -243,7 +411,7 @@
       <AdditionalOptions>/WHOLEARCHIVE:wlib7zip.lib %(AdditionalOptions)</AdditionalOptions>
       <AdditionalDependencies>d3d9.lib;wsock32.lib;mpr.lib;ddraw.lib;dxguid.lib;winmm.lib;dinput8.lib;vfw32.lib;opengl32.lib;nafxcwd.lib;libcmtd.lib;lua51.lib;ole32.lib;version.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <OutputFile>$(TargetPath)</OutputFile>
-      <AdditionalLibraryDirectories>lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>lib\x86;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <IgnoreSpecificDefaultLibraries>libci.lib;nafxcwd.lib;libcmtd.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Windows</SubSystem>
@@ -266,7 +434,53 @@
     </ResourceCompile>
     <PreBuildEvent />
     <PostBuildEvent>
-      <Command>if not exist "$(OutDir)lua51.dll" copy /y "$(ProjectDir)lib\lua51.dll" "$(OutDir)"</Command>
+      <Command>if not exist "$(OutDir)lua51.dll" copy /y "$(ProjectDir)lib\x86\lua51.dll" "$(OutDir)"</Command>
+      <Message>Copying the Lua engine next to the emulator</Message>
+    </PostBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='V82XD|x64'">
+    <ClCompile>
+      <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
+      <AdditionalIncludeDirectories>lib/zlib;../src/lua/src;defaultconfig</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>_DEBUG;WIN32;HAVE_STDINT_H;OEMRESOURCE;BKPT_SUPPORT;_CRT_SECURE_NO_WARNINGS;_ITERATOR_DEBUG_LEVEL=1;LUA_USE_APICHECK;EXTRACT_ONLY;_NO_CRYPTO;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <WarningLevel>Level3</WarningLevel>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+      <DisableSpecificWarnings>4244;4996;4800;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+      <StringPooling>true</StringPooling>
+      <Optimization>Disabled</Optimization>
+      <UndefinePreprocessorDefinitions>USE_GB_CORE_V7;USE_GBA_CORE_V7</UndefinePreprocessorDefinitions>
+    </ClCompile>
+    <Link>
+      <AdditionalOptions>/WHOLEARCHIVE:wlib7zip.lib %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalDependencies>d3d9.lib;wsock32.lib;mpr.lib;ddraw.lib;dxguid.lib;winmm.lib;dinput8.lib;vfw32.lib;opengl32.lib;nafxcwd.lib;libcmtd.lib;lua51.lib;ole32.lib;version.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <OutputFile>$(TargetPath)</OutputFile>
+      <AdditionalLibraryDirectories>lib\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <IgnoreSpecificDefaultLibraries>libci.lib;nafxcwd.lib;libcmtd.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Windows</SubSystem>
+      <OptimizeReferences>true</OptimizeReferences>
+      <LinkTimeCodeGeneration>
+      </LinkTimeCodeGeneration>
+      <DelayLoadDLLs>lua51.dll</DelayLoadDLLs>
+    </Link>
+    <Midl>
+      <PreprocessorDefinitions>_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <MkTypLibCompatible>true</MkTypLibCompatible>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+      <TypeLibraryName>$(OutDir)$(TargetName).tlb</TypeLibraryName>
+    </Midl>
+    <ResourceCompile>
+      <PreprocessorDefinitions>_DEBUG;_AFXDLL;WIN32;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <Culture>0x0409</Culture>
+      <UndefinePreprocessorDefinitions>USE_GB_CORE_V7;USE_GBA_CORE_V7</UndefinePreprocessorDefinitions>
+    </ResourceCompile>
+    <PreBuildEvent />
+    <PostBuildEvent>
+      <Command>if not exist "$(OutDir)lua51.dll" copy /y "$(ProjectDir)lib\x64\lua51.dll" "$(OutDir)"</Command>
       <Message>Copying the Lua engine next to the emulator</Message>
     </PostBuildEvent>
   </ItemDefinitionGroup>
@@ -289,7 +503,7 @@
       <AdditionalOptions>/WHOLEARCHIVE:wlib7zip.lib %(AdditionalOptions)</AdditionalOptions>
       <AdditionalDependencies>d3d9.lib;wsock32.lib;mpr.lib;ddraw.lib;dxguid.lib;winmm.lib;dinput8.lib;vfw32.lib;opengl32.lib;nafxcwd.lib;libcmtd.lib;lua51.lib;ole32.lib;version.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <OutputFile>$(TargetPath)</OutputFile>
-      <AdditionalLibraryDirectories>lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>lib\x86;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <IgnoreSpecificDefaultLibraries>libci.lib;nafxcwd.lib;libcmtd.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <SubSystem>Windows</SubSystem>
@@ -311,7 +525,51 @@
     </ResourceCompile>
     <PreBuildEvent />
     <PostBuildEvent>
-      <Command>if not exist "$(OutDir)lua51.dll" copy /y "$(ProjectDir)lib\lua51.dll" "$(OutDir)"</Command>
+      <Command>if not exist "$(OutDir)lua51.dll" copy /y "$(ProjectDir)lib\x86\lua51.dll" "$(OutDir)"</Command>
+      <Message>Copying the Lua engine next to the emulator</Message>
+    </PostBuildEvent>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='V72XD|x64'">
+    <ClCompile>
+      <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
+      <AdditionalIncludeDirectories>lib/zlib;../src/lua/src;defaultconfig</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>_DEBUG;WIN32;HAVE_STDINT_H;OEMRESOURCE;BKPT_SUPPORT;_CRT_SECURE_NO_WARNINGS;LUA_USE_APICHECK;EXTRACT_ONLY;_NO_CRYPTO;USE_GB_CORE_V7;USE_GBA_CORE_V7;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <WarningLevel>Level3</WarningLevel>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+      <DisableSpecificWarnings>4244;4996;4800;%(DisableSpecificWarnings)</DisableSpecificWarnings>
+      <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
+      <StringPooling>true</StringPooling>
+      <Optimization>Disabled</Optimization>
+    </ClCompile>
+    <Link>
+      <AdditionalOptions>/WHOLEARCHIVE:wlib7zip.lib %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalDependencies>d3d9.lib;wsock32.lib;mpr.lib;ddraw.lib;dxguid.lib;winmm.lib;dinput8.lib;vfw32.lib;opengl32.lib;nafxcwd.lib;libcmtd.lib;lua51.lib;ole32.lib;version.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <OutputFile>$(TargetPath)</OutputFile>
+      <AdditionalLibraryDirectories>lib\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <IgnoreSpecificDefaultLibraries>libci.lib;nafxcwd.lib;libcmtd.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Windows</SubSystem>
+      <OptimizeReferences>true</OptimizeReferences>
+      <LinkTimeCodeGeneration>
+      </LinkTimeCodeGeneration>
+      <DelayLoadDLLs>lua51.dll</DelayLoadDLLs>
+    </Link>
+    <Midl>
+      <PreprocessorDefinitions>_DEBUG;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <MkTypLibCompatible>true</MkTypLibCompatible>
+      <SuppressStartupBanner>true</SuppressStartupBanner>
+      <TypeLibraryName>$(OutDir)$(TargetName).tlb</TypeLibraryName>
+    </Midl>
+    <ResourceCompile>
+      <PreprocessorDefinitions>_DEBUG;_AFXDLL;WIN32;USE_GB_CORE_V7;USE_GBA_CORE_V7;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <Culture>0x0409</Culture>
+    </ResourceCompile>
+    <PreBuildEvent />
+    <PostBuildEvent>
+      <Command>if not exist "$(OutDir)lua51.dll" copy /y "$(ProjectDir)lib\x64\lua51.dll" "$(OutDir)"</Command>
       <Message>Copying the Lua engine next to the emulator</Message>
     </PostBuildEvent>
   </ItemDefinitionGroup>
@@ -335,7 +593,7 @@
     </ClCompile>
     <Link>
       <OutputFile>$(TargetPath)</OutputFile>
-      <AdditionalLibraryDirectories>lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalLibraryDirectories>lib\x86;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <AdditionalOptions>/WHOLEARCHIVE:wlib7zip.lib %(AdditionalOptions)</AdditionalOptions>
       <AdditionalDependencies>d3d9.lib;wsock32.lib;mpr.lib;ddraw.lib;dxguid.lib;winmm.lib;dinput8.lib;vfw32.lib;opengl32.lib;nafxcw.lib;libcmt.lib;lua51.lib;ole32.lib;version.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <IgnoreSpecificDefaultLibraries>libci.lib;nafxcw.lib;libcmt.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
@@ -352,21 +610,50 @@
       <Command>defaultconfig\SubWCRev.bat</Command>
     </PreBuildEvent>
     <PostBuildEvent>
-      <Command>if not exist "$(OutDir)lua51.dll" copy /y "$(ProjectDir)lib\lua51.dll" "$(OutDir)"</Command>
+      <Command>if not exist "$(OutDir)lua51.dll" copy /y "$(ProjectDir)lib\x86\lua51.dll" "$(OutDir)"</Command>
       <Message>Copying the Lua engine next to the emulator</Message>
     </PostBuildEvent>
   </ItemDefinitionGroup>
-  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Template|Win32'">
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='V72XR|x64'">
     <ClCompile>
       <EnableEnhancedInstructionSet>StreamingSIMDExtensions2</EnableEnhancedInstructionSet>
+      <PreprocessorDefinitions>NDEBUG;WIN32;HAVE_STDINT_H;OEMRESOURCE;FINAL_VERSION;BKPT_SUPPORT;_CRT_SECURE_NO_WARNINGS;EXTRACT_ONLY;_NO_CRYPTO;USE_GB_CORE_V7;USE_GBA_CORE_V7;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <StringPooling>true</StringPooling>
+      <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
+      <BufferSecurityCheck>false</BufferSecurityCheck>
+      <Optimization>Full</Optimization>
+      <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
+      <IntrinsicFunctions>true</IntrinsicFunctions>
+      <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
+      <OmitFramePointers>true</OmitFramePointers>
+      <EnableFiberSafeOptimizations>true</EnableFiberSafeOptimizations>
+      <WholeProgramOptimization>true</WholeProgramOptimization>
       <AdditionalIncludeDirectories>lib/zlib;../src/lua/src;defaultconfig</AdditionalIncludeDirectories>
+      <WarningLevel>Level3</WarningLevel>
+      <DisableSpecificWarnings>4244;4996;4800;%(DisableSpecificWarnings)</DisableSpecificWarnings>
     </ClCompile>
     <Link>
       <OutputFile>$(TargetPath)</OutputFile>
+      <AdditionalLibraryDirectories>lib\x64;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
+      <AdditionalOptions>/WHOLEARCHIVE:wlib7zip.lib %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalDependencies>d3d9.lib;wsock32.lib;mpr.lib;ddraw.lib;dxguid.lib;winmm.lib;dinput8.lib;vfw32.lib;opengl32.lib;nafxcw.lib;libcmt.lib;lua51.lib;ole32.lib;version.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <IgnoreSpecificDefaultLibraries>libci.lib;nafxcw.lib;libcmt.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
       <SubSystem>Windows</SubSystem>
       <OptimizeReferences>true</OptimizeReferences>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <LinkTimeCodeGeneration>UseLinkTimeCodeGeneration</LinkTimeCodeGeneration>
       <DelayLoadDLLs>lua51.dll</DelayLoadDLLs>
     </Link>
+    <ResourceCompile>
+      <PreprocessorDefinitions>NDEBUG;_AFXDLL;WIN32;USE_GB_CORE_V7;USE_GBA_CORE_V7;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+    </ResourceCompile>
+    <PreBuildEvent>
+      <Command>defaultconfig\SubWCRev.bat</Command>
+    </PreBuildEvent>
+    <PostBuildEvent>
+      <Command>if not exist "$(OutDir)lua51.dll" copy /y "$(ProjectDir)lib\x64\lua51.dll" "$(OutDir)"</Command>
+      <Message>Copying the Lua engine next to the emulator</Message>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <!-- The machine type follows the platform, so adding a configuration in the
        IDE cannot leave /MACHINE:X86 behind on a 64-bit build.  Kept last on
@@ -376,6 +663,14 @@
       <TargetMachine Condition="'$(Platform)' == 'Win32'">MachineX86</TargetMachine>
       <TargetMachine Condition="'$(Platform)' == 'x64'">MachineX64</TargetMachine>
     </Link>
+    <ClCompile>
+    </ClCompile>
+    <ClCompile>
+    </ClCompile>
+    <ClCompile>
+    </ClCompile>
+    <ClCompile>
+    </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\src\common\CheatSearch.cpp" />

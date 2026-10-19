@@ -820,8 +820,8 @@ BOOL AddGBCheat::OnInitDialog()
 	buffer.Format("%02x:%08x", (address>>16), address&0xFFFF);
 	m_address.SetWindowText(buffer);
 	m_address.EnableWindow(FALSE);
-	::SetWindowLong(m_address,
-	                GWL_USERDATA,
+	::SetWindowLongPtr(m_address,
+	                GWLP_USERDATA,
 	                address);
 
 	UpdateData(FALSE);

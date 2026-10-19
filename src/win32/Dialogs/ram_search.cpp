@@ -1690,7 +1690,7 @@ LRESULT CALLBACK RamSearchProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 
 		case NM_CUSTOMDRAW:
 		{
-			SetWindowLong(hDlg, DWL_MSGRESULT, CustomDraw(lParam));
+			SetWindowLongPtr(hDlg, DWLP_MSGRESULT, CustomDraw(lParam));
 			return TRUE;
 		}   break;
 

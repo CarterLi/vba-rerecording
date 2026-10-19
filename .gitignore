@@ -2,6 +2,7 @@
 # Visual Studio
 # ---------------------------------------------------------------------------
 .vs/
+.VS2010/
 *.suo
 *.user
 *.sdf
@@ -19,8 +20,6 @@ win32/x64/
 win32/__bins/
 win32/__V72Xbins/
 win32/__V82Xbins/
-
-.probe
 
 # ---------------------------------------------------------------------------
 # Compiler / linker intermediates
@@ -52,7 +51,7 @@ win32/userconfig/svnrev.h
 .workbuddy-ai/
 .workbuddy
 
-# NOTE: win32/lib/*.lib (lua51.lib), win32/directx/*.lib, win32/nasm.exe and
+# NOTE: win32/lib/x86|lua51.lib (and the x64 one), win32/nasm.exe and
 # win32/defaultconfig/*.exe are vendored third-party binaries and stay tracked.
 
 .VS_Latest

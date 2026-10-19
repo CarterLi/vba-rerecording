@@ -101,7 +101,7 @@ protected:
 	afx_msg void OnOk();
 	afx_msg void OnChar(UINT nChar, UINT nRepCnt, UINT nFlags);
 	afx_msg void OnDestroy();
-	afx_msg void OnTimer(UINT nIDEvent);
+	afx_msg void OnTimer(UINT_PTR nIDEvent);
 	afx_msg void OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags);
 	afx_msg void OnSelChangeTab(NMHDR *pNMHDR, LRESULT *pResult);
 	virtual BOOL OnInitDialog();
@@ -145,7 +145,7 @@ protected:
 	afx_msg void OnDestroy();
 	virtual BOOL OnInitDialog();
 	afx_msg void OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags);
-	afx_msg void OnTimer(UINT nIDEvent);
+	afx_msg void OnTimer(UINT_PTR nIDEvent);
 	//}}AFX_MSG
 	DECLARE_MESSAGE_MAP()
 private:
