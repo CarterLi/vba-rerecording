@@ -210,7 +210,12 @@ void memoryUpdateMBC3Clock()
 	else
 		now = time(NULL);
 
-	time_t diff = now - gbDataMBC3.mapperLastTime;
+	// Wrapped to 32 bits and read back signed, the way the builds that defined
+	// _USE_32BIT_TIME_T computed it: an unset mapperLastTime (0xFFFFFFFF) has to
+	// mean "now + 1", not a negative difference, or a cartridge without a saved
+	// clock starts at 00:00:00 and recordings made with that build desync.
+	time_t diff = (time_t)(int32)(u32(now) - gbDataMBC3.mapperLastTime);
+
 	if (diff > 0)
 	{
 		// update the clock according to the last update time
