@@ -1,15 +1,15 @@
 #ifndef MEMGZIO_H
 #define MEMGZIO_H
 
-/* gzio.c -- IO on .gz files
- * Copyright (C) 1995-2002 Jean-loup Gailly.
- * For conditions of distribution and use, see copyright notice in zlib.h
+/* gzip streams inside a caller-supplied memory buffer.
  *
- * Compile this file with -DNO_DEFLATE to avoid the compression code.
- */
-
-/* memgzio.c - IO on .gz files in memory
- * Adapted from original gzio.c from zlib library by Forgotten
+ * The buffer starts with an 8-byte header ("VBA " plus the compressed
+ * length) followed by a gzip stream; memgzopen() reads and writes that
+ * container without touching the file system.  The layout is unchanged
+ * from the original memgzio.c, so old savestates still load.
+ *
+ * The entry points mirror zlib's gzFile functions, which lets
+ * utilGzOpen()/utilGzRead()/utilGzWrite() drive either kind of stream.
  */
 
 #include <zlib.h>
