@@ -61,6 +61,7 @@ typedef char      GLchar;
 
 #define GL_ARRAY_BUFFER          0x8892
 #define GL_STREAM_DRAW           0x88E0
+#define GL_STATIC_DRAW           0x88E1
 #define GL_TEXTURE0              0x84C0
 #define GL_VERTEX_SHADER         0x8B31
 #define GL_FRAGMENT_SHADER       0x8B30
@@ -74,6 +75,11 @@ typedef char      GLchar;
 #define GL_BGRA                  0x80E1
 #define GL_MAJOR_VERSION         0x821B
 #define GL_MINOR_VERSION         0x821C
+#define GL_ACTIVE_UNIFORMS       0x8B86
+#define GL_SAMPLER_2D            0x8B5E
+#define GL_TEXTURE1              0x84C1
+#define GL_TEXTURE2              0x84C2
+#define GL_TEXTURE3              0x84C3
 
 typedef void   (APIENTRY *PFNGLACTIVETEXTUREPROC)(GLenum texture);
 typedef void   (APIENTRY *PFNGLGENBUFFERSPROC)(GLsizei n, GLuint *buffers);
@@ -101,8 +107,12 @@ typedef void   (APIENTRY *PFNGLUSEPROGRAMPROC)(GLuint program);
 typedef void   (APIENTRY *PFNGLDELETEPROGRAMPROC)(GLuint program);
 typedef GLint  (APIENTRY *PFNGLGETUNIFORMLOCATIONPROC)(GLuint program, const GLchar *name);
 typedef void   (APIENTRY *PFNGLUNIFORM1IPROC)(GLint location, GLint v0);
+typedef void   (APIENTRY *PFNGLUNIFORM2FPROC)(GLint location, GLfloat v0, GLfloat v1);
 typedef void   (APIENTRY *PFNGLUNIFORM4FPROC)(GLint location, GLfloat v0, GLfloat v1, GLfloat v2, GLfloat v3);
 typedef void   (APIENTRY *PFNGLUNIFORM4UIVPROC)(GLint location, GLsizei count, const GLuint *value);
+typedef void   (APIENTRY *PFNGLUNIFORMMATRIX4FVPROC)(GLint location, GLsizei count, GLboolean transpose, const GLfloat *value);
+typedef void   (APIENTRY *PFNGLBINDATTRIBLOCATIONPROC)(GLuint program, GLuint index, const GLchar *name);
+typedef void   (APIENTRY *PFNGLGETACTIVEUNIFORMPROC)(GLuint program, GLuint index, GLsizei bufSize, GLsizei *length, GLint *size, GLenum *type, GLchar *name);
 typedef void   (APIENTRY *PFNGLGENFRAMEBUFFERSPROC)(GLsizei n, GLuint *framebuffers);
 typedef void   (APIENTRY *PFNGLBINDFRAMEBUFFERPROC)(GLenum target, GLuint framebuffer);
 typedef void   (APIENTRY *PFNGLFRAMEBUFFERTEXTURE2DPROC)(GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level);
@@ -136,8 +146,12 @@ typedef void   (APIENTRY *PFNGLDELETEFRAMEBUFFERSPROC)(GLsizei n, const GLuint *
 	X(PFNGLDELETEPROGRAMPROC, glDeleteProgram) \
 	X(PFNGLGETUNIFORMLOCATIONPROC, glGetUniformLocation) \
 	X(PFNGLUNIFORM1IPROC, glUniform1i) \
+	X(PFNGLUNIFORM2FPROC, glUniform2f) \
 	X(PFNGLUNIFORM4FPROC, glUniform4f) \
 	X(PFNGLUNIFORM4UIVPROC, glUniform4uiv) \
+	X(PFNGLUNIFORMMATRIX4FVPROC, glUniformMatrix4fv) \
+	X(PFNGLBINDATTRIBLOCATIONPROC, glBindAttribLocation) \
+	X(PFNGLGETACTIVEUNIFORMPROC, glGetActiveUniform) \
 	X(PFNGLGENFRAMEBUFFERSPROC, glGenFramebuffers) \
 	X(PFNGLBINDFRAMEBUFFERPROC, glBindFramebuffer) \
 	X(PFNGLFRAMEBUFFERTEXTURE2DPROC, glFramebufferTexture2D) \
@@ -653,6 +667,349 @@ static void releaseSinglePassUpscalers()
 }
 
 // ---------------------------------------------------------------------------
+// The libretro chains.
+//
+// These are the shaders of libretro/glsl-shaders as they are upstream rather
+// than ports: every one of those files carries both stages of a pass, selected
+// by the VERTEX and FRAGMENT macros, so the renderer compiles the same source
+// twice and takes the part it needs, the way RetroArch does.  It also plays
+// the part of RetroArch's shader backend: it hands the stages the attributes,
+// the uniforms and the textures of the passes before them that they expect, so
+// that the sources stay readable and diffable against upstream.
+//
+// A chain is a row of the table below, its passes in the order the preset runs
+// them.  A pass either renders at a fixed multiple of the frame, which is how
+// the passes that only compute metrics work, or at the target size, which is
+// what the last one does and what makes an upscaler factor agnostic.
+
+// The most passes any of the chains has; ScaleFX has five.
+#define LIBRETRO_MAX_PASSES 5
+
+struct LibretroPass
+{
+	const char *resource; // the RCDATA resource holding the source of the pass
+	int         scale;    // 0: the target size, n: n times the size of the frame
+	bool        linear;   // the pass reads its input with linear filtering
+};
+
+struct LibretroShader
+{
+	int                value;     // the UPSCALER_* value it implements
+	const char        *name;      // for the trace log and the screen message
+	const LibretroPass *passes;
+	int                passCount;
+};
+
+// ScaleFX prepares the metrics of an edge in four passes on the frame itself
+// and interpolates the edge in the fifth, at whatever size the target has.
+static const LibretroPass g_scalefxPasses[] =
+{
+	{ "SCALEFX_PASS0_GLSL", 1, false },
+	{ "SCALEFX_PASS1_GLSL", 1, false },
+	{ "SCALEFX_PASS2_GLSL", 1, false },
+	{ "SCALEFX_PASS3_GLSL", 1, false },
+	{ "SCALEFX_PASS4_GLSL", 0, false },
+};
+
+// xBR-lv3 in two passes: one collects the angle of the edge, one interpolates.
+static const LibretroPass g_xbrLv3MultipassPasses[] =
+{
+	{ "XBR_LV3_PASS0_GLSL", 1, false },
+	{ "XBR_LV3_PASS1_GLSL", 0, false },
+};
+
+static const LibretroPass g_xbrLv2Passes[] =
+{
+	{ "XBR_LV2_GLSL", 0, false },
+};
+
+static const LibretroPass g_xbrLv2NoBlendPasses[] =
+{
+	{ "XBR_LV2_NOBLEND_GLSL", 0, false },
+};
+
+static const LibretroPass g_xbrLv3Passes[] =
+{
+	{ "XBR_LV3_GLSL", 0, false },
+};
+
+// 2xBR in two passes: the corner analysis, then the blend at the target size.
+static const LibretroPass g_xbr2xPasses[] =
+{
+	{ "XBR_2X_PASS0_GLSL", 1, false },
+	{ "XBR_2X_PASS1_GLSL", 0, false },
+};
+
+// xBR-mlv4 keeps two frames of angle data on the frame itself before it
+// doubles the picture and interpolates it.
+static const LibretroPass g_xbrMlv4Passes[] =
+{
+	{ "XBR_MLV4_PASS1_GLSL", 1, false },
+	{ "XBR_MLV4_PASS2_GLSL", 1, false },
+	{ "XBR_MLV4_PASS3_GLSL", 2, false },
+	{ "XBR_MLV4_PASS4_GLSL", 0, false },
+};
+
+// super-xBR: the edge data first, then the 2x picture blended with the frame,
+// which is what its PassPrev2Texture is, and finally the jinc2 windowed filter
+// that finishes the picture at the target size.
+static const LibretroPass g_superXbrPasses[] =
+{
+	{ "SUPER_XBR_PASS0_GLSL", 1, false },
+	{ "SUPER_XBR_PASS1_GLSL", 2, false },
+	{ "CUSTOM_JINC2_SHARPER_GLSL", 0, false },
+};
+
+// The Pixel Transparency shader of the handheld folder, which needs nothing
+// but the frame it is handed.
+static const LibretroPass g_ptSkyWalker541Passes[] =
+{
+	{ "PT_SKYWALKER541_GLSL", 0, false },
+};
+
+static const LibretroShader g_libretroShaders[] =
+{
+	{ UPSCALER_XBR_LV2,           "xBR lv2",              g_xbrLv2Passes,             1 },
+	{ UPSCALER_XBR_LV2_NOBLEND,   "xBR lv2 no-blend",     g_xbrLv2NoBlendPasses,      1 },
+	{ UPSCALER_XBR_LV3,           "xBR lv3",              g_xbrLv3Passes,             1 },
+	{ UPSCALER_XBR_LV3_MULTIPASS, "xBR lv3 multipass",    g_xbrLv3MultipassPasses,    2 },
+	{ UPSCALER_XBR_2X,            "2xBR",                 g_xbr2xPasses,              2 },
+	{ UPSCALER_XBR_MLV4,          "xBR-mlv4",             g_xbrMlv4Passes,            4 },
+	{ UPSCALER_SUPER_XBR,         "super-xBR",            g_superXbrPasses,           3 },
+	{ UPSCALER_SCALEFX,           "ScaleFX",              g_scalefxPasses,            5 },
+	{ UPSCALER_PT_SKYWALKER,      "PT SkyWalker541",      g_ptSkyWalker541Passes,     1 },
+};
+
+#define LIBRETRO_SHADER_COUNT (sizeof(g_libretroShaders) / sizeof(g_libretroShaders[0]))
+
+// The samplers a pass reads, resolved while it is built: a libretro stage
+// names the texture of an earlier pass PassPrev<N>Texture, the frame it was
+// given OrigTexture, and the pass before it Texture or decal.
+#define LIBRETRO_MAX_SAMPLERS 4
+
+struct LibretroSampler
+{
+	GLint location;
+	int   back;     // passes back to read, or -1 for the frame
+};
+
+struct LibretroPassState
+{
+	GLuint program;
+	GLint  mvpMatrix;
+	GLint  outputSize;
+	GLint  textureSize;
+	GLint  inputSize;
+	GLint  frameCount;
+	GLint  frameDirection;
+	int    samplerCount;
+	LibretroSampler samplers[LIBRETRO_MAX_SAMPLERS];
+	UpscaleTarget target;
+};
+
+struct LibretroState
+{
+	LibretroPassState passes[LIBRETRO_MAX_PASSES];
+};
+
+static LibretroState g_libretroState[LIBRETRO_SHADER_COUNT];
+
+// The row of the table a UPSCALER_* value is, or -1.
+static int libretroShaderIndex(int upscaler)
+{
+	for (int i = 0; i < (int)LIBRETRO_SHADER_COUNT; i++)
+		if (g_libretroShaders[i].value == upscaler)
+			return i;
+
+	return -1;
+}
+
+// Which pass output a sampler of pass `pass` reads, counted back from it.
+static int libretroSamplerBack(const char *name)
+{
+	if (!strncmp(name, "PassPrev", 8))
+	{
+		int back = atoi(name + 8);
+		return back > 0 ? back : 1;
+	}
+
+	if (!strcmp(name, "OrigTexture"))
+		return -1;
+
+	return 1;
+}
+
+// One stage of a pass: the file as it is, with the version asked for at its
+// head and the stage defined after that, which is how the upstream file picks
+// the stage it compiles.  The version line of the file is replaced rather than
+// kept: those files are written for a compatibility context, the renderer
+// makes a core one, and every construct they use - texture(), textureOffset(),
+// the in and out variables, mat4x3 and transpose - is in 3.30 as well.
+static bool libretroStageSource(LPCSTR resource, const char *stage, CString &source)
+{
+	DWORD size = 0;
+	const char *text = upscalerShaderSource(resource, &size);
+	if (text == NULL)
+		return false;
+
+	const char *end = text + size;
+
+	if (end - text >= 8 && !strncmp(text, "#version", 8))
+	{
+		while (text < end && *text != '\n' && *text != '\r')
+			text++;
+	}
+
+	source = "#version 330 core\n#define ";
+	source += stage;
+	source += "\n";
+
+	return spliceShaderSource(text, (DWORD)(end - text), source, 0, stage);
+}
+
+// A pass of a chain: both stages out of the one file, with the attributes of
+// the libretro API at the places the quad of the renderer keeps them.
+static GLuint createLibretroProgram(LPCSTR resource, const char *name)
+{
+	CString vertexSource;
+	CString fragmentSource;
+
+	if (!libretroStageSource(resource, "VERTEX", vertexSource) ||
+	    !libretroStageSource(resource, "FRAGMENT", fragmentSource))
+		return 0;
+
+	GLuint vertex = compileShader(GL_VERTEX_SHADER, vertexSource, name);
+	if (vertex == 0)
+		return 0;
+
+	GLuint fragment = compileShader(GL_FRAGMENT_SHADER, fragmentSource, name);
+	if (fragment == 0)
+	{
+		glDeleteShader(vertex);
+		return 0;
+	}
+
+	GLuint program = glCreateProgram();
+	if (program == 0)
+	{
+		winlog("%s: cannot create the program\n", name);
+		glDeleteShader(vertex);
+		glDeleteShader(fragment);
+		return 0;
+	}
+
+	glAttachShader(program, vertex);
+	glAttachShader(program, fragment);
+
+	// What the libretro stages read, and where the vertex array of the
+	// renderer has them.  A stage that does not declare one of them ignores
+	// the binding, so all three are always made.
+	glBindAttribLocation(program, 0, "VertexCoord");
+	glBindAttribLocation(program, 1, "TexCoord");
+	glBindAttribLocation(program, 2, "COLOR");
+
+	glLinkProgram(program);
+	glDeleteShader(vertex);
+	glDeleteShader(fragment);
+
+	GLint linked = 0;
+	glGetProgramiv(program, GL_LINK_STATUS, &linked);
+	if (!linked)
+	{
+		char log[4096];
+		GLsizei length = 0;
+		glGetProgramInfoLog(program, sizeof(log) - 1, &length, log);
+		log[length] = 0;
+		winlog("%s: does not link: %s\n", name, log);
+		glDeleteProgram(program);
+		return 0;
+	}
+
+	return program;
+}
+
+static void releaseLibretroShader(int index);
+
+// Builds every pass of a chain, or none of them: a chain whose second pass did
+// not compile is of no use to the menu either.
+static void initLibretroShader(int index)
+{
+	const LibretroShader &shader = g_libretroShaders[index];
+	LibretroState        &state  = g_libretroState[index];
+
+	for (int i = 0; i < shader.passCount; i++)
+	{
+		LibretroPassState &pass = state.passes[i];
+
+		pass.program = createLibretroProgram(shader.passes[i].resource, shader.name);
+		if (pass.program == 0)
+		{
+			winlog("OpenGL 3.3: the %s upscaler is not available\n", shader.name);
+			releaseLibretroShader(index);
+			return;
+		}
+
+		pass.mvpMatrix      = glGetUniformLocation(pass.program, "MVPMatrix");
+		pass.outputSize     = glGetUniformLocation(pass.program, "OutputSize");
+		pass.textureSize    = glGetUniformLocation(pass.program, "TextureSize");
+		pass.inputSize      = glGetUniformLocation(pass.program, "InputSize");
+		pass.frameCount     = glGetUniformLocation(pass.program, "FrameCount");
+		pass.frameDirection = glGetUniformLocation(pass.program, "FrameDirection");
+
+		pass.samplerCount = 0;
+
+		GLint uniformCount = 0;
+		glGetProgramiv(pass.program, GL_ACTIVE_UNIFORMS, &uniformCount);
+
+		for (GLint u = 0; u < uniformCount; u++)
+		{
+			char   name[64];
+			GLint  size = 0;
+			GLenum type = 0;
+
+			glGetActiveUniform(pass.program, u, sizeof(name), NULL, &size, &type, name);
+
+			if (type != GL_SAMPLER_2D || pass.samplerCount >= LIBRETRO_MAX_SAMPLERS)
+				continue;
+
+			LibretroSampler &sampler = pass.samplers[pass.samplerCount++];
+			sampler.location = glGetUniformLocation(pass.program, name);
+			sampler.back     = libretroSamplerBack(name);
+		}
+	}
+}
+
+static void releaseLibretroShader(int index)
+{
+	LibretroState &state = g_libretroState[index];
+
+	for (int i = 0; i < LIBRETRO_MAX_PASSES; i++)
+	{
+		LibretroPassState &pass = state.passes[i];
+
+		if (pass.program != 0)
+		{
+			glDeleteProgram(pass.program);
+			pass.program = 0;
+		}
+
+		releaseUpscaleTarget(pass.target);
+	}
+}
+
+static void initLibretroShaders()
+{
+	for (int i = 0; i < (int)LIBRETRO_SHADER_COUNT; i++)
+		initLibretroShader(i);
+}
+
+static void releaseLibretroShaders()
+{
+	for (int i = 0; i < (int)LIBRETRO_SHADER_COUNT; i++)
+		releaseLibretroShader(i);
+}
+
+// ---------------------------------------------------------------------------
 // AMD FidelityFX Super Resolution 1.0: two passes, EASU to reconstruct the
 // frame at an arbitrary ratio and RCAS to sharpen it, around the unmodified AMD
 // headers.  Where the driver cannot compile the GLSL 4.20 those headers are
@@ -762,6 +1119,11 @@ private:
 	GLuint quadBuffer;
 	GLuint quadArray;
 
+	// The vertex array the libretro passes are drawn with: the attributes of
+	// the libretro API, at the places createLibretroProgram() binds them to.
+	GLuint libretroBuffer;
+	GLuint libretroArray;
+
 	GLuint overlayTexture;
 	bool   overlayFullUpload; // the whole overlay has been uploaded once
 	TextOverlay overlay;
@@ -783,6 +1145,7 @@ private:
 	void drawQuad(GLuint texture, float u0, float v0, float u1, float v1, bool flip, bool blend);
 	void drawOverlay();
 	GLuint scaleFrameWithSinglePass(int upscaler, bool *flipped);
+	GLuint scaleFrameWithLibretro(int upscaler, bool *flipped);
 	GLuint scaleFrameWithFsr();
 
 public:
@@ -821,6 +1184,8 @@ OpenGL33Display::OpenGL33Display()
 	quadSourceLocation = -1;
 	quadBuffer     = 0;
 	quadArray      = 0;
+	libretroBuffer = 0;
+	libretroArray  = 0;
 	overlayTexture = 0;
 	overlayFullUpload = true;
 	swapInterval   = -1;
@@ -1015,9 +1380,40 @@ bool OpenGL33Display::createQuad()
 	glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, sizeof(QuadVertex), (const GLvoid *)(sizeof(GLfloat) * 2));
 	glBindVertexArray(0);
 
+	// The quad the libretro passes are drawn with.  Its vertices carry the
+	// attributes of the libretro API: the position of the corner, the texture
+	// coordinate of it and a colour the stages are handed but do not use.  The
+	// frame's first row is at the bottom of the viewport here, which puts it in
+	// the first row of the target, so a pass leaves the picture the way it
+	// found it.
+	static const float libretroVertices[4][12] =
+	{
+		{ -1.0f, -1.0f, 0.0f, 1.0f,   0.0f, 0.0f, 0.0f, 0.0f,   1.0f, 1.0f, 1.0f, 1.0f },
+		{ -1.0f,  1.0f, 0.0f, 1.0f,   0.0f, 1.0f, 0.0f, 0.0f,   1.0f, 1.0f, 1.0f, 1.0f },
+		{  1.0f, -1.0f, 0.0f, 1.0f,   1.0f, 0.0f, 0.0f, 0.0f,   1.0f, 1.0f, 1.0f, 1.0f },
+		{  1.0f,  1.0f, 0.0f, 1.0f,   1.0f, 1.0f, 0.0f, 0.0f,   1.0f, 1.0f, 1.0f, 1.0f },
+	};
+
+	glGenVertexArrays(1, &libretroArray);
+	glGenBuffers(1, &libretroBuffer);
+
+	glBindVertexArray(libretroArray);
+	glBindBuffer(GL_ARRAY_BUFFER, libretroBuffer);
+	glBufferData(GL_ARRAY_BUFFER, sizeof(libretroVertices), libretroVertices, GL_STATIC_DRAW);
+
+	const GLsizei libretroStride = sizeof(libretroVertices[0]);
+	for (int attribute = 0; attribute < 3; attribute++)
+	{
+		glEnableVertexAttribArray(attribute);
+		glVertexAttribPointer(attribute, 4, GL_FLOAT, GL_FALSE, libretroStride,
+		                      (const GLvoid *)(sizeof(GLfloat) * 4 * attribute));
+	}
+	glBindVertexArray(0);
+
 	// The upscalers, so that the menu knows which of them are there before they
 	// are selected.
 	initSinglePassUpscalers();
+	initLibretroShaders();
 	initFsr();
 
 	glDisable(GL_DEPTH_TEST);
@@ -1089,6 +1485,7 @@ void OpenGL33Display::cleanup()
 		wglMakeCurrent(hDC, hglrc);
 
 		releaseSinglePassUpscalers();
+		releaseLibretroShaders();
 		releaseFsr();
 
 		if (quadProgram != 0)
@@ -1105,6 +1502,16 @@ void OpenGL33Display::cleanup()
 		{
 			glDeleteBuffers(1, &quadBuffer);
 			quadBuffer = 0;
+		}
+		if (libretroArray != 0)
+		{
+			glDeleteVertexArrays(1, &libretroArray);
+			libretroArray = 0;
+		}
+		if (libretroBuffer != 0)
+		{
+			glDeleteBuffers(1, &libretroBuffer);
+			libretroBuffer = 0;
 		}
 
 		releaseTextures();
@@ -1450,6 +1857,137 @@ GLuint OpenGL33Display::scaleFrameWithSinglePass(int upscaler, bool *flipped)
 	return state.target.texture;
 }
 
+// A chain runs its passes one after the other and hands back what the last one
+// made.  Every pass maps the whole of its input onto the whole of its target,
+// so it leaves the picture the way it found it, and the result covers the
+// window the way the frame would - the caller draws it like the frame.
+GLuint OpenGL33Display::scaleFrameWithLibretro(int upscaler, bool *flipped)
+{
+	int index = libretroShaderIndex(upscaler);
+	if (index < 0)
+		return 0;
+
+	const LibretroShader &shader = g_libretroShaders[index];
+	LibretroState        &state  = g_libretroState[index];
+
+	if (shader.passCount <= 0 || state.passes[0].program == 0 || frameTexture == 0)
+		return 0;
+
+	if (theApp.rect.right != frameWidth || theApp.rect.bottom != frameHeight)
+		return 0;
+
+	// The window, unless the user capped the ratio the upscaler may reach; the
+	// quad then stretches what it made over the rest of the window.
+	int targetWidth, targetHeight;
+	upscalerTargetSize(frameWidth, frameHeight, viewWidth, viewHeight,
+	                   theApp.upscalerMaxScale, &targetWidth, &targetHeight);
+
+	GLuint outputs[LIBRETRO_MAX_PASSES];
+	int    outputWidths[LIBRETRO_MAX_PASSES];
+	int    outputHeights[LIBRETRO_MAX_PASSES];
+
+	for (int i = 0; i < shader.passCount; i++)
+	{
+		// A fixed scale is a multiple of the frame rather than of the pass
+		// before it, which is what the presets ask for: the metrics passes of
+		// ScaleFX and xBR-mlv4 work on the frame itself.
+		int width  = shader.passes[i].scale > 0 ? frameWidth  * shader.passes[i].scale : targetWidth;
+		int height = shader.passes[i].scale > 0 ? frameHeight * shader.passes[i].scale : targetHeight;
+
+		if (!updateUpscaleTarget(state.passes[i].target, width, height, shader.name))
+			return 0;
+
+		outputs[i]       = state.passes[i].target.texture;
+		outputWidths[i]  = state.passes[i].target.width;
+		outputHeights[i] = state.passes[i].target.height;
+	}
+
+	static const GLfloat identity[16] =
+	{
+		1.0f, 0.0f, 0.0f, 0.0f,
+		0.0f, 1.0f, 0.0f, 0.0f,
+		0.0f, 0.0f, 1.0f, 0.0f,
+		0.0f, 0.0f, 0.0f, 1.0f
+	};
+
+	int    inputWidth  = frameWidth;
+	int    inputHeight = frameHeight;
+
+	for (int i = 0; i < shader.passCount; i++)
+	{
+		LibretroPassState &pass = state.passes[i];
+
+		glBindFramebuffer(GL_FRAMEBUFFER, pass.target.framebuffer);
+		glViewport(0, 0, pass.target.width, pass.target.height);
+
+		glUseProgram(pass.program);
+
+		// What the libretro API hands a stage.  The quad is already in the
+		// clip space the matrix would produce, so it is the identity; the two
+		// sizes are those of this pass and of what it reads.
+		if (pass.mvpMatrix >= 0)
+			glUniformMatrix4fv(pass.mvpMatrix, 1, GL_FALSE, identity);
+
+		if (pass.outputSize >= 0)
+			glUniform2f(pass.outputSize, (float)pass.target.width, (float)pass.target.height);
+
+		if (pass.textureSize >= 0)
+			glUniform2f(pass.textureSize, (float)inputWidth, (float)inputHeight);
+
+		if (pass.inputSize >= 0)
+			glUniform2f(pass.inputSize, (float)inputWidth, (float)inputHeight);
+
+		if (pass.frameCount >= 0)
+			glUniform1i(pass.frameCount, 0);
+
+		if (pass.frameDirection >= 0)
+			glUniform1i(pass.frameDirection, 1);
+
+		// The textures the pass reads.  A libretro stage counts the passes
+		// back from its own: PassPrev2Texture is the one before the one it
+		// reads as Texture, and anything before the first pass is the frame.
+		GLint filter = shader.passes[i].linear ? GL_LINEAR : GL_NEAREST;
+
+		for (int s = 0; s < pass.samplerCount; s++)
+		{
+			const LibretroSampler &sampler = pass.samplers[s];
+			int back = sampler.back;
+
+			GLuint texture = frameTexture;
+			if (back > 0 && i - back >= 0)
+				texture = outputs[i - back];
+
+			glActiveTexture(GL_TEXTURE0 + s);
+			glBindTexture(GL_TEXTURE_2D, texture);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filter);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, filter);
+
+			if (sampler.location >= 0)
+				glUniform1i(sampler.location, s);
+		}
+
+		glBindVertexArray(libretroArray);
+		glDisable(GL_BLEND);
+		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+		glBindVertexArray(0);
+
+		inputWidth  = pass.target.width;
+		inputHeight = pass.target.height;
+	}
+
+	glActiveTexture(GL_TEXTURE0);
+	glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	// The frame keeps the filtering the renderer gave it, which the passes
+	// above set to what their taps need.
+	glBindTexture(GL_TEXTURE_2D, frameTexture);
+	updateFiltering();
+
+	// The last target holds the frame's first row first, like the frame does.
+	*flipped = false;
+	return state.passes[shader.passCount - 1].target.texture;
+}
+
 // FSR reconstructs and sharpens the frame in two passes of its own.
 //
 // Its shaders are driven by the fragment position instead of by the varying:
@@ -1598,6 +2136,8 @@ void OpenGL33Display::render()
 	else if (theApp.upscaler != UPSCALER_OFF)
 	{
 		GLuint scaled = scaleFrameWithSinglePass(theApp.upscaler, &flip);
+		if (scaled == 0)
+			scaled = scaleFrameWithLibretro(theApp.upscaler, &flip);
 		if (scaled != 0)
 			source = scaled;
 	}
@@ -1696,6 +2236,10 @@ void OpenGL33Display::resize(int w, int h)
 	for (int i = 0; i < (int)SINGLE_PASS_UPSCALER_COUNT; i++)
 		releaseUpscaleTarget(g_singlePassUpscalerState[i].target);
 
+	for (int i = 0; i < (int)LIBRETRO_SHADER_COUNT; i++)
+		for (int pass = 0; pass < LIBRETRO_MAX_PASSES; pass++)
+			releaseUpscaleTarget(g_libretroState[i].passes[pass].target);
+
 	releaseUpscaleTarget(g_fsr.easuTarget);
 	releaseUpscaleTarget(g_fsr.rcasTarget);
 }
@@ -1722,6 +2266,18 @@ void OpenGL33Display::setOption(const char *option, int value)
 				continue;
 
 			glBindTexture(GL_TEXTURE_2D, g_singlePassUpscalerState[i].target.texture);
+			updateFiltering();
+		}
+
+		// The last target of a chain is the one the quad draws.  The targets
+		// before it are read by the passes, which set their own filtering.
+		for (int i = 0; i < (int)LIBRETRO_SHADER_COUNT; i++)
+		{
+			int last = g_libretroShaders[i].passCount - 1;
+			if (last < 0 || g_libretroState[i].passes[last].target.texture == 0)
+				continue;
+
+			glBindTexture(GL_TEXTURE_2D, g_libretroState[i].passes[last].target.texture);
 			updateFiltering();
 		}
 
@@ -1765,7 +2321,11 @@ bool OpenGL33Display::upscalerAvailable(int upscaler)
 		return g_fsr.available;
 	default:
 		int index = singlePassUpscalerIndex(upscaler);
-		return index >= 0 && g_singlePassUpscalerState[index].program != 0;
+		if (index >= 0)
+			return g_singlePassUpscalerState[index].program != 0;
+
+		index = libretroShaderIndex(upscaler);
+		return index >= 0 && g_libretroState[index].passes[0].program != 0;
 	}
 }
 

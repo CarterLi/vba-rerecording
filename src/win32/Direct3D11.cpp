@@ -449,11 +449,11 @@ private:
 	bool updateFsrTargets(int dstWidth, int dstHeight);
 	ID3D11ShaderResourceView *scaleFrameWithFsr();
 
-	// The single pass pixel shader upscalers: xBRZ and whatever is added to
-	// g_singlePassUpscalers next.
-	void initSinglePassUpscalers();
-	void releaseSinglePassUpscalers();
-	ID3D11ShaderResourceView *scaleFrameWithSinglePass(int upscaler);
+	// The pixel filter shaders of the table below: one pixel shader per pass,
+	// the block of constants each of them reads and the target each draws into.
+	void initUpscalers();
+	void releaseUpscalers();
+	ID3D11ShaderResourceView *scaleFrameWithUpscaler(int upscaler);
 
 	HWND                  hwnd;
 	ID3D11Device         *pDevice;
@@ -596,7 +596,7 @@ void Direct3D11Display::releaseAll()
 	releaseFrameTexture();
 	releaseNis();
 	releaseFsr();
-	releaseSinglePassUpscalers();
+	releaseUpscalers();
 
 	if (pOverlaySRV)   { pOverlaySRV->Release();   pOverlaySRV = NULL; }
 	if (pOverlayTexture) { pOverlayTexture->Release(); pOverlayTexture = NULL; }
@@ -966,10 +966,10 @@ bool Direct3D11Display::initialize()
 	else if (theApp.upscaler == UPSCALER_FSR)
 		initFsr();
 
-	// The single pass shaders are built here rather than on demand, so that the
-	// upscaling menu knows whether they are there before they are selected.
-	// Failing is not fatal, the entry is then left out.
-	initSinglePassUpscalers();
+	// The pixel filter shaders are built here rather than on demand, so that
+	// the upscaling menu knows whether they are there before they are
+	// selected.  Failing is not fatal, the entry is then left out.
+	initUpscalers();
 
 	filterMode = regQueryDwordValue("d3dFilter", 0);
 	if (filterMode < 0 || filterMode > 3)
@@ -1450,38 +1450,101 @@ ID3D11ShaderResourceView *Direct3D11Display::scaleFrameWithFsr()
 	return source;
 }
 
-// --- Single pass pixel shader upscalers ----------------------------------
+// --- The pixel filter shaders -------------------------------------------
 //
-// xBRZ and anything else like it: one pixel shader, one block of constants and
-// one render target the size of the back buffer.  The pass maps the whole frame
-// texture onto the whole window, the same mapping the textured quad would use,
-// so it stacks with the CPU pixel filter and with the sharpening the way the
-// two SDK upscalers above do.  Adding another one is a row of the table below,
-// its source as a resource in vba.rc, a UPSCALER_* value and a menu item: no
-// code, and nothing else in the renderer has to know about it.
+// xBRZ and everything else added to the table below: pixel shaders that filter
+// the frame rather than reconstruct it, drawn one after the other.  The passes
+// map the whole of their input onto the whole of their target, the same mapping
+// the textured quad would use, so an upscaler stacks with the CPU pixel filter
+// and with the sharpening the way the two SDK upscalers above do.
 //
-// The xBRZ port itself is src/win32/upscalers/XBRZ_Freescale.hlsl.
+// Most of them are a single pass.  ScaleFX is not: four of its passes work on
+// the frame itself, at the size the emulation thread produced it, and the fifth
+// interpolates the edge at whatever size the target has - which is why a pass
+// either takes the size of the target or a multiple of the frame.
+//
+// Adding one is the row below, its source as a resource in vba.rc, a
+// UPSCALER_* value and a menu item: no code, and nothing else in the renderer
+// has to know about it.  The shaders themselves are src/win32/upscalers.
 
-struct SinglePassUpscalerSource
+// The most passes any of them has; ScaleFX has five.
+#define UPSCALER_MAX_PASSES 5
+
+struct UpscalerPassSource
 {
-	int         value;     // the UPSCALER_* value it implements
-	const char *name;      // for the trace log and the screen message
-	const char *resource;  // the RCDATA resource holding its source
-	const char *entry;     // the entry point of its pixel shader
-	const char *profile;   // the shader model it is compiled for
+	const char *resource; // the RCDATA resource holding its source
+	const char *entry;    // the entry point of its pixel shader
+	int         scale;    // 0: the size of the target, n: n times the frame
+	int         prev;     // n: the pass n back is bound as its second texture,
+	                      // 0: it reads one texture.  A pass that asks for one
+	                      // further back than the chain starts gets the frame,
+	                      // which is how RetroArch resolves PassPrev<N>Texture.
 };
 
-static const SinglePassUpscalerSource g_singlePassUpscalers[] =
+struct UpscalerSource
 {
-	{ UPSCALER_XBRZ, "xBRZ", "XBRZ_SHADER_FREESCALE", "main", "ps_4_0" },
+	int                        value;     // the UPSCALER_* value it implements
+	const char                *name;      // for the trace log and the screen message
+	const UpscalerPassSource  *passes;
+	int                        passCount;
+	const char                *profile;   // the shader model they are compiled for
 };
 
-#define SINGLE_PASS_UPSCALER_COUNT (sizeof(g_singlePassUpscalers) / sizeof(g_singlePassUpscalers[0]))
+static const UpscalerPassSource g_xbrzPasses[] =
+{
+	{ "XBRZ_SHADER_FREESCALE", "main", 0, 0 },
+};
+
+static const UpscalerPassSource g_xbrLv2Passes[] =
+{
+	{ "XBR_LV2_SHADER", "main", 0, 0 },
+};
+
+static const UpscalerPassSource g_xbrLv2NoBlendPasses[] =
+{
+	{ "XBR_LV2_NOBLEND_SHADER", "main", 0, 0 },
+};
+
+static const UpscalerPassSource g_xbrLv3Passes[] =
+{
+	{ "XBR_LV3_SHADER", "main", 0, 0 },
+};
+
+// ScaleFX: the metrics of the edge, then the subpixels.  The pass that
+// resolves the junctions reads the metrics of pass 0 as well as the output of
+// pass 1, and the last one draws its colours from the frame itself.
+static const UpscalerPassSource g_scalefxPasses[] =
+{
+	{ "SCALEFX_PASS0_SHADER", "main", 1, 0 },
+	{ "SCALEFX_PASS1_SHADER", "main", 1, 0 },
+	{ "SCALEFX_PASS2_SHADER", "main", 1, 2 },
+	{ "SCALEFX_PASS3_SHADER", "main", 1, 0 },
+	{ "SCALEFX_PASS4_SHADER", "main", 0, 5 },
+};
+
+// The one pass of the transparency filter reads the frame twice: the pixels it
+// draws and the ones it leaves alone.
+static const UpscalerPassSource g_ptSkyWalkerPasses[] =
+{
+	{ "PT_SKYWALKER541_SHADER", "main", 0, 1 },
+};
+
+static const UpscalerSource g_upscalers[] =
+{
+	{ UPSCALER_XBRZ,             "xBRZ",             g_xbrzPasses,          1, "ps_4_0" },
+	{ UPSCALER_XBR_LV2,          "xBR lv2",          g_xbrLv2Passes,        1, "ps_4_0" },
+	{ UPSCALER_XBR_LV2_NOBLEND,  "xBR lv2 no-blend", g_xbrLv2NoBlendPasses, 1, "ps_4_0" },
+	{ UPSCALER_XBR_LV3,          "xBR lv3",          g_xbrLv3Passes,        1, "ps_4_0" },
+	{ UPSCALER_SCALEFX,          "ScaleFX",          g_scalefxPasses,       5, "ps_4_0" },
+	{ UPSCALER_PT_SKYWALKER,     "PT SkyWalker541",  g_ptSkyWalkerPasses,   1, "ps_4_0" },
+};
+
+#define UPSCALER_COUNT (sizeof(g_upscalers) / sizeof(g_upscalers[0]))
 
 // The block every one of them is handed, and the one their sources declare:
 //
-//   float4 SourceSize;  // xy: the frame size in pixels, zw: 1 / xy, one texel
-//   float4 OutputSize;  // xy: the target size in pixels, zw: 1 / xy
+//   float4 SourceSize;  // xy: the size the pass reads, zw: 1 / xy, one texel
+//   float4 OutputSize;  // xy: the size of its target, zw: 1 / xy
 //   float4 Scale;       // xy: OutputSize.xy / SourceSize.xy
 //
 // They are sampled with the point sampler, so their taps land on texel centres.
@@ -1493,89 +1556,122 @@ struct SinglePassConstants
 	float scale[4];
 };
 
-// What the running renderer built out of the table above.  There is never more
-// than one display at a time, and the upscaling menu asks about the shaders in
-// between two of them, so they live here rather than in the display object.
-struct SinglePassUpscaler
+struct UpscalerPass
 {
 	ID3D11PixelShader *shader;
 	ID3D11Buffer      *constants;
 	UpscaleTarget      target;
 };
 
-static SinglePassUpscaler g_singlePassUpscalerState[SINGLE_PASS_UPSCALER_COUNT];
+// What the running renderer built out of the table above.  There is never more
+// than one display at a time, and the upscaling menu asks about the shaders in
+// between two of them, so they live here rather than in the display object.
+struct Upscaler
+{
+	UpscalerPass passes[UPSCALER_MAX_PASSES];
+};
+
+static Upscaler g_upscalerState[UPSCALER_COUNT];
 
 // The row of the table above that implements `value`, or -1.
-static int singlePassUpscalerIndex(int value)
+static int upscalerIndex(int value)
 {
-	for (UINT i = 0; i < SINGLE_PASS_UPSCALER_COUNT; i++)
-		if (g_singlePassUpscalers[i].value == value)
+	for (UINT i = 0; i < UPSCALER_COUNT; i++)
+		if (g_upscalers[i].value == value)
 			return (int)i;
 
 	return -1;
 }
 
-// False for an upscaler of the table above whose shader did not compile on this
-// device, which is how the upscaling menu leaves it out.  The two SDK upscalers
-// are built on demand, so there is nothing to answer for them, and anything the
-// renderer does not know at all passes too.
+// False for an upscaler whose shader did not compile on this device, which is
+// how the upscaling menu leaves it out.  The two SDK upscalers are built on
+// demand, so there is nothing to answer for them, and the chains that only the
+// OpenGL backend runs are the ones this table has no row for.
 bool direct3D11UpscalerAvailable(int upscaler)
 {
-	int index = singlePassUpscalerIndex(upscaler);
+	int index = upscalerIndex(upscaler);
 
-	return index < 0 || g_singlePassUpscalerState[index].shader != NULL;
+	if (index >= 0)
+		return g_upscalerState[index].passes[0].shader != NULL;
+
+	return upscaler == UPSCALER_OFF || upscaler == UPSCALER_NIS || upscaler == UPSCALER_FSR;
 }
 
-void Direct3D11Display::initSinglePassUpscalers()
+// The name of an upscaler the way the table spells it, or NULL.
+const char *direct3D11UpscalerName(int upscaler)
 {
-	for (UINT i = 0; i < SINGLE_PASS_UPSCALER_COUNT; i++)
-	{
-		const SinglePassUpscalerSource& source = g_singlePassUpscalers[i];
-		SinglePassUpscaler& upscaler = g_singlePassUpscalerState[i];
+	int index = upscalerIndex(upscaler);
 
-		if (upscaler.shader != NULL)
+	return index >= 0 ? g_upscalers[index].name : NULL;
+}
+
+static void releaseUpscaler(Upscaler &upscaler)
+{
+	for (int pass = 0; pass < UPSCALER_MAX_PASSES; pass++)
+	{
+		releaseUpscaleTarget(upscaler.passes[pass].target);
+
+		if (upscaler.passes[pass].constants) { upscaler.passes[pass].constants->Release(); upscaler.passes[pass].constants = NULL; }
+		if (upscaler.passes[pass].shader)    { upscaler.passes[pass].shader->Release();    upscaler.passes[pass].shader    = NULL; }
+	}
+}
+
+void Direct3D11Display::initUpscalers()
+{
+	for (UINT i = 0; i < UPSCALER_COUNT; i++)
+	{
+		const UpscalerSource &source = g_upscalers[i];
+		Upscaler             &state  = g_upscalerState[i];
+
+		if (state.passes[0].shader != NULL)
 			continue;
 
-		upscaler.shader = createUpscalerPixelShader(pDevice, source.resource, source.name,
-		                                            source.entry, source.profile);
-		if (upscaler.shader == NULL)
+		bool built = true;
+
+		for (int pass = 0; pass < source.passCount && built; pass++)
+		{
+			UpscalerPass &statePass = state.passes[pass];
+
+			statePass.shader = createUpscalerPixelShader(pDevice, source.passes[pass].resource,
+			                                             source.name, source.passes[pass].entry,
+			                                             source.profile);
+			if (statePass.shader == NULL)
+			{
+				built = false;
+				break;
+			}
+
+			if (!createUpscalerConstants(pDevice, sizeof(SinglePassConstants), &statePass.constants))
+			{
+				winlog("%s: cannot create the constant buffer\n", source.name);
+				built = false;
+			}
+		}
+
+		if (!built)
 		{
 			winlog("D3D11: the %s upscaler is not available on this device\n", source.name);
-			continue;
-		}
-
-		if (!createUpscalerConstants(pDevice, sizeof(SinglePassConstants), &upscaler.constants))
-		{
-			winlog("%s: cannot create the constant buffer\n", source.name);
-			upscaler.shader->Release();
-			upscaler.shader = NULL;
+			releaseUpscaler(state);
 		}
 	}
 }
 
-void Direct3D11Display::releaseSinglePassUpscalers()
+void Direct3D11Display::releaseUpscalers()
 {
-	for (UINT i = 0; i < SINGLE_PASS_UPSCALER_COUNT; i++)
-	{
-		SinglePassUpscaler& upscaler = g_singlePassUpscalerState[i];
-
-		releaseUpscaleTarget(upscaler.target);
-
-		if (upscaler.constants) { upscaler.constants->Release(); upscaler.constants = NULL; }
-		if (upscaler.shader)    { upscaler.shader->Release();    upscaler.shader    = NULL; }
-	}
+	for (UINT i = 0; i < UPSCALER_COUNT; i++)
+		releaseUpscaler(g_upscalerState[i]);
 }
 
-ID3D11ShaderResourceView *Direct3D11Display::scaleFrameWithSinglePass(int upscaler)
+ID3D11ShaderResourceView *Direct3D11Display::scaleFrameWithUpscaler(int upscaler)
 {
-	int index = singlePassUpscalerIndex(upscaler);
+	int index = upscalerIndex(upscaler);
 	if (index < 0)
 		return NULL;
 
-	const SinglePassUpscalerSource& source = g_singlePassUpscalers[index];
-	SinglePassUpscaler&             state  = g_singlePassUpscalerState[index];
+	const UpscalerSource &source = g_upscalers[index];
+	Upscaler             &state  = g_upscalerState[index];
 
-	if (state.shader == NULL || state.constants == NULL || pFrameSRV == NULL)
+	if (state.passes[0].shader == NULL || pFrameSRV == NULL)
 		return NULL;
 
 	// The pass maps the whole frame texture onto the whole back buffer, the
@@ -1587,54 +1683,100 @@ ID3D11ShaderResourceView *Direct3D11Display::scaleFrameWithSinglePass(int upscal
 	upscalerTargetSize(width, height, backWidth, backHeight,
 	                   theApp.upscalerMaxScale, &targetWidth, &targetHeight);
 
-	if (!updateUpscaleTarget(pDevice, state.target, targetWidth, targetHeight, source.name))
-		return NULL;
+	for (int pass = 0; pass < source.passCount; pass++)
+	{
+		// A fixed scale is a multiple of the frame rather than of the pass
+		// before it, the way the presets of the libretro shaders ask for it.
+		int passWidth  = source.passes[pass].scale > 0 ? width  * source.passes[pass].scale : targetWidth;
+		int passHeight = source.passes[pass].scale > 0 ? height * source.passes[pass].scale : targetHeight;
 
-	SinglePassConstants constants;
-	constants.sourceSize[0] = (float)width;
-	constants.sourceSize[1] = (float)height;
-	constants.sourceSize[2] = 1.0f / (float)width;
-	constants.sourceSize[3] = 1.0f / (float)height;
-	constants.outputSize[0] = (float)targetWidth;
-	constants.outputSize[1] = (float)targetHeight;
-	constants.outputSize[2] = 1.0f / (float)targetWidth;
-	constants.outputSize[3] = 1.0f / (float)targetHeight;
-	constants.scale[0]      = (float)targetWidth  / (float)width;
-	constants.scale[1]      = (float)targetHeight / (float)height;
-	constants.scale[2]      = 0.0f;
-	constants.scale[3]      = 0.0f;
-
-	if (!writeUpscalerConstants(pContext, state.constants, &constants, sizeof(constants)))
-		return NULL;
+		if (!updateUpscaleTarget(pDevice, state.passes[pass].target, passWidth, passHeight, source.name))
+			return NULL;
+	}
 
 	D3D11VERTEX fullQuad[4];
 	setFullscreenQuad(fullQuad);
 
-	ID3D11RenderTargetView *rtv = state.target.rtv;
-	pContext->OMSetRenderTargets(1, &rtv, NULL);
+	// outputs[0] is the frame and outputs[n + 1] the target of pass n, which
+	// is how a pass names what it reads: the pass before it, or, for the ones
+	// that ask for an earlier pass, that pass.
+	ID3D11ShaderResourceView *outputs[UPSCALER_MAX_PASSES + 1];
+	outputs[0] = pFrameSRV;
 
-	D3D11_VIEWPORT vp;
-	vp.TopLeftX = 0.0f;
-	vp.TopLeftY = 0.0f;
-	vp.Width    = (float)state.target.width;
-	vp.Height   = (float)state.target.height;
-	vp.MinDepth = 0.0f;
-	vp.MaxDepth = 1.0f;
-	pContext->RSSetViewports(1, &vp);
+	int inputWidth  = width;
+	int inputHeight = height;
 
-	pContext->PSSetConstantBuffers(0, 1, &state.constants);
+	for (int pass = 0; pass < source.passCount; pass++)
+	{
+		UpscalerPass &statePass = state.passes[pass];
 
-	// The taps have to land on texel centres.
-	int savedFilter = filterMode;
-	filterMode = 0;
-	drawQuad(pFrameSRV, fullQuad, false, state.shader);
-	filterMode = savedFilter;
+		ID3D11ShaderResourceView *input  = outputs[pass];
+		ID3D11ShaderResourceView *second = NULL;
 
-	// The caller draws what this produced, so drop the shader resource binding.
-	ID3D11ShaderResourceView *nullView = NULL;
-	pContext->PSSetShaderResources(0, 1, &nullView);
+		if (source.passes[pass].prev > 0)
+		{
+			int earlier = pass - source.passes[pass].prev + 1;
+			second = outputs[earlier > 0 ? earlier : 0];
+		}
 
-	return state.target.srv;
+		SinglePassConstants constants;
+		constants.sourceSize[0] = (float)inputWidth;
+		constants.sourceSize[1] = (float)inputHeight;
+		constants.sourceSize[2] = 1.0f / (float)inputWidth;
+		constants.sourceSize[3] = 1.0f / (float)inputHeight;
+		constants.outputSize[0] = (float)statePass.target.width;
+		constants.outputSize[1] = (float)statePass.target.height;
+		constants.outputSize[2] = 1.0f / (float)statePass.target.width;
+		constants.outputSize[3] = 1.0f / (float)statePass.target.height;
+		constants.scale[0]      = (float)statePass.target.width  / (float)inputWidth;
+		constants.scale[1]      = (float)statePass.target.height / (float)inputHeight;
+		constants.scale[2]      = 0.0f;
+		constants.scale[3]      = 0.0f;
+
+		if (!writeUpscalerConstants(pContext, statePass.constants, &constants, sizeof(constants)))
+			return NULL;
+
+		ID3D11RenderTargetView *rtv = statePass.target.rtv;
+		pContext->OMSetRenderTargets(1, &rtv, NULL);
+
+		D3D11_VIEWPORT vp;
+		vp.TopLeftX = 0.0f;
+		vp.TopLeftY = 0.0f;
+		vp.Width    = (float)statePass.target.width;
+		vp.Height   = (float)statePass.target.height;
+		vp.MinDepth = 0.0f;
+		vp.MaxDepth = 1.0f;
+		pContext->RSSetViewports(1, &vp);
+
+		pContext->PSSetConstantBuffers(0, 1, &statePass.constants);
+
+		// The taps have to land on texel centres.
+		int savedFilter = filterMode;
+		filterMode = 0;
+
+		// drawQuad() binds the texture of the pass at slot 0 and its sampler,
+		// and leaves slot 1 alone, which is where the ones that read a second
+		// one find it.
+		if (second != NULL)
+		{
+			pContext->PSSetShaderResources(1, 1, &second);
+			pContext->PSSetSamplers(1, 1, &pSamplerPoint);
+		}
+
+		drawQuad(input, fullQuad, false, statePass.shader);
+		filterMode = savedFilter;
+
+		// The next pass, or the caller, draws what this produced, so drop the
+		// shader resource bindings it would read through.
+		ID3D11ShaderResourceView *nullViews[2] = { NULL, NULL };
+		pContext->PSSetShaderResources(0, 2, nullViews);
+
+		outputs[pass + 1] = statePass.target.srv;
+		inputWidth  = statePass.target.width;
+		inputHeight = statePass.target.height;
+	}
+
+	return state.passes[source.passCount - 1].target.srv;
 }
 
 void Direct3D11Display::clear()
@@ -1818,9 +1960,9 @@ void Direct3D11Display::render()
 		else if (theApp.upscaler == UPSCALER_FSR)
 			scaled = scaleFrameWithFsr();
 		else
-			// Everything else is one of the single pass shaders, if it is one
-			// of ours at all.
-			scaled = scaleFrameWithSinglePass(theApp.upscaler);
+			// Everything else is one of the pixel filter shaders of the table
+			// above, if it is one of ours at all.
+			scaled = scaleFrameWithUpscaler(theApp.upscaler);
 
 		if (scaled != NULL)
 		{
@@ -2044,7 +2186,7 @@ void Direct3D11Display::setOption(const char *option, int value)
 	}
 	else if (!strcmp(option, "upscaler"))
 	{
-		// The two SDK upscalers are built on demand, the single pass shaders
+		// The two SDK upscalers are built on demand, the pixel filter shaders
 		// when the renderer starts, so there is nothing to build here, only
 		// something to report when one of them is not there.
 		if (value == UPSCALER_NIS && !nisAvailable && !initNis())
@@ -2053,10 +2195,16 @@ void Direct3D11Display::setOption(const char *option, int value)
 			systemScreenMessage("FidelityFX Super Resolution is not available on this device");
 		else if (!direct3D11UpscalerAvailable(value))
 		{
-			char message[128];
-			sprintf(message, "The %s upscaler is not available on this device",
-			        g_singlePassUpscalers[singlePassUpscalerIndex(value)].name);
-			systemScreenMessage(message);
+			const char *name = direct3D11UpscalerName(value);
+
+			if (name != NULL)
+			{
+				char message[128];
+				sprintf(message, "The %s upscaler is not available on this device", name);
+				systemScreenMessage(message);
+			}
+			else if (value != UPSCALER_OFF)
+				systemScreenMessage("That upscaler runs on the OpenGL 3.3 renderer");
 		}
 	}
 }

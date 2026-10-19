@@ -63,24 +63,66 @@ IDI_ICON                ICON                    "gbadvance.ico"
 // sources, plus the small FSR wrapper, that the Direct3D 11 backend compiles
 // while it starts up.  They ship inside the executable, see
 // src/win32/upscalers/README.txt.
-//
-// The xBRZ pixel filter of the same backend is a port of a libretro shader and
-// is stored the same way.
 
 NIS_SHADER_MAIN         RCDATA                  "upscalers\\NIS_Main.hlsl"
 NIS_SHADER_SCALER       RCDATA                  "upscalers\\NIS_Scaler.h"
 FSR_SHADER_MAIN         RCDATA                  "upscalers\\FSR_Main.hlsl"
 FSR_SHADER_A            RCDATA                  "upscalers\\ffx_a.h"
 FSR_SHADER_FSR1         RCDATA                  "upscalers\\ffx_fsr1.h"
-XBRZ_SHADER_FREESCALE   RCDATA                  "upscalers\\XBRZ_Freescale.hlsl"
 
 // The OpenGL 3.3 backend compiles the same upscalers from GLSL, so the two
 // renderers reconstruct a frame the same way.  It splices #include itself, so
 // the FidelityFX headers above are the ones it gets as well.
-XBRZ_GLSL_FREESCALE     RCDATA                  "upscalers\\XBRZ_Freescale.glsl"
 FSR_GLSL_BODY           RCDATA                  "upscalers\\FSR_Body.glsl"
 FSR_GLSL_EASU           RCDATA                  "upscalers\\FSR_Easu.glsl"
 FSR_GLSL_RCAS           RCDATA                  "upscalers\\FSR_Rcas.glsl"
+
+// The libretro shaders, and the ports of them the Direct3D 11 backend runs.
+// Everything here is in upscalers/libretro, side by side: the .glsl files are
+// verbatim from https://github.com/libretro/glsl-shaders (master ce9a412) and
+// the OpenGL 3.3 backend compiles them as they are, the .hlsl files are ours
+// and each one names the file it came from.
+//
+// xBRZ, which both backends have had for longer than the rest
+XBRZ_GLSL_FREESCALE     RCDATA                  "upscalers\\libretro\\XBRZ_Freescale.glsl"
+XBRZ_SHADER_FREESCALE   RCDATA                  "upscalers\\libretro\\XBRZ_Freescale.hlsl"
+
+// Hyllian's xBR
+XBR_LV2_GLSL            RCDATA                  "upscalers\\libretro\\xbr-lv2.glsl"
+XBR_LV2_SHADER          RCDATA                  "upscalers\\libretro\\XBR_Lv2.hlsl"
+XBR_LV2_NOBLEND_GLSL    RCDATA                  "upscalers\\libretro\\xbr-lv2-noblend.glsl"
+XBR_LV2_NOBLEND_SHADER  RCDATA                  "upscalers\\libretro\\XBR_Lv2NoBlend.hlsl"
+XBR_LV3_GLSL            RCDATA                  "upscalers\\libretro\\xbr-lv3.glsl"
+XBR_LV3_SHADER          RCDATA                  "upscalers\\libretro\\XBR_Lv3.hlsl"
+XBR_LV3_PASS0_GLSL      RCDATA                  "upscalers\\libretro\\xbr-lv3-pass0.glsl"
+XBR_LV3_PASS1_GLSL      RCDATA                  "upscalers\\libretro\\xbr-lv3-pass1.glsl"
+XBR_2X_PASS0_GLSL       RCDATA                  "upscalers\\libretro\\2xbr-lv1-c-pass0.glsl"
+XBR_2X_PASS1_GLSL       RCDATA                  "upscalers\\libretro\\2xbr-lv1-c-pass1.glsl"
+XBR_MLV4_PASS1_GLSL     RCDATA                  "upscalers\\libretro\\xbr-mlv4-pass1.glsl"
+XBR_MLV4_PASS2_GLSL     RCDATA                  "upscalers\\libretro\\xbr-mlv4-pass2.glsl"
+XBR_MLV4_PASS3_GLSL     RCDATA                  "upscalers\\libretro\\xbr-mlv4-pass3.glsl"
+XBR_MLV4_PASS4_GLSL     RCDATA                  "upscalers\\libretro\\xbr-mlv4-pass4.glsl"
+
+// super-xBR
+SUPER_XBR_PASS0_GLSL    RCDATA                  "upscalers\\libretro\\super-xbr-pass0.glsl"
+SUPER_XBR_PASS1_GLSL    RCDATA                  "upscalers\\libretro\\super-xbr-pass1.glsl"
+CUSTOM_JINC2_SHARPER_GLSL RCDATA                "upscalers\\libretro\\custom-jinc2-sharper.glsl"
+
+// ScaleFX
+SCALEFX_PASS0_GLSL      RCDATA                  "upscalers\\libretro\\scalefx-pass0.glsl"
+SCALEFX_PASS0_SHADER    RCDATA                  "upscalers\\libretro\\ScaleFX_Pass0.hlsl"
+SCALEFX_PASS1_GLSL      RCDATA                  "upscalers\\libretro\\scalefx-pass1.glsl"
+SCALEFX_PASS1_SHADER    RCDATA                  "upscalers\\libretro\\ScaleFX_Pass1.hlsl"
+SCALEFX_PASS2_GLSL      RCDATA                  "upscalers\\libretro\\scalefx-pass2.glsl"
+SCALEFX_PASS2_SHADER    RCDATA                  "upscalers\\libretro\\ScaleFX_Pass2.hlsl"
+SCALEFX_PASS3_GLSL      RCDATA                  "upscalers\\libretro\\scalefx-pass3.glsl"
+SCALEFX_PASS3_SHADER    RCDATA                  "upscalers\\libretro\\ScaleFX_Pass3.hlsl"
+SCALEFX_PASS4_GLSL      RCDATA                  "upscalers\\libretro\\scalefx-pass4.glsl"
+SCALEFX_PASS4_SHADER    RCDATA                  "upscalers\\libretro\\ScaleFX_Pass4.hlsl"
+
+// PT SkyWalker541
+PT_SKYWALKER541_GLSL    RCDATA                  "upscalers\\libretro\\PT_SkyWalker541.glsl"
+PT_SKYWALKER541_SHADER  RCDATA                  "upscalers\\libretro\\PT_SkyWalker541.hlsl"
 
 
 /////////////////////////////////////////////////////////////////////////////
@@ -2045,6 +2087,16 @@ BEGIN
             MENUITEM "NVIDIA &NIS (Direct3D 11)",   ID_OPTIONS_VIDEO_UPSCALER_NIS
             MENUITEM "AMD &FSR 1.0",                ID_OPTIONS_VIDEO_UPSCALER_FSR
             MENUITEM "&xBRZ (Freescale)",           ID_OPTIONS_VIDEO_UPSCALER_XBRZ
+            MENUITEM SEPARATOR
+            MENUITEM "xBR &lv2",                    ID_OPTIONS_VIDEO_UPSCALER_XBR_LV2
+            MENUITEM "xBR lv2 &No-Blend",           ID_OPTIONS_VIDEO_UPSCALER_XBR_LV2_NOBLEND
+            MENUITEM "xBR l&v3",                    ID_OPTIONS_VIDEO_UPSCALER_XBR_LV3
+            MENUITEM "xBR lv3 &Multipass",          ID_OPTIONS_VIDEO_UPSCALER_XBR_LV3_MULTIPASS
+            MENUITEM "&2xBR",                       ID_OPTIONS_VIDEO_UPSCALER_XBR_2X
+            MENUITEM "xBR-&mlv4",                   ID_OPTIONS_VIDEO_UPSCALER_XBR_MLV4
+            MENUITEM "&Super xBR",                  ID_OPTIONS_VIDEO_UPSCALER_SUPER_XBR
+            MENUITEM "Scale&FX",                    ID_OPTIONS_VIDEO_UPSCALER_SCALEFX
+            MENUITEM "&PT SkyWalker541 (LCD)",      ID_OPTIONS_VIDEO_UPSCALER_PT_SKYWALKER
             MENUITEM SEPARATOR
             POPUP "&Sharpening"
             BEGIN

@@ -140,7 +140,7 @@ float4 main(XbrzVSOut input) : SV_TARGET
 
 	float2 texel = SourceSize.zw;
 	float2 scale = Scale.xy;
-	float2 pos   = frac(input.uv / texel) - float2(0.5, 0.5);
+	float2 pos   = frac(input.uv * SourceSize.xy) - float2(0.5, 0.5);
 	float2 coord = input.uv - pos * texel;
 
 	float3 A = P(-1., -1.);

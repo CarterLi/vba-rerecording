@@ -140,7 +140,7 @@ void main()
 
 	vec2 texel = SourceSize.zw;
 	vec2 scale = Scale.xy;
-	vec2 pos   = fract(uv / texel) - vec2(0.5, 0.5);
+	vec2 pos   = fract(uv * SourceSize.xy) - vec2(0.5, 0.5);
 	vec2 coord = uv - pos * texel;
 
 	vec3 A = P(-1., -1.);

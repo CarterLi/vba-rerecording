@@ -1,25 +1,26 @@
 Frame upscaling shaders
 
 The Direct3D 11 renderer can rebuild the frame at the window size with either
-of two SDKs, or filter it with xBRZ while stretching it.  All three shaders are
-compiled at run time with D3DCompile.  Their sources are not compiled into the
+of two SDKs, or filter it with one of the libretro shaders.  Every shader is
+compiled at run time with D3DCompile.  The sources are not compiled into the
 project, but stored in the executable as RCDATA resources (see the Upscaler
 shaders section of src/win32/vba.rc); the FidelityFX headers are far too large
 for a C++ string literal, and resources keep these files readable and diffable
 against upstream.  Nothing has to be shipped next to the executable.
 
-The OpenGL 3.3 renderer runs the same FSR and xBRZ upscalers from GLSL ports of
-the same sources, and compiles them with the driver instead, see the GLSL
-section at the end.  NVIDIA Image Scaling has no port: it is a compute shader
-and stays with Direct3D 11.
+The OpenGL 3.3 renderer runs the same FSR and libretro upscalers, from GLSL, and
+compiles them with the driver instead, see the GLSL section at the end.  NVIDIA
+Image Scaling has no port: it is a compute shader and stays with Direct3D 11.
 
 The two SDKs are pipelines of their own (a compute shader with a coefficient
-texture, and a reconstruction pass plus a sharpening pass).  xBRZ belongs to the
-simpler kind, the single pass pixel shader upscalers, which the table
-g_singlePassUpscalers in Direct3D11.cpp describes: such a shader is a row in that
-table, a resource here, a UPSCALER_* value and a menu item, and the renderer
-hands it the frame texture with the whole frame mapped onto the whole window,
-sampled with the point sampler.  Adding one needs no code anywhere else.
+texture, and a reconstruction pass plus a sharpening pass).  Everything else is
+a row of the table g_upscalers in Direct3D11.cpp: a chain of pixel shader
+passes, each of which renders either at a fixed multiple of the frame or at the
+size of the target.  A single pass shader is a chain of one.  Adding one is a
+row in that table, a resource here, a UPSCALER_* value and a menu item, and the
+renderer hands every pass the frame texture (or the output of an earlier pass)
+with the whole frame mapped onto the whole window, sampled with the point
+sampler.  Adding one needs no code anywhere else.
 
 NVIDIA Image Scaling (NIS)
 --------------------------
@@ -46,28 +47,80 @@ FSR_Main.hlsl  ours.  The two entry points the renderer compiles, "FSR_Easu"
                A_HLSL, so it is the 32-bit path of the SDK.
 licence-ffx.txt  the copyright notice at the head of both ffx files.
 
-xBRZ
-----
-XBRZ_Freescale.hlsl  ours, a port of the GLSL shader "xbrz-freescale.glsl" from
-                https://github.com/libretro/glsl-shaders (xbrz/shaders) to
-                HLSL.  xBRZ is a pixel filter rather than a reconstruction, so
-                the renderer leaves the frame texture at the size the emulation
-                thread produced it and lets this shader blend it while the frame
-                is stretched over the window; unlike the CPU filters in
-                src/filters there is no fixed scaling factor and no 32-bit
-                colour requirement.  The port carries the licences of the
-                original: Hyllian's xBR shader code under the MIT licence, and
-                the xBRZ part under the GPL-3 with the MAME linking exception.
-                -> XBRZ_SHADER_FREESCALE, and the first row of the single pass
-                table in Direct3D11.cpp.
+The constants every pass is handed (SinglePassConstants in Direct3D11.cpp, the
+same uniforms in OpenGL3.cpp), the way its source declares them:
 
-The constants a single pass upscaler is handed (SinglePassConstants in
-Direct3D11.cpp, the same uniforms in OpenGL3.cpp), the way its source declares
-them:
-
-    float4 SourceSize;  // xy: the frame size, zw: 1 / xy (one texel)
+    float4 SourceSize;  // xy: the size the pass reads, zw: 1 / xy (one texel)
     float4 OutputSize;  // xy: the target size, zw: 1 / xy
     float4 Scale;       // xy: OutputSize.xy / SourceSize.xy
+
+libretro shaders
+----------------
+Everything here is in libretro/, the sources and the ports side by side, so that
+a shader and the HLSL that came out of it stay together.
+
+The .glsl files are verbatim from https://github.com/libretro/glsl-shaders,
+master ce9a412.  The OpenGL 3.3 renderer compiles them as they are, both stages
+from the one file (they carry the vertex stage and the pixel stage, selected by
+the VERTEX and FRAGMENT macros), and plays the part of RetroArch's shader
+backend for them: the attributes, the uniforms and the textures of the passes
+before them.  The .hlsl files are ours, and each one names the file it came
+from at its head.
+
+libretro/XBRZ_Freescale.glsl        -> XBRZ_GLSL_FREESCALE       xbrz/shaders
+libretro/XBRZ_Freescale.hlsl        -> XBRZ_SHADER_FREESCALE
+libretro/xbrz-freescale.glsl        the upstream file both of them came from,
+                                    kept for comparison; nothing compiles it
+libretro/xbr-lv2.glsl               -> XBR_LV2_GLSL              xbr/shaders
+libretro/XBR_Lv2.hlsl               -> XBR_LV2_SHADER
+libretro/xbr-lv2-noblend.glsl       -> XBR_LV2_NOBLEND_GLSL      xbr/shaders
+libretro/XBR_Lv2NoBlend.hlsl        -> XBR_LV2_NOBLEND_SHADER
+libretro/xbr-lv3.glsl               -> XBR_LV3_GLSL              xbr/shaders
+libretro/XBR_Lv3.hlsl               -> XBR_LV3_SHADER
+libretro/xbr-lv3-pass0.glsl         -> XBR_LV3_PASS0_GLSL        xbr/shaders
+libretro/xbr-lv3-pass1.glsl         -> XBR_LV3_PASS1_GLSL        xbr/shaders
+libretro/2xbr-lv1-c-pass0.glsl      -> XBR_2X_PASS0_GLSL         xbr/shaders
+libretro/2xbr-lv1-c-pass1.glsl      -> XBR_2X_PASS1_GLSL         xbr/shaders
+libretro/xbr-mlv4-pass1..4.glsl     -> XBR_MLV4_PASS1..4_GLSL    xbr/shaders
+libretro/super-xbr-pass0.glsl       -> SUPER_XBR_PASS0_GLSL      super-xbr/shaders
+libretro/super-xbr-pass1.glsl       -> SUPER_XBR_PASS1_GLSL      super-xbr/shaders
+libretro/custom-jinc2-sharper.glsl  -> CUSTOM_JINC2_SHARPER_GLSL super-xbr/shaders
+libretro/scalefx-pass0..4.glsl      -> SCALEFX_PASS0..4_GLSL     scalefx/shaders
+libretro/ScaleFX_Pass0..4.hlsl      -> SCALEFX_PASS0..4_SHADER
+libretro/PT_SkyWalker541.glsl       -> PT_SKYWALKER541_GLSL      handheld/shaders
+libretro/PT_SkyWalker541.hlsl       -> PT_SKYWALKER541_SHADER
+libretro/stock.glsl                 the skeleton of the directory, unused
+
+The chains, in the order the presets of those directories run them:
+
+    xBRZ                                 1 pass,  at the target size
+    xBR lv2, xBR lv2 no-blend, xBR lv3   1 pass,  at the target size
+    xBR lv3 multipass                    1x, then the target size
+    2xBR                                 1x, then the target size
+    xBR-mlv4                             1x, 1x, 2x, then the target size
+    super-xBR                            1x, 2x, then the target size
+    ScaleFX                              1x four times, then the target size
+    PT SkyWalker541                      1 pass,  at the target size
+
+The four chains that Direct3D 11 has no port of yet (lv3 multipass, 2xBR,
+xBR-mlv4 and super-xBR) run in the OpenGL renderer only; the menu leaves them
+out of the other one.
+
+The ports are written the way the upstream files are rather than transcribed by
+a translator, so that they stay diffable against them: same names, same
+expressions, same order, with the bvec4 algebra of GLSL spelled out in floats
+and the taps that upstream computes in its vertex stage computed in the pixel
+shader instead, because the renderer has one quad vertex shader for every
+upscaler.  Where a pass takes its taps with textureOffset() it needs neither.
+The xBR and ScaleFX sources are MIT, Hyllian's and Sp00kyFox's respectively, and
+each port carries the notice of the shader it came from; PT_SkyWalker541.glsl
+carries no licence statement upstream, only its credit.
+
+The first ScaleFX and PT ports were produced by translating the GLSL with
+glslang and SPIRV-Cross, then given the same treatment by hand: the names, the
+comments, the constant block, and one entry point that takes a uv.  Their
+bodies are still in the shape the translator left them, which is why those five
+files read differently from the xBR ones.
 
 GLSL, for the OpenGL 3.3 renderer
 ---------------------------------
@@ -76,10 +129,6 @@ The ports, which the driver compiles while the renderer starts up.  GLSL has no
 FidelityFX headers above are the same resources, so both backends hand the same
 bits to the same AMD code.
 
-XBRZ_Freescale.glsl  ours, the same shader as XBRZ_Freescale.hlsl, written in
-                GLSL 3.30 against the libretro source rather than translated
-                from the HLSL.  -> XBRZ_GLSL_FREESCALE, and the first row of
-                the single pass table in OpenGL3.cpp.
 FSR_Body.glsl   ours.  The FSR_Main.hlsl wrapper in GLSL: the input callbacks
                 and the uniforms, with no #version and no entry point of its
                 own, so that one body serves the two passes.  -> FSR_GLSL_BODY.

@@ -44,15 +44,16 @@ enum
 };
 
 // Frame upscaling (theApp.upscaler): the frame is either drawn by the sampler
-// or rebuilt by one of the upscalers that ship with the Direct3D 11 backend.
-// The two SDK upscalers then apply theApp.upscalerSharpness percent of
-// sharpening, the pixel filter shaders do not.  The other backends ignore all
-// of it.
+// or rebuilt by one of the upscalers that ship with the renderers.  The two SDK
+// upscalers then apply theApp.upscalerSharpness percent of sharpening, the
+// pixel filter shaders do not.  The other backends ignore all of it.
 //
 // The values are in the order of the upscaling menu, which MainWndOptions.cpp
 // works out from the menu ids (see resource.h), so a new upscaler is a value
-// here, an id, a menu item and, for one the renderer runs as a single pixel
-// shader pass, a row of g_singlePassUpscalers in Direct3D11.cpp.
+// here, an id, a menu item and a row of the table its renderer keeps: the
+// single pass one in Direct3D11.cpp, or one of the two chains below it and in
+// OpenGL3.cpp for the libretro shaders, which the two backends do not run the
+// same way round.
 enum
 {
 	UPSCALER_OFF,   // sampler filtering only
@@ -61,7 +62,19 @@ enum
 	// xBRZ as a pixel filter shader of the same backend.  Unlike the two SDKs
 	// above it does not reconstruct the frame but filters it, at whatever size
 	// the emulation thread produced it, the way a CPU pixel filter would.
-	UPSCALER_XBRZ
+	UPSCALER_XBRZ,
+	// The libretro shaders of src/win32/upscalers/libretro, which filter the
+	// frame rather than reconstruct it, in the order of the folders they come
+	// from: the xbr folder, then scalefx, then the handheld one.
+	UPSCALER_XBR_LV2,
+	UPSCALER_XBR_LV2_NOBLEND,
+	UPSCALER_XBR_LV3,
+	UPSCALER_XBR_LV3_MULTIPASS,
+	UPSCALER_XBR_2X,
+	UPSCALER_XBR_MLV4,
+	UPSCALER_SUPER_XBR,
+	UPSCALER_SCALEFX,
+	UPSCALER_PT_SKYWALKER
 };
 
 // True for the fixed-size / custom full screen modes (as opposed to the
