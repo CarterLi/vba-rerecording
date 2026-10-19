@@ -5,6 +5,8 @@
 #include "GBACpu.h"
 #include "../../common/vbalua.h"
 
+#include <intrin.h>
+
 #ifdef PROFILING
 #include "../prof/prof.h"
 #endif
@@ -131,196 +133,9 @@ static void count(u32 opcode, int cond_res)
 
 #ifndef C_CORE
 
-#if 0  // definitions have changed
-//#ifdef __POWERPC__
-			#define OP_SUBS \
-	{ \
-		register int Flags;                             \
-		register int Result;                            \
-		asm volatile ("subco. %0, %2, %3\n"              \
-		              "mcrxr cr1\n"                       \
-		              "mfcr %1\n"                         \
-					  : "=r" (Result),                    \
-		              "=r" (Flags)                      \
-					  : "r" (reg[base].I),                \
-		              "r" (value)                       \
-		              );                                  \
-		reg[dest].I = Result;                           \
-		Z_FLAG		= (Flags >> 29) & 1;                     \
-		N_FLAG		= (Flags >> 31) & 1;                     \
-		C_FLAG		= (Flags >> 25) & 1;                     \
-		V_FLAG		= (Flags >> 26) & 1;                     \
-	}
-			#define OP_RSBS \
-	{ \
-		register int Flags;                             \
-		register int Result;                            \
-		asm volatile ("subfco. %0, %2, %3\n"             \
-		              "mcrxr cr1\n"                       \
-		              "mfcr %1\n"                         \
-					  : "=r" (Result),                    \
-		              "=r" (Flags)                      \
-					  : "r" (reg[base].I),                \
-		              "r" (value)                       \
-		              );                                  \
-		reg[dest].I = Result;                           \
-		Z_FLAG		= (Flags >> 29) & 1;                     \
-		N_FLAG		= (Flags >> 31) & 1;                     \
-		C_FLAG		= (Flags >> 25) & 1;                     \
-		V_FLAG		= (Flags >> 26) & 1;                     \
-	}
-			#define OP_ADDS \
-	{ \
-		register int Flags;                             \
-		register int Result;                            \
-		asm volatile ("addco. %0, %2, %3\n"              \
-		              "mcrxr cr1\n"                       \
-		              "mfcr %1\n"                         \
-					  : "=r" (Result),                    \
-		              "=r" (Flags)                      \
-					  : "r" (reg[base].I),                \
-		              "r" (value)                       \
-		              );                                  \
-		reg[dest].I = Result;                           \
-		Z_FLAG		= (Flags >> 29) & 1;                     \
-		N_FLAG		= (Flags >> 31) & 1;                     \
-		C_FLAG		= (Flags >> 25) & 1;                     \
-		V_FLAG		= (Flags >> 26) & 1;                     \
-	}
-			#define OP_ADCS \
-	{ \
-		register int Flags;                             \
-		register int Result;                            \
-		asm volatile ("mtspr xer, %4\n"                  \
-		              "addeo. %0, %2, %3\n"              \
-		              "mcrxr cr1\n"                      \
-		              "mfcr      %1\n"                   \
-					  : "=r" (Result),                   \
-		              "=r" (Flags)                     \
-					  : "r" (reg[base].I),               \
-		              "r" (value),                     \
-		              "r" (C_FLAG << 29)               \
-		              );                                 \
-		reg[dest].I = Result;                           \
-		Z_FLAG		= (Flags >> 29) & 1;                     \
-		N_FLAG		= (Flags >> 31) & 1;                     \
-		C_FLAG		= (Flags >> 25) & 1;                     \
-		V_FLAG		= (Flags >> 26) & 1;                     \
-	}
-			#define OP_SBCS \
-	{ \
-		register int Flags;                             \
-		register int Result;                            \
-		asm volatile ("mtspr xer, %4\n"                  \
-		              "subfeo. %0, %3, %2\n"             \
-		              "mcrxr cr1\n"                      \
-		              "mfcr      %1\n"                   \
-					  : "=r" (Result),                   \
-		              "=r" (Flags)                     \
-					  : "r" (reg[base].I),               \
-		              "r" (value),                     \
-		              "r" (C_FLAG << 29)               \
-		              );                                 \
-		reg[dest].I = Result;                           \
-		Z_FLAG		= (Flags >> 29) & 1;                     \
-		N_FLAG		= (Flags >> 31) & 1;                     \
-		C_FLAG		= (Flags >> 25) & 1;                     \
-		V_FLAG		= (Flags >> 26) & 1;                     \
-	}
-			#define OP_RSCS \
-	{ \
-		register int Flags;                             \
-		register int Result;                            \
-		asm volatile ("mtspr xer, %4\n"                  \
-		              "subfeo. %0, %2, %3\n"             \
-		              "mcrxr cr1\n"                      \
-		              "mfcr      %1\n"                   \
-					  : "=r" (Result),                   \
-		              "=r" (Flags)                     \
-					  : "r" (reg[base].I),               \
-		              "r" (value),                     \
-		              "r" (C_FLAG << 29)               \
-		              );                                 \
-		reg[dest].I = Result;                           \
-		Z_FLAG		= (Flags >> 29) & 1;                     \
-		N_FLAG		= (Flags >> 31) & 1;                     \
-		C_FLAG		= (Flags >> 25) & 1;                     \
-		V_FLAG		= (Flags >> 26) & 1;                     \
-	}
-			#define OP_CMP \
-	{ \
-		register int Flags;                             \
-		register int Result;                            \
-		asm volatile ("subco. %0, %2, %3\n"              \
-		              "mcrxr cr1\n"                       \
-		              "mfcr %1\n"                         \
-					  : "=r" (Result),                    \
-		              "=r" (Flags)                      \
-					  : "r" (reg[base].I),                \
-		              "r" (value)                       \
-		              );                                  \
-		Z_FLAG = (Flags >> 29) & 1;                     \
-		N_FLAG = (Flags >> 31) & 1;                     \
-		C_FLAG = (Flags >> 25) & 1;                     \
-		V_FLAG = (Flags >> 26) & 1;                     \
-	}
-			#define OP_CMN \
-	{ \
-		register int Flags;                             \
-		register int Result;                            \
-		asm volatile ("addco. %0, %2, %3\n"              \
-		              "mcrxr cr1\n"                       \
-		              "mfcr %1\n"                         \
-					  : "=r" (Result),                    \
-		              "=r" (Flags)                      \
-					  : "r" (reg[base].I),                \
-		              "r" (value)                       \
-		              );                                  \
-		Z_FLAG = (Flags >> 29) & 1;                     \
-		N_FLAG = (Flags >> 31) & 1;                     \
-		C_FLAG = (Flags >> 25) & 1;                     \
-		V_FLAG = (Flags >> 26) & 1;                     \
-	}
+// Macros used to spell out the x86 instruction stream of the ALU
+// operations.  Only the MSVC form is left (Intel syntax, __asm).
 
-#else  // !__POWERPC__
-
-// Macros to emit instructions in the format used by the particular compiler.
-// We use GNU assembler syntax: "op src, dest" rather than "op dest, src"
-
-#ifdef __GNUC__
- #define ALU_HEADER           asm ("mov %%ecx, %%edi; "
- #define ALU_TRAILER          : "=D" (opcode) : "c" (opcode) : "eax", "ebx", "edx", "esi")
- #define EMIT0(op)            # op "; "
- #define EMIT1(op, arg)        # op " " arg "; "
- #define EMIT2(op, src, dest)   # op " " src ", " dest "; "
- #define CONST(val)           "$" # val
- #define ASMVAR(cvar)         ASMVAR2(__USER_LABEL_PREFIX__, cvar)
- #define ASMVAR2(prefix, cvar) STRING(prefix) cvar
- #define STRING(x)            # x
- #define VAR(var)             ASMVAR(# var)
- #define VARL(var)            ASMVAR(# var)
- #define REGREF1(index)       ASMVAR("reg(" index ")")
- #define REGREF2(index, scale) ASMVAR("reg(," index "," # scale ")")
- #define LABEL(n)             # n ": "
- #define LABELREF(n, dir)      # n # dir
- #define al "%%al"
- #define ah "%%ah"
- #define eax "%%eax"
- #define bl "%%bl"
- #define bh "%%bh"
- #define ebx "%%ebx"
- #define cl "%%cl"
- #define ch "%%ch"
- #define ecx "%%ecx"
- #define dl "%%dl"
- #define dh "%%dh"
- #define edx "%%edx"
- #define esp "%%esp"
- #define ebp "%%ebp"
- #define esi "%%esi"
- #define edi "%%edi"
- #define movzx movzb
-#else
  #define ALU_HEADER           __asm { __asm mov ecx, opcode
  #define ALU_TRAILER          }
  #define EMIT0(op)            __asm op
@@ -333,7 +148,6 @@ static void count(u32 opcode, int cond_res)
  #define REGREF2(index, scale) reg[index * scale]
  #define LABEL(n)             __asm l ## n :
  #define LABELREF(n, dir)      l ## n
-#endif
 
 //X//#ifndef _MSC_VER
 // ALU op register usage:
@@ -660,47 +474,17 @@ static void count(u32 opcode, int cond_res)
 // End of ALU macros
 //X//#endif //_MSC_VER
 
-#ifdef __GNUC__
-
+// "ror r32, cl" is exactly "_rotr"; the instruction masks the count to
+// five bits, so the mask is spelled out here as well.
 #define ROR_IMM_MSR \
-    asm ("ror %%cl, %%eax;"             \
-		 : "=a" (value)                 \
-		 : "a" (opcode & 0xFF), "c" (shift));
+    value = _rotr(value, shift & 31);
 
 #define ROR_OFFSET \
-    asm ("ror %%cl, %0"                  \
-		 : "=r" (offset)                 \
-		 : "0" (offset), "c" (shift));
+    offset = _rotr(offset, shift & 31);
 
-#define RRX_OFFSET \
-    asm (EMIT2(btl, CONST(0), VAR(C_FLAG)) \
-         "rcr $1, %0"                    \
-		 : "=r" (offset)                 \
-		 : "0" (offset));
+// RRX_OFFSET rotates through the carry flag, which no single intrinsic
+// provides; it keeps using the C definition further down.
 
-#else  // !__GNUC__, i.e. Visual C++
-
-#define ROR_IMM_MSR \
-    __asm {                             \
-        __asm mov ecx, shift            \
-        __asm ror value, cl             \
-	}
-
-#define ROR_OFFSET \
-    __asm {                             \
-        __asm mov ecx, shift            \
-        __asm ror offset, cl            \
-	}
-
-#define RRX_OFFSET \
-    __asm {                             \
-        __asm bt dword ptr C_FLAG, 0    \
-        __asm rcr offset, 1             \
-	}
-
-#endif  // !__GNUC__
-
-#endif  // !__POWERPC__
 #endif  // !C_CORE
 
 // C core

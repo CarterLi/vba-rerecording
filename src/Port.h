@@ -132,25 +132,6 @@ static inline u32 swap32(u32 v)
     (*((u8 *)x) = (v))
 
 #ifdef WORDS_BIGENDIAN
-#if defined(__GNUC__) && defined(__ppc__)
-
-#define READ16LE(base) \
-    ({ unsigned short lhbrxResult;       \
-       __asm__("lhbrx %0, 0, %1" : "=r" (lhbrxResult) : "r" (base) : "memory"); \
-       lhbrxResult; })
-
-#define READ32LE(base) \
-    ({ unsigned long lwbrxResult; \
-       __asm__("lwbrx %0, 0, %1" : "=r" (lwbrxResult) : "r" (base) : "memory"); \
-       lwbrxResult; })
-
-#define WRITE16LE(base, value) \
-    __asm__("sthbrx %0, 0, %1" : : "r" (value), "r" (base) : "memory")
-
-#define WRITE32LE(base, value) \
-    __asm__("stwbrx %0, 0, %1" : : "r" (value), "r" (base) : "memory")
-
-#else
 #define READ16LE(x) \
     swap16(*((u16 *)(x)))
 #define READ32LE(x) \
@@ -159,7 +140,6 @@ static inline u32 swap32(u32 v)
     *((u16 *)x) = swap16((v))
 #define WRITE32LE(x, v) \
     *((u32 *)x) = swap32((v))
-#endif
 #else
 #define READ16LE(x) \
     (*((u16 *)x))

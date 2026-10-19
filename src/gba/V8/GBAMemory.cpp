@@ -11,6 +11,8 @@
 #include "../Flash.h"
 #include "../RTC.h"
 
+#include <intrin.h>
+
 #ifdef BKPT_SUPPORT
 void cheatsWriteMemory(u32 *address, u32 value, u32 mask);
 void cheatsWriteHalfWord(u16 *address, u16 value, u16 mask);
@@ -251,20 +253,9 @@ unreadable:
 		int shift = (address & 3) << 3;
 		value = (value >> shift) | (value << (32 - shift));
 #else
-#ifdef __GNUC__
-		asm ("and $3, %%ecx;"
-		     "shl $3 ,%%ecx;"
-		     "ror %%cl, %0"
-			 : "=r" (value)
-			 : "r" (value), "c" (address));
-#else
-		__asm {
-			mov ecx, address;
-			and ecx, 3;
-			shl ecx, 3;
-			ror [dword ptr value], cl;
-		}
-#endif
+		// "_rotr" is exactly what "ror r32, cl" does; the count is always
+		// 0, 8, 16 or 24 here.
+		value = _rotr(value, (address & 3) * 8);
 #endif
 	}
 	return value;
