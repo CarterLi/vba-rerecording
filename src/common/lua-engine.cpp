@@ -77,7 +77,12 @@ extern "C"
 }
 #include "vbalua.h"
 
-#include "../SFMT/SFMT.c"
+// Lua's math.random()/math.randomseed() run on SFMT 1.5.1 (period 2^19937-1).
+// SFMT.c is compiled as its own translation unit; SFMT_MEXP comes from the
+// project settings so that SFMT.c and this file agree on the parameters.
+#include "../SFMT/SFMT.h"
+
+static sfmt_t sfmtState;
 
 static void (*info_print)(std::intptr_t uid, const char *str);
 static void (*info_onstart)(std::intptr_t uid);
@@ -2764,7 +2769,7 @@ static inline bool str2colour(uint32 *colour, lua_State *L, const char *str)
 	{
 		if (!strnicmp(str, "rand", 4))
 		{
-			*colour = gen_rand32() | 0xFF; //((rand()*255/RAND_MAX) << 8) | ((rand()*255/RAND_MAX) << 16) |
+			*colour = sfmt_genrand_uint32(&sfmtState) | 0xFF; //((rand()*255/RAND_MAX) << 8) | ((rand()*255/RAND_MAX) << 16) |
 											// ((rand()*255/RAND_MAX) << 24) | 0xFF;
 			return true;
 		}
@@ -4349,7 +4354,7 @@ static int sound_get(lua_State *L)
 //		original math.random either though (Lua 5.1)
 static int sfmt_random(lua_State *L)
 {
-	lua_Number r = (lua_Number) genrand_real2();
+	lua_Number r = (lua_Number) sfmt_genrand_real2(&sfmtState);
 	switch (lua_gettop(L))
 	{ // check number of arguments
 	case 0:
@@ -4387,7 +4392,7 @@ static int sfmt_random(lua_State *L)
 //		  original math.randomseed either though (Lua 5.1)
 static int sfmt_randomseed(lua_State *L)
 {
-	init_gen_rand(luaL_checkint(L, 1));
+	sfmt_init_gen_rand(&sfmtState, (uint32_t)luaL_checkint(L, 1));
 	return 0;
 }
 
@@ -4945,7 +4950,7 @@ int VBALoadLuaCode(const char *filename)
 	static bool sfmtInitialized = false;
 	if (!sfmtInitialized)
 	{
-		init_gen_rand((unsigned)time(NULL));
+		sfmt_init_gen_rand(&sfmtState, (uint32_t)time(NULL));
 		sfmtInitialized = true;
 	}
 
