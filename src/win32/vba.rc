@@ -77,6 +77,11 @@ FSR_GLSL_BODY           RCDATA                  "upscalers\\FSR_Body.glsl"
 FSR_GLSL_EASU           RCDATA                  "upscalers\\FSR_Easu.glsl"
 FSR_GLSL_RCAS           RCDATA                  "upscalers\\FSR_Rcas.glsl"
 
+// NIS is a compute shader.  The file below is the HLSL above put through
+// glslang's HLSL front end and spirv-cross, not a second implementation, see
+// .workbuddy-ai/tools/transpile-nis.py.
+NIS_GLSL_MAIN           RCDATA                  "upscalers\\NIS_Main.glsl"
+
 // The libretro shaders, and the ports of them the Direct3D 11 backend runs.
 // Everything here is in upscalers/libretro, side by side: the .glsl files are
 // verbatim from https://github.com/libretro/glsl-shaders (master ce9a412) and
@@ -95,18 +100,29 @@ XBR_LV2_NOBLEND_SHADER  RCDATA                  "upscalers\\libretro\\XBR_Lv2NoB
 XBR_LV3_GLSL            RCDATA                  "upscalers\\libretro\\xbr-lv3.glsl"
 XBR_LV3_SHADER          RCDATA                  "upscalers\\libretro\\XBR_Lv3.hlsl"
 XBR_LV3_PASS0_GLSL      RCDATA                  "upscalers\\libretro\\xbr-lv3-pass0.glsl"
+XBR_LV3_PASS0_SHADER    RCDATA                  "upscalers\\libretro\\XBR_Lv3_Pass0.hlsl"
 XBR_LV3_PASS1_GLSL      RCDATA                  "upscalers\\libretro\\xbr-lv3-pass1.glsl"
+XBR_LV3_PASS1_SHADER    RCDATA                  "upscalers\\libretro\\XBR_Lv3_Pass1.hlsl"
 XBR_2X_PASS0_GLSL       RCDATA                  "upscalers\\libretro\\2xbr-lv1-c-pass0.glsl"
+XBR_2X_PASS0_SHADER     RCDATA                  "upscalers\\libretro\\XBR_2x_Pass0.hlsl"
 XBR_2X_PASS1_GLSL       RCDATA                  "upscalers\\libretro\\2xbr-lv1-c-pass1.glsl"
+XBR_2X_PASS1_SHADER     RCDATA                  "upscalers\\libretro\\XBR_2x_Pass1.hlsl"
 XBR_MLV4_PASS1_GLSL     RCDATA                  "upscalers\\libretro\\xbr-mlv4-pass1.glsl"
+XBR_MLV4_PASS1_SHADER   RCDATA                  "upscalers\\libretro\\XBR_Mlv4_Pass1.hlsl"
 XBR_MLV4_PASS2_GLSL     RCDATA                  "upscalers\\libretro\\xbr-mlv4-pass2.glsl"
+XBR_MLV4_PASS2_SHADER   RCDATA                  "upscalers\\libretro\\XBR_Mlv4_Pass2.hlsl"
 XBR_MLV4_PASS3_GLSL     RCDATA                  "upscalers\\libretro\\xbr-mlv4-pass3.glsl"
+XBR_MLV4_PASS3_SHADER   RCDATA                  "upscalers\\libretro\\XBR_Mlv4_Pass3.hlsl"
 XBR_MLV4_PASS4_GLSL     RCDATA                  "upscalers\\libretro\\xbr-mlv4-pass4.glsl"
+XBR_MLV4_PASS4_SHADER   RCDATA                  "upscalers\\libretro\\XBR_Mlv4_Pass4.hlsl"
 
 // super-xBR
 SUPER_XBR_PASS0_GLSL    RCDATA                  "upscalers\\libretro\\super-xbr-pass0.glsl"
+SUPER_XBR_PASS0_SHADER  RCDATA                  "upscalers\\libretro\\SuperXBR_Pass0.hlsl"
 SUPER_XBR_PASS1_GLSL    RCDATA                  "upscalers\\libretro\\super-xbr-pass1.glsl"
+SUPER_XBR_PASS1_SHADER  RCDATA                  "upscalers\\libretro\\SuperXBR_Pass1.hlsl"
 CUSTOM_JINC2_SHARPER_GLSL RCDATA                "upscalers\\libretro\\custom-jinc2-sharper.glsl"
+SUPER_XBR_JINC2_SHADER  RCDATA                  "upscalers\\libretro\\SuperXBR_Jinc2.hlsl"
 
 // ScaleFX
 SCALEFX_PASS0_GLSL      RCDATA                  "upscalers\\libretro\\scalefx-pass0.glsl"

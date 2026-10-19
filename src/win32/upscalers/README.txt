@@ -10,7 +10,7 @@ against upstream.  Nothing has to be shipped next to the executable.
 
 The OpenGL 3.3 renderer runs the same FSR and libretro upscalers, from GLSL, and
 compiles them with the driver instead, see the GLSL section at the end.  NVIDIA
-Image Scaling has no port: it is a compute shader and stays with Direct3D 11.
+Image Scaling runs there as well, from the GLSL its own HLSL is translated to below.
 
 The two SDKs are pipelines of their own (a compute shader with a coefficient
 texture, and a reconstruction pass plus a sharpening pass).  Everything else is
@@ -31,6 +31,10 @@ NIS_Config.h   vendor file, verbatim from the NVIDIA Image Scaling SDK v1.0.3
 NIS_Main.hlsl  vendor file, verbatim (NIS/NIS_Main.hlsl) -> NIS_SHADER_MAIN.
 NIS_Scaler.h   vendor file, verbatim (NIS/NIS_Scaler.h) -> NIS_SHADER_SCALER,
                served to the include of NIS_Main.hlsl.
+NIS_Main.glsl  ours, but generated rather than written: the same NIS_Main.hlsl
+               through glslang's HLSL front end and spirv-cross, edited only for
+               the names and the output format.  -> NIS_GLSL_MAIN.  Regenerate
+               with .workbuddy-ai/tools/transpile-nis.py.
 licence.txt    vendor file, verbatim (licence.txt upstream spelling).
 
 AMD FidelityFX Super Resolution 1.0 (FSR)
@@ -78,13 +82,21 @@ libretro/XBR_Lv2NoBlend.hlsl        -> XBR_LV2_NOBLEND_SHADER
 libretro/xbr-lv3.glsl               -> XBR_LV3_GLSL              xbr/shaders
 libretro/XBR_Lv3.hlsl               -> XBR_LV3_SHADER
 libretro/xbr-lv3-pass0.glsl         -> XBR_LV3_PASS0_GLSL        xbr/shaders
+libretro/XBR_Lv3_Pass0.hlsl         -> XBR_LV3_PASS0_SHADER
 libretro/xbr-lv3-pass1.glsl         -> XBR_LV3_PASS1_GLSL        xbr/shaders
+libretro/XBR_Lv3_Pass1.hlsl         -> XBR_LV3_PASS1_SHADER
 libretro/2xbr-lv1-c-pass0.glsl      -> XBR_2X_PASS0_GLSL         xbr/shaders
+libretro/XBR_2x_Pass0.hlsl          -> XBR_2X_PASS0_SHADER
 libretro/2xbr-lv1-c-pass1.glsl      -> XBR_2X_PASS1_GLSL         xbr/shaders
+libretro/XBR_2x_Pass1.hlsl          -> XBR_2X_PASS1_SHADER
 libretro/xbr-mlv4-pass1..4.glsl     -> XBR_MLV4_PASS1..4_GLSL    xbr/shaders
+libretro/XBR_Mlv4_Pass1..4.hlsl     -> XBR_MLV4_PASS1..4_SHADER
 libretro/super-xbr-pass0.glsl       -> SUPER_XBR_PASS0_GLSL      super-xbr/shaders
+libretro/SuperXBR_Pass0.hlsl        -> SUPER_XBR_PASS0_SHADER
 libretro/super-xbr-pass1.glsl       -> SUPER_XBR_PASS1_GLSL      super-xbr/shaders
+libretro/SuperXBR_Pass1.hlsl        -> SUPER_XBR_PASS1_SHADER
 libretro/custom-jinc2-sharper.glsl  -> CUSTOM_JINC2_SHARPER_GLSL super-xbr/shaders
+libretro/SuperXBR_Jinc2.hlsl        -> SUPER_XBR_JINC2_SHADER
 libretro/scalefx-pass0..4.glsl      -> SCALEFX_PASS0..4_GLSL     scalefx/shaders
 libretro/ScaleFX_Pass0..4.hlsl      -> SCALEFX_PASS0..4_SHADER
 libretro/PT_SkyWalker541.glsl       -> PT_SKYWALKER541_GLSL      handheld/shaders
@@ -102,9 +114,12 @@ The chains, in the order the presets of those directories run them:
     ScaleFX                              1x four times, then the target size
     PT SkyWalker541                      1 pass,  at the target size
 
-The four chains that Direct3D 11 has no port of yet (lv3 multipass, 2xBR,
-xBR-mlv4 and super-xBR) run in the OpenGL renderer only; the menu leaves them
-out of the other one.
+Both renderers run all of them.  A pass that reads a second texture names it
+in the table of Direct3D11.cpp as an index of the outputs of the chain - 0 is
+the frame, n the target of pass n - 1 - and the size of that texture is handed
+to the shader as SecondSize, which is where a GLSL shader reads
+OrigTextureSize and PassPrev<N>TextureSize.  The OpenGL backend resolves the
+same names from the uniforms the pass declares.
 
 The ports are written the way the upstream files are rather than transcribed by
 a translator, so that they stay diffable against them: same names, same
@@ -136,6 +151,12 @@ FSR_Easu.glsl   ours.  The reconstruction pass, #version 420 core because the
                 AMD headers use the implicit integer conversions and the
                 bitfield operations of that version.  -> FSR_GLSL_EASU.
 FSR_Rcas.glsl   ours.  The sharpening pass, the same version.  -> FSR_GLSL_RCAS.
+NIS_Main.glsl   ours by translation, #version 430 core compute.  The samplers
+                are inputTexture (the pass reads, bilinear and clamped),
+                coefScalerTexture and coefUsmTexture (the banks, texelFetch),
+                and the pass writes out_texture, an rgba8 image at binding 0,
+                with the NISConfig block at binding 0 as well.  Where the
+                context is older than 4.3 the renderer leaves NIS out.
 
 The uniforms the FSR passes are handed are the block Direct3D 11 puts in its
 constant buffer, as bits rather than as floats, plus the size of the pass input

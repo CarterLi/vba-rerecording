@@ -102,6 +102,21 @@ void directXMessage(const char *msg)
 	    msg);
 }
 
+// The time a line was written, as a prefix for it.  A trace covers a whole
+// session, and what matters in it is the order of the steps around a change and
+// how far apart they were; milliseconds, because a renderer switch writes
+// several lines inside one second.
+static const char *winlogStamp()
+{
+	SYSTEMTIME now;
+	GetLocalTime(&now);
+
+	static char stamp[32];
+	sprintf(stamp, "[%02d:%02d:%02d.%03d] ", (int)now.wHour, (int)now.wMinute,
+	        (int)now.wSecond, (int)now.wMilliseconds);
+	return stamp;
+}
+
 void winlog(const char *msg, ...)
 {
 	CString buffer;
@@ -126,6 +141,34 @@ void winlog(const char *msg, ...)
 	if (!started)
 		fwrite("\xEF\xBB\xBF", 1, 3, winout);
 	started = true;
+
+	// One stamp per line, and exactly one line break per line.  Most formats
+	// already end with "\n", and a driver log can end with two, so a message is
+	// split on its own line breaks and rebuilt instead of being written as it
+	// came: that is what used to leave a blank line after every entry.
+	{
+		CString stamped;
+
+		const char *line = buffer;
+		const char *end  = line + buffer.GetLength();
+
+		while (line < end)
+		{
+			const char *lineEnd = line;
+			while (lineEnd < end && *lineEnd != '\n' && *lineEnd != '\r')
+				lineEnd++;
+
+			stamped += winlogStamp();
+			stamped.Append(line, (int)(lineEnd - line));
+			stamped += "\n";
+
+			line = lineEnd;
+			while (line < end && (*line == '\n' || *line == '\r'))
+				line++;
+		}
+
+		buffer = stamped;
+	}
 
 	// Most lines are plain ASCII and can be written as they are.
 	bool ascii = true;
@@ -167,11 +210,10 @@ void winlog(const char *msg, ...)
 	}
 
 	// ASCII already, or the conversion failed: keep the bytes rather than drop
-	// the line.
+	// the line.  Every line already ends with its break, so none is added here.
 	if (!written)
 		fputs(buffer, winout);
 
-	fputs("\n", winout);
 	fclose(winout);
 }
 
@@ -1775,6 +1817,8 @@ bool VBA::updateRenderMethod(bool force)
 
 		while (!res && renderMethod > 0)
 		{
+			int failed = renderMethod;
+
 			if (renderMethod == OPENGL33)
 				renderMethod = OPENGL;
 			else if (renderMethod == DIRECT_3D11)
@@ -1786,7 +1830,23 @@ bool VBA::updateRenderMethod(bool force)
 			else if (renderMethod == DIRECT_DRAW)
 				renderMethod = GDI;
 
+			winlog("VBA: render method %d did not start, trying %d\n", failed, renderMethod);
+
 			res = initDisplay();
+		}
+
+		// The upscalers are shaders, and which ones a backend runs is up to it:
+		// the ones it does not have are greyed out in the menu, and a greyed
+		// out item must not stay selected, or the frame would come out
+		// unfiltered while the menu said it was filtered.  Falling back to Off
+		// keeps the two in step; the setting is saved below like any other.
+		if (res && display != NULL && upscaler != UPSCALER_OFF &&
+		    !display->upscalerAvailable(upscaler))
+		{
+			winlog("VBA: upscaler %d is not available with render method %d, Off is selected\n",
+			       upscaler, renderMethod);
+
+			upscaler = UPSCALER_OFF;
 		}
 	}
 

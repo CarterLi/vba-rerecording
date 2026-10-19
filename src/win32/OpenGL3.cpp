@@ -9,10 +9,10 @@
 // "OpenGL (Legacy)".
 //
 // The frame can be scaled up by a shader instead of by the sampler: the single
-// pass xBRZ pixel filter and AMD FidelityFX Super Resolution 1.0, the two
-// upscalers that do not need a compute shader.  Both are the Direct3D 11
-// backend's, ported to GLSL in src/win32/upscalers, and both stack with the CPU
-// pixel filter the same way they do there.
+// pass xBRZ pixel filter, AMD FidelityFX Super Resolution 1.0, NVIDIA Image
+// Scaling - the two SDKs run as compute shaders and need 4.20 and 4.3 - and the
+// libretro chains, all of them ported to GLSL in src/win32/upscalers.  Every
+// one stacks with the CPU pixel filter the same way it does in Direct3D 11.
 //
 // When the system cannot hand out a 3.3 core context the renderer does not
 // start and VBA::updateRenderMethod() falls back to the renderer below it, the
@@ -42,6 +42,10 @@
 // fsrEasuCon() and fsrRcasCon(), the shader constants both backends hand to the
 // unmodified AMD headers.
 #include "upscalers/UpscalerFsr.h"
+
+// NISConfig and the two filter banks, the same ones the Direct3D 11 backend
+// hands to its compute shader.
+#include "upscalers/NIS_Config.h"
 
 extern int systemSpeed;
 extern int Init_2xSaI(u32);
@@ -80,6 +84,28 @@ typedef char      GLchar;
 #define GL_TEXTURE1              0x84C1
 #define GL_TEXTURE2              0x84C2
 #define GL_TEXTURE3              0x84C3
+
+// OpenGL 4.3, for the compute pass NVIDIA Image Scaling runs as.  The entry
+// points are looked up on their own further down, so a driver without them
+// still runs everything else.
+#ifndef GL_COMPUTE_SHADER
+#define GL_COMPUTE_SHADER        0x91B9
+#endif
+#ifndef GL_UNIFORM_BUFFER
+#define GL_UNIFORM_BUFFER        0x8A11
+#endif
+#ifndef GL_RGBA32F
+#define GL_RGBA32F               0x8814
+#endif
+#ifndef GL_WRITE_ONLY
+#define GL_WRITE_ONLY            0x88B9
+#endif
+#ifndef GL_TEXTURE_FETCH_BARRIER_BIT
+#define GL_TEXTURE_FETCH_BARRIER_BIT       0x00000008
+#endif
+#ifndef GL_SHADER_IMAGE_ACCESS_BARRIER_BIT
+#define GL_SHADER_IMAGE_ACCESS_BARRIER_BIT 0x00000020
+#endif
 
 typedef void   (APIENTRY *PFNGLACTIVETEXTUREPROC)(GLenum texture);
 typedef void   (APIENTRY *PFNGLGENBUFFERSPROC)(GLsizei n, GLuint *buffers);
@@ -335,6 +361,18 @@ static bool spliceShaderSource(const char *text, DWORD size, CString &source, in
 		while (s < lineEnd && (*s == ' ' || *s == '\t'))
 			s++;
 
+		// A line whose last character is a backslash continues on the next one.
+		// The preprocessor of GLSL only splices those from 4.20 on, and the
+		// renderer asks for 3.30, so the macros of xBR lv3 multipass and
+		// xBR-mlv4 - which are written a statement per line - are spliced here
+		// instead.  Removing the backslash and the line break is what the
+		// preprocessor does, and it joins the tokens exactly the same way.
+		const char *last = lineEnd;
+		while (last > p && (last[-1] == ' ' || last[-1] == '\t'))
+			last--;
+
+		bool continued = last > p && last[-1] == '\\';
+
 		const char *open = NULL;
 		if (lineEnd - s > 10 && !strncmp(s, "#include", 8))
 		{
@@ -347,8 +385,10 @@ static bool spliceShaderSource(const char *text, DWORD size, CString &source, in
 
 		if (open == NULL)
 		{
-			source.Append(p, (int)(lineEnd - p));
-			source += "\n";
+			source.Append(p, (int)((continued ? last - 1 : lineEnd) - p));
+
+			if (!continued)
+				source += "\n";
 		}
 		else
 		{
@@ -392,8 +432,15 @@ static bool spliceShaderSource(const char *text, DWORD size, CString &source, in
 			source += "\n";
 		}
 
+		// Exactly one line ending, not a run of them: a continued line has
+		// already swallowed its own, and skipping the blank line after it as
+		// well would take the newline that ends the macro with it, so the
+		// declaration on the next line - void main() - would become part of
+		// the macro and the brace under it would be a syntax error.
 		p = lineEnd;
-		while (p < end && (*p == '\n' || *p == '\r'))
+		if (p < end && *p == '\r')
+			p++;
+		if (p < end && *p == '\n')
 			p++;
 	}
 
@@ -404,7 +451,9 @@ static bool spliceShaderSource(const char *text, DWORD size, CString &source, in
 // does not build.
 static GLuint compileShader(GLenum stage, const char *source, const char *name)
 {
-	const char *stageName = stage == GL_VERTEX_SHADER ? "vertex" : "fragment";
+	const char *stageName = stage == GL_VERTEX_SHADER ? "vertex"
+	                      : stage == GL_COMPUTE_SHADER ? "compute"
+	                      : "fragment";
 
 	GLuint shader = glCreateShader(stage);
 	if (shader == 0)
@@ -789,8 +838,22 @@ static const LibretroShader g_libretroShaders[] =
 
 struct LibretroSampler
 {
+	char  name[32]; // what the stage calls it, for the trace
 	GLint location;
 	int   back;     // passes back to read, or -1 for the frame
+};
+
+// A size a pass asks for by name: the texture size of the frame it was given
+// (OrigTextureSize) or of one of the passes before it (PassPrev<N>TextureSize
+// and PassPrev<N>InputSize).  A pass that divides by one of these turns black
+// when it is left at zero, so every one a shader declares is filled in.
+#define LIBRETRO_MAX_SIZES 8
+
+struct LibretroSize
+{
+	char  name[32]; // what the stage calls it, for the trace
+	GLint location;
+	int   back;     // passes back to describe, or -1 for the frame
 };
 
 struct LibretroPassState
@@ -804,6 +867,8 @@ struct LibretroPassState
 	GLint  frameDirection;
 	int    samplerCount;
 	LibretroSampler samplers[LIBRETRO_MAX_SAMPLERS];
+	int    sizeCount;
+	LibretroSize sizes[LIBRETRO_MAX_SIZES];
 	UpscaleTarget target;
 };
 
@@ -824,6 +889,29 @@ static int libretroShaderIndex(int upscaler)
 	return -1;
 }
 
+// The name an upscaler goes by in the trace, the way the menu spells it.
+static const char *openGL33UpscalerName(int upscaler)
+{
+	if (upscaler == UPSCALER_OFF)
+		return "Off";
+
+	if (upscaler == UPSCALER_NIS)
+		return "NIS";
+
+	if (upscaler == UPSCALER_FSR)
+		return "FSR";
+
+	int index = singlePassUpscalerIndex(upscaler);
+	if (index >= 0)
+		return g_singlePassUpscalers[index].name;
+
+	index = libretroShaderIndex(upscaler);
+	if (index >= 0)
+		return g_libretroShaders[index].name;
+
+	return "an upscaler this renderer does not have";
+}
+
 // Which pass output a sampler of pass `pass` reads, counted back from it.
 static int libretroSamplerBack(const char *name)
 {
@@ -837,6 +925,27 @@ static int libretroSamplerBack(const char *name)
 		return -1;
 
 	return 1;
+}
+
+// Which texture a size uniform describes, or 0 for one the pass state already
+// carries: TextureSize and InputSize are the pass it reads, and the loop below
+// sets those.  The ones named here are the frame it was given and the passes
+// before that, which a pass divides by - and a division by a uniform left at
+// zero is what turns 2xBR black.
+static int libretroSizeBack(const char *name)
+{
+	if (!strcmp(name, "OrigTextureSize") || !strcmp(name, "OrigInputSize"))
+		return -1;
+
+	if (strncmp(name, "PassPrev", 8))
+		return 0;
+
+	int back = atoi(name + 8);
+
+	if (back <= 0 || strstr(name + 8, "Size") == NULL)
+		return 0;
+
+	return back;
 }
 
 // One stage of a pass: the file as it is, with the version asked for at its
@@ -957,6 +1066,7 @@ static void initLibretroShader(int index)
 		pass.frameDirection = glGetUniformLocation(pass.program, "FrameDirection");
 
 		pass.samplerCount = 0;
+		pass.sizeCount    = 0;
 
 		GLint uniformCount = 0;
 		glGetProgramiv(pass.program, GL_ACTIVE_UNIFORMS, &uniformCount);
@@ -969,12 +1079,81 @@ static void initLibretroShader(int index)
 
 			glGetActiveUniform(pass.program, u, sizeof(name), NULL, &size, &type, name);
 
-			if (type != GL_SAMPLER_2D || pass.samplerCount >= LIBRETRO_MAX_SAMPLERS)
+			if (type != GL_SAMPLER_2D)
+			{
+				int back = libretroSizeBack(name);
+
+				if (back != 0 && pass.sizeCount < LIBRETRO_MAX_SIZES)
+				{
+					LibretroSize &sizeUniform = pass.sizes[pass.sizeCount++];
+
+					strncpy(sizeUniform.name, name, sizeof(sizeUniform.name) - 1);
+					sizeUniform.name[sizeof(sizeUniform.name) - 1] = 0;
+					sizeUniform.location = glGetUniformLocation(pass.program, name);
+					sizeUniform.back     = back;
+				}
+
 				continue;
+			}
+
+			if (pass.samplerCount >= LIBRETRO_MAX_SAMPLERS)
+			{
+				winlog("OpenGL 3.3: %s pass %d has more than %d samplers, %s is ignored\n",
+				       shader.name, i, LIBRETRO_MAX_SAMPLERS, name);
+				continue;
+			}
 
 			LibretroSampler &sampler = pass.samplers[pass.samplerCount++];
+
+			strncpy(sampler.name, name, sizeof(sampler.name) - 1);
+			sampler.name[sizeof(sampler.name) - 1] = 0;
 			sampler.location = glGetUniformLocation(pass.program, name);
 			sampler.back     = libretroSamplerBack(name);
+		}
+
+		// What the pass ended up reading and being handed.  A chain that draws
+		// nothing is almost always a uniform of this list that is missing, or
+		// one that is there with the wrong size, so both are spelled out.
+		winlog("OpenGL 3.3: %s pass %d of %d: %s, %s\n",
+		       shader.name, i + 1, shader.passCount, shader.passes[i].resource,
+		       shader.passes[i].scale > 0 ? "a multiple of the frame" : "the target size");
+
+		if (pass.samplerCount > 0 || pass.sizeCount > 0)
+		{
+			CString reads;
+
+			for (int s = 0; s < pass.samplerCount; s++)
+			{
+				const LibretroSampler &sampler = pass.samplers[s];
+
+				CString one;
+				if (sampler.back < 0)
+					one.Format("%s from the frame", sampler.name);
+				else
+					one.Format("%s from %d pass(es) back", sampler.name, sampler.back);
+
+				if (!reads.IsEmpty())
+					reads += ", ";
+				reads += one;
+			}
+
+			for (int s = 0; s < pass.sizeCount; s++)
+			{
+				const LibretroSize &size = pass.sizes[s];
+
+				CString one;
+				if (size.back < 0)
+					one.Format("%s of the frame", size.name);
+				else
+					one.Format("%s %d pass(es) back", size.name, size.back);
+
+				if (!reads.IsEmpty())
+					reads += ", ";
+				reads += one;
+			}
+
+			winlog("OpenGL 3.3: %s pass %d of %d reads %s\n",
+			       shader.name, i + 1, shader.passCount, (const char *)reads);
 		}
 	}
 }
@@ -1080,6 +1259,316 @@ static void releaseFsr()
 }
 
 // ---------------------------------------------------------------------------
+// NVIDIA Image Scaling: one compute shader, the way the SDK ships it.
+//
+// The shader is the SDK's own.  glslang compiles NIS_Main.hlsl with its HLSL
+// front end and spirv-cross turns the SPIR-V back into the GLSL in
+// upscalers/NIS_Main.glsl, so what runs here is the algorithm the Direct3D 11
+// backend compiles through fxc, not a second implementation of it; the
+// coefficients and the configuration come from the same NIS_Config.h, and a
+// pass writes an RGBA8 target, the format that backend gives its own.
+//
+// A compute shader needs OpenGL 4.3 and the renderer falls back to a 3.3
+// context, so the entry points are looked up here instead of with the rest - a
+// driver without them still runs everything else - and NIS stays out of the
+// menu where they are missing.  That is the same bargain FSR makes below 4.20.
+
+#define NIS_BLOCK_WIDTH  32
+#define NIS_BLOCK_HEIGHT 24
+
+// A pass may not shrink the image and may not scale by more than 2x, so a
+// larger window is reached in steps of at most 2x, the way Direct3D 11 does it.
+#define NIS_MAX_PASSES 4
+
+// The entry points, resolved with their own loader so that a driver without
+// them is a missing NIS rather than a missing renderer.
+typedef void   (APIENTRY *PFNGLDISPATCHCOMPUTEPROC)(GLuint, GLuint, GLuint);
+typedef void   (APIENTRY *PFNGLBINDIMAGETEXTUREPROC)(GLuint, GLuint, GLint, GLboolean, GLint, GLenum, GLenum);
+typedef void   (APIENTRY *PFNGLMEMORYBARRIERPROC)(GLbitfield);
+typedef void   (APIENTRY *PFNGLBINDBUFFERBASEPROC)(GLenum, GLuint, GLuint);
+
+static PFNGLDISPATCHCOMPUTEPROC   glDispatchCompute  = NULL;
+static PFNGLBINDIMAGETEXTUREPROC  glBindImageTexture = NULL;
+static PFNGLMEMORYBARRIERPROC     glMemoryBarrier    = NULL;
+static PFNGLBINDBUFFERBASEPROC    glBindBufferBase   = NULL;
+
+struct NisTarget
+{
+	GLuint texture;
+	int    width;
+	int    height;
+};
+
+struct NisState
+{
+	bool   available;
+	GLuint program;
+	GLuint constants;     // the NISConfig block
+	GLuint coefScaler;
+	GLuint coefUsm;
+	GLint  inputTexture;
+	GLint  coefScalerTexture;
+	GLint  coefUsmTexture;
+
+	NisTarget targets[NIS_MAX_PASSES];
+	int       passCount;
+	int       sourceWidth;
+	int       sourceHeight;
+	int       targetWidth;
+	int       targetHeight;
+};
+
+static NisState g_nis;
+
+static void releaseNisTargets()
+{
+	for (int i = 0; i < NIS_MAX_PASSES; i++)
+	{
+		if (g_nis.targets[i].texture != 0)
+			glDeleteTextures(1, &g_nis.targets[i].texture);
+
+		g_nis.targets[i].texture = 0;
+		g_nis.targets[i].width   = 0;
+		g_nis.targets[i].height  = 0;
+	}
+
+	g_nis.passCount = 0;
+}
+
+static void releaseNis()
+{
+	releaseNisTargets();
+
+	if (g_nis.program != 0)
+	{
+		glDeleteProgram(g_nis.program);
+		g_nis.program = 0;
+	}
+	if (g_nis.constants != 0)
+	{
+		glDeleteBuffers(1, &g_nis.constants);
+		g_nis.constants = 0;
+	}
+	if (g_nis.coefScaler != 0)
+	{
+		glDeleteTextures(1, &g_nis.coefScaler);
+		g_nis.coefScaler = 0;
+	}
+	if (g_nis.coefUsm != 0)
+	{
+		glDeleteTextures(1, &g_nis.coefUsm);
+		g_nis.coefUsm = 0;
+	}
+
+	g_nis.available = false;
+}
+
+// The filter bank: 64 phases of 8 taps, two RGBA32F texels to a row, which is
+// the layout NIS_Config.h holds them in and the layout Direct3D 11 uploads.
+static GLuint createNisCoefficients(const float *coefficients, const char *name)
+{
+	GLuint texture = 0;
+	glGenTextures(1, &texture);
+	glBindTexture(GL_TEXTURE_2D, texture);
+
+	// The shader reads them with texelFetch, so the filtering is not used, but
+	// a texture with no mipmap chain needs a filter that does not ask for one.
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, (GLsizei)(kFilterSize / 4), (GLsizei)kPhaseCount,
+	             0, GL_RGBA, GL_FLOAT, coefficients);
+
+	GLenum error = glGetError();
+	glBindTexture(GL_TEXTURE_2D, 0);
+
+	if (error != GL_NO_ERROR)
+	{
+		winlog("NIS: cannot create %s\n", name);
+		glDeleteTextures(1, &texture);
+		return 0;
+	}
+
+	return texture;
+}
+
+static bool loadNisFunctions()
+{
+	HMODULE module = GetModuleHandle(_T("opengl32.dll"));
+
+#define NIS_RESOLVE(type, name) \
+	name = (type)wglGetProcAddress(#name); \
+	if (name == NULL) \
+		name = (type)GetProcAddress(module, #name); \
+	if (name == NULL) \
+		return false;
+
+	NIS_RESOLVE(PFNGLDISPATCHCOMPUTEPROC,  glDispatchCompute)
+	NIS_RESOLVE(PFNGLBINDIMAGETEXTUREPROC, glBindImageTexture)
+	NIS_RESOLVE(PFNGLMEMORYBARRIERPROC,    glMemoryBarrier)
+	NIS_RESOLVE(PFNGLBINDBUFFERBASEPROC,   glBindBufferBase)
+
+#undef NIS_RESOLVE
+
+	return true;
+}
+
+static void initNis()
+{
+	ZeroMemory(&g_nis, sizeof(g_nis));
+
+	GLint major = 0, minor = 0;
+	glGetIntegerv(GL_MAJOR_VERSION, &major);
+	glGetIntegerv(GL_MINOR_VERSION, &minor);
+
+	if (major * 10 + minor < 43 || !loadNisFunctions())
+	{
+		winlog("NIS: compute shaders need OpenGL 4.3, this context is %d.%d\n",
+		       (int)major, (int)minor);
+		return;
+	}
+
+	DWORD size = 0;
+	const char *source = upscalerShaderSource("NIS_GLSL_MAIN", &size);
+	if (source == NULL)
+	{
+		winlog("NIS: the GLSL resource is not in the executable\n");
+		return;
+	}
+
+	// A compute shader is the whole program: one shader, attached and linked,
+	// with no second stage to pair it with.
+	GLuint shader = compileShader(GL_COMPUTE_SHADER, source, "NIS");
+	if (shader == 0)
+		return;
+
+	GLuint program = glCreateProgram();
+	if (program == 0)
+	{
+		winlog("NIS: cannot create the program\n");
+		glDeleteShader(shader);
+		return;
+	}
+
+	glAttachShader(program, shader);
+	glLinkProgram(program);
+	glDeleteShader(shader);
+
+	GLint linked = 0;
+	glGetProgramiv(program, GL_LINK_STATUS, &linked);
+	if (!linked)
+	{
+		char log[4096];
+		GLsizei length = 0;
+		glGetProgramInfoLog(program, sizeof(log) - 1, &length, log);
+		log[length] = 0;
+		winlog("NIS: does not link: %s\n", log);
+		glDeleteProgram(program);
+		return;
+	}
+
+	g_nis.program = program;
+
+	g_nis.coefScaler = createNisCoefficients(&coef_scale[0][0], "the scaler coefficients");
+	g_nis.coefUsm    = createNisCoefficients(&coef_usm[0][0], "the sharpening coefficients");
+
+	if (g_nis.coefScaler == 0 || g_nis.coefUsm == 0)
+	{
+		releaseNis();
+		return;
+	}
+
+	// The configuration block, at binding 0 as the shader asks for.
+	glGenBuffers(1, &g_nis.constants);
+	glBindBuffer(GL_UNIFORM_BUFFER, g_nis.constants);
+	glBufferData(GL_UNIFORM_BUFFER, sizeof(NISConfig), NULL, GL_STREAM_DRAW);
+	glBindBuffer(GL_UNIFORM_BUFFER, 0);
+
+	// The samplers.  A libretro pass counts what it reads by name; this one
+	// names it directly, so the locations are those of the uniforms above.
+	g_nis.inputTexture      = glGetUniformLocation(g_nis.program, "inputTexture");
+	g_nis.coefScalerTexture = glGetUniformLocation(g_nis.program, "coefScalerTexture");
+	g_nis.coefUsmTexture    = glGetUniformLocation(g_nis.program, "coefUsmTexture");
+
+	g_nis.available = true;
+
+	winlog("NIS: compute shader ready, %dx%d blocks of %d threads, %d phases\n",
+	       NIS_BLOCK_WIDTH, NIS_BLOCK_HEIGHT, NIS_BLOCK_WIDTH * NIS_BLOCK_HEIGHT, (int)kPhaseCount);
+}
+
+// The chain of targets a window of that size needs.  A pass may not shrink the
+// image and may not scale by more than 2x, so a window bigger than that is
+// reached in steps of at most 2x.
+static bool updateNisChain(int srcWidth, int srcHeight, int dstWidth, int dstHeight)
+{
+	if (g_nis.passCount > 0 &&
+	    g_nis.sourceWidth == srcWidth && g_nis.sourceHeight == srcHeight &&
+	    g_nis.targetWidth == dstWidth && g_nis.targetHeight == dstHeight)
+		return true;
+
+	releaseNisTargets();
+
+	g_nis.sourceWidth  = srcWidth;
+	g_nis.sourceHeight = srcHeight;
+	g_nis.targetWidth  = dstWidth;
+	g_nis.targetHeight = dstHeight;
+
+	if (srcWidth <= 0 || srcHeight <= 0 || dstWidth <= 0 || dstHeight <= 0)
+		return false;
+
+	int w    = srcWidth;
+	int h    = srcHeight;
+	int pass = 0;
+
+	while ((w < dstWidth || h < dstHeight) && pass < NIS_MAX_PASSES)
+	{
+		if (w < dstWidth)
+			w = (w * 2 < dstWidth) ? w * 2 : dstWidth;
+		if (h < dstHeight)
+			h = (h * 2 < dstHeight) ? h * 2 : dstHeight;
+
+		GLuint texture = 0;
+		glGenTextures(1, &texture);
+		glBindTexture(GL_TEXTURE_2D, texture);
+
+		// The next pass reads this one through the sampler, which is the
+		// bilinear one the SDK's sampler state describes.
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
+		glBindTexture(GL_TEXTURE_2D, 0);
+
+		if (texture == 0)
+		{
+			winlog("NIS: cannot create the %dx%d pass target\n", w, h);
+			releaseNisTargets();
+			return false;
+		}
+
+		g_nis.targets[pass].texture = texture;
+		g_nis.targets[pass].width   = w;
+		g_nis.targets[pass].height  = h;
+		pass++;
+	}
+
+	if (w != dstWidth || h != dstHeight)
+	{
+		// The window is not reachable within NIS_MAX_PASSES, or it is smaller
+		// than the frame, which NIS cannot scale down to.
+		releaseNisTargets();
+		return false;
+	}
+
+	g_nis.passCount = pass;
+	return pass > 0;
+}
+
+// ---------------------------------------------------------------------------
 // The renderer itself.
 
 // The quad: two triangles as a strip, named after the texture row each of their
@@ -1147,6 +1636,7 @@ private:
 	GLuint scaleFrameWithSinglePass(int upscaler, bool *flipped);
 	GLuint scaleFrameWithLibretro(int upscaler, bool *flipped);
 	GLuint scaleFrameWithFsr();
+	GLuint scaleFrameWithNis();
 
 public:
 	OpenGL33Display();
@@ -1415,10 +1905,19 @@ bool OpenGL33Display::createQuad()
 	initSinglePassUpscalers();
 	initLibretroShaders();
 	initFsr();
+	initNis();
 
 	glDisable(GL_DEPTH_TEST);
 	glDisable(GL_CULL_FACE);
 	glDisable(GL_BLEND);
+
+	// The setting the renderer starts with, once, and whether it can run it:
+	// the menu greys out what it cannot, and the caller turns a greyed out
+	// selection into Off.
+	winlog("OpenGL 3.3: upscaler %s (%d), sharpening %d, max scale %d%s\n",
+	       openGL33UpscalerName(theApp.upscaler), theApp.upscaler,
+	       theApp.upscalerSharpness, theApp.upscalerMaxScale,
+	       upscalerAvailable(theApp.upscaler) ? "" : " - this renderer does not run it");
 
 	return true;
 }
@@ -1487,6 +1986,7 @@ void OpenGL33Display::cleanup()
 		releaseSinglePassUpscalers();
 		releaseLibretroShaders();
 		releaseFsr();
+		releaseNis();
 
 		if (quadProgram != 0)
 		{
@@ -1863,18 +2363,42 @@ GLuint OpenGL33Display::scaleFrameWithSinglePass(int upscaler, bool *flipped)
 // window the way the frame would - the caller draws it like the frame.
 GLuint OpenGL33Display::scaleFrameWithLibretro(int upscaler, bool *flipped)
 {
+	// The caller draws the frame itself when this returns 0, so why it did is
+	// logged - once per reason rather than once per frame, since the reason
+	// stays the same until something is changed.
+	static int lastReason = 0;
+
 	int index = libretroShaderIndex(upscaler);
 	if (index < 0)
+	{
+		if (lastReason != 1)
+			winlog("OpenGL 3.3: upscaler %d has no chain here, the frame is drawn as it is\n", upscaler);
+		lastReason = 1;
 		return 0;
+	}
 
 	const LibretroShader &shader = g_libretroShaders[index];
 	LibretroState        &state  = g_libretroState[index];
 
 	if (shader.passCount <= 0 || state.passes[0].program == 0 || frameTexture == 0)
+	{
+		if (lastReason != 2)
+			winlog("OpenGL 3.3: %s is not built, the frame is drawn as it is\n", shader.name);
+		lastReason = 2;
 		return 0;
+	}
 
 	if (theApp.rect.right != frameWidth || theApp.rect.bottom != frameHeight)
+	{
+		if (lastReason != 3)
+			winlog("OpenGL 3.3: %s: the frame is %dx%d at %d,%d of a %dx%d texture, which it cannot scale\n",
+			       shader.name, theApp.rect.right - theApp.rect.left, theApp.rect.bottom - theApp.rect.top,
+			       theApp.rect.left, theApp.rect.top, frameWidth, frameHeight);
+		lastReason = 3;
 		return 0;
+	}
+
+	lastReason = 0;
 
 	// The window, unless the user capped the ratio the upscaler may reach; the
 	// quad then stretches what it made over the rest of the window.
@@ -1900,6 +2424,43 @@ GLuint OpenGL33Display::scaleFrameWithLibretro(int upscaler, bool *flipped)
 		outputs[i]       = state.passes[i].target.texture;
 		outputWidths[i]  = state.passes[i].target.width;
 		outputHeights[i] = state.passes[i].target.height;
+	}
+
+	// What the chain is drawing and at which sizes, once per chain and frame
+	// size: a pass whose target came out at zero draws nothing, and this is
+	// where that shows up instead of as a black window.  The window size is
+	// left out of the key on purpose, or dragging the window would write a
+	// line per mouse move.
+	{
+		static int last[3] = { -1, -1, -1 };
+
+		const int now[3] = { shader.value, frameWidth, frameHeight };
+		bool      changed = false;
+
+		for (int i = 0; i < 3; i++)
+			if (last[i] != now[i])
+				changed = true;
+
+		if (changed)
+		{
+			CString passes;
+
+			for (int i = 0; i < shader.passCount; i++)
+			{
+				CString one;
+				one.Format("%dx%d", outputWidths[i], outputHeights[i]);
+
+				if (!passes.IsEmpty())
+					passes += ", ";
+				passes += one;
+			}
+
+			memcpy(last, now, sizeof(now));
+
+			winlog("OpenGL 3.3: %s: %dx%d frame over %dx%d, pass(es) at %s\n",
+			       shader.name, frameWidth, frameHeight, viewWidth, viewHeight,
+			       (const char *)passes);
+		}
 	}
 
 	static const GLfloat identity[16] =
@@ -1942,6 +2503,25 @@ GLuint OpenGL33Display::scaleFrameWithLibretro(int upscaler, bool *flipped)
 
 		if (pass.frameDirection >= 0)
 			glUniform1i(pass.frameDirection, 1);
+
+		// The sizes a pass asks for by name, which it divides by: the frame it
+		// was given, and the passes before that.  Anything before the first
+		// pass is the frame, as with the samplers.
+		for (int s = 0; s < pass.sizeCount; s++)
+		{
+			const LibretroSize &size = pass.sizes[s];
+
+			int width  = frameWidth;
+			int height = frameHeight;
+
+			if (size.back > 0 && i - size.back >= 0)
+			{
+				width  = outputWidths[i - size.back];
+				height = outputHeights[i - size.back];
+			}
+
+			glUniform2f(size.location, (float)width, (float)height);
+		}
 
 		// The textures the pass reads.  A libretro stage counts the passes
 		// back from its own: PassPrev2Texture is the one before the one it
@@ -2063,6 +2643,105 @@ GLuint OpenGL33Display::scaleFrameWithFsr()
 	return g_fsr.rcasTarget.texture;
 }
 
+GLuint OpenGL33Display::scaleFrameWithNis()
+{
+	if (!g_nis.available || frameTexture == 0)
+		return 0;
+
+	// The chain maps the whole frame texture onto the whole window, the same
+	// mapping the textured quad would use.
+	if (theApp.rect.right != frameWidth || theApp.rect.bottom != frameHeight)
+		return 0;
+
+	int targetWidth, targetHeight;
+	upscalerTargetSize(frameWidth, frameHeight, viewWidth, viewHeight,
+	                   theApp.upscalerMaxScale, &targetWidth, &targetHeight);
+
+	if (!updateNisChain(frameWidth, frameHeight, targetWidth, targetHeight))
+		return 0;
+
+	const float sharpness = theApp.upscalerSharpness / 100.0f;
+
+	// The passes read the frame bilinearly, which is what the SDK's sampler
+	// state describes, so the frame is filtered that way for the run and put
+	// back to the user's setting afterwards.
+	glBindTexture(GL_TEXTURE_2D, frameTexture);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+
+	glUseProgram(g_nis.program);
+
+	if (g_nis.inputTexture >= 0)
+		glUniform1i(g_nis.inputTexture, 0);
+	if (g_nis.coefScalerTexture >= 0)
+		glUniform1i(g_nis.coefScalerTexture, 1);
+	if (g_nis.coefUsmTexture >= 0)
+		glUniform1i(g_nis.coefUsmTexture, 2);
+
+	glActiveTexture(GL_TEXTURE1);
+	glBindTexture(GL_TEXTURE_2D, g_nis.coefScaler);
+	glActiveTexture(GL_TEXTURE2);
+	glBindTexture(GL_TEXTURE_2D, g_nis.coefUsm);
+
+	GLuint source      = frameTexture;
+	int    sourceWidth  = frameWidth;
+	int    sourceHeight = frameHeight;
+	bool   scaled      = true;
+
+	for (int i = 0; i < g_nis.passCount; i++)
+	{
+		const NisTarget &target = g_nis.targets[i];
+
+		// The constants the SDK's headers fill, the same call the Direct3D 11
+		// backend makes.
+		NISConfig config;
+		ZeroMemory(&config, sizeof(config));
+		if (!NVScalerUpdateConfig(config, sharpness,
+		                          0, 0, sourceWidth, sourceHeight, sourceWidth, sourceHeight,
+		                          0, 0, target.width, target.height,
+		                          target.width, target.height, NISHDRMode::None))
+		{
+			// A target that is not the size the window asked for would be shown
+			// stretched, so the last good one - the frame itself, if there is
+			// none - is not used and the caller draws the plain quad.
+			scaled = false;
+			break;
+		}
+
+		glBindBuffer(GL_UNIFORM_BUFFER, g_nis.constants);
+		glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(config), &config);
+		glBindBufferBase(GL_UNIFORM_BUFFER, 0, g_nis.constants);
+		glBindBuffer(GL_UNIFORM_BUFFER, 0);
+
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, source);
+
+		glBindImageTexture(0, target.texture, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA8);
+
+		glDispatchCompute((GLuint)((target.width  + NIS_BLOCK_WIDTH  - 1) / NIS_BLOCK_WIDTH),
+		                  (GLuint)((target.height + NIS_BLOCK_HEIGHT - 1) / NIS_BLOCK_HEIGHT),
+		                  1);
+
+		// The next pass reads what this one wrote, as a texture.
+		glMemoryBarrier(GL_TEXTURE_FETCH_BARRIER_BIT | GL_SHADER_IMAGE_ACCESS_BARRIER_BIT);
+
+		source       = target.texture;
+		sourceWidth  = target.width;
+		sourceHeight = target.height;
+	}
+
+	glBindImageTexture(0, 0, 0, GL_FALSE, 0, GL_WRITE_ONLY, GL_RGBA8);
+	glActiveTexture(GL_TEXTURE0);
+
+	// The frame keeps the filtering the renderer gave it.
+	glBindTexture(GL_TEXTURE_2D, frameTexture);
+	updateFiltering();
+
+	return scaled ? source : 0;
+}
+
 void OpenGL33Display::drawOverlay()
 {
 	if (overlayTexture == 0 || overlay.empty())
@@ -2127,7 +2806,17 @@ void OpenGL33Display::render()
 	float u1 = (float)theApp.rect.right / (float)frameWidth;
 	float v1 = (float)theApp.rect.bottom / (float)frameHeight;
 
-	if (theApp.upscaler == UPSCALER_FSR)
+	// What the menu was set to is logged where it changes - in setOption(),
+	// when it is picked, and while the renderer starts, when it is read back
+	// from the settings - so nothing here runs per frame.
+
+	if (theApp.upscaler == UPSCALER_NIS)
+	{
+		GLuint scaled = scaleFrameWithNis();
+		if (scaled != 0)
+			source = scaled;
+	}
+	else if (theApp.upscaler == UPSCALER_FSR)
 	{
 		GLuint scaled = scaleFrameWithFsr();
 		if (scaled != 0)
@@ -2242,6 +2931,8 @@ void OpenGL33Display::resize(int w, int h)
 
 	releaseUpscaleTarget(g_fsr.easuTarget);
 	releaseUpscaleTarget(g_fsr.rcasTarget);
+
+	releaseNisTargets();
 }
 
 void OpenGL33Display::setOption(const char *option, int value)
@@ -2286,11 +2977,34 @@ void OpenGL33Display::setOption(const char *option, int value)
 			glBindTexture(GL_TEXTURE_2D, g_fsr.rcasTarget.texture);
 			updateFiltering();
 		}
+
+		// The last NIS target is the one the quad draws, like the FSR one; the
+		// targets before it are read by the passes and keep the bilinear
+		// filtering they were made with.
+		if (g_nis.passCount > 0)
+		{
+			int last = g_nis.passCount - 1;
+			if (g_nis.targets[last].texture != 0)
+			{
+				glBindTexture(GL_TEXTURE_2D, g_nis.targets[last].texture);
+				updateFiltering();
+			}
+		}
 	}
 
 	// The upscaler and its sharpening are read from theApp on every frame, and
 	// glType picks between the quads and triangles of the fixed function
-	// renderer, which a quad strip covers both of.
+	// renderer, which a quad strip covers both of.  The one that was picked is
+	// logged here rather than per frame, and so is the fact that this renderer
+	// does not run it, which the menu greys out but a stale setting can still
+	// ask for.
+	if (!strcmp(option, "upscaler"))
+	{
+		winlog("OpenGL 3.3: upscaler %s (%d), sharpening %d, max scale %d%s\n",
+		       openGL33UpscalerName(value), value, theApp.upscalerSharpness,
+		       theApp.upscalerMaxScale,
+		       upscalerAvailable(value) ? "" : " - this renderer does not run it");
+	}
 }
 
 int OpenGL33Display::selectFullScreenMode(GUID * *)
@@ -2317,6 +3031,8 @@ bool OpenGL33Display::upscalerAvailable(int upscaler)
 	{
 	case UPSCALER_OFF:
 		return true;
+	case UPSCALER_NIS:
+		return g_nis.available;
 	case UPSCALER_FSR:
 		return g_fsr.available;
 	default:

@@ -401,6 +401,10 @@ static bool updateUpscaleTarget(ID3D11Device *device, UpscaleTarget &target,
 // upscaling code further down.
 bool direct3D11UpscalerAvailable(int upscaler);
 
+// The name of an upscaler the way the table spells it, or NULL for one that is
+// not in it.  Declared here for the trace the renderer writes while it starts.
+const char *direct3D11UpscalerName(int upscaler);
+
 class Direct3D11Display : public IDisplay
 {
 public:
@@ -971,6 +975,21 @@ bool Direct3D11Display::initialize()
 	// selected.  Failing is not fatal, the entry is then left out.
 	initUpscalers();
 
+	// The setting the renderer starts with, once, and whether it can run it.
+	{
+		const char *picked = direct3D11UpscalerName(theApp.upscaler);
+
+		if (picked == NULL)
+			picked = theApp.upscaler == UPSCALER_NIS ? "NIS"
+			       : theApp.upscaler == UPSCALER_FSR ? "FSR"
+			       : theApp.upscaler == UPSCALER_OFF ? "Off"
+			       : "not one of this renderer's";
+
+		winlog("D3D11: upscaler %s (%d), sharpening %d, max scale %d%s\n",
+		       picked, theApp.upscaler, theApp.upscalerSharpness, theApp.upscalerMaxScale,
+		       direct3D11UpscalerAvailable(theApp.upscaler) ? "" : " - this renderer does not run it");
+	}
+
 	filterMode = regQueryDwordValue("d3dFilter", 0);
 	if (filterMode < 0 || filterMode > 3)
 		filterMode = 0;
@@ -1475,10 +1494,12 @@ struct UpscalerPassSource
 	const char *resource; // the RCDATA resource holding its source
 	const char *entry;    // the entry point of its pixel shader
 	int         scale;    // 0: the size of the target, n: n times the frame
-	int         prev;     // n: the pass n back is bound as its second texture,
-	                      // 0: it reads one texture.  A pass that asks for one
-	                      // further back than the chain starts gets the frame,
-	                      // which is how RetroArch resolves PassPrev<N>Texture.
+	int         second;   // the texture it reads besides the one the pass before
+	                      // it made, as an index of the outputs: 0 is the frame,
+	                      // n the target of pass n - 1, and -1 that it reads one
+	                      // texture only.  That is how a libretro shader names
+	                      // OrigTexture, and the PassPrev<N> that reaches past
+	                      // the start of the chain.
 };
 
 struct UpscalerSource
@@ -1492,22 +1513,22 @@ struct UpscalerSource
 
 static const UpscalerPassSource g_xbrzPasses[] =
 {
-	{ "XBRZ_SHADER_FREESCALE", "main", 0, 0 },
+	{ "XBRZ_SHADER_FREESCALE", "main", 0, -1 },
 };
 
 static const UpscalerPassSource g_xbrLv2Passes[] =
 {
-	{ "XBR_LV2_SHADER", "main", 0, 0 },
+	{ "XBR_LV2_SHADER", "main", 0, -1 },
 };
 
 static const UpscalerPassSource g_xbrLv2NoBlendPasses[] =
 {
-	{ "XBR_LV2_NOBLEND_SHADER", "main", 0, 0 },
+	{ "XBR_LV2_NOBLEND_SHADER", "main", 0, -1 },
 };
 
 static const UpscalerPassSource g_xbrLv3Passes[] =
 {
-	{ "XBR_LV3_SHADER", "main", 0, 0 },
+	{ "XBR_LV3_SHADER", "main", 0, -1 },
 };
 
 // ScaleFX: the metrics of the edge, then the subpixels.  The pass that
@@ -1515,28 +1536,65 @@ static const UpscalerPassSource g_xbrLv3Passes[] =
 // pass 1, and the last one draws its colours from the frame itself.
 static const UpscalerPassSource g_scalefxPasses[] =
 {
-	{ "SCALEFX_PASS0_SHADER", "main", 1, 0 },
-	{ "SCALEFX_PASS1_SHADER", "main", 1, 0 },
-	{ "SCALEFX_PASS2_SHADER", "main", 1, 2 },
-	{ "SCALEFX_PASS3_SHADER", "main", 1, 0 },
-	{ "SCALEFX_PASS4_SHADER", "main", 0, 5 },
+	{ "SCALEFX_PASS0_SHADER", "main", 1, -1 },
+	{ "SCALEFX_PASS1_SHADER", "main", 1, -1 },
+	{ "SCALEFX_PASS2_SHADER", "main", 1,  1 },
+	{ "SCALEFX_PASS3_SHADER", "main", 1, -1 },
+	{ "SCALEFX_PASS4_SHADER", "main", 0,  0 },
+};
+
+// xBR lv3 in the two passes of its preset: the edge data, then the
+// interpolation, which blends it with the frame.
+static const UpscalerPassSource g_xbrLv3MultipassPasses[] =
+{
+	{ "XBR_LV3_PASS0_SHADER", "main", 1, -1 },
+	{ "XBR_LV3_PASS1_SHADER", "main", 0,  0 },
+};
+
+// 2xBR: the flags of every pixel, then the blend of the frame with itself.
+static const UpscalerPassSource g_xbr2xPasses[] =
+{
+	{ "XBR_2X_PASS0_SHADER", "main", 1, -1 },
+	{ "XBR_2X_PASS1_SHADER", "main", 0,  0 },
+};
+
+// xBR-mlv4: two frames of metrics, the picture doubled, the interpolation.
+static const UpscalerPassSource g_xbrMlv4Passes[] =
+{
+	{ "XBR_MLV4_PASS1_SHADER", "main", 1, -1 },
+	{ "XBR_MLV4_PASS2_SHADER", "main", 1,  0 },
+	{ "XBR_MLV4_PASS3_SHADER", "main", 2,  0 },
+	{ "XBR_MLV4_PASS4_SHADER", "main", 0,  0 },
+};
+
+// super-xBR: the edge data, the doubled picture blended with the frame, and
+// the jinc filter that finishes it.
+static const UpscalerPassSource g_superXbrPasses[] =
+{
+	{ "SUPER_XBR_PASS0_SHADER", "main", 1, -1 },
+	{ "SUPER_XBR_PASS1_SHADER", "main", 2,  0 },
+	{ "SUPER_XBR_JINC2_SHADER", "main", 0, -1 },
 };
 
 // The one pass of the transparency filter reads the frame twice: the pixels it
 // draws and the ones it leaves alone.
 static const UpscalerPassSource g_ptSkyWalkerPasses[] =
 {
-	{ "PT_SKYWALKER541_SHADER", "main", 0, 1 },
+	{ "PT_SKYWALKER541_SHADER", "main", 0, 0 },
 };
 
 static const UpscalerSource g_upscalers[] =
 {
-	{ UPSCALER_XBRZ,             "xBRZ",             g_xbrzPasses,          1, "ps_4_0" },
-	{ UPSCALER_XBR_LV2,          "xBR lv2",          g_xbrLv2Passes,        1, "ps_4_0" },
-	{ UPSCALER_XBR_LV2_NOBLEND,  "xBR lv2 no-blend", g_xbrLv2NoBlendPasses, 1, "ps_4_0" },
-	{ UPSCALER_XBR_LV3,          "xBR lv3",          g_xbrLv3Passes,        1, "ps_4_0" },
-	{ UPSCALER_SCALEFX,          "ScaleFX",          g_scalefxPasses,       5, "ps_4_0" },
-	{ UPSCALER_PT_SKYWALKER,     "PT SkyWalker541",  g_ptSkyWalkerPasses,   1, "ps_4_0" },
+	{ UPSCALER_XBRZ,              "xBRZ",              g_xbrzPasses,             1, "ps_4_0" },
+	{ UPSCALER_XBR_LV2,           "xBR lv2",           g_xbrLv2Passes,           1, "ps_4_0" },
+	{ UPSCALER_XBR_LV2_NOBLEND,   "xBR lv2 no-blend",  g_xbrLv2NoBlendPasses,    1, "ps_4_0" },
+	{ UPSCALER_XBR_LV3,           "xBR lv3",           g_xbrLv3Passes,           1, "ps_4_0" },
+	{ UPSCALER_XBR_LV3_MULTIPASS, "xBR lv3 multipass", g_xbrLv3MultipassPasses,  2, "ps_4_0" },
+	{ UPSCALER_XBR_2X,            "2xBR",              g_xbr2xPasses,            2, "ps_4_0" },
+	{ UPSCALER_XBR_MLV4,          "xBR-mlv4",          g_xbrMlv4Passes,          4, "ps_4_0" },
+	{ UPSCALER_SUPER_XBR,         "super-xBR",         g_superXbrPasses,         3, "ps_4_0" },
+	{ UPSCALER_SCALEFX,           "ScaleFX",           g_scalefxPasses,          5, "ps_4_0" },
+	{ UPSCALER_PT_SKYWALKER,      "PT SkyWalker541",   g_ptSkyWalkerPasses,      1, "ps_4_0" },
 };
 
 #define UPSCALER_COUNT (sizeof(g_upscalers) / sizeof(g_upscalers[0]))
@@ -1546,6 +1604,7 @@ static const UpscalerSource g_upscalers[] =
 //   float4 SourceSize;  // xy: the size the pass reads, zw: 1 / xy, one texel
 //   float4 OutputSize;  // xy: the size of its target, zw: 1 / xy
 //   float4 Scale;       // xy: OutputSize.xy / SourceSize.xy
+//   float4 SecondSize;  // xy: the size of the texture at t1, zw: 1 / xy
 //
 // They are sampled with the point sampler, so their taps land on texel centres.
 // A shader that needs anything more is a pipeline of its own, like NIS.
@@ -1554,6 +1613,7 @@ struct SinglePassConstants
 	float sourceSize[4];
 	float outputSize[4];
 	float scale[4];
+	float secondSize[4];
 };
 
 struct UpscalerPass
@@ -1653,6 +1713,8 @@ void Direct3D11Display::initUpscalers()
 			winlog("D3D11: the %s upscaler is not available on this device\n", source.name);
 			releaseUpscaler(state);
 		}
+		else
+			winlog("D3D11: the %s upscaler is ready, %d pass(es)\n", source.name, source.passCount);
 	}
 }
 
@@ -1664,20 +1726,43 @@ void Direct3D11Display::releaseUpscalers()
 
 ID3D11ShaderResourceView *Direct3D11Display::scaleFrameWithUpscaler(int upscaler)
 {
+	// The caller draws the frame itself when this returns NULL, so why it did
+	// is logged - once per reason rather than once per frame.
+	static int lastReason = 0;
+
 	int index = upscalerIndex(upscaler);
 	if (index < 0)
+	{
+		if (lastReason != 1)
+			winlog("D3D11: upscaler %d has no chain here, the frame is drawn as it is\n", upscaler);
+		lastReason = 1;
 		return NULL;
+	}
 
 	const UpscalerSource &source = g_upscalers[index];
 	Upscaler             &state  = g_upscalerState[index];
 
 	if (state.passes[0].shader == NULL || pFrameSRV == NULL)
+	{
+		if (lastReason != 2)
+			winlog("D3D11: %s is not built, the frame is drawn as it is\n", source.name);
+		lastReason = 2;
 		return NULL;
+	}
 
 	// The pass maps the whole frame texture onto the whole back buffer, the
 	// same mapping the textured quad would use.
 	if (theApp.rect.right != width || theApp.rect.bottom != height)
+	{
+		if (lastReason != 3)
+			winlog("D3D11: %s: the frame is %dx%d at %d,%d of a %dx%d texture, which it cannot scale\n",
+			       source.name, theApp.rect.right - theApp.rect.left, theApp.rect.bottom - theApp.rect.top,
+			       theApp.rect.left, theApp.rect.top, width, height);
+		lastReason = 3;
 		return NULL;
+	}
+
+	lastReason = 0;
 
 	int targetWidth, targetHeight;
 	upscalerTargetSize(width, height, backWidth, backHeight,
@@ -1713,10 +1798,21 @@ ID3D11ShaderResourceView *Direct3D11Display::scaleFrameWithUpscaler(int upscaler
 		ID3D11ShaderResourceView *input  = outputs[pass];
 		ID3D11ShaderResourceView *second = NULL;
 
-		if (source.passes[pass].prev > 0)
+		if (source.passes[pass].second >= 0)
+			second = outputs[source.passes[pass].second];
+
+		// The size of that second texture, which the shaders of the chains
+		// divide by: the frame for the ones that name OrigTexture, the target
+		// of an earlier pass for the ones that name PassPrev<N>Texture.
+		int secondWidth  = width;
+		int secondHeight = height;
+
+		if (source.passes[pass].second > 0)
 		{
-			int earlier = pass - source.passes[pass].prev + 1;
-			second = outputs[earlier > 0 ? earlier : 0];
+			int earlier = source.passes[pass].second - 1;
+
+			secondWidth  = state.passes[earlier].target.width;
+			secondHeight = state.passes[earlier].target.height;
 		}
 
 		SinglePassConstants constants;
@@ -1732,6 +1828,10 @@ ID3D11ShaderResourceView *Direct3D11Display::scaleFrameWithUpscaler(int upscaler
 		constants.scale[1]      = (float)statePass.target.height / (float)inputHeight;
 		constants.scale[2]      = 0.0f;
 		constants.scale[3]      = 0.0f;
+		constants.secondSize[0] = (float)secondWidth;
+		constants.secondSize[1] = (float)secondHeight;
+		constants.secondSize[2] = 1.0f / (float)secondWidth;
+		constants.secondSize[3] = 1.0f / (float)secondHeight;
 
 		if (!writeUpscalerConstants(pContext, statePass.constants, &constants, sizeof(constants)))
 			return NULL;
@@ -2188,7 +2288,19 @@ void Direct3D11Display::setOption(const char *option, int value)
 	{
 		// The two SDK upscalers are built on demand, the pixel filter shaders
 		// when the renderer starts, so there is nothing to build here, only
-		// something to report when one of them is not there.
+		// something to report - in the trace, and on the screen when one of
+		// them is not there.
+		const char *picked = direct3D11UpscalerName(value);
+
+		if (picked == NULL)
+			picked = value == UPSCALER_NIS ? "NIS"
+			       : value == UPSCALER_FSR ? "FSR"
+			       : "not one of this renderer's";
+
+		winlog("D3D11: upscaler %s (%d), sharpening %d, max scale %d%s\n",
+		       picked, value, theApp.upscalerSharpness, theApp.upscalerMaxScale,
+		       direct3D11UpscalerAvailable(value) ? "" : " - this renderer does not run it");
+
 		if (value == UPSCALER_NIS && !nisAvailable && !initNis())
 			systemScreenMessage("NVIDIA Image Scaling is not available on this device");
 		else if (value == UPSCALER_FSR && !fsrAvailable && !initFsr())
