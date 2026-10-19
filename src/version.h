@@ -65,6 +65,6 @@
 
 #define VBA_VERSION_STRING "v" STRINGIZE_VALUE(VBA_RR_VERSION_NO) VBA_SUBVERSION_STRING VBA_FEATURE_STRING VBA_COMPILER
 #define VBA_NAME_AND_VERSION VBA_NAME " " VBA_VERSION_STRING
-#define VBA_RR_SITE "http://code.google.com/p/vba-rerecording/"
+#define VBA_RR_SITE "https://github.com/TASEmulators/vba-rerecording/"
 
 #endif // !VBA_VERSION_H

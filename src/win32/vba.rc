@@ -25,18 +25,18 @@ LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
 // TEXTINCLUDE
 //
 
-1 TEXTINCLUDE 
+1 TEXTINCLUDE
 BEGIN
     "resource.h\0"
 END
 
-2 TEXTINCLUDE 
+2 TEXTINCLUDE
 BEGIN
     "#include ""afxres.h""\r\n"
     "\0"
 END
 
-3 TEXTINCLUDE 
+3 TEXTINCLUDE
 BEGIN
     "#include ""vba.rc2""\r\n"
     "\0"
@@ -165,20 +165,22 @@ BEGIN
     PUSHBUTTON      "Cancel",IDCANCEL,90,102,50,14,WS_GROUP
 END
 
-IDD_ABOUT DIALOGEX 0, 0, 164, 101
+IDD_ABOUT DIALOGEX 0, 0, 174, 116
 STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "About VBA rerecording"
 FONT 8, "MS Sans Serif", 0, 0, 0x0
 BEGIN
-    DEFPUSHBUTTON   "OK",IDOK,56,80,50,14
+    DEFPUSHBUTTON   "OK",IDOK,56,95,50,14
     ICON            IDI_ICON,IDC_STATIC,5,12,20,20
     CTEXT           "VisualBoyAdvance Emulator",IDC_STATIC,14,7,134,8
-    CTEXT           "Copyright (c) 2004 Forgotten and the VBA team",IDC_STATIC,7,35,150,8
-    CTEXT           "http://code.google.com/p/vba-rerecording/",IDC_URL,7,55,150,8
-    CTEXT           "Contribution by Costis",IDC_STATIC,30,45,102,8
+    CTEXT           "Copyright (c) 2004 Forgotten and the VBA team",IDC_STATIC,7,56,150,8
+    CTEXT           "https://github.com/TASEmulators/vba-rerecording/",IDC_URL,7,74,160,8
+    CTEXT           "Contribution by Costis",IDC_STATIC,30,65,102,8
     CTEXT           "Version",IDC_STATIC,46,16,70,8
     CTEXT           "",IDC_VERSION,36,25,98,8
-    CTEXT           "Re-recording additions by VBA-rr team",IDC_STATIC,14,66,136,8
+    CTEXT           "Modernized Edition",IDC_STATIC,7,35,150,8
+    CTEXT           "Rebuilt and maintained by Carter Li",IDC_STATIC,7,44,150,8
+    CTEXT           "Re-recording additions by VBA-rr team",IDC_STATIC,14,85,136,8
 END
 
 IDD_DIRECTORIES DIALOGEX 0, 0, 284, 260
@@ -2588,7 +2590,7 @@ STRINGTABLE
 BEGIN
     IDS_UNSUPPORTED_CHEAT_LIST_TYPE "Unsupported cheat list type %d"
     IDS_INVALID_GSA_CODE    "Invalid GSA code. Format is XXXXXXXXYYYYYYYY."
-    IDS_CANNOT_IMPORT_SNAPSHOT_FOR 
+    IDS_CANNOT_IMPORT_SNAPSHOT_FOR
                             "Cannot import snapshot for %s. Current game is %s"
     IDS_UNSUPPORTED_SNAPSHOT_FILE "Unsupported snapshot file %s"
     IDS_UNSUPPORTED_ARM_MODE "Unsupported ARM mode %02x"
@@ -2600,7 +2602,7 @@ BEGIN
     IDS_UNSUPPORTED_VBA_SGM "Unsupported VisualBoyAdvance save game version %d"
     IDS_DIRECTX_7_REQUIRED  "DirectX 7.0 or greater is required to run.\nDownload at http://www.microsoft.com/directx.\n\nError found at: %s"
     IDS_DISABLING_VIDEO_MEMORY "Disabling Use Video Memory setting"
-    IDS_SETTING_WILL_BE_EFFECTIVE 
+    IDS_SETTING_WILL_BE_EFFECTIVE
                             "Setting will be effective the next time you start the emulator"
     IDS_DISABLING_EMULATION_ONLY "Disabling Emulation Only setting"
 END
@@ -2616,7 +2618,7 @@ BEGIN
     IDS_NO_IMAGE_ON_ZIP     "No image found on ZIP file %s"
     IDS_ERROR_OPENING_IMAGE "Error opening image %s"
     IDS_ERROR_READING_IMAGE "Error reading image %s"
-    IDS_UNSUPPORTED_BIOS_FUNCTION 
+    IDS_UNSUPPORTED_BIOS_FUNCTION
                             "Unsupported BIOS function %02x called from %08x. A BIOS file is needed in order to get correct behaviour."
     IDS_INVALID_BIOS_FILE_SIZE "Invalid BIOS file size"
     IDS_INVALID_CHEAT_CODE  "Invalid cheat code '%s'. Supported formats are:\nXXXXXXXX:YY, XXXXXXXX:YYYY, XXXXXXXX:YYYYYYYY."
@@ -2655,7 +2657,7 @@ BEGIN
     IDS_CANNOT_SETFORMAT_PRIMARY "Cannot SetFormat for primary %08x"
     IDS_CANNOT_CREATESOUNDBUFFER_SEC "Cannot CreateSoundBuffer secondary %08x"
     IDS_CANNOT_PLAY_PRIMARY "Cannot Play primary %08x"
-    IDS_SEARCH_PRODUCED_TOO_MANY 
+    IDS_SEARCH_PRODUCED_TOO_MANY
                             "Search produced %d results.\nThey have been remembered, but are too many to display.\nPlease refine it better by performing additional searches."
     IDS_NUMBER_CANNOT_BE_EMPTY "Number cannot be empty"
     IDS_INVALID_ADDRESS     "Invalid address: %08x"
@@ -2775,7 +2777,7 @@ BEGIN
     IDS_SELECT_DUMP_FILE    "Select dump file name"
     IDS_FILTER_AVI          "AVI File_*.avi_All Files_*.*__"
     IDS_SELECT_AVI_NAME     "Select AVI file name"
-    IDS_INVALID_THROTTLE_VALUE 
+    IDS_INVALID_THROTTLE_VALUE
                             "Invalid throttle value. Please enter a number between 5 and 1000."
     IDS_FILTER_INI          "Skin INI File_*.ini_All Files_*.*__"
     IDS_SELECT_SKIN_FILE    "Select the skin file name"
@@ -2788,7 +2790,7 @@ END
 STRINGTABLE
 BEGIN
     IDS_END_OF_MOVIE        "end of movie"
-    IDS_INVALID_INTERVAL_VALUE 
+    IDS_INVALID_INTERVAL_VALUE
                             "Invalid rewind interval value. Please enter a number between 0 and 600 seconds."
     IDS_REGISTRY            "VisualBoyAdvance no longer uses the registry to store its settings. Your previous settings have been exported into the file: %s"
     IDS_MOVIE_PLAY          "Playing a movie will load a save state which may erase your previous battery saves. Please be sure to have a saved state if you don't want to loose any previous data."
@@ -2820,4 +2822,3 @@ END
 
 /////////////////////////////////////////////////////////////////////////////
 #endif    // not APSTUDIO_INVOKED
-
