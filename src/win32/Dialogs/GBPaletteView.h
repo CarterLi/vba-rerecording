@@ -1,9 +1,7 @@
 #if !defined(AFX_GBPALETTEVIEW_H__F909FF55_3021_4301_B017_0C2C9D8D8C08__INCLUDED_)
 #define AFX_GBPALETTEVIEW_H__F909FF55_3021_4301_B017_0C2C9D8D8C08__INCLUDED_
 
-#if _MSC_VER > 1000
 #pragma once
-#endif // _MSC_VER > 1000
 // -*- C++ -*-
 // GBPaletteView.h : header file
 //

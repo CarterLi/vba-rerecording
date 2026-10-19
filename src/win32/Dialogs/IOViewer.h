@@ -1,9 +1,7 @@
 #if !defined(AFX_IOVIEWER_H__9C266B78_FC02_4572_9062_0241802B0E76__INCLUDED_)
 #define AFX_IOVIEWER_H__9C266B78_FC02_4572_9062_0241802B0E76__INCLUDED_
 
-#if _MSC_VER > 1000
 #pragma once
-#endif // _MSC_VER > 1000
 // -*- C++ -*-
 // IOViewer.h : header file
 //

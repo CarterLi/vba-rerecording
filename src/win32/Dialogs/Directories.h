@@ -1,9 +1,7 @@
 #if !defined(AFX_DIRECTORIES_H__7ADB14C1_3C1B_4294_8D66_A4E87D6FC731__INCLUDED_)
 #define AFX_DIRECTORIES_H__7ADB14C1_3C1B_4294_8D66_A4E87D6FC731__INCLUDED_
 
-#if _MSC_VER > 1000
 #pragma once
-#endif // _MSC_VER > 1000
 // Directories.h : header file
 //
 

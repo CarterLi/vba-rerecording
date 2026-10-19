@@ -1,9 +1,7 @@
 #if !defined(AFX_MODECONFIRM_H__AF9F877E_6EDF_4523_95C9_1C745ABBA796__INCLUDED_)
 #define AFX_MODECONFIRM_H__AF9F877E_6EDF_4523_95C9_1C745ABBA796__INCLUDED_
 
-#if _MSC_VER > 1000
 #pragma once
-#endif // _MSC_VER > 1000
 // -*- C++ -*-
 // ModeConfirm.h : header file
 //

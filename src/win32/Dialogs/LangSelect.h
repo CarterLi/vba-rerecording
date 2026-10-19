@@ -1,9 +1,7 @@
 #if !defined(AFX_LANGSELECT_H__63619E13_A375_4ED4_952F_DCF8998C2914__INCLUDED_)
 #define AFX_LANGSELECT_H__63619E13_A375_4ED4_952F_DCF8998C2914__INCLUDED_
 
-#if _MSC_VER > 1000
 #pragma once
-#endif // _MSC_VER > 1000
 // -*- C++ -*-
 // LangSelect.h : header file
 //

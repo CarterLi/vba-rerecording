@@ -1,9 +1,7 @@
 #if !defined(AFX_REWINDINTERVAL_H__C95AFF44_1F64_44C8_BAAB_A54B982D28EA__INCLUDED_)
 #define AFX_REWINDINTERVAL_H__C95AFF44_1F64_44C8_BAAB_A54B982D28EA__INCLUDED_
 
-#if _MSC_VER > 1000
 #pragma once
-#endif // _MSC_VER > 1000
 // RewindInterval.h : header file
 //
 

@@ -1,9 +1,7 @@
 #if !defined(AFX_GDBCONNECTION_H__DD73B298_E1A7_4A46_B282_E7A2B37FC9D9__INCLUDED_)
 #define AFX_GDBCONNECTION_H__DD73B298_E1A7_4A46_B282_E7A2B37FC9D9__INCLUDED_
 
-#if _MSC_VER > 1000
 #pragma once
-#endif // _MSC_VER > 1000
 // -*- C++ -*-
 // GDBConnection.h : header file
 //

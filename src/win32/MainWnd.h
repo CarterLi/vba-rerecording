@@ -1,9 +1,7 @@
 ﻿#if !defined(AFX_MAINWND_H__E8AD28B9_C9FB_4EC2_A2DC_DD1BBA55A275__INCLUDED_)
 #define AFX_MAINWND_H__E8AD28B9_C9FB_4EC2_A2DC_DD1BBA55A275__INCLUDED_
 
-#if _MSC_VER > 1000
 #pragma once
-#endif // _MSC_VER > 1000
 // MainWnd.h : header file
 //
 

@@ -1,9 +1,7 @@
 #ifndef VBA_GBACPU_H
 #define VBA_GBACPU_H
 
-#if _MSC_VER > 1000
 #pragma once
-#endif // _MSC_VER > 1000
 
 extern int armExecute();
 extern int thumbExecute();

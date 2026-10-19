@@ -28,9 +28,7 @@
 #ifndef __CMDACCEL_OB_INCLUDE
 #define __CMDACCEL_OB_INCLUDE
 
-#if _MSC_VER > 1000
 #pragma once
-#endif // _MSC_VER > 1000
 
 #include <afxtempl.h>  // MFC Templates extension
 

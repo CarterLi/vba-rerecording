@@ -1,9 +1,7 @@
 #if !defined(AFX_DISASSEMBLE_H__CA10E857_7D76_4B19_A62B_D0677040FD0F__INCLUDED_)
 #define AFX_DISASSEMBLE_H__CA10E857_7D76_4B19_A62B_D0677040FD0F__INCLUDED_
 
-#if _MSC_VER > 1000
 #pragma once
-#endif // _MSC_VER > 1000
 // Disassemble.h : header file
 //
 

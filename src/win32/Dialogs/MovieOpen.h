@@ -1,9 +1,7 @@
 #ifndef VBA_MOVIE_OPEN_H
 #define VBA_MOVIE_OPEN_H
 
-#if _MSC_VER > 1000
 #pragma once
-#endif // _MSC_VER > 1000
 
 #include "../../common/movie.h"
 

@@ -1,9 +1,7 @@
 #if !defined(AFX_FILEDLG_H__7E4F8B92_1B63_4126_8261_D9334C645940__INCLUDED_)
 #define AFX_FILEDLG_H__7E4F8B92_1B63_4126_8261_D9334C645940__INCLUDED_
 
-#if _MSC_VER > 1000
 #pragma once
-#endif // _MSC_VER > 1000
 // FileDlg.h : header file
 //
 // Thin MFC wrapper around the file dialogs of ModernFileDialog.h.

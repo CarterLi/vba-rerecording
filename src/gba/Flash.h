@@ -1,9 +1,7 @@
 #ifndef VBA_FLASH_H
 #define VBA_FLASH_H
 
-#if _MSC_VER > 1000
 #pragma once
-#endif // _MSC_VER > 1000
 
 #include "zlib.h"
 #include "../Port.h"

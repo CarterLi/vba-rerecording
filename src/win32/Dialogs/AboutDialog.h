@@ -1,9 +1,7 @@
 #if !defined(AFX_ABOUTDIALOG_H__48D787B2_0699_4F03_827D_404EC70DDDB2__INCLUDED_)
 #define AFX_ABOUTDIALOG_H__48D787B2_0699_4F03_827D_404EC70DDDB2__INCLUDED_
 
-#if _MSC_VER > 1000
 #pragma once
-#endif // _MSC_VER > 1000
 
 // -*- C++ -*-
 // AboutDialog.h : header file

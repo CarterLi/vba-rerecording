@@ -1,9 +1,7 @@
 #if !defined(AFX_MAPVIEW_H__20F40C77_8E10_44B7_BB49_7865F73C3E75__INCLUDED_)
 #define AFX_MAPVIEW_H__20F40C77_8E10_44B7_BB49_7865F73C3E75__INCLUDED_
 
-#if _MSC_VER > 1000
 #pragma once
-#endif // _MSC_VER > 1000
 // -*- C++ -*-
 // MapView.h : header file
 //

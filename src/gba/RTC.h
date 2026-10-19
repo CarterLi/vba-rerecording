@@ -1,9 +1,7 @@
 #ifndef VBA_RTC_H
 #define VBA_RTC_H
 
-#if _MSC_VER > 1000
 #pragma once
-#endif // _MSC_VER > 1000
 
 extern u16 rtcRead(u32 address);
 extern bool rtcWrite(u32 address, u16 value);

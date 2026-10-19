@@ -1,9 +1,7 @@
 #ifndef VBA_MOVIECREATE_H
 #define VBA_MOVIECREATE_H
 
-#if _MSC_VER > 1000
 #pragma once
-#endif // _MSC_VER > 1000
 
 // MovieCreate dialog
 class MovieCreate : public CDialog

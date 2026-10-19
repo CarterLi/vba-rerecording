@@ -1,9 +1,7 @@
 #if !defined(AFX_GBMEMORYVIEWERDLG_H__23AD2804_EFA5_4900_AEC5_47196A41C50D__INCLUDED_)
 #define AFX_GBMEMORYVIEWERDLG_H__23AD2804_EFA5_4900_AEC5_47196A41C50D__INCLUDED_
 
-#if _MSC_VER > 1000
 #pragma once
-#endif // _MSC_VER > 1000
 // -*- C++ -*-
 // GBMemoryViewerDlg.h : header file
 //

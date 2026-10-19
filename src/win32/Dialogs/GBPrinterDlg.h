@@ -1,9 +1,7 @@
 #if !defined(AFX_GBPRINTER_H__3180CC5A_1F9D_47E5_B044_407442CB40A4__INCLUDED_)
 #define AFX_GBPRINTER_H__3180CC5A_1F9D_47E5_B044_407442CB40A4__INCLUDED_
 
-#if _MSC_VER > 1000
 #pragma once
-#endif // _MSC_VER > 1000
 // -*- C++ -*-
 // GBPrinter.h : header file
 //

@@ -1,9 +1,7 @@
 #if !defined(AFX_COLORCONTROL_H__747E1E47_DDFA_4D67_B337_A473F2BACB86__INCLUDED_)
 #define AFX_COLORCONTROL_H__747E1E47_DDFA_4D67_B337_A473F2BACB86__INCLUDED_
 
-#if _MSC_VER > 1000
 #pragma once
-#endif // _MSC_VER > 1000
 // ColorControl.h : header file
 //
 

@@ -1,9 +1,7 @@
 #ifndef VBA_GB_SOUND_H
 #define VBA_GB_SOUND_H
 
-#if _MSC_VER > 1000
 #pragma once
-#endif // _MSC_VER > 1000
 
 #define NR10 0xff10
 #define NR11 0xff11

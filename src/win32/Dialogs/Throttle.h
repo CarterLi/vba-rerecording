@@ -1,9 +1,7 @@
 #if !defined(AFX_THROTTLE_H__5F03B6E9_0C43_4933_A7BC_1618428C2B7F__INCLUDED_)
 #define AFX_THROTTLE_H__5F03B6E9_0C43_4933_A7BC_1618428C2B7F__INCLUDED_
 
-#if _MSC_VER > 1000
 #pragma once
-#endif // _MSC_VER > 1000
 // Throttle.h : header file
 //
 

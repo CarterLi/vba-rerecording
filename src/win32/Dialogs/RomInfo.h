@@ -1,9 +1,7 @@
 #if !defined(AFX_ROMINFO_H__9888A45C_3E71_4C0F_B119_EFC74DFF8CD3__INCLUDED_)
 #define AFX_ROMINFO_H__9888A45C_3E71_4C0F_B119_EFC74DFF8CD3__INCLUDED_
 
-#if _MSC_VER > 1000
 #pragma once
-#endif // _MSC_VER > 1000
 // -*- C++ -*-
 // RomInfo.h : header file
 //

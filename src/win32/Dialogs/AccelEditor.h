@@ -1,9 +1,7 @@
 #if !defined(AFX_ACCELEDITOR_H__66F5C854_E28E_40D1_B763_1850374B46A2__INCLUDED_)
 #define AFX_ACCELEDITOR_H__66F5C854_E28E_40D1_B763_1850374B46A2__INCLUDED_
 
-#if _MSC_VER > 1000
 #pragma once
-#endif // _MSC_VER > 1000
 // AccelEditor.h : header file
 //
 #include "../AcceleratorManager.h"

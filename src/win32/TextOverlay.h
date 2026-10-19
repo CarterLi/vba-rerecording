@@ -8,9 +8,7 @@
 #ifndef VBA_WIN32_TEXTOVERLAY_H
 #define VBA_WIN32_TEXTOVERLAY_H
 
-#if _MSC_VER > 1000
 #pragma once
-#endif
 
 class TextOverlay
 {

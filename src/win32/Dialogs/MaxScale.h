@@ -1,9 +1,7 @@
 #if !defined(AFX_MAXSCALE_H__3F42C0CC_DD5E_4A96_A60D_33AB7CBDE406__INCLUDED_)
 #define AFX_MAXSCALE_H__3F42C0CC_DD5E_4A96_A60D_33AB7CBDE406__INCLUDED_
 
-#if _MSC_VER > 1000
 #pragma once
-#endif // _MSC_VER > 1000
 // -*- C++ -*-
 // MaxScale.h : header file
 //

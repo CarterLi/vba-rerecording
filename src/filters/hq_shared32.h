@@ -1,9 +1,7 @@
 #ifndef VBA_HQ_SHARED32_H
 #define VBA_HQ_SHARED32_H
 
-#if _MSC_VER > 1000
 #pragma once
-#endif // _MSC_VER > 1000
 
 #define abs32(value) (value & 0x7FFFFFFF)
 #define abs16(value) (value & 0x7FFF)

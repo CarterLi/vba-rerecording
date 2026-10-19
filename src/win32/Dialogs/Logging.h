@@ -1,9 +1,7 @@
 #if !defined(AFX_LOGGING_H__222FC21A_D40D_450D_8A1C_D33305E47B85__INCLUDED_)
 #define AFX_LOGGING_H__222FC21A_D40D_450D_8A1C_D33305E47B85__INCLUDED_
 
-#if _MSC_VER > 1000
 #pragma once
-#endif // _MSC_VER > 1000
 // -*- C++ -*-
 // Logging.h : header file
 //

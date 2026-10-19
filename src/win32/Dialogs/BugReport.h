@@ -1,9 +1,7 @@
 #if !defined(AFX_BUGREPORT_H__DE7BC381_E45D_4200_910C_E5378E6364C9__INCLUDED_)
 #define AFX_BUGREPORT_H__DE7BC381_E45D_4200_910C_E5378E6364C9__INCLUDED_
 
-#if _MSC_VER > 1000
 #pragma once
-#endif // _MSC_VER > 1000
 // BugReport.h : header file
 //
 

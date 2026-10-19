@@ -1,9 +1,7 @@
 ﻿#if !defined(AFX_JOYPAD_H__FFFB2470_9EEC_4D2D_A5F0_3BF31579999A__INCLUDED_)
 #define AFX_JOYPAD_H__FFFB2470_9EEC_4D2D_A5F0_3BF31579999A__INCLUDED_
 
-#if _MSC_VER > 1000
 #pragma once
-#endif // _MSC_VER > 1000
 // -*- C++ -*-
 // Joypad.h : header file
 //

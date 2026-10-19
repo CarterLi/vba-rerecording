@@ -1,9 +1,7 @@
 #if !defined(AFX_PALETTEVIEW1_H__0873E3FF_9486_4B2C_8EF0_59C3B4F47162__INCLUDED_)
 #define AFX_PALETTEVIEW1_H__0873E3FF_9486_4B2C_8EF0_59C3B4F47162__INCLUDED_
 
-#if _MSC_VER > 1000
 #pragma once
-#endif // _MSC_VER > 1000
 // -*- C++ -*-
 // PaletteView.h : header file
 //

@@ -1,9 +1,7 @@
 #if !defined(AFX_ZOOMCONTROL_H__BC193230_D2D6_4240_93AE_28C2EF2C641A__INCLUDED_)
 #define AFX_ZOOMCONTROL_H__BC193230_D2D6_4240_93AE_28C2EF2C641A__INCLUDED_
 
-#if _MSC_VER > 1000
 #pragma once
-#endif // _MSC_VER > 1000
 // ZoomControl.h : header file
 //
 #ifndef WM_COLINFO

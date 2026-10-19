@@ -1,9 +1,7 @@
 #if !defined(AFX_GBMAPVIEW_H__4CD23D38_F2CD_4B95_AE76_2781591DD077__INCLUDED_)
 #define AFX_GBMAPVIEW_H__4CD23D38_F2CD_4B95_AE76_2781591DD077__INCLUDED_
 
-#if _MSC_VER > 1000
 #pragma once
-#endif // _MSC_VER > 1000
 // -*- C++ -*-
 // GBMapView.h : header file
 //

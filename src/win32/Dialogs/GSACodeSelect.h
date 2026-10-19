@@ -1,9 +1,7 @@
 #if !defined(AFX_GSACODESELECT_H__189BD94D_288F_4E2A_9395_EAB16F104D87__INCLUDED_)
 #define AFX_GSACODESELECT_H__189BD94D_288F_4E2A_9395_EAB16F104D87__INCLUDED_
 
-#if _MSC_VER > 1000
 #pragma once
-#endif // _MSC_VER > 1000
 // -*- C++ -*-
 // GSACodeSelect.h : header file
 //

@@ -1,9 +1,7 @@
 #if !defined(AFX_ASSOCIATE_H__3326525B_B405_40A7_82C4_B2594669A930__INCLUDED_)
 #define AFX_ASSOCIATE_H__3326525B_B405_40A7_82C4_B2594669A930__INCLUDED_
 
-#if _MSC_VER > 1000
 #pragma once
-#endif // _MSC_VER > 1000
 // Associate.h : header file
 //
 

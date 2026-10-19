@@ -1,9 +1,7 @@
 #if !defined(AFX_VIDEOMODE_H__074B2426_32EA_4D69_9215_AB5E90F885D0__INCLUDED_)
 #define AFX_VIDEOMODE_H__074B2426_32EA_4D69_9215_AB5E90F885D0__INCLUDED_
 
-#if _MSC_VER > 1000
 #pragma once
-#endif // _MSC_VER > 1000
 // VideoMode.h : header file
 //
 

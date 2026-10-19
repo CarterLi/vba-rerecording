@@ -1,9 +1,7 @@
 #if !defined(AFX_GBCOLORDLG_H__8D6126EF_06BB_48CF_ABB3_2CC4B1B60358__INCLUDED_)
 #define AFX_GBCOLORDLG_H__8D6126EF_06BB_48CF_ABB3_2CC4B1B60358__INCLUDED_
 
-#if _MSC_VER > 1000
 #pragma once
-#endif // _MSC_VER > 1000
 // GBColorDlg.h : header file
 //
 

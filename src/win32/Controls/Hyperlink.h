@@ -1,9 +1,7 @@
 #if !defined(AFX_HYPERLINK_H__BECEAB7D_31FB_4727_A42B_8732162EEBCC__INCLUDED_)
 #define AFX_HYPERLINK_H__BECEAB7D_31FB_4727_A42B_8732162EEBCC__INCLUDED_
 
-#if _MSC_VER > 1000
 #pragma once
-#endif // _MSC_VER > 1000
 // Hyperlink.h : header file
 //
 

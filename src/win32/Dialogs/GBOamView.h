@@ -1,9 +1,7 @@
 #if !defined(AFX_GBOAMVIEW_H__FE8105E6_9693_479A_8C57_DEEA1B2EA3D6__INCLUDED_)
 #define AFX_GBOAMVIEW_H__FE8105E6_9693_479A_8C57_DEEA1B2EA3D6__INCLUDED_
 
-#if _MSC_VER > 1000
 #pragma once
-#endif // _MSC_VER > 1000
 // -*- C++ -*-
 // GBOamView.h : header file
 //

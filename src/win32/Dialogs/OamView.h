@@ -1,9 +1,7 @@
 #if !defined(AFX_OAMVIEW_H__E5369352_80F8_49C4_9F23_05EB6FC1345B__INCLUDED_)
 #define AFX_OAMVIEW_H__E5369352_80F8_49C4_9F23_05EB6FC1345B__INCLUDED_
 
-#if _MSC_VER > 1000
 #pragma once
-#endif // _MSC_VER > 1000
 // OamView.h : header file
 //
 #include "../Controls/BitmapControl.h"

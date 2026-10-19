@@ -1,9 +1,7 @@
 #ifndef VBS_NLS_H
 #define VBA_NLS_H
 
-#if _MSC_VER > 1000
 #pragma once
-#endif // _MSC_VER > 1000
 
 #define N_(String) (String)
 

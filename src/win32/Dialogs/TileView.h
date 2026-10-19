@@ -1,9 +1,7 @@
 #if !defined(AFX_TILEVIEW_H__055751EC_2DF3_495B_B643_29025465CD2E__INCLUDED_)
 #define AFX_TILEVIEW_H__055751EC_2DF3_495B_B643_29025465CD2E__INCLUDED_
 
-#if _MSC_VER > 1000
 #pragma once
-#endif // _MSC_VER > 1000
 // TileView.h : header file
 //
 

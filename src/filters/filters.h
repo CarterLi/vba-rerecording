@@ -2,9 +2,7 @@
 #ifndef VBA_FILTERS_H
 #define VBA_FILTERS_H
 
-#if _MSC_VER > 1000
 #pragma once
-#endif // _MSC_VER > 1000
 
 extern void Pixelate2x16(u8*, u32, u8*, u8*, u32, int, int);
 extern void Pixelate2x32(u8*, u32, u8*, u8*, u32, int, int);

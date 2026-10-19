@@ -1,9 +1,7 @@
 #if !defined(AFX_MEMORYVIEWERDLG_H__15046D5B_D5A2_4C49_A969_2A77F803F2F1__INCLUDED_)
 #define AFX_MEMORYVIEWERDLG_H__15046D5B_D5A2_4C49_A969_2A77F803F2F1__INCLUDED_
 
-#if _MSC_VER > 1000
 #pragma once
-#endif // _MSC_VER > 1000
 // -*- C++ -*-
 // MemoryViewerDlg.h : header file
 //

@@ -1,9 +1,7 @@
 #if !defined(AFX_GBTILEVIEW_H__C8C8DEBB_17ED_4C5C_9DBE_D730A49B312C__INCLUDED_)
 #define AFX_GBTILEVIEW_H__C8C8DEBB_17ED_4C5C_9DBE_D730A49B312C__INCLUDED_
 
-#if _MSC_VER > 1000
 #pragma once
-#endif // _MSC_VER > 1000
 // -*- C++ -*-
 // GBTileView.h : header file
 //

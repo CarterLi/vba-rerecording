@@ -1,9 +1,7 @@
 #ifndef VBA_WIN32_WINMISCUTIL_H
 #define VBA_WIN32_WINMISCUTIL_H
 
-#if _MSC_VER > 1000
 #pragma once
-#endif // _MSC_VER > 1000
 
 extern const char IDS_ROM_DIR[];
 extern const char IDS_GBXROM_DIR[];
