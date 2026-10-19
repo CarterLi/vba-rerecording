@@ -131,362 +131,6 @@ static void count(u32 opcode, int cond_res)
 //    RRX_OFFSET: Used to rotate (RRX) the `offset' parameter for LDR and
 //                STR instructions.
 
-#ifndef C_CORE
-
-// Macros used to spell out the x86 instruction stream of the ALU
-// operations.  Only the MSVC form is left (Intel syntax, __asm).
-
- #define ALU_HEADER           __asm { __asm mov ecx, opcode
- #define ALU_TRAILER          }
- #define EMIT0(op)            __asm op
- #define EMIT1(op, arg)        __asm op arg
- #define EMIT2(op, src, dest)   __asm op dest, src
- #define CONST(val)           val
- #define VAR(var)             var
- #define VARL(var)            dword ptr var
- #define REGREF1(index)       reg[index]
- #define REGREF2(index, scale) reg[index * scale]
- #define LABEL(n)             __asm l ## n :
- #define LABELREF(n, dir)      l ## n
-
-//X//#ifndef _MSC_VER
-// ALU op register usage:
-//    EAX -> 2nd operand value, result (RSB/RSC)
-//    EBX -> C_OUT (carry flag from shift/rotate)
-//    ECX -> opcode (input), shift/rotate count
-//    EDX -> Rn (base) value, result (all except RSB/RSC)
-//    ESI -> Rd (destination) index * 4
-
-// Helper macros for loading value / shift count
-#define VALUE_LOAD_IMM \
-    EMIT2(and, CONST(0x0F), eax)            \
-    EMIT2(mov, REGREF2(eax, 4), eax)         \
-    EMIT2(shr, CONST(7), ecx)               \
-    EMIT2(and, CONST(0x1F), ecx)
-#define VALUE_LOAD_REG \
-    EMIT2(and, CONST(0x0F), eax)            \
-    EMIT2(mov, REGREF2(eax, 4), eax)         \
-    EMIT2(movzx, ch, ecx)                   \
-    EMIT2(and, CONST(0x0F), ecx)            \
-    EMIT2(mov, REGREF2(ecx, 4), ecx)
-
-// Helper macros for setting flags
-#define SETCOND_LOGICAL \
-    EMIT1(sets, VAR(N_FLAG))            \
-    EMIT1(setz, VAR(Z_FLAG))            \
-    EMIT2(mov, bl, VAR(C_FLAG))
-#define SETCOND_ADD \
-    EMIT1(sets, VAR(N_FLAG))            \
-    EMIT1(setz, VAR(Z_FLAG))            \
-    EMIT1(seto, VAR(V_FLAG))            \
-    EMIT1(setc, VAR(C_FLAG))
-#define SETCOND_SUB \
-    EMIT1(sets, VAR(N_FLAG))            \
-    EMIT1(setz, VAR(Z_FLAG))            \
-    EMIT1(seto, VAR(V_FLAG))            \
-    EMIT1(setnc, VAR(C_FLAG))
-
-// ALU initialization
-#define ALU_INIT(LOAD_C_FLAG) \
-    ALU_HEADER                          \
-    LOAD_C_FLAG                         \
-    EMIT2(mov, ecx, edx)                \
-    EMIT2(shr, CONST(14), edx)          \
-    EMIT2(mov, ecx, eax)                \
-    EMIT2(mov, ecx, esi)                \
-    EMIT2(shr, CONST(10), esi)          \
-    EMIT2(and, CONST(0x3C), edx)        \
-    EMIT2(mov, REGREF1(edx), edx)       \
-    EMIT2(and, CONST(0x3C), esi)
-
-#define LOAD_C_FLAG_YES EMIT2(mov, VAR(C_FLAG), bl)
-#define LOAD_C_FLAG_NO  /*nothing*/
-#define ALU_INIT_C ALU_INIT(LOAD_C_FLAG_YES)
-#define ALU_INIT_NC ALU_INIT(LOAD_C_FLAG_NO)
-
-// Macros to load the value operand for an ALU op; these all set N/Z
-// according to the value
-
-// OP Rd,Rb,Rm LSL #
-#define VALUE_LSL_IMM_C \
-    VALUE_LOAD_IMM                      \
-    EMIT1(jnz, LABELREF(1, f))           \
-    EMIT1(jmp, LABELREF(0, f))           \
-    LABEL(1)                            \
-    EMIT2(shl, cl, eax)                 \
-    EMIT1(setc, bl)                     \
-    LABEL(0)
-#define VALUE_LSL_IMM_NC \
-    VALUE_LOAD_IMM                      \
-    EMIT2(shl, cl, eax)
-
-// OP Rd,Rb,Rm LSL Rs
-#define VALUE_LSL_REG_C \
-    VALUE_LOAD_REG                      \
-    EMIT2(test, cl, cl)                 \
-    EMIT1(jz, LABELREF(0, f))            \
-    EMIT2(cmp, CONST(0x20), cl)         \
-    EMIT1(je, LABELREF(1, f))            \
-    EMIT1(ja, LABELREF(2, f))            \
-    EMIT2(shl, cl, eax)                 \
-    EMIT1(setc, bl)                     \
-    EMIT1(jmp, LABELREF(0, f))           \
-    LABEL(1)                            \
-    EMIT2(test, CONST(1), al)           \
-    EMIT1(setnz, bl)                    \
-    EMIT2(xor, eax, eax)                \
-    EMIT1(jmp, LABELREF(0, f))           \
-    LABEL(2)                            \
-    EMIT2(xor, ebx, ebx)                \
-    EMIT2(xor, eax, eax)                \
-    LABEL(0)
-#define VALUE_LSL_REG_NC \
-    VALUE_LOAD_REG                      \
-    EMIT2(cmp, CONST(0x20), cl)         \
-    EMIT1(jae, LABELREF(1, f))           \
-    EMIT2(shl, cl, eax)                 \
-    EMIT1(jmp, LABELREF(0, f))           \
-    LABEL(1)                            \
-    EMIT2(xor, eax, eax)                \
-    LABEL(0)
-
-// OP Rd,Rb,Rm LSR #
-#define VALUE_LSR_IMM_C \
-    VALUE_LOAD_IMM                      \
-    EMIT1(jz, LABELREF(1, f))            \
-    EMIT2(shr, cl, eax)                 \
-    EMIT1(setc, bl)                     \
-    EMIT1(jmp, LABELREF(0, f))           \
-    LABEL(1)                            \
-    EMIT2(test, eax, eax)               \
-    EMIT1(sets, bl)                     \
-    EMIT2(xor, eax, eax)                \
-    LABEL(0)
-#define VALUE_LSR_IMM_NC \
-    VALUE_LOAD_IMM                      \
-    EMIT1(jz, LABELREF(1, f))            \
-    EMIT2(shr, cl, eax)                 \
-    EMIT1(jmp, LABELREF(0, f))           \
-    LABEL(1)                            \
-    EMIT2(xor, eax, eax)                \
-    LABEL(0)
-
-// OP Rd,Rb,Rm LSR Rs
-#define VALUE_LSR_REG_C \
-    VALUE_LOAD_REG                      \
-    EMIT2(test, cl, cl)                 \
-    EMIT1(jz, LABELREF(0, f))            \
-    EMIT2(cmp, CONST(0x20), cl)         \
-    EMIT1(je, LABELREF(1, f))            \
-    EMIT1(ja, LABELREF(2, f))            \
-    EMIT2(shr, cl, eax)                 \
-    EMIT1(setc, bl)                     \
-    EMIT1(jmp, LABELREF(0, f))           \
-    LABEL(1)                            \
-    EMIT2(test, eax, eax)               \
-    EMIT1(sets, bl)                     \
-    EMIT2(xor, eax, eax)                \
-    EMIT1(jmp, LABELREF(0, f))           \
-    LABEL(2)                            \
-    EMIT2(xor, ebx, ebx)                \
-    EMIT2(xor, eax, eax)                \
-    LABEL(0)
-#define VALUE_LSR_REG_NC \
-    VALUE_LOAD_REG                      \
-    EMIT2(cmp, CONST(0x20), cl)         \
-    EMIT1(jae, LABELREF(1, f))           \
-    EMIT2(shr, cl, eax)                 \
-    EMIT1(jmp, LABELREF(0, f))           \
-    LABEL(1)                            \
-    EMIT2(xor, eax, eax)                \
-    LABEL(0)
-
-// OP Rd,Rb,Rm ASR #
-#define VALUE_ASR_IMM_C \
-    VALUE_LOAD_IMM                      \
-    EMIT1(jz, LABELREF(1, f))            \
-    EMIT2(sar, cl, eax)                 \
-    EMIT1(setc, bl)                     \
-    EMIT1(jmp, LABELREF(0, f))           \
-    LABEL(1)                            \
-    EMIT2(sar, CONST(31), eax)          \
-    EMIT1(sets, bl)                     \
-    LABEL(0)
-#define VALUE_ASR_IMM_NC \
-    VALUE_LOAD_IMM                      \
-    EMIT1(jz, LABELREF(1, f))            \
-    EMIT2(sar, cl, eax)                 \
-    EMIT1(jmp, LABELREF(0, f))           \
-    LABEL(1)                            \
-    EMIT2(sar, CONST(31), eax)          \
-    LABEL(0)
-
-// OP Rd,Rb,Rm ASR Rs
-#define VALUE_ASR_REG_C \
-    VALUE_LOAD_REG                      \
-    EMIT2(test, cl, cl)                 \
-    EMIT1(jz, LABELREF(0, f))            \
-    EMIT2(cmp, CONST(0x20), cl)         \
-    EMIT1(jae, LABELREF(1, f))           \
-    EMIT2(sar, cl, eax)                 \
-    EMIT1(setc, bl)                     \
-    EMIT1(jmp, LABELREF(0, f))           \
-    LABEL(1)                            \
-    EMIT2(sar, CONST(31), eax)          \
-    EMIT1(sets, bl)                     \
-    LABEL(0)
-#define VALUE_ASR_REG_NC \
-    VALUE_LOAD_REG                      \
-    EMIT2(cmp, CONST(0x20), cl)         \
-    EMIT1(jae, LABELREF(1, f))           \
-    EMIT2(sar, cl, eax)                 \
-    EMIT1(jmp, LABELREF(0, f))           \
-    LABEL(1)                            \
-    EMIT2(sar, CONST(31), eax)          \
-    LABEL(0)
-
-// OP Rd,Rb,Rm ROR #
-#define VALUE_ROR_IMM_C \
-    VALUE_LOAD_IMM                      \
-    EMIT1(jz, LABELREF(1, f))            \
-    EMIT2(ror, cl, eax)                 \
-    EMIT1(jmp, LABELREF(0, f))           \
-    LABEL(1)                            \
-    EMIT2(bt, CONST(0), ebx)            \
-    EMIT2(rcr, CONST(1), eax)           \
-    LABEL(0)                            \
-    EMIT1(setc, bl)
-#define VALUE_ROR_IMM_NC \
-    VALUE_LOAD_IMM                      \
-    EMIT1(jz, LABELREF(1, f))            \
-    EMIT2(ror, cl, eax)                 \
-    EMIT1(jmp, LABELREF(0, f))           \
-    LABEL(1)                            \
-    EMIT2(bt, CONST(0), VARL(C_FLAG))   \
-    EMIT2(rcr, CONST(1), eax)           \
-    LABEL(0)
-
-// OP Rd,Rb,Rm ROR Rs
-#define VALUE_ROR_REG_C \
-    VALUE_LOAD_REG                      \
-    EMIT2(bt, CONST(0), ebx)            \
-    EMIT2(ror, cl, eax)                 \
-    EMIT1(setc, bl)
-#define VALUE_ROR_REG_NC \
-    VALUE_LOAD_REG                      \
-    EMIT2(ror, cl, eax)
-
-// OP Rd,Rb,# ROR #
-#define VALUE_IMM_C \
-    EMIT2(movzx, ch, ecx)               \
-    EMIT2(add, ecx, ecx)                \
-    EMIT2(movzx, al, eax)               \
-    EMIT2(bt, CONST(0), ebx)            \
-    EMIT2(ror, cl, eax)                 \
-    EMIT1(setc, bl)
-#define VALUE_IMM_NC \
-    EMIT2(movzx, ch, ecx)               \
-    EMIT2(add, ecx, ecx)                \
-    EMIT2(movzx, al, eax)               \
-    EMIT2(ror, cl, eax)
-
-// Macros to perform ALU ops
-
-// Set condition codes iff the destination register is not R15 (PC)
-#define CHECK_PC(OP, SETCOND) \
-    EMIT2(cmp, CONST(0x3C), esi)        \
-    EMIT1(je, LABELREF(8, f))            \
-    OP SETCOND                          \
-    EMIT1(jmp, LABELREF(9, f))           \
-    LABEL(8)                            \
-    OP                                  \
-    LABEL(9)
-
-#define OP_AND \
-    EMIT2(and, eax, edx)                \
-    EMIT2(mov, edx, REGREF1(esi))
-#define OP_ANDS   CHECK_PC(OP_AND, SETCOND_LOGICAL)
-#define OP_EOR \
-    EMIT2(xor, eax, edx)                \
-    EMIT2(mov, edx, REGREF1(esi))
-#define OP_EORS   CHECK_PC(OP_EOR, SETCOND_LOGICAL)
-#define OP_SUB \
-    EMIT2(sub, eax, edx)                \
-    EMIT2(mov, edx, REGREF1(esi))
-#define OP_SUBS   CHECK_PC(OP_SUB, SETCOND_SUB)
-#define OP_RSB \
-    EMIT2(sub, edx, eax)                \
-    EMIT2(mov, eax, REGREF1(esi))
-#define OP_RSBS   CHECK_PC(OP_RSB, SETCOND_SUB)
-#define OP_ADD \
-    EMIT2(add, eax, edx)                \
-    EMIT2(mov, edx, REGREF1(esi))
-#define OP_ADDS   CHECK_PC(OP_ADD, SETCOND_ADD)
-#define OP_ADC \
-    EMIT2(bt, CONST(0), VARL(C_FLAG))   \
-    EMIT2(adc, eax, edx)                \
-    EMIT2(mov, edx, REGREF1(esi))
-#define OP_ADCS   CHECK_PC(OP_ADC, SETCOND_ADD)
-#define OP_SBC \
-    EMIT2(bt, CONST(0), VARL(C_FLAG))   \
-    EMIT0(cmc)                          \
-    EMIT2(sbb, eax, edx)                \
-    EMIT2(mov, edx, REGREF1(esi))
-#define OP_SBCS   CHECK_PC(OP_SBC, SETCOND_SUB)
-#define OP_RSC \
-    EMIT2(bt, CONST(0), VARL(C_FLAG))   \
-    EMIT0(cmc)                          \
-    EMIT2(sbb, edx, eax)                \
-    EMIT2(mov, eax, REGREF1(esi))
-#define OP_RSCS   CHECK_PC(OP_RSC, SETCOND_SUB)
-#define OP_TST \
-    EMIT2(and, eax, edx)                \
-    SETCOND_LOGICAL
-#define OP_TEQ \
-    EMIT2(xor, eax, edx)                \
-    SETCOND_LOGICAL
-#define OP_CMP \
-    EMIT2(sub, eax, edx)                \
-    SETCOND_SUB
-#define OP_CMN \
-    EMIT2(add, eax, edx)                \
-    SETCOND_ADD
-#define OP_ORR \
-    EMIT2(or, eax, edx)                 \
-    EMIT2(mov, edx, REGREF1(esi))
-#define OP_ORRS   CHECK_PC(OP_ORR, SETCOND_LOGICAL)
-#define OP_MOV \
-    EMIT2(mov, eax, REGREF1(esi))
-#define OP_MOVS   CHECK_PC(EMIT2(test, eax, eax) EMIT2(mov, eax, REGREF1(esi)), SETCOND_LOGICAL)
-#define OP_BIC \
-    EMIT1(not, eax)                     \
-    EMIT2(and, eax, edx)                \
-    EMIT2(mov, edx, REGREF1(esi))
-#define OP_BICS   CHECK_PC(OP_BIC, SETCOND_LOGICAL)
-#define OP_MVN \
-    EMIT1(not, eax)                     \
-    EMIT2(mov, eax, REGREF1(esi))
-#define OP_MVNS   CHECK_PC(OP_MVN EMIT2(test, eax, eax), SETCOND_LOGICAL)
-
-// ALU cleanup macro
-#define ALU_FINISH  ALU_TRAILER
-
-// End of ALU macros
-//X//#endif //_MSC_VER
-
-// "ror r32, cl" is exactly "_rotr"; the instruction masks the count to
-// five bits, so the mask is spelled out here as well.
-#define ROR_IMM_MSR \
-    value = _rotr(value, shift & 31);
-
-#define ROR_OFFSET \
-    offset = _rotr(offset, shift & 31);
-
-// RRX_OFFSET rotates through the carry flag, which no single intrinsic
-// provides; it keeps using the C definition further down.
-
-#endif  // !C_CORE
-
 // C core
 
 #define C_SETCOND_LOGICAL \
@@ -628,29 +272,29 @@ static void count(u32 opcode, int cond_res)
     unsigned int shift = (opcode >> 7) & 0x1F;          \
     if (LIKELY(shift)) {                                \
 		u32 v = reg[opcode & 0x0F].I;                   \
-		C_OUT = (v >> (shift - 1)) & 1 ? true : false;  \
-		value = ((v << (32 - shift)) |                  \
-		         (v >> shift));                         \
+		value = _rotr(v, shift);                        \
+		C_OUT = (value >> 31) & 1 ? true : false;       \
 	} else {                                            \
+		/* ROR #0 is RRX: rotate right through the carry */ \
 		u32 v = reg[opcode & 0x0F].I;                   \
 		C_OUT = (v & 1) ? true : false;                 \
-		value = ((v >> 1) |                             \
-		         (C_FLAG << 31));                       \
+		value = ((v >> 1) | ((u32)C_FLAG << 31));       \
 	}
 #endif
 // OP Rd,Rb,Rm ROR Rs
 #ifndef VALUE_ROR_REG_C
+ // "ror r32, cl" masks the count to five bits, so only "shift & 31" matters.
+ // A count of 0 - which includes 32, 64, ... - leaves both the value and the
+ // carry output untouched, exactly like the instruction does.
  #define VALUE_ROR_REG_C \
     unsigned int shift = reg[(opcode >> 8) & 15].B.B0;    \
-    if (LIKELY(shift & 0x1F)) {                         \
+    unsigned int n = shift & 0x1F;                       \
+    if (n) {                                            \
 		u32 v = reg[opcode & 0x0F].I;                   \
-		C_OUT = (v >> (shift - 1)) & 1 ? true : false;  \
-		value = ((v << (32 - shift)) |                  \
-		         (v >> shift));                         \
+		value = _rotr(v, n);                            \
+		C_OUT = (value >> 31) & 1 ? true : false;       \
 	} else {                                            \
 		value = reg[opcode & 0x0F].I;                   \
-		if (shift)                                      \
-			C_OUT = (value & 0x80000000 ? true : false); \
 	}
 #endif
 // OP Rd,Rb,# ROR #
@@ -854,16 +498,15 @@ static void count(u32 opcode, int cond_res)
 
 #ifndef ROR_IMM_MSR
  #define ROR_IMM_MSR \
-    u32 v = opcode & 0xff;                              \
-    value = ((v << (32 - shift)) | (v >> shift));
+    value = _rotr(opcode & 0xff, shift & 31);
 #endif
 #ifndef ROR_OFFSET
  #define ROR_OFFSET \
-    offset = ((offset << (32 - shift)) | (offset >> shift));
+    offset = _rotr(offset, shift & 31);
 #endif
 #ifndef RRX_OFFSET
  #define RRX_OFFSET \
-    offset = ((offset >> 1) | ((int)C_FLAG << 31));
+    offset = (offset >> 1) | ((u32)C_FLAG << 31);
 #endif
 
 // ALU ops (except multiply) //////////////////////////////////////////////

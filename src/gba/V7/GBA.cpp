@@ -25,10 +25,6 @@
 #include "../../common/movie.h"
 #include "../../common/vbalua.h"
 
-// "arm-new.h" and "thumb.h" are included from inside CPULoop(), so the
-// intrinsics they use have to be declared here, at file scope.
-#include <intrin.h>
-
 #ifdef PROFILING
 #include "../prof/prof.h"
 #endif
