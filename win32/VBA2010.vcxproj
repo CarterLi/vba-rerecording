@@ -27,6 +27,7 @@
     <ProjectGuid>{200824A0-CDBA-45D7-83B8-E5A8468792EC}</ProjectGuid>
     <RootNamespace>VBA</RootNamespace>
     <Keyword>MFCProj</Keyword>
+    <WindowsTargetPlatformVersion>10.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='V82XD|Win32'" Label="Configuration">
@@ -44,6 +45,7 @@
     <UseOfMfc>Static</UseOfMfc>
     <WholeProgramOptimization>true</WholeProgramOptimization>
     <CharacterSet>MultiByte</CharacterSet>
+    <PlatformToolset>v145</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='V72XR|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
@@ -115,7 +117,7 @@
       <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
-      <AdditionalIncludeDirectories>directx;lib/zlib;lib/libpng;../src/lua/src;defaultconfig</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>lib/zlib;lib/libpng;../src/lua/src;defaultconfig</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>NDEBUG;WIN32;HAVE_STDINT_H;OEMRESOURCE;MMX;FINAL_VERSION;BKPT_SUPPORT;_CRT_SECURE_NO_WARNINGS;_USE_32BIT_TIME_T;EXTRACT_ONLY;_NO_CRYPTO;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <StringPooling>true</StringPooling>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
@@ -124,13 +126,13 @@
       <OmitFramePointers>true</OmitFramePointers>
       <Optimization>Full</Optimization>
       <EnableFiberSafeOptimizations>true</EnableFiberSafeOptimizations>
-      <MinimalRebuild>true</MinimalRebuild>
       <WarningLevel>Level3</WarningLevel>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <LanguageStandard>stdcpp17</LanguageStandard>
       <UndefinePreprocessorDefinitions>USE_GB_CORE_V7;USE_GBA_CORE_V7</UndefinePreprocessorDefinitions>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>directx/d3d9.lib;directx/d3dx9.lib;directx/DxErr.lib;wsock32.lib;directx/ddraw.lib;directx/dxguid.lib;winmm.lib;directx/dinput8.lib;vfw32.lib;opengl32.lib;nafxcw.lib;libcmt.lib;lua51.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>d3d9.lib;wsock32.lib;ddraw.lib;dxguid.lib;winmm.lib;dinput8.lib;vfw32.lib;opengl32.lib;nafxcw.lib;libcmt.lib;lua51.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <OutputFile>$(TargetPath)</OutputFile>
       <AdditionalLibraryDirectories>lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <IgnoreSpecificDefaultLibraries>libci.lib;nafxcw.lib;libcmt.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
@@ -162,12 +164,13 @@
       <InlineFunctionExpansion>AnySuitable</InlineFunctionExpansion>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <FavorSizeOrSpeed>Speed</FavorSizeOrSpeed>
-      <AdditionalIncludeDirectories>directx;lib/zlib;lib/libpng;../src/lua/src;defaultconfig;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>lib/zlib;lib/libpng;../src/lua/src;defaultconfig;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>NDEBUG;WIN32;HAVE_STDINT_H;OEMRESOURCE;MMX;FINAL_VERSION;BKPT_SUPPORT;_CRT_SECURE_NO_WARNINGS;_USE_32BIT_TIME_T;EXTRACT_ONLY;_NO_CRYPTO;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <StringPooling>true</StringPooling>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <BufferSecurityCheck>false</BufferSecurityCheck>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <LanguageStandard>stdcpp17</LanguageStandard>
       <WarningLevel>Level3</WarningLevel>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
@@ -175,10 +178,9 @@
       <OmitFramePointers>true</OmitFramePointers>
       <Optimization>Full</Optimization>
       <EnableFiberSafeOptimizations>true</EnableFiberSafeOptimizations>
-      <MinimalRebuild>true</MinimalRebuild>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>directx/d3d9.lib;directx/d3dx9.lib;directx/DxErr.lib;wsock32.lib;directx/ddraw.lib;directx/dxguid.lib;winmm.lib;directx/dinput8.lib;vfw32.lib;opengl32.lib;nafxcw.lib;libcmt.lib;lua51.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>d3d9.lib;wsock32.lib;ddraw.lib;dxguid.lib;winmm.lib;dinput8.lib;vfw32.lib;opengl32.lib;nafxcw.lib;libcmt.lib;lua51.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <OutputFile>$(OutDir)$(ProjectName)_release.exe</OutputFile>
       <AdditionalLibraryDirectories>lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <IgnoreSpecificDefaultLibraries>libci.lib;nafxcw.lib;libcmt.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
@@ -205,21 +207,21 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='V82XD|Win32'">
     <ClCompile>
-      <AdditionalIncludeDirectories>directx;lib/zlib;lib/libpng;../src/lua/src;defaultconfig</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>lib/zlib;lib/libpng;../src/lua/src;defaultconfig</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>_DEBUG;WIN32;HAVE_STDINT_H;OEMRESOURCE;MMX;BKPT_SUPPORT;_CRT_SECURE_NO_WARNINGS;_ITERATOR_DEBUG_LEVEL=1;_USE_32BIT_TIME_T;LUA_USE_APICHECK;EXTRACT_ONLY;_NO_CRYPTO;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <LanguageStandard>stdcpp17</LanguageStandard>
       <WarningLevel>Level3</WarningLevel>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <DisableSpecificWarnings>4244;4996;4800;%(DisableSpecificWarnings)</DisableSpecificWarnings>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <StringPooling>true</StringPooling>
       <Optimization>Disabled</Optimization>
-      <MinimalRebuild>true</MinimalRebuild>
       <UndefinePreprocessorDefinitions>USE_GB_CORE_V7;USE_GBA_CORE_V7</UndefinePreprocessorDefinitions>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>directx/d3d9.lib;directx/d3dx9.lib;directx/DxErr.lib;wsock32.lib;directx/ddraw.lib;directx/dxguid.lib;winmm.lib;directx/dinput8.lib;vfw32.lib;opengl32.lib;nafxcwd.lib;libcmtd.lib;lua51.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>d3d9.lib;wsock32.lib;ddraw.lib;dxguid.lib;winmm.lib;dinput8.lib;vfw32.lib;opengl32.lib;nafxcwd.lib;libcmtd.lib;lua51.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <OutputFile>$(TargetPath)</OutputFile>
       <AdditionalLibraryDirectories>lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <IgnoreSpecificDefaultLibraries>libci.lib;nafxcwd.lib;libcmtd.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
@@ -246,20 +248,20 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='V72XD|Win32'">
     <ClCompile>
-      <AdditionalIncludeDirectories>directx;lib/zlib;lib/libpng;../src/lua/src;defaultconfig</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>lib/zlib;lib/libpng;../src/lua/src;defaultconfig</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>_DEBUG;WIN32;HAVE_STDINT_H;OEMRESOURCE;MMX;BKPT_SUPPORT;_CRT_SECURE_NO_WARNINGS;_USE_32BIT_TIME_T;LUA_USE_APICHECK;EXTRACT_ONLY;_NO_CRYPTO;USE_GB_CORE_V7;USE_GBA_CORE_V7;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <LanguageStandard>stdcpp17</LanguageStandard>
       <WarningLevel>Level3</WarningLevel>
       <SuppressStartupBanner>true</SuppressStartupBanner>
       <DisableSpecificWarnings>4244;4996;4800;%(DisableSpecificWarnings)</DisableSpecificWarnings>
       <BasicRuntimeChecks>EnableFastChecks</BasicRuntimeChecks>
       <StringPooling>true</StringPooling>
       <Optimization>Disabled</Optimization>
-      <MinimalRebuild>true</MinimalRebuild>
     </ClCompile>
     <Link>
-      <AdditionalDependencies>directx/d3d9.lib;directx/d3dx9.lib;directx/DxErr.lib;wsock32.lib;directx/ddraw.lib;directx/dxguid.lib;winmm.lib;directx/dinput8.lib;vfw32.lib;opengl32.lib;nafxcwd.lib;libcmtd.lib;lua51.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>d3d9.lib;wsock32.lib;ddraw.lib;dxguid.lib;winmm.lib;dinput8.lib;vfw32.lib;opengl32.lib;nafxcwd.lib;libcmtd.lib;lua51.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <OutputFile>$(TargetPath)</OutputFile>
       <AdditionalLibraryDirectories>lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
       <IgnoreSpecificDefaultLibraries>libci.lib;nafxcwd.lib;libcmtd.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
@@ -287,7 +289,6 @@
     <ClCompile>
       <PreprocessorDefinitions>NDEBUG;WIN32;HAVE_STDINT_H;OEMRESOURCE;MMX;FINAL_VERSION;BKPT_SUPPORT;_CRT_SECURE_NO_WARNINGS;_USE_32BIT_TIME_T;EXTRACT_ONLY;_NO_CRYPTO;USE_GB_CORE_V7;USE_GBA_CORE_V7;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <StringPooling>true</StringPooling>
-      <MinimalRebuild>true</MinimalRebuild>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <BufferSecurityCheck>false</BufferSecurityCheck>
       <Optimization>Full</Optimization>
@@ -297,14 +298,14 @@
       <OmitFramePointers>true</OmitFramePointers>
       <EnableFiberSafeOptimizations>true</EnableFiberSafeOptimizations>
       <WholeProgramOptimization>true</WholeProgramOptimization>
-      <AdditionalIncludeDirectories>directx;lib/zlib;lib/libpng;../src/lua/src;defaultconfig</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>lib/zlib;lib/libpng;../src/lua/src;defaultconfig</AdditionalIncludeDirectories>
       <WarningLevel>Level3</WarningLevel>
       <DisableSpecificWarnings>4244;4996;4800;%(DisableSpecificWarnings)</DisableSpecificWarnings>
     </ClCompile>
     <Link>
       <OutputFile>$(TargetPath)</OutputFile>
       <AdditionalLibraryDirectories>lib;%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>directx/d3d9.lib;directx/d3dx9.lib;directx/DxErr.lib;wsock32.lib;directx/ddraw.lib;directx/dxguid.lib;winmm.lib;directx/dinput8.lib;vfw32.lib;opengl32.lib;nafxcw.lib;libcmt.lib;lua51.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>d3d9.lib;wsock32.lib;ddraw.lib;dxguid.lib;winmm.lib;dinput8.lib;vfw32.lib;opengl32.lib;nafxcw.lib;libcmt.lib;lua51.lib;%(AdditionalDependencies)</AdditionalDependencies>
       <IgnoreSpecificDefaultLibraries>libci.lib;nafxcw.lib;libcmt.lib;%(IgnoreSpecificDefaultLibraries)</IgnoreSpecificDefaultLibraries>
       <SubSystem>Windows</SubSystem>
       <OptimizeReferences>true</OptimizeReferences>
@@ -321,7 +322,7 @@
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Template|Win32'">
     <ClCompile>
-      <AdditionalIncludeDirectories>directx;lib/zlib;lib/libpng;../src/lua/src;defaultconfig</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>lib/zlib;lib/libpng;../src/lua/src;defaultconfig</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <OutputFile>$(TargetPath)</OutputFile>
@@ -429,186 +430,6 @@
     <ClInclude Include="..\src\gb\V8\gbGfx.cpp" />
     <ClInclude Include="..\src\gb\V8\gbMemory.cpp" />
     <ClInclude Include="..\src\gb\V8\gbSound.cpp" />
-    <ClCompile Include="..\src\lua\src\lapi.c">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V82XD|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V72XD|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V82XR|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V72XR|Win32'">true</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="..\src\lua\src\lauxlib.c">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V82XD|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V72XD|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V82XR|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V72XR|Win32'">true</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="..\src\lua\src\lbaselib.c">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V82XD|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V72XD|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V82XR|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V72XR|Win32'">true</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="..\src\lua\src\lcode.c">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V82XD|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V72XD|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V82XR|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V72XR|Win32'">true</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="..\src\lua\src\ldblib.c">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V82XD|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V72XD|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V82XR|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V72XR|Win32'">true</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="..\src\lua\src\ldebug.c">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V82XD|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V72XD|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V82XR|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V72XR|Win32'">true</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="..\src\lua\src\ldo.c">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V82XD|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V72XD|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V82XR|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V72XR|Win32'">true</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="..\src\lua\src\ldump.c">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V82XD|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V72XD|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V82XR|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V72XR|Win32'">true</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="..\src\lua\src\lfunc.c">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V82XD|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V72XD|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V82XR|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V72XR|Win32'">true</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="..\src\lua\src\lgc.c">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V82XD|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V72XD|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V82XR|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V72XR|Win32'">true</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="..\src\lua\src\linit.c">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V82XD|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V72XD|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V82XR|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V72XR|Win32'">true</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="..\src\lua\src\liolib.c">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V82XD|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V72XD|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V82XR|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V72XR|Win32'">true</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="..\src\lua\src\llex.c">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V82XD|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V72XD|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V82XR|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V72XR|Win32'">true</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="..\src\lua\src\lmathlib.c">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V82XD|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V72XD|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V82XR|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V72XR|Win32'">true</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="..\src\lua\src\lmem.c">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V82XD|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V72XD|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V82XR|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V72XR|Win32'">true</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="..\src\lua\src\loadlib.c">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V82XD|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V72XD|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V82XR|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V72XR|Win32'">true</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="..\src\lua\src\lobject.c">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V82XD|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V72XD|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V82XR|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V72XR|Win32'">true</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="..\src\lua\src\lopcodes.c">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V82XD|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V72XD|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V82XR|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V72XR|Win32'">true</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="..\src\lua\src\loslib.c">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V82XD|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V72XD|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V82XR|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V72XR|Win32'">true</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="..\src\lua\src\lparser.c">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V82XD|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V72XD|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V82XR|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V72XR|Win32'">true</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="..\src\lua\src\lstate.c">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V82XD|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V72XD|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V82XR|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V72XR|Win32'">true</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="..\src\lua\src\lstring.c">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V82XD|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V72XD|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V82XR|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V72XR|Win32'">true</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="..\src\lua\src\lstrlib.c">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V82XD|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V72XD|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V82XR|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V72XR|Win32'">true</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="..\src\lua\src\ltable.c">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V82XD|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V72XD|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V82XR|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V72XR|Win32'">true</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="..\src\lua\src\ltablib.c">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V82XD|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V72XD|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V82XR|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V72XR|Win32'">true</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="..\src\lua\src\ltm.c">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V82XD|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V72XD|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V82XR|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V72XR|Win32'">true</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="..\src\lua\src\lundump.c">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V82XD|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V72XD|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V82XR|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V72XR|Win32'">true</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="..\src\lua\src\lvm.c">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V82XD|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V72XD|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V82XR|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V72XR|Win32'">true</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="..\src\lua\src\lzio.c">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V82XD|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V72XD|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V82XR|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V72XR|Win32'">true</ExcludedFromBuild>
-    </ClCompile>
-    <ClCompile Include="..\src\lua\src\print.c">
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V82XD|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V72XD|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V82XR|Win32'">true</ExcludedFromBuild>
-      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='V72XR|Win32'">true</ExcludedFromBuild>
-    </ClCompile>
     <ClCompile Include="..\src\win32\Commands.cpp" />
     <ClCompile Include="..\src\win32\Controls\BitmapControl.cpp" />
     <ClCompile Include="..\src\win32\Controls\ColorButton.cpp" />
@@ -678,6 +499,8 @@
     <ClCompile Include="..\src\win32\AVIWrite.cpp" />
     <ClCompile Include="..\src\win32\CmdAccelOb.cpp" />
     <ClCompile Include="..\src\win32\Direct3D.cpp" />
+    <ClCompile Include="..\src\win32\Direct3D11.cpp" />
+    <ClCompile Include="..\src\win32\TextOverlay.cpp" />
     <ClCompile Include="..\src\win32\DirectDraw.cpp" />
     <ClCompile Include="..\src\win32\DirectInput.cpp" />
     <ClCompile Include="..\src\win32\DirectSound.cpp" />
@@ -827,6 +650,7 @@
     <ClInclude Include="..\src\win32\Dialogs\TileView.h" />
     <ClInclude Include="..\src\win32\Dialogs\VideoMode.h" />
     <ClInclude Include="..\src\win32\Display.h" />
+    <ClInclude Include="..\src\win32\TextOverlay.h" />
     <ClInclude Include="..\src\win32\Input.h" />
     <ClInclude Include="..\src\win32\IUpdate.h" />
     <ClInclude Include="..\src\win32\MainWnd.h" />
@@ -843,29 +667,6 @@
     <ClInclude Include="..\src\win32\7zip\7zip.h" />
     <ClInclude Include="..\src\win32\7zip\7zipstreams.h" />
     <ClInclude Include="..\src\win32\7zip\OpenArchive.h" />
-    <ClInclude Include="..\src\lua\src\lapi.h" />
-    <ClInclude Include="..\src\lua\src\lauxlib.h" />
-    <ClInclude Include="..\src\lua\src\lcode.h" />
-    <ClInclude Include="..\src\lua\src\ldebug.h" />
-    <ClInclude Include="..\src\lua\src\ldo.h" />
-    <ClInclude Include="..\src\lua\src\lfunc.h" />
-    <ClInclude Include="..\src\lua\src\lgc.h" />
-    <ClInclude Include="..\src\lua\src\llex.h" />
-    <ClInclude Include="..\src\lua\src\llimits.h" />
-    <ClInclude Include="..\src\lua\src\lmem.h" />
-    <ClInclude Include="..\src\lua\src\lobject.h" />
-    <ClInclude Include="..\src\lua\src\lopcodes.h" />
-    <ClInclude Include="..\src\lua\src\lparser.h" />
-    <ClInclude Include="..\src\lua\src\lstate.h" />
-    <ClInclude Include="..\src\lua\src\lstring.h" />
-    <ClInclude Include="..\src\lua\src\ltable.h" />
-    <ClInclude Include="..\src\lua\src\ltm.h" />
-    <ClInclude Include="..\src\lua\src\lua.h" />
-    <ClInclude Include="..\src\lua\src\luaconf.h" />
-    <ClInclude Include="..\src\lua\src\lualib.h" />
-    <ClInclude Include="..\src\lua\src\lundump.h" />
-    <ClInclude Include="..\src\lua\src\lvm.h" />
-    <ClInclude Include="..\src\lua\src\lzio.h" />
     <ClInclude Include="..\src\win32\resource.h" />
   </ItemGroup>
   <ItemGroup>

@@ -7,6 +7,7 @@
 #include <cassert>
 #include <cstring>
 #include <map>
+#include <string>
 #include <vector>
 #include <algorithm>
 #include "7zip.h"
