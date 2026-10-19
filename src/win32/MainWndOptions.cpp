@@ -542,6 +542,17 @@ void MainWnd::OnUpdateOptionsVideoRendermethodOpengl(CCmdUI*pCmdUI)
 	pCmdUI->SetCheck(theApp.renderMethod == OPENGL);
 }
 
+void MainWnd::OnOptionsVideoRendermethodDirect3d11()
+{
+	theApp.renderMethod = DIRECT_3D11;
+	theApp.updateRenderMethod(false);
+}
+
+void MainWnd::OnUpdateOptionsVideoRendermethodDirect3d11(CCmdUI*pCmdUI)
+{
+	pCmdUI->SetCheck(theApp.renderMethod == DIRECT_3D11);
+}
+
 void MainWnd::OnOptionsVideoTriplebuffering()
 {
 	theApp.tripleBuffering = !theApp.tripleBuffering;

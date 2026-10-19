@@ -10,7 +10,8 @@ enum DISPLAY_TYPE
 	GDI         = 0,
 	DIRECT_DRAW = 1,
 	DIRECT_3D   = 2,
-	OPENGL      = 3
+	OPENGL      = 3,
+	DIRECT_3D11 = 4
 };
 
 class IDisplay
