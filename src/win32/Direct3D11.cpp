@@ -455,7 +455,8 @@ private:
 
 	// The pixel filter shaders of the table below: one pixel shader per pass,
 	// the block of constants each of them reads and the target each draws into.
-	void initUpscalers();
+	// The chain the user selected is the one that gets built.
+	void initUpscaler(int upscaler);
 	void releaseUpscalers();
 	ID3D11ShaderResourceView *scaleFrameWithUpscaler(int upscaler);
 
@@ -970,10 +971,11 @@ bool Direct3D11Display::initialize()
 	else if (theApp.upscaler == UPSCALER_FSR)
 		initFsr();
 
-	// The pixel filter shaders are built here rather than on demand, so that
-	// the upscaling menu knows whether they are there before they are
-	// selected.  Failing is not fatal, the entry is then left out.
-	initUpscalers();
+	// Only the chain the user selected is built here.  Compiling every one of
+	// them while the renderer starts is what used to hold up the start of the
+	// program; the others are built when the menu selects them, see
+	// setOption().  Failing is not fatal, the entry is then left out.
+	initUpscaler(theApp.upscaler);
 
 	// The setting the renderer starts with, once, and whether it can run it.
 	{
@@ -1629,6 +1631,7 @@ struct UpscalerPass
 struct Upscaler
 {
 	UpscalerPass passes[UPSCALER_MAX_PASSES];
+	bool         attempted; // compiled once, whether or not it worked
 };
 
 static Upscaler g_upscalerState[UPSCALER_COUNT];
@@ -1644,15 +1647,21 @@ static int upscalerIndex(int value)
 }
 
 // False for an upscaler whose shader did not compile on this device, which is
-// how the upscaling menu leaves it out.  The two SDK upscalers are built on
-// demand, so there is nothing to answer for them, and the chains that only the
-// OpenGL backend runs are the ones this table has no row for.
+// how the upscaling menu leaves it out.  A chain that has not been built yet is
+// one this renderer runs: the shaders are compiled when they are selected, and
+// the menu has to offer them before that.  The two SDK upscalers are built on
+// demand as well, so there is nothing to answer for them, and the chains that
+// only the OpenGL backend runs are the ones this table has no row for.
 bool direct3D11UpscalerAvailable(int upscaler)
 {
 	int index = upscalerIndex(upscaler);
 
 	if (index >= 0)
-		return g_upscalerState[index].passes[0].shader != NULL;
+	{
+		const Upscaler &state = g_upscalerState[index];
+
+		return state.passes[0].shader != NULL || !state.attempted;
+	}
 
 	return upscaler == UPSCALER_OFF || upscaler == UPSCALER_NIS || upscaler == UPSCALER_FSR;
 }
@@ -1676,52 +1685,64 @@ static void releaseUpscaler(Upscaler &upscaler)
 	}
 }
 
-void Direct3D11Display::initUpscalers()
+// Builds the chain the user selected, and only that one.  Compiling all of
+// them while the renderer starts is what held up the start of the program; the
+// rest are built here when the menu selects them.
+void Direct3D11Display::initUpscaler(int upscaler)
 {
-	for (UINT i = 0; i < UPSCALER_COUNT; i++)
+	int index = upscalerIndex(upscaler);
+
+	// Off, the two SDK upscalers and the chains only the OpenGL backend runs
+	// have no row in the table, so there is nothing to compile.
+	if (index < 0)
+		return;
+
+	const UpscalerSource &source = g_upscalers[index];
+	Upscaler             &state  = g_upscalerState[index];
+
+	if (state.passes[0].shader != NULL || state.attempted)
+		return;
+
+	state.attempted = true;
+
+	bool built = true;
+
+	for (int pass = 0; pass < source.passCount && built; pass++)
 	{
-		const UpscalerSource &source = g_upscalers[i];
-		Upscaler             &state  = g_upscalerState[i];
+		UpscalerPass &statePass = state.passes[pass];
 
-		if (state.passes[0].shader != NULL)
-			continue;
-
-		bool built = true;
-
-		for (int pass = 0; pass < source.passCount && built; pass++)
+		statePass.shader = createUpscalerPixelShader(pDevice, source.passes[pass].resource,
+		                                             source.name, source.passes[pass].entry,
+		                                             source.profile);
+		if (statePass.shader == NULL)
 		{
-			UpscalerPass &statePass = state.passes[pass];
-
-			statePass.shader = createUpscalerPixelShader(pDevice, source.passes[pass].resource,
-			                                             source.name, source.passes[pass].entry,
-			                                             source.profile);
-			if (statePass.shader == NULL)
-			{
-				built = false;
-				break;
-			}
-
-			if (!createUpscalerConstants(pDevice, sizeof(SinglePassConstants), &statePass.constants))
-			{
-				winlog("%s: cannot create the constant buffer\n", source.name);
-				built = false;
-			}
+			built = false;
+			break;
 		}
 
-		if (!built)
+		if (!createUpscalerConstants(pDevice, sizeof(SinglePassConstants), &statePass.constants))
 		{
-			winlog("D3D11: the %s upscaler is not available on this device\n", source.name);
-			releaseUpscaler(state);
+			winlog("%s: cannot create the constant buffer\n", source.name);
+			built = false;
 		}
-		else
-			winlog("D3D11: the %s upscaler is ready, %d pass(es)\n", source.name, source.passCount);
 	}
+
+	if (!built)
+	{
+		winlog("D3D11: the %s upscaler is not available on this device\n", source.name);
+		releaseUpscaler(state);
+	}
+	else
+		winlog("D3D11: the %s upscaler is ready, %d pass(es)\n", source.name, source.passCount);
 }
 
 void Direct3D11Display::releaseUpscalers()
 {
 	for (UINT i = 0; i < UPSCALER_COUNT; i++)
+	{
 		releaseUpscaler(g_upscalerState[i]);
+		g_upscalerState[i].attempted = false;
+	}
 }
 
 ID3D11ShaderResourceView *Direct3D11Display::scaleFrameWithUpscaler(int upscaler)
@@ -2286,10 +2307,14 @@ void Direct3D11Display::setOption(const char *option, int value)
 	}
 	else if (!strcmp(option, "upscaler"))
 	{
-		// The two SDK upscalers are built on demand, the pixel filter shaders
-		// when the renderer starts, so there is nothing to build here, only
-		// something to report - in the trace, and on the screen when one of
-		// them is not there.
+		// Everything is built on demand: the pixel filter shaders here, and the
+		// two SDK upscalers below.  So there is nothing to build while the
+		// renderer starts for an upscaler nobody picked, only for the one the
+		// menu just selected.
+		initUpscaler(value);
+
+		// What was picked is reported in the trace, and on the screen when it
+		// is not there.
 		const char *picked = direct3D11UpscalerName(value);
 
 		if (picked == NULL)

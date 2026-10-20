@@ -663,6 +663,7 @@ struct SinglePassUpscalerState
 	GLint  outputSizeLocation;
 	GLint  scaleLocation;
 	GLint  sourceLocation;
+	bool   attempted; // compiled once, whether or not it worked
 	UpscaleTarget target;
 };
 
@@ -678,25 +679,27 @@ static int singlePassUpscalerIndex(int upscaler)
 	return -1;
 }
 
-// The single pass shaders are built while the renderer starts up rather than on
-// demand, so that the upscaling menu knows whether they are there before they
-// are selected.  Failing is not fatal, the entry is then left out.
-static void initSinglePassUpscalers()
+// The one the user selected is built while the renderer starts; the others are
+// built when the menu selects them.  Failing is not fatal, the entry is then
+// left out.
+static void initSinglePassUpscaler(int index)
 {
-	for (int i = 0; i < (int)SINGLE_PASS_UPSCALER_COUNT; i++)
-	{
-		const SinglePassUpscalerSource &source = g_singlePassUpscalers[i];
-		SinglePassUpscalerState        &state  = g_singlePassUpscalerState[i];
+	const SinglePassUpscalerSource &source = g_singlePassUpscalers[index];
+	SinglePassUpscalerState        &state  = g_singlePassUpscalerState[index];
 
-		state.program = createUpscalerProgram(source.resource, source.name);
-		if (state.program == 0)
-			continue;
+	if (state.program != 0 || state.attempted)
+		return;
 
-		state.sourceSizeLocation = glGetUniformLocation(state.program, "SourceSize");
-		state.outputSizeLocation = glGetUniformLocation(state.program, "OutputSize");
-		state.scaleLocation      = glGetUniformLocation(state.program, "Scale");
-		state.sourceLocation     = glGetUniformLocation(state.program, "frameTex");
-	}
+	state.attempted = true;
+
+	state.program = createUpscalerProgram(source.resource, source.name);
+	if (state.program == 0)
+		return;
+
+	state.sourceSizeLocation = glGetUniformLocation(state.program, "SourceSize");
+	state.outputSizeLocation = glGetUniformLocation(state.program, "OutputSize");
+	state.scaleLocation      = glGetUniformLocation(state.program, "Scale");
+	state.sourceLocation     = glGetUniformLocation(state.program, "frameTex");
 }
 
 static void releaseSinglePassUpscalers()
@@ -710,6 +713,8 @@ static void releaseSinglePassUpscalers()
 			glDeleteProgram(state.program);
 			state.program = 0;
 		}
+
+		state.attempted = false;
 
 		releaseUpscaleTarget(state.target);
 	}
@@ -875,6 +880,7 @@ struct LibretroPassState
 struct LibretroState
 {
 	LibretroPassState passes[LIBRETRO_MAX_PASSES];
+	bool              attempted; // compiled once, whether or not it worked
 };
 
 static LibretroState g_libretroState[LIBRETRO_SHADER_COUNT];
@@ -1040,11 +1046,17 @@ static GLuint createLibretroProgram(LPCSTR resource, const char *name)
 static void releaseLibretroShader(int index);
 
 // Builds every pass of a chain, or none of them: a chain whose second pass did
-// not compile is of no use to the menu either.
+// not compile is of no use to the menu either.  Only the chain the user
+// selected is built while the renderer starts.
 static void initLibretroShader(int index)
 {
 	const LibretroShader &shader = g_libretroShaders[index];
 	LibretroState        &state  = g_libretroState[index];
+
+	if (state.passes[0].program != 0 || state.attempted)
+		return;
+
+	state.attempted = true;
 
 	for (int i = 0; i < shader.passCount; i++)
 	{
@@ -1176,16 +1188,13 @@ static void releaseLibretroShader(int index)
 	}
 }
 
-static void initLibretroShaders()
-{
-	for (int i = 0; i < (int)LIBRETRO_SHADER_COUNT; i++)
-		initLibretroShader(i);
-}
-
 static void releaseLibretroShaders()
 {
 	for (int i = 0; i < (int)LIBRETRO_SHADER_COUNT; i++)
+	{
 		releaseLibretroShader(i);
+		g_libretroState[i].attempted = false;
+	}
 }
 
 // ---------------------------------------------------------------------------
@@ -1211,11 +1220,21 @@ struct FsrState
 
 static FsrState g_fsr;
 
+// Whether the chain was built at all, successfully or not: the upscalers are
+// compiled when they are selected, so one that failed is not tried again and
+// the menu leaves it out.
+static bool g_fsrAttempted = false;
+
 // Defined below; initFsr() gives up through it when a pass did not build.
 static void releaseFsr();
 
 static void initFsr()
 {
+	if (g_fsrAttempted)
+		return;
+
+	g_fsrAttempted = true;
+
 	ZeroMemory(&g_fsr, sizeof(g_fsr));
 
 	g_fsr.easuProgram = createUpscalerProgram("FSR_GLSL_EASU", "FSR");
@@ -1320,6 +1339,9 @@ struct NisState
 
 static NisState g_nis;
 
+// Whether the chain was built at all, successfully or not, like g_fsrAttempted.
+static bool g_nisAttempted = false;
+
 static void releaseNisTargets()
 {
 	for (int i = 0; i < NIS_MAX_PASSES; i++)
@@ -1417,6 +1439,11 @@ static bool loadNisFunctions()
 
 static void initNis()
 {
+	if (g_nisAttempted)
+		return;
+
+	g_nisAttempted = true;
+
 	ZeroMemory(&g_nis, sizeof(g_nis));
 
 	GLint major = 0, minor = 0;
@@ -1496,6 +1523,31 @@ static void initNis()
 
 	winlog("NIS: compute shader ready, %dx%d blocks of %d threads, %d phases\n",
 	       NIS_BLOCK_WIDTH, NIS_BLOCK_HEIGHT, NIS_BLOCK_WIDTH * NIS_BLOCK_HEIGHT, (int)kPhaseCount);
+}
+
+// Builds the chain the user selected, and only that one.  Compiling every
+// upscaler while the renderer starts is what held up the start of the program;
+// the others are built when the menu selects them, see setOption().
+static void initUpscaler(int upscaler)
+{
+	int index = singlePassUpscalerIndex(upscaler);
+	if (index >= 0)
+	{
+		initSinglePassUpscaler(index);
+		return;
+	}
+
+	index = libretroShaderIndex(upscaler);
+	if (index >= 0)
+	{
+		initLibretroShader(index);
+		return;
+	}
+
+	if (upscaler == UPSCALER_FSR)
+		initFsr();
+	else if (upscaler == UPSCALER_NIS)
+		initNis();
 }
 
 // The chain of targets a window of that size needs.  A pass may not shrink the
@@ -1900,12 +1952,10 @@ bool OpenGL33Display::createQuad()
 	}
 	glBindVertexArray(0);
 
-	// The upscalers, so that the menu knows which of them are there before they
-	// are selected.
-	initSinglePassUpscalers();
-	initLibretroShaders();
-	initFsr();
-	initNis();
+	// Only the chain the user selected is built here, so that picking one does
+	// not cost the compilation of all of them while the program starts.  The
+	// rest are built when the menu selects them.
+	initUpscaler(theApp.upscaler);
 
 	glDisable(GL_DEPTH_TEST);
 	glDisable(GL_CULL_FACE);
@@ -1987,6 +2037,11 @@ void OpenGL33Display::cleanup()
 		releaseLibretroShaders();
 		releaseFsr();
 		releaseNis();
+
+		// The next context builds the chain the user has selected then, so
+		// what was attempted with this one no longer says anything.
+		g_fsrAttempted = false;
+		g_nisAttempted = false;
 
 		if (quadProgram != 0)
 		{
@@ -3000,6 +3055,10 @@ void OpenGL33Display::setOption(const char *option, int value)
 	// ask for.
 	if (!strcmp(option, "upscaler"))
 	{
+		// The chain the menu just selected is built here rather than while the
+		// renderer starts, so that an upscaler nobody picked is never compiled.
+		initUpscaler(value);
+
 		winlog("OpenGL 3.3: upscaler %s (%d), sharpening %d, max scale %d%s\n",
 		       openGL33UpscalerName(value), value, theApp.upscalerSharpness,
 		       theApp.upscalerMaxScale,
@@ -3021,10 +3080,9 @@ int OpenGL33Display::selectFullScreenMode(GUID * *)
 	return (c << 24) | (w << 12) | h;
 }
 
-// Which of the upscalers the renderer can run: the single pass shaders were
-// built while it started up and FSR only where its headers compiled, so the
-// menu leaves out what is not there.  NVIDIA Image Scaling is a compute shader
-// and stays with Direct3D 11.
+// Which of the upscalers the renderer can run: one that has not been built yet
+// is one the menu offers, because the shaders are compiled when they are
+// selected, and only one whose compilation was tried and failed is left out.
 bool OpenGL33Display::upscalerAvailable(int upscaler)
 {
 	switch (upscaler)
@@ -3032,16 +3090,23 @@ bool OpenGL33Display::upscalerAvailable(int upscaler)
 	case UPSCALER_OFF:
 		return true;
 	case UPSCALER_NIS:
-		return g_nis.available;
+		return g_nis.available || !g_nisAttempted;
 	case UPSCALER_FSR:
-		return g_fsr.available;
+		return g_fsr.available || !g_fsrAttempted;
 	default:
 		int index = singlePassUpscalerIndex(upscaler);
 		if (index >= 0)
-			return g_singlePassUpscalerState[index].program != 0;
+		{
+			const SinglePassUpscalerState &state = g_singlePassUpscalerState[index];
+			return state.program != 0 || !state.attempted;
+		}
 
 		index = libretroShaderIndex(upscaler);
-		return index >= 0 && g_libretroState[index].passes[0].program != 0;
+		if (index < 0)
+			return false;
+
+		return g_libretroState[index].passes[0].program != 0 ||
+		       !g_libretroState[index].attempted;
 	}
 }
 
