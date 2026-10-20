@@ -2221,9 +2221,11 @@ bool gbReadBatteryFile(const char *file)
 				res = false;
 				break;
 			}
-			time_t tmp;
-			systemScreenMessage(ctime(&tmp), 4);
-			gbDataMBC3.mapperLastTime=(u32)tmp;
+			{
+				time_t tmp = 0;
+				systemScreenMessage(ctime(&tmp), 4);
+				gbDataMBC3.mapperLastTime = (u32)tmp;
+			}
 			res = true;
 			break;
 		case 0x1b:
