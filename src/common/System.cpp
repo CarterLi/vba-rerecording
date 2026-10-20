@@ -6,6 +6,7 @@
 #include "../gba/GBA.h"
 #include "../common/movie.h"
 #include "../common/vbalua.h"
+#include "../common/HashTrace.h"
 
 // systemABC stuff are core-related
 
@@ -335,6 +336,9 @@ void systemFrameBoundaryWork()
 	newFrame = true;
 
 	systemFrame();
+
+	// Regression baseline: a single empty call while -hashtrace is off.
+	hashTraceFrameBoundary();
 
 	++frameCount;
 	u32 currentTime = systemGetClock();

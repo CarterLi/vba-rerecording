@@ -674,6 +674,8 @@ copy /y "$(ProjectDir)lib\x64\7z.dll" "$(OutDir)"</Command>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="..\src\common\CheatSearch.cpp" />
+    <ClCompile Include="..\src\common\CoreOptions.cpp" />
+    <ClCompile Include="..\src\common\HashTrace.cpp" />
     <ClCompile Include="..\src\common\ImageWrite.cpp" />
     <ClCompile Include="..\src\SFMT\SFMT.c" />
     <ClCompile Include="..\src\common\lua-engine.cpp" />
@@ -811,6 +813,8 @@ copy /y "$(ProjectDir)lib\x64\7z.dll" "$(OutDir)"</Command>
     <ClCompile Include="..\src\win32\Dialogs\VideoMode.cpp" />
     <ClCompile Include="..\src\win32\WinSystem.cpp" />
     <ClCompile Include="..\src\win32\WinMiscUtil.cpp" />
+    <ClCompile Include="..\src\win32\LuaHostMFC.cpp" />
+    <ClCompile Include="..\src\win32\MovieHostMFC.cpp" />
     <ClCompile Include="..\src\filters\2xSaI.cpp" />
     <ClCompile Include="..\src\filters\admame.cpp" />
     <ClCompile Include="..\src\filters\bilinear.cpp" />
@@ -882,6 +886,9 @@ copy /y "$(ProjectDir)lib\x64\7z.dll" "$(OutDir)"</Command>
     <ClInclude Include="..\src\NLS.h" />
     <ClInclude Include="..\src\Port.h" />
     <ClInclude Include="..\src\common\System.h" />
+    <ClInclude Include="..\src\common\LuaHost.h" />
+    <ClInclude Include="..\src\common\CoreOptions.h" />
+    <ClInclude Include="..\src\common\MovieHost.h" />
     <ClInclude Include="..\src\common\Text.h" />
     <ClInclude Include="..\src\common\ziparchive.h" />
     <ClInclude Include="..\src\common\Util.h" />

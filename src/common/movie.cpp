@@ -42,13 +42,8 @@
 #include <algorithm>
 
 #include "vbalua.h"
-
-#if (defined(WIN32) && !defined(SDL))
-#   include "../win32/stdafx.h"
-#   include "../win32/MainWnd.h"
-#   include "../win32/VBA.h"
-#   include "../win32/WinMiscUtil.h"
-#endif
+#include "CoreOptions.h"
+#include "MovieHost.h"
 
 #ifdef min
 #undef min
@@ -368,9 +363,9 @@ static void fix_movie_old_reset(bool8 reset_last_frame)
 
 static void change_movie_state(MovieState new_state)
 {
-#if (defined(WIN32) && !defined(SDL))
-	theApp.frameSearching	   = false;
-	theApp.frameSearchSkipping = false;
+#if !defined(SDL)
+	g_core.frameSearching	   = false;
+	g_core.frameSearchSkipping = false;
 #endif
 
 	if (new_state == MOVIE_STATE_NONE)
@@ -385,11 +380,11 @@ static void change_movie_state(MovieState new_state)
 		Movie.unused			  = false;
 		Movie.RecordedNewRerecord = false;
 		Movie.RecordedThisSession = false;
-#if (defined(WIN32) && !defined(SDL))
+#if !defined(SDL)
 		// undo changes to border settings
 		{
 			gbBorderOn = prevBorder;
-			theApp.winGbBorderOn = prevWinBorder;
+			g_core.winGbBorderOn = prevWinBorder;
 			gbBorderAutomatic	 = prevBorderAuto;
 			systemGbBorderOn();
 		}
@@ -482,8 +477,8 @@ static void change_movie_state(MovieState new_state)
 	{
 		if (Movie.currentFrame == Movie.header.length_frames)
 		{
-#if (defined(WIN32) && !defined(SDL))
-			if (theApp.movieOnEndPause)
+#if !defined(SDL)
+			if (g_core.movieOnEndPause)
 			{
 				willPause = true;
 			}
@@ -491,8 +486,8 @@ static void change_movie_state(MovieState new_state)
 			// SDL FIXME
 #endif
 
-#if (defined(WIN32) && !defined(SDL))
-			switch (theApp.movieOnEndBehavior)
+#if !defined(SDL)
+			switch (g_core.movieOnEndBehavior)
 			{
 			case 1:
 				// the old behavior
@@ -511,7 +506,7 @@ static void change_movie_state(MovieState new_state)
 					systemScreenMessage("Recording resumed");
 					willPause = true;
 				}
-#if (defined(WIN32) && !defined(SDL))
+#if !defined(SDL)
 				break;
 			case 3:
 				// keep open
@@ -530,8 +525,8 @@ static void change_movie_state(MovieState new_state)
 #if 1
 		else if (Movie.currentFrame > Movie.header.length_frames)
 		{
-#if (defined(WIN32) && !defined(SDL))
-			switch (theApp.movieOnEndBehavior)
+#if !defined(SDL)
+			switch (g_core.movieOnEndBehavior)
 			{
 			case 1:
 				// FIXME: this should be delayed till the current frame ends
@@ -623,10 +618,12 @@ static void SetPlayEmuSettings()
 	prevEmulatorType = gbEmulatorType;
 	gbEmulatorType	 = Movie.header.gbEmulatorType;
 
-#if (defined(WIN32) && !defined(SDL))
-//    theApp.removeIntros   = false;
-	theApp.skipBiosIntro = (Movie.header.optionFlags & MOVIE_SETTING_SKIPBIOSINTRO) != 0;
-	theApp.useBiosFile	= (Movie.header.optionFlags & MOVIE_SETTING_USEBIOSFILE) != 0;
+	// The movie format has a REMOVEINTROS flag, but it was never wired up:
+	// VBA.h had the field commented out and nothing ever honoured it. Keep it
+	// that way so old movies replay exactly as they always did.
+#if !defined(SDL)
+	g_core.skipBiosIntro = (Movie.header.optionFlags & MOVIE_SETTING_SKIPBIOSINTRO) != 0;
+	g_core.useBiosFile	= (Movie.header.optionFlags & MOVIE_SETTING_USEBIOSFILE) != 0;
 #else
 	extern int	 saveType, sdlRtcEnable, sdlFlashSize;   // from SDL.cpp
 	extern bool8 useBios, skipBios, removeIntros;     // from SDL.cpp
@@ -664,29 +661,29 @@ static void SetPlayEmuSettings()
 		gbEchoRAMFixOn = false;
 #endif
 
-#if (defined(WIN32) && !defined(SDL))
+#if !defined(SDL)
 	rtcEnable((Movie.header.optionFlags & MOVIE_SETTING_RTCENABLE) != 0);
-	theApp.winSaveType	= Movie.header.saveType;
-	theApp.winFlashSize = Movie.header.flashSize;
+	g_core.winSaveType	= Movie.header.saveType;
+	g_core.winFlashSize = Movie.header.flashSize;
 
 	prevBorder	   = gbBorderOn;
-	prevWinBorder  = theApp.winGbBorderOn;
+	prevWinBorder  = g_core.winGbBorderOn;
 	prevBorderAuto = gbBorderAutomatic;
 	if ((gbEmulatorType == 2 || gbEmulatorType == 5)
-	    && !theApp.hideMovieBorder) // games played in SGB mode can have a border
+	    && !g_core.hideMovieBorder) // games played in SGB mode can have a border
 	{
 		gbBorderOn = true;
-		theApp.winGbBorderOn = true;
+		g_core.winGbBorderOn = true;
 		gbBorderAutomatic	 = false;
 	}
 	else
 	{
 		gbBorderOn = false;
-		theApp.winGbBorderOn = false;
+		g_core.winGbBorderOn = false;
 		gbBorderAutomatic	 = false;
-		if (theApp.hideMovieBorder)
+		if (g_core.hideMovieBorder)
 		{
-			theApp.hideMovieBorder = false;
+			g_core.hideMovieBorder = false;
 			prevBorder = false;     // it might be expected behaviour that it stays hidden after the movie
 		}
 	}
@@ -700,17 +697,17 @@ static void SetPlayEmuSettings()
 
 static void HardResetAndSRAMClear()
 {
-#if (defined(WIN32) && !defined(SDL))
-	winEraseBatteryFile(); // delete the damn SRAM file and keep it from being resurrected from RAM
-	MainWnd *temp = static_cast<MainWnd *>(theApp.m_pMainWnd);
-	if (!temp->winFileRun(true)) // restart running the game
-	{
-		temp->winFileClose();
-	}
-#else
+	// A frontend that owns the running game restarts it itself (erase the
+	// battery file, then reload the ROM). Ask it first; only fall back to the
+	// portable path when there is no such frontend.
+	if (movie_host::hardResetAndClearSram())
+		return;
+
+#ifdef SDL
 	char fname [1024];
 	GetBatterySaveName(fname);
 	remove(fname);     // delete the damn SRAM file
+#endif
 
 	// Henceforth, emuCleanUp means "clear out SRAM"
 	//theEmulator.emuCleanUp();     // keep it from being resurrected from RAM <--This is wrong, it'll deallocate all variables
@@ -718,7 +715,6 @@ static void HardResetAndSRAMClear()
 
 	/// FIXME the correct SDL code to call for a full restart isn't in a function yet
 	theEmulator.emuReset();
-#endif
 }
 
 int VBAMovieOpen(const char *filename, bool8 read_only)
@@ -890,15 +886,15 @@ int VBAMovieOpen(const char *filename, bool8 read_only)
 static void SetRecordEmuSettings()
 {
 	Movie.header.optionFlags = 0;
-#if (defined(WIN32) && !defined(SDL))
-	if (theApp.useBiosFile)
+#if !defined(SDL)
+	if (g_core.useBiosFile)
 		Movie.header.optionFlags |= MOVIE_SETTING_USEBIOSFILE;
-	if (theApp.skipBiosIntro)
+	if (g_core.skipBiosIntro)
 		Movie.header.optionFlags |= MOVIE_SETTING_SKIPBIOSINTRO;
 	if (rtcIsEnabled())
 		Movie.header.optionFlags |= MOVIE_SETTING_RTCENABLE;
-	Movie.header.saveType  = theApp.winSaveType;
-	Movie.header.flashSize = theApp.winFlashSize;
+	Movie.header.saveType  = g_core.winSaveType;
+	Movie.header.flashSize = g_core.winFlashSize;
 #else
 	extern int	 saveType, sdlRtcEnable, sdlFlashSize;   // from SDL.cpp
 	extern bool8 useBios, skipBios;     // from SDL.cpp
@@ -942,22 +938,21 @@ static void SetRecordEmuSettings()
 
 	useOldFrameTiming = false;
 
-#if (defined(WIN32) && !defined(SDL))
-//    theApp.removeIntros   = false;
-
+#if !defined(SDL)
+	// see SetPlayEmuSettings() for why removeIntros is not restored
 	prevBorder	   = gbBorderOn;
-	prevWinBorder  = theApp.winGbBorderOn;
+	prevWinBorder  = g_core.winGbBorderOn;
 	prevBorderAuto = gbBorderAutomatic;
 	if (gbEmulatorType == 2 || gbEmulatorType == 5)     // only games played in SGB mode will have a border
 	{
 		gbBorderOn = true;
-		theApp.winGbBorderOn = true;
+		g_core.winGbBorderOn = true;
 		gbBorderAutomatic	 = false;
 	}
 	else
 	{
 		gbBorderOn = false;
-		theApp.winGbBorderOn = false;
+		g_core.winGbBorderOn = false;
 		gbBorderAutomatic	 = false;
 	}
 	systemGbBorderOn();
@@ -1169,21 +1164,21 @@ void VBAUpdateButtonPressDisplay()
 	const char whiteSpaces[] = "    ";
 	const int  whiteOffset = (int)strlen(whiteSpaces);
 #ifdef WIN32
-	const bool eraseAll = !theApp.inputDisplay;
+	const bool eraseAll = !g_core.inputDisplay;
 	char grayList[BufferSize]; // FIXME: no grey available at the moment
 	char colorList[BufferSize];
 	memset(grayList, 4, strnlen(buffer, BufferSize));
 	memset(colorList, 1, strnlen(buffer, BufferSize));
 
-	u32	autoHeldKeys = eraseAll ? 0 : theApp.autoHold & BUTTON_REGULAR_RECORDING_MASK;
-	u32	autoFireKeys = eraseAll ? 0 : (theApp.autoFire | theApp.autoFire2) & BUTTON_REGULAR_RECORDING_MASK;
+	u32	autoHeldKeys = eraseAll ? 0 : g_core.autoHold & BUTTON_REGULAR_RECORDING_MASK;
+	u32	autoFireKeys = eraseAll ? 0 : (g_core.autoFire | g_core.autoFire2) & BUTTON_REGULAR_RECORDING_MASK;
 	u32	pressedKeys	 = eraseAll ? 0 : currKeys;
 	u32 &lastKeys     = lastButtons[which];
 
 	if (resetSignaled)
 		autoHeldKeys |= BUTTON_MASK_NEW_RESET;
 
-	if (theApp.nextInputDisplay && !eraseAll && Movie.state != MOVIE_STATE_NONE)
+	if (g_core.nextInputDisplay && !eraseAll && Movie.state != MOVIE_STATE_NONE)
 	{
 		for (int i = 0; i < KeyMaxCount; ++i)
 		{
@@ -1224,8 +1219,8 @@ void VBAUpdateButtonPressDisplay()
 	systemScreenMessage(buffer, 2, -1, colorList);
 
 	lastKeys  = currKeys;
-	lastKeys |= theApp.autoHold & BUTTON_REGULAR_RECORDING_MASK;
-	lastKeys |= (theApp.autoFire | theApp.autoFire2) & BUTTON_REGULAR_RECORDING_MASK;
+	lastKeys |= g_core.autoHold & BUTTON_REGULAR_RECORDING_MASK;
+	lastKeys |= (g_core.autoFire | g_core.autoFire2) & BUTTON_REGULAR_RECORDING_MASK;
 #else
 	// don't bother color-coding autofire and such
 	if (Movie.state != MOVIE_STATE_NONE)
@@ -1255,11 +1250,11 @@ void VBAUpdateFrameCountDisplay()
 	char	  lagFrameDisplayString[MAGICAL_NUMBER];
 	char	  extraCountDisplayString[MAGICAL_NUMBER];
 
-#if (defined(WIN32) && !defined(SDL))
+#if !defined(SDL)
 	char colorList[MAGICAL_NUMBER * 2];
 	memset(colorList, 1, MAGICAL_NUMBER * 2);
 
-	if (theApp.frameCounter)
+	if (g_core.frameCounter)
 #else
 	/// SDL FIXME
 #endif
@@ -1310,8 +1305,8 @@ void VBAUpdateFrameCountDisplay()
 		}
 		}
 
-#if (defined(WIN32) && !defined(SDL))
-		if (theApp.lagCounter)
+#if !defined(SDL)
+		if (g_core.lagCounter)
 #else
 		/// SDL FIXME
 #endif
@@ -1321,8 +1316,8 @@ void VBAUpdateFrameCountDisplay()
 			strcat(frameDisplayString, lagFrameDisplayString);
 		}
 
-#if (defined(WIN32) && !defined(SDL))
-		if (theApp.extraCounter)
+#if !defined(SDL)
+		if (g_core.extraCounter)
 #else
 		/// SDL FIXME
 #endif
@@ -1331,7 +1326,7 @@ void VBAUpdateFrameCountDisplay()
 			strcat(frameDisplayString, extraCountDisplayString);
 		}
 	}
-#if (defined(WIN32) && !defined(SDL))
+#if !defined(SDL)
 	else
 	{
 		frameDisplayString[0] = '\0';

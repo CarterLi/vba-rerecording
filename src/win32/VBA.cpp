@@ -35,6 +35,7 @@
 #include "../common/Text.h"
 #include "../common/movie.h"
 #include "../common/nesvideos-piece.h"
+#include "../common/HashTrace.h"
 #include "../common/vbalua.h"
 #include "../filters/filters.h"
 #include "../version.h"
@@ -802,6 +803,15 @@ BOOL VBA::InitInstance()
 					winCorrectPath(movieFileToPlay);
 					if (i + 1 >= argc || argv[i + 1][0] == '-') { --i; goto invalidArgument; }
 					playMovieFileReadOnly = atoi(argv[++i]) != 0;
+				}
+				else if (_stricmp(argv[i], "-hashtrace") == 0)
+				{
+					// Per-frame state hash written to CSV, for proving that a
+					// refactor did not change behaviour.
+					// e.g. vba.exe -rom game.gba -play movie.vbm 1 -hashtrace D:\trace.csv
+					if (i + 1 >= argc || argv[i + 1][0] == '-')
+						goto invalidArgument;
+					hashTraceEnable(argv[++i]);
 				}
 				else if (_stricmp(argv[i], "-videoLog") == 0)
 				{

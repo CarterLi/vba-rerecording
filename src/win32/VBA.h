@@ -15,6 +15,7 @@
 #include "AVIWrite.h"
 #include "Display.h"
 #include "../common/System.h"
+#include "../common/CoreOptions.h"
 #include "../filters/lcdfilter.h"
 
 /////////////////////////////////////////////////////////////////////////////
@@ -160,8 +161,12 @@ public:
 	bool	  menuToggle;
 	IDisplay *display;
 	bool	  soundInitialized;
-	bool	  useBiosFile;
-	bool	  skipBiosIntro;
+	// ---- emulator options owned by the core (common/CoreOptions.h) --------
+	// Bound by reference, so every `theApp.<name>` elsewhere in the frontend
+	// keeps compiling and behaving exactly as before, while the core reads and
+	// writes the same storage without knowing that MFC exists.
+	bool &	  useBiosFile		  = g_core.useBiosFile;
+	bool &	  skipBiosIntro		  = g_core.skipBiosIntro;
 	CString	  biosFileName;
 	bool	  allowLeftRight;
 	bool	  autofireAccountForLag;
@@ -177,11 +182,11 @@ public:
 //	FILE *    winout;
 //	bool      removeIntros;
 	bool  autoIPS;
-	int	  winGbBorderOn;
-	bool  hideMovieBorder;
-	int	  winFlashSize;
+	int &	  winGbBorderOn		  = g_core.winGbBorderOn;
+	bool &  hideMovieBorder		  = g_core.hideMovieBorder;
+	int &	  winFlashSize		  = g_core.winFlashSize;
 	bool  winRtcEnable;
-	int	  winSaveType;
+	int &	  winSaveType		  = g_core.winSaveType;
 	char *rewindMemory;
 	int	  rewindPos;
 	int	  rewindTopPos;
@@ -230,18 +235,19 @@ public:
 	int			 renderedFrames;
 	Input *		 input;
 	int			 joypadDefault;
-	int			 autoFire, autoFire2;
-	int			 autoHold;
+	int &		 autoFire			= g_core.autoFire;
+	int &		 autoFire2			= g_core.autoFire2;
+	int &		 autoHold			= g_core.autoHold;
 	bool		 autoFireToggle;
-	bool		 frameCounter;
-	bool		 lagCounter;
-	bool		 extraCounter;
-	bool		 inputDisplay;
-	bool		 nextInputDisplay;
+	bool &		 frameCounter		= g_core.frameCounter;
+	bool &		 lagCounter			= g_core.lagCounter;
+	bool &		 extraCounter		= g_core.extraCounter;
+	bool &		 inputDisplay		= g_core.inputDisplay;
+	bool &		 nextInputDisplay	= g_core.nextInputDisplay;
 	bool		 movieReadOnly;
 	bool		 movieEditMode;
-	bool		 movieOnEndPause;
-	int			 movieOnEndBehavior;
+	bool &		 movieOnEndPause		= g_core.movieOnEndPause;
+	int &		 movieOnEndBehavior	= g_core.movieOnEndBehavior;
 	bool		 soundRecording;
 	WavWriter *	 soundRecorder;
 	CString		 soundRecordName;
@@ -269,8 +275,8 @@ public:
 	bool		 showSlotTime;
 	int			 filenamePreference;
 	int			 LuaFastForward;
-	bool		 frameSearching;
-	bool		 frameSearchSkipping;
+	bool &		 frameSearching			= g_core.frameSearching;
+	bool &		 frameSearchSkipping	= g_core.frameSearchSkipping;
 	bool		 frameSearchFirstStep;
 	bool		 frameSearchLoadValid;
 	int			 frameSearchLength;

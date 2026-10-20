@@ -16,7 +16,16 @@
 # endif // ! HAVE_ARPA_INET_H
 # define SOCKET int
 #else // WIN32
-# include "../win32/stdafx.h"
+// Note: this used to include "../win32/stdafx.h" (the MFC precompiled header),
+// which tied the whole GBA debug stub to the MFC frontend. It only needs
+// winsock 1.1 and io.h, so including the system headers directly is enough.
+# ifndef WIN32_LEAN_AND_MEAN
+#  define WIN32_LEAN_AND_MEAN
+# endif
+# ifndef NOMINMAX
+#  define NOMINMAX
+# endif
+# include <windows.h>
 # include <winsock.h>
 # include <io.h>
 # define socklen_t int

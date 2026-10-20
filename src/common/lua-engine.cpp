@@ -24,12 +24,11 @@ using std::map;
 #endif
 #if (defined(WIN32) && !defined(SDL))
 	#include <direct.h>
-	#include "../win32/stdafx.h"
+	// Win32 API only. The MFC/frontend types used to come from
+	// ../win32/stdafx.h + MainWnd.h + VBA.h + Dialogs/LuaOpenDialog.h; all of
+	// that is now behind common/LuaHost.h, implemented per frontend.
+	#include <windows.h>
 	#include <winver.h>
-	#include "../win32/Input.h"
-	#include "../win32/MainWnd.h"
-	#include "../win32/VBA.h"
-	#include "../win32/Dialogs/LuaOpenDialog.h"
 #else
 	#define stricmp strcasecmp
 	#define strnicmp strncasecmp
@@ -47,11 +46,10 @@ using std::map;
 #include "../gba/GBASound.h"
 
 #ifdef _WIN32
-#include "../win32/Sound.h"
 //#include "../win32/WinMiscUtil.h"
-extern CString winGetSavestateFilename(const CString &LogicalRomName, int nID);
 #else
 #endif
+#include "LuaHost.h" // frontend UI services: dialogs, geometry, AVI, savestates, console
 
 bool DemandLua()
 {
@@ -59,9 +57,8 @@ bool DemandLua()
 	HMODULE mod = LoadLibrary("lua51.dll");
 	if(!mod)
 	{
-		MessageBox(NULL, "lua51.dll was not found. Please get it into your PATH or in the same directory as VBA.exe", "VBA", MB_OK | MB_ICONERROR);
-		return false;
-	}
+		lua_host::messageBox("lua51.dll was not found. Please get it into your PATH or in the same directory as VBA.exe", "VBA", lua_host::MsgBoxType::Ok, true);
+		return false;	}
 	FreeLibrary(mod);
 	return true;
 #else
@@ -2064,8 +2061,7 @@ static std::string get_savestate_filename(int which)
 	{
 		// Find an appropriate filename. This is OS specific, unfortunately.
 #if (defined(WIN32) && !defined(SDL))
-		CString stateName = winGetSavestateFilename(theApp.gameFilename, which);
-		return std::string(static_cast<LPCSTR>(stateName));
+		return lua_host::savestateFilename(which);
 #else
 		extern char saveDir[2048];
 		extern char filename[2048];
@@ -3693,32 +3689,39 @@ int gui_popup(lua_State *L)
 	const char *type	= luaL_optstring(L, 2, "ok");
 
 #if (defined(WIN32) && !defined(SDL))
-	int t;
+	lua_host::MsgBoxType t;
+	bool wantsAnswer = false;
 	if (strcmp(type, "ok") == 0)
-		t = MB_OK;
+		t = lua_host::MsgBoxType::Ok;
 	else if (strcmp(type, "yesno") == 0)
-		t = MB_YESNO;
+	{
+		t = lua_host::MsgBoxType::YesNo;
+		wantsAnswer = true;
+	}
 	else if (strcmp(type, "yesnocancel") == 0)
-		t = MB_YESNOCANCEL;
+	{
+		t = lua_host::MsgBoxType::YesNoCancel;
+		wantsAnswer = true;
+	}
 	else
 		return luaL_error(L, "invalid popup type \"%s\"", type);
 
-	theApp.winCheckFullscreen();
+	lua_host::checkFullscreen();
 	systemSoundClearBuffer();
-	int result = AfxGetApp()->m_pMainWnd->MessageBox(message, "Lua Script Pop-up", t);
+	lua_host::MsgBoxResult result = lua_host::messageBox(message, "Lua Script Pop-up", t);
 
 	lua_settop(L, 1);
 
-	if (t != MB_OK)
+	if (wantsAnswer)
 	{
-		if (result == IDYES)
+		if (result == lua_host::MsgBoxResult::Yes)
 			lua_pushstring(L, "yes");
-		else if (result == IDNO)
+		else if (result == lua_host::MsgBoxResult::No)
 			lua_pushstring(L, "no");
-		else if (result == IDCANCEL)
+		else if (result == lua_host::MsgBoxResult::Cancel)
 			lua_pushstring(L, "cancel");
 		else
-			luaL_error(L, "win32 unrecognized return value %d", result);
+			luaL_error(L, "unrecognized message box result");
 		return 1;
 	}
 
@@ -4064,9 +4067,8 @@ static int input_getcurrentinputstatus(lua_State *L)
 
 	// mouse position in game screen pixel coordinates
 	{
-		POINT mouse;
-		GetCursorPos(&mouse);
-		AfxGetApp()->m_pMainWnd->ScreenToClient(&mouse);
+		int mouseClientX = 0, mouseClientY = 0;
+		lua_host::getMouseClientPos(mouseClientX, mouseClientY);
 
 		int width, height;
 		int xofs, yofs;
@@ -4075,17 +4077,16 @@ static int input_getcurrentinputstatus(lua_State *L)
 
 		// game screen is always fully stretched to window size,
 		// with no aspect rate correction, or something like that.
-		RECT clientRect;
-		AfxGetApp()->m_pMainWnd->GetClientRect(&clientRect);
+		int wndWidth  = 0;
+		int wndHeight = 0;
+		lua_host::getClientSize(wndWidth, wndHeight);
 
-		int wndWidth  = clientRect.right - clientRect.left;
-		int wndHeight = clientRect.bottom - clientRect.top;
-		mouse.x = (LONG) (mouse.x * ((float)width / wndWidth)) - xofs;
-		mouse.y = (LONG) (mouse.y * ((float)height / wndHeight)) - yofs;
+		long mouseX = (long) (mouseClientX * ((float)width / wndWidth)) - xofs;
+		long mouseY = (long) (mouseClientY * ((float)height / wndHeight)) - yofs;
 
-		lua_pushinteger(L, mouse.x);
+		lua_pushinteger(L, mouseX);
 		lua_setfield(L, -2, "xmouse");
-		lua_pushinteger(L, mouse.y);
+		lua_pushinteger(L, mouseY);
 		lua_setfield(L, -2, "ymouse");
 	}
 
@@ -4097,34 +4098,21 @@ static int input_getcurrentinputstatus(lua_State *L)
 
 static int avi_framecount(lua_State *L)
 {
-#ifdef WIN32
-	if (theApp.aviRecorder != NULL)
-	{
-		lua_pushinteger(L, theApp.aviRecorder->videoFrames());
-	}
-	else
-#endif
-	{
-		lua_pushinteger(L, 0);
-	}
+	lua_pushinteger(L, lua_host::aviActive() ? lua_host::aviVideoFrames() : 0);
 	return 1;
 }
 
 static int avi_pause(lua_State *L)
 {
-#ifdef WIN32
-	if (theApp.aviRecorder != NULL)
-		theApp.aviRecorder->Pause(true);
-#endif
+	if (lua_host::aviActive())
+		lua_host::aviPause(true);
 	return 1;
 }
 
 static int avi_resume(lua_State *L)
 {
-#ifdef WIN32
-	if (theApp.aviRecorder != NULL)
-		theApp.aviRecorder->Pause(false);
-#endif
+	if (lua_host::aviActive())
+		lua_host::aviPause(false);
 	return 1;
 }
 
@@ -4635,19 +4623,19 @@ static void VBALuaHookFunction(lua_State *L, lua_Debug *dbg)
 
 #if (defined(WIN32) && !defined(SDL))
 		// Uh oh
-		theApp.winCheckFullscreen();
+		lua_host::checkFullscreen();
 		systemSoundClearBuffer();
-		int ret = AfxGetApp()->m_pMainWnd->MessageBox(
+		lua_host::MsgBoxResult ret = lua_host::messageBox(
 			"The Lua script running has been running a long time. It may have gone crazy. Keep it running?\n\n"
 			"(Abort = Kill; Retry = Wait for a moment; Ignore = Keep running and don't prompt anymore)",
 			"Lua Script Gone Nuts?",
-			MB_ABORTRETRYIGNORE);
+			lua_host::MsgBoxType::AbortRetryIgnore);
 
-		if (ret == IDABORT)
+		if (ret == lua_host::MsgBoxResult::Abort)
 		{
 			kill = 1;
 		}
-		else if (ret == IDRETRY)
+		else if (ret == lua_host::MsgBoxResult::Retry)
 		{
 			numTries = 3000;
 		}
@@ -5092,13 +5080,11 @@ int VBALoadLuaCode(const char *filename)
 	lua_sethook(thread, VBALuaHookFunction, LUA_MASKCOUNT, 10000);
 
 #ifdef WIN32
-	info_print = PrintToWindowConsole;
-	info_onstart = WinLuaOnStart;
-	info_onstop = WinLuaOnStop;
-	if (!LuaConsoleHWnd)
-		LuaConsoleHWnd = CreateDialog(AfxGetInstanceHandle(), MAKEINTRESOURCE(IDD_LUA),
-			AfxGetMainWnd()->GetSafeHwnd(), (DLGPROC)DlgLuaScriptDialog);
-	info_uid = (std::intptr_t)LuaConsoleHWnd;
+	lua_host::ConsoleSinks console = lua_host::consoleSinks();
+	info_print = console.print;
+	info_onstart = console.onStart;
+	info_onstop = console.onStop;
+	info_uid = lua_host::openConsole();
 #else
 	info_print = NULL;
 	info_onstart = NULL;
@@ -5112,7 +5098,7 @@ int VBALoadLuaCode(const char *filename)
 	extern int textMethod;
 	if (textMethod == 0)
 	{
-		int pitch = theApp.filterWidth * (systemColorDepth / 8) + (systemColorDepth == 24 ? 0 : 4);
+		int pitch = lua_host::filterWidth() * (systemColorDepth / 8) + (systemColorDepth == 24 ? 0 : 4);
 		systemRenderLua(&pix[pitch], pitch);
 	}
 
