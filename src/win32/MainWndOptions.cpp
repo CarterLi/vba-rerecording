@@ -892,7 +892,10 @@ void MainWnd::OnOptionsEmulatorFilenamePreference(UINT nID)
 
 void MainWnd::OnUpdateOptionsEmulatorFilenamePreference(CCmdUI *pCmdUI)
 {
-	pCmdUI->SetRadio(pCmdUI->m_nID == theApp.filenamePreference + ID_OPTIONS_PREFER_ARCHIVE_NAME);
+	// The two choices stay mutually exclusive, but they are drawn with ordinary
+	// check marks: a radio bullet in a dark themed menu renders as a white block
+	// with a corner dot, which reads as a broken icon rather than a selection.
+	pCmdUI->SetCheck(pCmdUI->m_nID == theApp.filenamePreference + ID_OPTIONS_PREFER_ARCHIVE_NAME);
 }
 
 void MainWnd::OnOptionsVideoDisablestatusmessages()
