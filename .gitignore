@@ -51,8 +51,9 @@ win32/userconfig/svnrev.h
 .workbuddy-ai/
 .workbuddy
 
-# NOTE: win32/lib/x86|lua51.lib (and the x64 one), win32/nasm.exe and
+# NOTE: win32/lib/x86|lua51.lib (and the x64 one) and
 # win32/defaultconfig/*.exe are vendored third-party binaries and stay tracked.
 
+.vscode
 .VS_Latest
 *.log
