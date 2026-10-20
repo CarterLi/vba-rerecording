@@ -547,11 +547,19 @@ bool CAcceleratorManager::Load()
 //	m_szRegKey = szRegKey;
 
 	DWORD data[2048/sizeof(DWORD)];
+	memset(data, 0, sizeof(data));
 
-	DWORD len = sizeof(data);
-	if (regQueryBinaryValue("keyboard", (char *)data, len))
+	int len = sizeof(data);
+	int actualLen = 0;
+	BOOL keyboardFound = regQueryBinaryValue("keyboard", (char *)data, len, &actualLen);
+	if (keyboardFound)
 	{
-		int count = len/sizeof(DWORD);
+		// Only parse the bytes that were actually read.  The rest of the
+		// buffer used to contain uninitialized stack data, which was parsed
+		// as additional accelerators and shadowed real shortcuts.
+		if (actualLen > len)
+			actualLen = len;
+		int count = actualLen/sizeof(DWORD);
 
 		CCmdAccelOb*pCmdAccel;
 		CAccelsOb*  pAccel;

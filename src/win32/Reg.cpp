@@ -97,8 +97,11 @@ DWORD regQueryDwordValue(const char *key, DWORD def, bool force)
 	                            regVbaPath);
 }
 
-BOOL regQueryBinaryValue(const char *key, char *value, int count)
+BOOL regQueryBinaryValue(const char *key, char *value, int count, int *pActualCount)
 {
+	if (pActualCount != NULL)
+		*pActualCount = 0;
+
 	if (regEnabled)
 	{
 		DWORD type   = 0;
@@ -113,7 +116,11 @@ BOOL regQueryBinaryValue(const char *key, char *value, int count)
 		                           &size);
 
 		if (res == ERROR_SUCCESS && type == REG_BINARY)
+		{
+			if (pActualCount != NULL)
+				*pActualCount = (int)size;
 			return TRUE;
+		}
 
 		return FALSE;
 	}
@@ -125,11 +132,14 @@ BOOL regQueryBinaryValue(const char *key, char *value, int count)
 	                                regVbaPath);
 	if (size >= 0 && size < count)
 		count = size;
-	return GetPrivateProfileStruct(VBA_PREF,
-	                               key,
-	                               value,
-	                               count,
-	                               regVbaPath);
+	BOOL res = GetPrivateProfileStruct(VBA_PREF,
+	                                   key,
+	                                   value,
+	                                   count,
+	                                   regVbaPath);
+	if (res && pActualCount != NULL)
+		*pActualCount = count;
+	return res;
 }
 
 void regSetStringValue(const char *key, const char *value)
