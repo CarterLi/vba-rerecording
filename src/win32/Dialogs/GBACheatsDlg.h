@@ -139,8 +139,10 @@ public:
 	// Dialog Data
 	//{{AFX_DATA(GBACheatList)
 	enum { IDD = IDD_CHEAT_LIST };
-	CButton   m_restore;
-	CListCtrl m_list;
+	CButton      m_restore;
+	CButton      m_group;
+	CListCtrl    m_list;
+	CToolTipCtrl m_tooltip;
 	//}}AFX_DATA
 
 	// Overrides
@@ -154,6 +156,7 @@ protected:
 protected:
 	bool duringRefresh;
 	bool restoreValues;
+	bool groupCheats;
 	std::vector<GBACheatListRow> rows;
 	std::set<int> expandedGroups;
 
@@ -173,11 +176,13 @@ protected:
 	afx_msg void OnEdit();
 	afx_msg void OnRemove();
 	afx_msg void OnRestore();
+	afx_msg void OnGroupCheats();
 	afx_msg void OnOk();
 	afx_msg void OnItemchangingCheatList(NMHDR*pNMHDR, LRESULT*pResult);
 	afx_msg void OnItemchangedCheatList(NMHDR*pNMHDR, LRESULT*pResult);
 	afx_msg void OnClickCheatList(NMHDR*pNMHDR, LRESULT*pResult);
 	virtual BOOL OnInitDialog();
+	virtual BOOL PreTranslateMessage(MSG* pMsg);
 	//}}AFX_MSG
 	DECLARE_MESSAGE_MAP()
 };

@@ -204,6 +204,8 @@
 #define IDS_EDIT_CHEAT                  201
 #define IDS_CONFIRM_DELETE_CHEATS       202
 #define IDS_CONFIRM_DELETE              203
+#define IDS_GROUP_CHEATS_TIP            204
+#define IDS_RESTORE_TIP                 205
 #define IDR_MENU                        401
 #define IDR_ACCELERATOR                 405
 #define IDR_GB_PRINTER                  406
@@ -336,6 +338,7 @@
 #define IDC_DESC                        1074
 #define IDC_CHEAT_ENABLED               1075
 #define IDC_EDIT                        1076
+#define IDC_GROUP_CHEATS                1077
 #define IDC_ROM_TITLE                   1079
 #define IDC_ROM_GAME_CODE               1080
 #define IDC_ROM_MAKER_CODE              1081

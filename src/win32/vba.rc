@@ -350,6 +350,7 @@ CAPTION "Cheat list"
 FONT 8, "MS Sans Serif"
 BEGIN
     CONTROL         "Restore &previous values",IDC_RESTORE,"Button",BS_AUTOCHECKBOX | WS_GROUP | WS_TABSTOP,5,183,92,10
+    CONTROL         "&Group cheats",IDC_GROUP_CHEATS,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,103,183,80,10
     PUSHBUTTON      "&Code...",IDC_ADD_CODE,9,208,64,14,WS_GROUP
     PUSHBUTTON      "C&heat...",IDC_ADD_CHEAT,75,208,64,14
     PUSHBUTTON      "&Gameshark...",IDC_ADD_GAMESHARK,141,208,64,14
@@ -2727,6 +2728,8 @@ BEGIN
     IDS_EDIT_CHEAT          "Edit cheat"
     IDS_CONFIRM_DELETE_CHEATS "Delete %d cheat(s)?"
     IDS_CONFIRM_DELETE      "Confirm delete"
+    IDS_GROUP_CHEATS_TIP    "Merge adjacent entries with the same description and type into groups"
+    IDS_RESTORE_TIP         "When deleting a cheat, write its original value back to memory to undo the cheat's effect"
     IDS_FAILED_TO_LOAD_LIBRARY "Failed to load library %s"
     IDS_FAILED_TO_GET_LOCINFO "Failed to get locale information"
     IDS_SELECT_CHEAT_LIST_NAME "Select cheat list name"

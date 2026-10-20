@@ -1175,6 +1175,8 @@ GBACheatList::GBACheatList(CWnd*pParent /*=NULL*/)
 	// NOTE: the ClassWizard will add member initialization here
 	//}}AFX_DATA_INIT
 	duringRefresh = false;
+	restoreValues = false;
+	groupCheats   = true;
 }
 
 void GBACheatList::DoDataExchange(CDataExchange*pDX)
@@ -1182,6 +1184,7 @@ void GBACheatList::DoDataExchange(CDataExchange*pDX)
 	CDialog::DoDataExchange(pDX);
 	//{{AFX_DATA_MAP(GBACheatList)
 	DDX_Control(pDX, IDC_RESTORE, m_restore);
+	DDX_Control(pDX, IDC_GROUP_CHEATS, m_group);
 	DDX_Control(pDX, IDC_CHEAT_LIST, m_list);
 	//}}AFX_DATA_MAP
 }
@@ -1196,6 +1199,7 @@ ON_BN_CLICKED(IDC_ENABLE, OnEnable)
 ON_BN_CLICKED(IDC_EDIT, OnEdit)
 ON_BN_CLICKED(IDC_REMOVE, OnRemove)
 ON_BN_CLICKED(IDC_RESTORE, OnRestore)
+ON_BN_CLICKED(IDC_GROUP_CHEATS, OnGroupCheats)
 ON_BN_CLICKED(ID_OK, OnOk)
 ON_NOTIFY(LVN_ITEMCHANGING, IDC_CHEAT_LIST, OnItemchangingCheatList)
 ON_NOTIFY(LVN_ITEMCHANGED, IDC_CHEAT_LIST, OnItemchangedCheatList)
@@ -1354,6 +1358,13 @@ void GBACheatList::OnRestore()
 	regSetDwordValue("cheatsRestore", restoreValues);
 }
 
+void GBACheatList::OnGroupCheats()
+{
+	groupCheats = !groupCheats;
+	regSetDwordValue("cheatsGroup", groupCheats);
+	refresh();
+}
+
 void GBACheatList::OnOk()
 {
 	EndDialog(TRUE);
@@ -1493,6 +1504,15 @@ BOOL GBACheatList::OnInitDialog()
 
 	m_restore.SetCheck(restoreValues);
 
+	groupCheats = regQueryDwordValue("cheatsGroup", 1) ?
+	              true : false;
+
+	m_group.SetCheck(groupCheats);
+
+	m_tooltip.Create(this);
+	m_tooltip.AddTool(GetDlgItem(IDC_RESTORE), IDS_RESTORE_TIP);
+	m_tooltip.AddTool(GetDlgItem(IDC_GROUP_CHEATS), IDS_GROUP_CHEATS_TIP);
+
 	refresh();
 	CenterWindow();
 
@@ -1500,10 +1520,32 @@ BOOL GBACheatList::OnInitDialog()
 	             // EXCEPTION: OCX Property Pages should return FALSE
 }
 
+BOOL GBACheatList::PreTranslateMessage(MSG* pMsg)
+{
+	if (m_tooltip.GetSafeHwnd())
+		m_tooltip.RelayEvent(pMsg);
+
+	return CDialog::PreTranslateMessage(pMsg);
+}
+
 void GBACheatList::rebuildRows()
 {
 	rows.clear();
 	std::set<int> stillExpanded;
+
+	if (!groupCheats)
+	{
+		for (int i = 0; i < cheatsNumber; i++)
+		{
+			GBACheatListRow row;
+			row.kind     = GBACheatListRow::CHEAT;
+			row.first    = i;
+			row.count    = 1;
+			row.expanded = false;
+			rows.push_back(row);
+		}
+		return;
+	}
 
 	int i = 0;
 	while (i < cheatsNumber)
