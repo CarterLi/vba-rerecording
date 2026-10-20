@@ -29,19 +29,11 @@
 #endif
 
 #if !defined(_DEBUG) && (defined(WIN32) || defined(RC_INVOKED))
-#	include "../win32/userconfig/svnrev.h"
-#endif
-#
-#ifndef SVN_REV
-#	define SVN_REV 0
+#	include "../win32/userconfig/gitrev.h"
 #endif
 
-#ifndef SVN_REV_STR
-#	if SVN_REV > 0
-#		define SVN_REV_STR STRINGIZE_VALUE(SVN_REV)
-#	else
-#		define define SVN_REV_STR ""
-#	endif
+#ifndef VBA_REV_STR
+#	define VBA_REV_STR ""
 #endif
 
 #ifdef _DEBUG
@@ -51,7 +43,11 @@
 #	define VBA_SUBVERSION_STRING ""
 #	define VBA_BUILDTYPE_STRING  "Release"
 #else // interim
-#	define VBA_SUBVERSION_STRING " svn" SVN_REV_STR
+#	ifdef VBA_HAVE_GIT_REV
+#		define VBA_SUBVERSION_STRING " git-" VBA_REV_STR
+#	else
+#		define VBA_SUBVERSION_STRING ""
+#	endif
 #	define VBA_BUILDTYPE_STRING  "Interim"
 #endif
 

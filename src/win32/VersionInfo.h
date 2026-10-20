@@ -5,11 +5,9 @@
 
 #include "../version.h"
 
-#if SVN_REV > 65535
-#	define VBA_RR_BUILD_NO 0
-#else
-#	define VBA_RR_BUILD_NO SVN_REV
-#endif
+// A Git commit hash is not a sequential build number, so the fourth
+// FILEVERSION field stays 0.
+#define VBA_RR_BUILD_NO 0
 
 // diaplayed in the file attribute dialog
 #ifdef USE_GBA_CORE_V7

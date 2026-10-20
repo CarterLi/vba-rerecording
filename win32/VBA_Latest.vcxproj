@@ -226,7 +226,7 @@
       <TypeLibraryName>$(OutDir)$(TargetName).tlb</TypeLibraryName>
     </Midl>
     <PreBuildEvent>
-      <Command>defaultconfig\SubWCRev.bat</Command>
+      <Command>defaultconfig\GitRev.bat</Command>
     </PreBuildEvent>
     <PostBuildEvent>
       <Command>if not exist "$(OutDir)lua51.dll" copy /y "$(ProjectDir)lib\x86\lua51.dll" "$(OutDir)"
@@ -277,7 +277,7 @@ copy /y "$(ProjectDir)lib\x86\7z.dll" "$(OutDir)"</Command>
       <TypeLibraryName>$(OutDir)$(TargetName).tlb</TypeLibraryName>
     </Midl>
     <PreBuildEvent>
-      <Command>defaultconfig\SubWCRev.bat</Command>
+      <Command>defaultconfig\GitRev.bat</Command>
     </PreBuildEvent>
     <PostBuildEvent>
       <Command>if not exist "$(OutDir)lua51.dll" copy /y "$(ProjectDir)lib\x64\lua51.dll" "$(OutDir)"
@@ -329,7 +329,7 @@ copy /y "$(ProjectDir)lib\x64\7z.dll" "$(OutDir)"</Command>
       <TypeLibraryName>$(OutDir)$(TargetName).tlb</TypeLibraryName>
     </Midl>
     <PreBuildEvent>
-      <Command>defaultconfig\SubWCRev.bat</Command>
+      <Command>defaultconfig\GitRev.bat</Command>
     </PreBuildEvent>
     <PostBuildEvent>
       <Command>if not exist "$(OutDir)lua51.dll" copy /y "$(ProjectDir)lib\x86\lua51.dll" "$(OutDir)"
@@ -379,7 +379,7 @@ copy /y "$(ProjectDir)lib\x86\7z.dll" "$(OutDir)"</Command>
       <TypeLibraryName>$(OutDir)$(TargetName).tlb</TypeLibraryName>
     </Midl>
     <PreBuildEvent>
-      <Command>defaultconfig\SubWCRev.bat</Command>
+      <Command>defaultconfig\GitRev.bat</Command>
     </PreBuildEvent>
     <PostBuildEvent>
       <Command>if not exist "$(OutDir)lua51.dll" copy /y "$(ProjectDir)lib\x64\lua51.dll" "$(OutDir)"
@@ -606,7 +606,7 @@ copy /y "$(ProjectDir)lib\x64\7z.dll" "$(OutDir)"</Command>
       <PreprocessorDefinitions>NDEBUG;_AFXDLL;WIN32;USE_GB_CORE_V7;USE_GBA_CORE_V7;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ResourceCompile>
     <PreBuildEvent>
-      <Command>defaultconfig\SubWCRev.bat</Command>
+      <Command>defaultconfig\GitRev.bat</Command>
     </PreBuildEvent>
     <PostBuildEvent>
       <Command>if not exist "$(OutDir)lua51.dll" copy /y "$(ProjectDir)lib\x86\lua51.dll" "$(OutDir)"
@@ -647,7 +647,7 @@ copy /y "$(ProjectDir)lib\x86\7z.dll" "$(OutDir)"</Command>
       <PreprocessorDefinitions>NDEBUG;_AFXDLL;WIN32;USE_GB_CORE_V7;USE_GBA_CORE_V7;%(PreprocessorDefinitions)</PreprocessorDefinitions>
     </ResourceCompile>
     <PreBuildEvent>
-      <Command>defaultconfig\SubWCRev.bat</Command>
+      <Command>defaultconfig\GitRev.bat</Command>
     </PreBuildEvent>
     <PostBuildEvent>
       <Command>if not exist "$(OutDir)lua51.dll" copy /y "$(ProjectDir)lib\x64\lua51.dll" "$(OutDir)"

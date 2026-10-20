@@ -43,7 +43,7 @@ win32/__V82Xbins/
 # ---------------------------------------------------------------------------
 # Generated sources
 # ---------------------------------------------------------------------------
-win32/userconfig/svnrev.h
+win32/userconfig/gitrev.h
 
 # ---------------------------------------------------------------------------
 # Local workspace data (agent scratch space, never part of the build)
@@ -51,8 +51,8 @@ win32/userconfig/svnrev.h
 .workbuddy-ai/
 .workbuddy
 
-# NOTE: win32/lib/x86|lua51.lib (and the x64 one) and
-# win32/defaultconfig/*.exe are vendored third-party binaries and stay tracked.
+# NOTE: win32/lib/x86|lua51.lib (and the x64 one) are vendored third-party
+# binaries and stay tracked.
 
 .vscode
 .VS_Latest
