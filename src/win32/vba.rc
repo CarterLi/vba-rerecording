@@ -1203,6 +1203,8 @@ BEGIN
     LTEXT           "Length:",-1,40,99,25,8
     LTEXT           "Frames:",-1,40,111,26,8
     LTEXT           "Re-record Count:",-1,10,123,55,8
+    LTEXT           "Core Version:",-1,12,78,53,8
+    LTEXT           "CORE",IDC_LABEL_CORE_VERSION,68,78,240,8
     LTEXT           "DATE",IDC_LABEL_DATE,68,87,124,8
     LTEXT           "LENGTH",IDC_LABEL_LENGTH,68,99,93,8
     LTEXT           "FRAMES",IDC_LABEL_FRAMES,68,111,67,8
@@ -1211,10 +1213,10 @@ BEGIN
     LTEXT           "Press OK to start playing the movie.\nNote that this will erase or overwrite your game's SRAM,\nand may change other emulator settings.",-1,8,209,177,24
     LTEXT           "Movie ROM: ...",IDC_LABEL_WARNING1,8,34,300,8
     LTEXT           "Your ROM: ...",IDC_LABEL_WARNING2,12,43,295,9,0,WS_EX_TRANSPARENT
-    EDITTEXT        IDC_EDIT_AUTHOR,57,54,200,12,ES_AUTOHSCROLL | ES_READONLY
+    EDITTEXT        IDC_EDIT_AUTHOR,57,54,200,10,ES_AUTOHSCROLL | ES_READONLY
     LTEXT           "Author:",-1,7,56,43,8,0,WS_EX_RIGHT
-    EDITTEXT        IDC_EDIT_DESCRIPTION,57,68,255,12,ES_AUTOHSCROLL
-    LTEXT           "Description:",-1,7,69,43,8,0,WS_EX_RIGHT
+    EDITTEXT        IDC_EDIT_DESCRIPTION,57,66,255,10,ES_AUTOHSCROLL
+    LTEXT           "Description:",-1,7,67,43,8,0,WS_EX_RIGHT
     GROUPBOX        "Game System",-1,112,137,85,64
     RADIOBUTTON     "Game Boy Advance",IDC_REC_GBA,116,149,79,10,WS_DISABLED | WS_GROUP
     RADIOBUTTON     "Game Boy Color",IDC_REC_GBC,116,162,67,10,WS_DISABLED

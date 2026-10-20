@@ -966,6 +966,30 @@ static void SetRecordEmuSettings()
 #endif
 }
 
+int VBAGetCurrentCoreVersion()
+{
+#if defined(USE_GBA_CORE_V7) || defined(USE_GB_CORE_V7)
+	return MOVIE_CORE_VERSION_V7;
+#else
+	return MOVIE_CORE_VERSION_V8;
+#endif
+}
+
+int VBAMovieGetCoreVersion(const SMovie &movie)
+{
+	// The VBM format has no dedicated core-version field.  V7's
+	// SetRecordEmuSettings() always sets SRAMINITFIX, and sets LAGHACK when
+	// the lag hack is enabled.  V8 sets neither bit.  This is the only
+	// reliable distinction available in existing V7/V8 recordings.
+	if (movie.header.optionFlags & (MOVIE_SETTING_SRAMINITFIX | MOVIE_SETTING_LAGHACK))
+		return MOVIE_CORE_VERSION_V7;
+
+	// Recordings made before those flags were introduced, or by another
+	// tool, cannot be distinguished from V8.  Treat them as V8: V8 can play
+	// V7 movies, so this is the safe default when the information is absent.
+	return MOVIE_CORE_VERSION_V8;
+}
+
 uint16 VBAMovieGetCurrentInputOf(int which, bool normalOnly)
 {
 	if (which < 0 || which >= MOVIE_NUM_OF_POSSIBLE_CONTROLLERS)

@@ -38,6 +38,7 @@ protected:
 protected:
 	SMovie  movieInfo;
 	int     pauseFrame;
+	bool    coreMismatch;
 
 	// Generated message map functions
 	//{{AFX_MSG(GBACheatList)

@@ -30,6 +30,13 @@
 #  define MOVIE_UNKNOWN_ERROR (-2147483647 - 1)
 #endif
 
+// Core versions detectable from the existing VBM header.  The movie format
+// itself is unchanged; these values are derived from fields that V7/V8
+// already write (see VBAMovieGetCoreVersion).
+#define MOVIE_CORE_VERSION_UNKNOWN 0
+#define MOVIE_CORE_VERSION_V7      7
+#define MOVIE_CORE_VERSION_V8      8
+
 #define VBM_MAGIC (0x1a4D4256) // VBM0x1a
 #define VBM_VERSION (1)
 #define VBM_HEADER_SIZE (64)
@@ -155,6 +162,8 @@ struct SMovie
 };
 
 // methods used by the user-interface code
+int VBAGetCurrentCoreVersion();
+int VBAMovieGetCoreVersion(const SMovie &movie);
 int VBAMovieOpen(const char *filename, bool8 read_only);
 int VBAMovieCreate(const char *filename, const char *authorInfo, uint8 startFlags, uint8 controllerFlags, uint8 typeFlags);
 int VBAMovieGetInfo(const char *filename, SMovie*info);

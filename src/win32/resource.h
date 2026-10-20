@@ -598,6 +598,7 @@
 #define IDC_LABEL_FRAMES                1412
 #define IDC_LABEL_RERECORD              1413
 #define IDC_LABEL_FROM                  1414
+#define IDC_LABEL_CORE_VERSION          1415
 #define IDC_LABEL_WARNING1              1416
 #define IDC_LABEL_WARNING2              1417
 #define IDC_LABEL_FROM2                 1418

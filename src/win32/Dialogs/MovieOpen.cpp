@@ -20,6 +20,8 @@
 IMPLEMENT_DYNAMIC(MovieOpen, CDialog)
 MovieOpen::MovieOpen(CWnd *pParent /*=NULL*/)
 	: CDialog(MovieOpen::IDD, pParent)
+	, pauseFrame(0)
+	, coreMismatch(false)
 {}
 
 MovieOpen::~MovieOpen()
@@ -39,6 +41,8 @@ BOOL MovieOpen::OnInitDialog()
 	GetDlgItem(IDC_CHECK_HIDEBORDER)->ShowWindow(FALSE);
 	GetDlgItem(IDC_LABEL_WARNING1)->SetWindowText("");
 	GetDlgItem(IDC_LABEL_WARNING2)->SetWindowText("");
+	GetDlgItem(IDC_LABEL_CORE_VERSION)->SetWindowText("");
+	coreMismatch = false;
 	GetDlgItem(IDC_EDIT_PAUSEFRAME)->SetWindowText("");
 	GetDlgItem(IDC_EDIT_PAUSEFRAME)->EnableWindow(FALSE);
 	GetDlgItem(IDC_CHECK_PAUSEFRAME)->EnableWindow(FALSE);
@@ -186,6 +190,19 @@ void MovieOpen::OnBnClickedMovieRefresh()
 
 	if (VBAMovieGetInfo(moviePhysicalName, &movieInfo) == MOVIE_SUCCESS)
 	{
+		int movieCore   = VBAMovieGetCoreVersion(movieInfo);
+		int currentCore = VBAGetCurrentCoreVersion();
+		coreMismatch    = (movieCore != currentCore);
+
+		char coreText[128];
+		if (coreMismatch)
+			sprintf(coreText, "V%d (current: V%d - desync expected)", movieCore, currentCore);
+		else
+			sprintf(coreText, "V%d", movieCore);
+
+		SetDlgItemText(IDC_LABEL_CORE_VERSION, coreText);
+		GetDlgItem(IDC_LABEL_CORE_VERSION)->Invalidate();
+
 		if (movieInfo.readOnly)
 		{
 			CheckDlgButton(IDC_READONLY, TRUE);
@@ -341,6 +358,8 @@ void MovieOpen::OnBnClickedMovieRefresh()
 		GetDlgItem(IDC_LABEL_LENGTH)->SetWindowText(" ");
 		GetDlgItem(IDC_LABEL_FRAMES)->SetWindowText(" ");
 		GetDlgItem(IDC_LABEL_RERECORD)->SetWindowText(" ");
+		GetDlgItem(IDC_LABEL_CORE_VERSION)->SetWindowText(" ");
+		coreMismatch = false;
 		m_editAuthor.SetWindowText(" ");
 		m_editDescription.SetWindowText(" ");
 		m_warning1.SetWindowText(" ");
@@ -363,6 +382,15 @@ HBRUSH MovieOpen::OnCtlColor(CDC *pDC, CWnd *pWnd, UINT nCtlColor)
 	switch (nCtlColor)
 	{
 	case CTLCOLOR_STATIC:
+		if (pWnd->GetDlgCtrlID() == IDC_LABEL_CORE_VERSION && coreMismatch)
+		{
+			// Keep the dialog background brush: returning NULL_BRUSH here
+			// leaves the old, longer text visible when a shorter version is
+			// shown next.
+			HBRUSH hbr = CDialog::OnCtlColor(pDC, pWnd, nCtlColor);
+			pDC->SetTextColor(RGB(255, 0, 0));  // use red for a core-version mismatch
+			return hbr;
+		}
 		if (pWnd == &m_warning2)
 		{
 			char   romTitle[12];
