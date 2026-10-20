@@ -101,6 +101,13 @@ void flashReadGame(gzFile gzFile, int version)
 	else
 	{
 		utilReadData(gzFile, flashSaveData3);
+		// flashSize is restored by the read above, but the device and
+		// manufacturer IDs are only derived inside flashSetSize(). Without
+		// this call they keep whatever the current session had (usually 64K
+		// from the ROM load), so a 128K save gets reported as 64K and the
+		// upper half becomes unreachable. That makes playback depend on the
+		// session state instead of on the state being loaded.
+		flashSetSize(flashSize);
 	}
 }
 
