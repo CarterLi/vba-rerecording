@@ -5,6 +5,9 @@
 // GBACheatsDlg.h : header file
 //
 
+#include <set>
+#include <vector>
+
 /////////////////////////////////////////////////////////////////////////////
 // GBACheatSearch dialog
 
@@ -79,16 +82,17 @@ public:
 	bool addCheat();
 	afx_msg void OnSizeType(UINT id);
 	afx_msg void OnNumberType(UINT id);
-	AddCheat(u32 address, CWnd*pParent = NULL);  // standard constructor
+	AddCheat(u32 address, CWnd*pParent = NULL, int editIndex = -1, bool initialEnabled = true);  // standard constructor
 
 	// Dialog Data
 	//{{AFX_DATA(AddCheat)
 	enum { IDD = IDD_ADD_CHEAT };
-	CEdit m_value;
-	CEdit m_desc;
-	CEdit m_address;
-	int   sizeType;
-	int   numberType;
+	CEdit   m_value;
+	CEdit   m_desc;
+	CEdit   m_address;
+	CButton m_enabled;
+	int     sizeType;
+	int     numberType;
 	//}}AFX_DATA
 
 	// Overrides
@@ -101,6 +105,8 @@ protected:
 	// Implementation
 protected:
 	u32   address;
+	int   editIndex;
+	bool  initialEnabled;
 
 	// Generated message map functions
 	//{{AFX_MSG(AddCheat)
@@ -112,6 +118,16 @@ protected:
 };
 /////////////////////////////////////////////////////////////////////////////
 // GBACheatList dialog
+
+struct GBACheatListRow
+{
+	enum { GROUP, CHEAT };
+
+	int  kind;
+	int  first;
+	int  count;
+	bool expanded;
+};
 
 class GBACheatList : public CDialog
 {
@@ -138,6 +154,14 @@ protected:
 protected:
 	bool duringRefresh;
 	bool restoreValues;
+	std::vector<GBACheatListRow> rows;
+	std::set<int> expandedGroups;
+
+	void rebuildRows();
+	void selectRow(int index);
+	void updateButtonStates();
+	void editGroup(int rowIndex);
+	void editCheat(int cheatIndex);
 
 	// Generated message map functions
 	//{{AFX_MSG(GBACheatList)
@@ -146,11 +170,13 @@ protected:
 	afx_msg void OnAddCodebreaker();
 	afx_msg void OnAddGameshark();
 	afx_msg void OnEnable();
+	afx_msg void OnEdit();
 	afx_msg void OnRemove();
-	afx_msg void OnRemoveAll();
 	afx_msg void OnRestore();
 	afx_msg void OnOk();
+	afx_msg void OnItemchangingCheatList(NMHDR*pNMHDR, LRESULT*pResult);
 	afx_msg void OnItemchangedCheatList(NMHDR*pNMHDR, LRESULT*pResult);
+	afx_msg void OnClickCheatList(NMHDR*pNMHDR, LRESULT*pResult);
 	virtual BOOL OnInitDialog();
 	//}}AFX_MSG
 	DECLARE_MESSAGE_MAP()
@@ -162,13 +188,15 @@ class AddGSACode : public CDialog
 {
 	// Construction
 public:
-	AddGSACode(CWnd*pParent = NULL);  // standard constructor
+	AddGSACode(CWnd*pParent = NULL, const char *code = NULL, const char *desc = NULL,
+	           int editIndex = -1, int editCount = 1, bool initialEnabled = true);
 
 	// Dialog Data
 	//{{AFX_DATA(AddGSACode)
 	enum { IDD = IDD_ADD_CHEAT_DLG };
-	CEdit m_desc;
-	CEdit m_code;
+	CEdit   m_desc;
+	CEdit   m_code;
+	CButton m_enabled;
 	//}}AFX_DATA
 
 	// Overrides
@@ -180,6 +208,12 @@ protected:
 
 	// Implementation
 protected:
+	CString initialCode;
+	CString initialDesc;
+	int     editIndex;
+	int     editCount;
+	bool    initialEnabled;
+
 	// Generated message map functions
 	//{{AFX_MSG(AddGSACode)
 	afx_msg void OnOk();
@@ -196,13 +230,15 @@ class AddCBACode : public CDialog
 {
 	// Construction
 public:
-	AddCBACode(CWnd*pParent = NULL);  // standard constructor
+	AddCBACode(CWnd*pParent = NULL, const char *code = NULL, const char *desc = NULL,
+	           int editIndex = -1, int editCount = 1, bool initialEnabled = true);
 
 	// Dialog Data
 	//{{AFX_DATA(AddCBACode)
 	enum { IDD = IDD_ADD_CHEAT_DLG };
-	CEdit m_desc;
-	CEdit m_code;
+	CEdit   m_desc;
+	CEdit   m_code;
+	CButton m_enabled;
 	//}}AFX_DATA
 
 	// Overrides
@@ -214,6 +250,12 @@ protected:
 
 	// Implementation
 protected:
+	CString initialCode;
+	CString initialDesc;
+	int     editIndex;
+	int     editCount;
+	bool    initialEnabled;
+
 	// Generated message map functions
 	//{{AFX_MSG(AddCBACode)
 	afx_msg void OnOk();
@@ -230,13 +272,15 @@ class AddCheatCode : public CDialog
 {
 	// Construction
 public:
-	AddCheatCode(CWnd*pParent = NULL);  // standard constructor
+	AddCheatCode(CWnd*pParent = NULL, const char *code = NULL, const char *desc = NULL,
+	             int editIndex = -1, int editCount = 1, bool initialEnabled = true);
 
 	// Dialog Data
 	//{{AFX_DATA(AddCheatCode)
 	enum { IDD = IDD_ADD_CHEAT_DLG };
-	CEdit m_desc;
-	CEdit m_code;
+	CEdit   m_desc;
+	CEdit   m_code;
+	CButton m_enabled;
 	//}}AFX_DATA
 
 	// Overrides
@@ -248,6 +292,12 @@ protected:
 
 	// Implementation
 protected:
+	CString initialCode;
+	CString initialDesc;
+	int     editIndex;
+	int     editCount;
+	bool    initialEnabled;
+
 	// Generated message map functions
 	//{{AFX_MSG(AddCheatCode)
 	afx_msg void OnOk();

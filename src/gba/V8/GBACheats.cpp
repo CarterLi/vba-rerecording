@@ -1,5 +1,6 @@
 #include <cstdio>
 #include <cctype>
+#include <cstdlib>
 #include <cstring>
 
 #include "../../common/System.h"
@@ -1573,18 +1574,24 @@ void cheatsDisable(int i)
 	}
 }
 
-bool cheatsVerifyCheatCode(const char *code, const char *desc)
+static bool cheatsParseCheatCode(const char *code, u32 &address, u32 &value, bool showMessage,
+                                 size_t *codeLen = NULL)
 {
 	size_t len = strlen(code);
+	if (codeLen)
+		*codeLen = len;
+
 	if (len != 11 && len != 13 && len != 17)
 	{
-		systemMessage(MSG_INVALID_CHEAT_CODE, N_("Invalid cheat code '%s': wrong length"), code);
+		if (showMessage)
+			systemMessage(MSG_INVALID_CHEAT_CODE, N_("Invalid cheat code '%s': wrong length"), code);
 		return false;
 	}
 
 	if (code[8] != ':')
 	{
-		systemMessage(MSG_INVALID_CHEAT_CODE, N_("Invalid cheat code '%s': no colon"), code);
+		if (showMessage)
+			systemMessage(MSG_INVALID_CHEAT_CODE, N_("Invalid cheat code '%s': no colon"), code);
 		return false;
 	}
 
@@ -1594,8 +1601,9 @@ bool cheatsVerifyCheatCode(const char *code, const char *desc)
 		if (!CHEAT_IS_HEX(code[i]))
 		{
 			// wrong cheat
-			systemMessage(MSG_INVALID_CHEAT_CODE,
-			              N_("Invalid cheat code '%s': first part is not hex"), code);
+			if (showMessage)
+				systemMessage(MSG_INVALID_CHEAT_CODE,
+				              N_("Invalid cheat code '%s': first part is not hex"), code);
 			return false;
 		}
 	}
@@ -1604,19 +1612,15 @@ bool cheatsVerifyCheatCode(const char *code, const char *desc)
 		if (!CHEAT_IS_HEX(code[i]))
 		{
 			// wrong cheat
-			systemMessage(MSG_INVALID_CHEAT_CODE,
-			              N_("Invalid cheat code '%s' second part is not hex"), code);
+			if (showMessage)
+				systemMessage(MSG_INVALID_CHEAT_CODE,
+				              N_("Invalid cheat code '%s' second part is not hex"), code);
 			return false;
 		}
 	}
 
-	u32 address = 0;
-	u32 value	= 0;
-
-	char buffer[10];
-	strncpy(buffer, code, 8);
-	buffer[8] = 0;
-	sscanf(buffer, "%x", &address);
+	address = (u32)strtoul(code, NULL, 16);
+	value	= (u32)strtoul(code + 9, NULL, 16);
 
 	switch (address >> 24)
 	{
@@ -1634,14 +1638,31 @@ bool cheatsVerifyCheatCode(const char *code, const char *desc)
 	case 0x0D:
 		break;
 	default:
-		systemMessage(MSG_INVALID_CHEAT_CODE_ADDRESS,
-		              N_("Invalid cheat code address: %08x"),
-		              address);
+		if (showMessage)
+			systemMessage(MSG_INVALID_CHEAT_CODE_ADDRESS,
+			              N_("Invalid cheat code address: %08x"),
+			              address);
 		return false;
 	}
 
-	strncpy(buffer, &code[9], 8);
-	sscanf(buffer, "%x", &value);
+	return true;
+}
+
+bool cheatsValidateCheatCode(const char *code, bool showMessage)
+{
+	u32 address = 0;
+	u32 value	= 0;
+	return cheatsParseCheatCode(code, address, value, showMessage);
+}
+
+bool cheatsVerifyCheatCode(const char *code, const char *desc)
+{
+	u32 address = 0;
+	u32 value	= 0;
+	size_t len	= 0;
+	if (!cheatsParseCheatCode(code, address, value, true, &len))
+		return false;
+
 	int type = 0;
 	if (len == 13)
 		type = 114;
@@ -1715,37 +1736,41 @@ void cheatsDecryptGSACode(u32 &address, u32 &value, bool v3)
 	}
 }
 
-void cheatsAddGSACode(const char *code, const char *desc, bool v3)
+bool cheatsValidateGSACode(const char *code, bool showMessage)
 {
 	if (strlen(code) != 16)
 	{
 		// wrong cheat
-		systemMessage(MSG_INVALID_GSA_CODE,
-		              N_("Invalid GSA code. Format is XXXXXXXXYYYYYYYY"));
-		return;
+		if (showMessage)
+			systemMessage(MSG_INVALID_GSA_CODE,
+			              N_("Invalid GSA code. Format is XXXXXXXXYYYYYYYY"));
+		return false;
 	}
 
-	int i;
-	for (i = 0; i < 16; i++)
+	for (int i = 0; i < 16; i++)
 	{
 		if (!CHEAT_IS_HEX(code[i]))
 		{
 			// wrong cheat
-			systemMessage(MSG_INVALID_GSA_CODE,
-			              N_("Invalid GSA code. Format is XXXXXXXXYYYYYYYY"));
-			return;
+			if (showMessage)
+				systemMessage(MSG_INVALID_GSA_CODE,
+				              N_("Invalid GSA code. Format is XXXXXXXXYYYYYYYY"));
+			return false;
 		}
 	}
+	return true;
+}
 
-	char buffer[10];
-	strncpy(buffer, code, 8);
-	buffer[8] = 0;
-	u32 address;
-	sscanf(buffer, "%x", &address);
-	strncpy(buffer, &code[8], 8);
-	buffer[8] = 0;
-	u32 value;
-	sscanf(buffer, "%x", &value);
+void cheatsAddGSACode(const char *code, const char *desc, bool v3)
+{
+	if (!cheatsValidateGSACode(code))
+		return;
+
+	char buffer[9];
+	memcpy(buffer, code, 8);
+	buffer[8]	= 0;
+	u32 address = (u32)strtoul(buffer, NULL, 16);
+	u32 value   = (u32)strtoul(code + 8, NULL, 16);
 	cheatsGSAChangeEncryption(cheatsGSAGetDeadface(v3), v3);
 	cheatsDecryptGSACode(address, value, v3);
 
@@ -2634,55 +2659,58 @@ bool cheatsCBAShouldDecrypt()
 	return false;
 }
 
-void cheatsAddCBACode(const char *code, const char *desc)
+bool cheatsValidateCBACode(const char *code, bool showMessage)
 {
 	if (strlen(code) != 13)
 	{
 		// wrong cheat
-		systemMessage(MSG_INVALID_CBA_CODE,
-		              N_("Invalid CBA code. Format is XXXXXXXX YYYY."));
-		return;
+		if (showMessage)
+			systemMessage(MSG_INVALID_CBA_CODE,
+			              N_("Invalid CBA code. Format is XXXXXXXX YYYY."));
+		return false;
 	}
 
-	int i;
-	for (i = 0; i < 8; i++)
+	for (int i = 0; i < 8; i++)
 	{
 		if (!CHEAT_IS_HEX(code[i]))
 		{
 			// wrong cheat
-			systemMessage(MSG_INVALID_CBA_CODE,
-			              N_("Invalid CBA code. Format is XXXXXXXX YYYY."));
-			return;
+			if (showMessage)
+				systemMessage(MSG_INVALID_CBA_CODE,
+				              N_("Invalid CBA code. Format is XXXXXXXX YYYY."));
+			return false;
 		}
 	}
 
 	if (code[8] != ' ')
 	{
-		systemMessage(MSG_INVALID_CBA_CODE,
-		              N_("Invalid CBA code. Format is XXXXXXXX YYYY."));
-		return;
+		if (showMessage)
+			systemMessage(MSG_INVALID_CBA_CODE,
+			              N_("Invalid CBA code. Format is XXXXXXXX YYYY."));
+		return false;
 	}
 
-	for (i = 9; i < 13; i++)
+	for (int i = 9; i < 13; i++)
 	{
 		if (!CHEAT_IS_HEX(code[i]))
 		{
 			// wrong cheat
-			systemMessage(MSG_INVALID_CBA_CODE,
-			              N_("Invalid CBA code. Format is XXXXXXXX YYYY."));
-			return;
+			if (showMessage)
+				systemMessage(MSG_INVALID_CBA_CODE,
+				              N_("Invalid CBA code. Format is XXXXXXXX YYYY."));
+			return false;
 		}
 	}
+	return true;
+}
 
-	char buffer[10];
-	strncpy(buffer, code, 8);
-	buffer[8] = 0;
-	u32 address;
-	sscanf(buffer, "%x", &address);
-	strncpy(buffer, &code[9], 4);
-	buffer[4] = 0;
-	u32 value;
-	sscanf(buffer, "%x", &value);
+void cheatsAddCBACode(const char *code, const char *desc)
+{
+	if (!cheatsValidateCBACode(code))
+		return;
+
+	u32 address = (u32)strtoul(code, NULL, 16);
+	u32 value   = (u32)strtoul(code + 9, NULL, 16);
 
 	u8 array[8] = {
 		address &255,
@@ -2870,17 +2898,15 @@ void cheatsReadGame(gzFile file, int version)
 		if (cheatsList[i].code == 512 && firstCodeBreaker)
 		{
 			firstCodeBreaker = false;
-			char buffer[10];
-			strncpy(buffer, cheatsList[i].codestring, 8);
+			char buffer[9];
+			memcpy(buffer, cheatsList[i].codestring, 8);
 			buffer[8] = 0;
-			u32 address;
-			sscanf(buffer, "%x", &address);
+			u32 address = (u32)strtoul(buffer, NULL, 16);
 			if ((address >> 28) == 9)
 			{
-				strncpy(buffer, &cheatsList[i].codestring[9], 4);
+				memcpy(buffer, cheatsList[i].codestring + 9, 4);
 				buffer[4] = 0;
-				u32 value;
-				sscanf(buffer, "%x", &value);
+				u32 value = (u32)strtoul(buffer, NULL, 16);
 
 				u32 seed[8];
 				cheatsCBAParseSeedCode(address, value, seed);
@@ -3037,17 +3063,15 @@ bool cheatsLoadCheatList(const char *file)
 		if (cheatsList[i].code == 512 && firstCodeBreaker)
 		{
 			firstCodeBreaker = false;
-			char buffer[10];
-			strncpy(buffer, cheatsList[i].codestring, 8);
+			char buffer[9];
+			memcpy(buffer, cheatsList[i].codestring, 8);
 			buffer[8] = 0;
-			u32 address;
-			sscanf(buffer, "%x", &address);
+			u32 address = (u32)strtoul(buffer, NULL, 16);
 			if ((address >> 28) == 9)
 			{
-				strncpy(buffer, &cheatsList[i].codestring[9], 4);
+				memcpy(buffer, cheatsList[i].codestring + 9, 4);
 				buffer[4] = 0;
-				u32 value;
-				sscanf(buffer, "%x", &value);
+				u32 value = (u32)strtoul(buffer, NULL, 16);
 
 				u32 seed[8];
 				cheatsCBAParseSeedCode(address, value, seed);

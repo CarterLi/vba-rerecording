@@ -33,6 +33,304 @@ bool winGbaCheatReaddress()
 	return true;
 }
 
+enum GBACheatType
+{
+	GBA_CHEAT_TYPE_CODE,
+	GBA_CHEAT_TYPE_GAMESHARK,
+	GBA_CHEAT_TYPE_CODEBREAKER
+};
+
+static GBACheatType gbaCheatType(int code)
+{
+	if (code == 512)
+		return GBA_CHEAT_TYPE_CODEBREAKER;
+	if (code == 256 || code == 257)
+		return GBA_CHEAT_TYPE_GAMESHARK;
+	return GBA_CHEAT_TYPE_CODE;
+}
+
+static const char *gbaCheatTypeName(int code)
+{
+	switch (gbaCheatType(code))
+	{
+	case GBA_CHEAT_TYPE_GAMESHARK:
+		return "Gameshark";
+	case GBA_CHEAT_TYPE_CODEBREAKER:
+		return "CodeBreaker";
+	default:
+		return "Code";
+	}
+}
+
+// Keep LVS_EX_CHECKBOXES for native checkbox images.  Group rows use two
+// extra state images, rendered from the Unicode arrow glyphs, so they show
+// an expand/collapse arrow where a checkbox would normally appear.
+enum GBACheatState
+{
+	CHEAT_STATE_COLLAPSED = 3,
+	CHEAT_STATE_EXPANDED  = 4
+};
+
+static bool addCheatArrowImages(CListCtrl &list)
+{
+	CImageList *images = list.GetImageList(LVSIL_STATE);
+	if (!images)
+		return false;
+
+	IMAGEINFO info;
+	if (!images->GetImageInfo(0, &info))
+		return false;
+
+	int cx = info.rcImage.right - info.rcImage.left;
+	int cy = info.rcImage.bottom - info.rcImage.top;
+	if (cx <= 0 || cy <= 0)
+		return false;
+
+	CClientDC screenDC(NULL);
+	CDC dc;
+	if (!dc.CreateCompatibleDC(&screenDC))
+		return false;
+
+	CBitmap bitmap;
+	if (!bitmap.CreateCompatibleBitmap(&screenDC, cx, cy))
+		return false;
+
+	CBitmap *oldBitmap = dc.SelectObject(&bitmap);
+	const COLORREF maskColor = RGB(255, 0, 255);
+
+	LOGFONTW lf;
+	memset(&lf, 0, sizeof(lf));
+	int fontHeight = cy - 2;
+	if (fontHeight < 8)
+		fontHeight = cy;
+	lf.lfHeight = -fontHeight;
+	lf.lfWeight = FW_NORMAL;
+	lf.lfCharSet = DEFAULT_CHARSET;
+	lf.lfOutPrecision = OUT_DEFAULT_PRECIS;
+	lf.lfClipPrecision = CLIP_DEFAULT_PRECIS;
+	lf.lfQuality = NONANTIALIASED_QUALITY;
+	lf.lfPitchAndFamily = DEFAULT_PITCH | FF_DONTCARE;
+	lstrcpynW(lf.lfFaceName, L"Segoe UI Symbol", LF_FACESIZE);
+
+	HFONT font = ::CreateFontIndirectW(&lf);
+	HGDIOBJ oldFont = NULL;
+	if (font)
+		oldFont = ::SelectObject(dc.GetSafeHdc(), font);
+
+	dc.SetBkMode(TRANSPARENT);
+	dc.SetTextColor(RGB(0, 0, 0));
+
+	const wchar_t *arrows[2] = { L"\u25B6", L"\u25BC" };
+	bool ok = true;
+	for (int i = 0; i < 2; i++)
+	{
+		dc.FillSolidRect(0, 0, cx, cy, maskColor);
+		CRect rect(0, 0, cx, cy);
+		::DrawTextW(dc.GetSafeHdc(), arrows[i], -1, &rect,
+		            DT_CENTER | DT_VCENTER | DT_SINGLELINE | DT_NOPREFIX);
+
+		// ImageList_Add() requires a bitmap that is not selected into a DC.
+		dc.SelectObject(oldBitmap);
+		int added = images->Add(&bitmap, maskColor);
+		if (added == -1)
+		{
+			ok = false;
+			break;
+		}
+		dc.SelectObject(&bitmap);
+	}
+
+	if (font)
+	{
+		::SelectObject(dc.GetSafeHdc(), oldFont);
+		::DeleteObject(font);
+	}
+	dc.SelectObject(oldBitmap);
+	return ok;
+}
+
+static bool gbaCheatsCanGroup(int first, int second)
+{
+	if (first < 0 || second < 0 || first >= cheatsNumber || second >= cheatsNumber)
+		return false;
+	if (!cheatsList[first].desc[0] || strcmp(cheatsList[first].desc, cheatsList[second].desc) != 0)
+		return false;
+	return gbaCheatType(cheatsList[first].code) == gbaCheatType(cheatsList[second].code);
+}
+
+static void deleteCheatRange(int first, int count)
+{
+	for (int i = first + count - 1; i >= first; i--)
+		cheatsDelete(i, false);
+}
+
+// A GSA v3 code is stored as 16 hex digits.  The batch dialog treats a
+// single 16-digit token as v1/v2 and an 8+8 token pair as v3, so insert a
+// separator when editing v3 codes to keep their encryption mode intact.
+static CString gsaV3CodeForEdit(const char *code)
+{
+	CString result = code;
+	if (result.GetLength() == 16)
+		result.Insert(8, ' ');
+	return result;
+}
+
+static void addInvalidCode(CString &errors, const CString &code)
+{
+	if (!errors.IsEmpty())
+		errors += "\r\n";
+	errors += code;
+}
+
+static bool reportInvalidCodes(const CString &errors)
+{
+	if (errors.IsEmpty())
+		return false;
+	systemMessage(IDS_INVALID_CHEAT_CODES, N_("Invalid cheat code(s):\n%s"), (LPCSTR)errors);
+	return true;
+}
+
+static bool processRawCheatCodes(const CString &buffer, const CString &desc, bool apply, int *codeCount = NULL)
+{
+	StringTokenizer st(buffer, " \t\n\r");
+	const char *t = st.next();
+	if (!t)
+	{
+		systemMessage(0, N_("Code cannot be empty"));
+		return false;
+	}
+
+	CString errors;
+	int count = 0;
+	while (t)
+	{
+		CString token = t;
+		token.MakeUpper();
+		if (!cheatsValidateCheatCode(token, false))
+		{
+			if (!apply)
+				addInvalidCode(errors, token);
+		}
+		else
+		{
+			if (apply)
+				cheatsAddCheatCode(token, desc);
+			count++;
+		}
+		t = st.next();
+	}
+
+	if (!apply && reportInvalidCodes(errors))
+		return false;
+
+	if (codeCount)
+		*codeCount = count;
+	return true;
+}
+
+static bool processGsaCbaCodes(const CString &buffer, const CString &desc, bool apply, int *codeCount = NULL)
+{
+	StringTokenizer st(buffer, " \t\n\r");
+	CString part1;
+	CString errors;
+	int count = 0;
+
+	const char *t = st.next();
+	if (!t)
+	{
+		systemMessage(0, N_("Code cannot be empty"));
+		return false;
+	}
+
+	while (t)
+	{
+		CString token = t;
+		token.MakeUpper();
+		if (token.GetLength() == 16)
+		{
+			if (!cheatsValidateGSACode(token, false))
+			{
+				if (!apply)
+					addInvalidCode(errors, token);
+			}
+			else
+			{
+				if (apply)
+					cheatsAddGSACode(token, desc, false);
+				count++;
+			}
+		}
+		else if (token.GetLength() == 12)
+		{
+			CString code = token.Left(8) + " " + token.Right(4);
+			if (!cheatsValidateCBACode(code, false))
+			{
+				if (!apply)
+					addInvalidCode(errors, code);
+			}
+			else
+			{
+				if (apply)
+					cheatsAddCBACode(code, desc);
+				count++;
+			}
+		}
+		else if (part1.IsEmpty())
+			part1 = token;
+		else
+		{
+			CString code;
+			if (token.GetLength() == 4)
+			{
+				code = part1 + " " + token;
+				if (!cheatsValidateCBACode(code, false))
+				{
+					if (!apply)
+						addInvalidCode(errors, code);
+				}
+				else
+				{
+					if (apply)
+						cheatsAddCBACode(code, desc);
+					count++;
+				}
+			}
+			else
+			{
+				code = part1 + token;
+				if (!cheatsValidateGSACode(code, false))
+				{
+					if (!apply)
+						addInvalidCode(errors, code);
+				}
+				else
+				{
+					if (apply)
+						cheatsAddGSACode(code, desc, true);
+					count++;
+				}
+			}
+			part1.Empty();
+		}
+
+		t = st.next();
+	}
+
+	if (!part1.IsEmpty())
+	{
+		// an odd number of tokens was entered
+		if (!apply)
+			addInvalidCode(errors, part1);
+	}
+
+	if (!apply && reportInvalidCodes(errors))
+		return false;
+
+	if (codeCount)
+		*codeCount = count;
+	return true;
+}
+
 /////////////////////////////////////////////////////////////////////////////
 // GBACheatSearch dialog
 
@@ -173,13 +471,13 @@ void GBACheatSearch::OnSearch()
 		switch (numberType)
 		{
 		case 0:
-			sscanf(buffer, "%d", &value);
+			value = (int)strtol(buffer, NULL, 10);
 			break;
 		case 1:
-			sscanf(buffer, "%u", &value);
+			value = (int)strtoul(buffer, NULL, 10);
 			break;
 		default:
-			sscanf(buffer, "%x", &value);
+			value = (int)strtoul(buffer, NULL, 16);
 		}
 		cheatSearchValue(&cheatSearchData,
 		                 searchType,
@@ -579,7 +877,7 @@ void GBACheatSearch::OnSizeType(UINT id)
 /////////////////////////////////////////////////////////////////////////////
 // AddCheat dialog
 
-AddCheat::AddCheat(u32 address, CWnd*pParent /*=NULL*/)
+AddCheat::AddCheat(u32 address, CWnd*pParent /*=NULL*/, int editIndex /*=-1*/, bool initialEnabled /*=true*/)
 	: CDialog(AddCheat::IDD, pParent)
 {
 	//{{AFX_DATA_INIT(AddCheat)
@@ -591,6 +889,20 @@ AddCheat::AddCheat(u32 address, CWnd*pParent /*=NULL*/)
 		sizeType = 0;
 	//}}AFX_DATA_INIT
 	this->address = address;
+	this->editIndex = editIndex;
+	this->initialEnabled = initialEnabled;
+	if (editIndex >= 0 && editIndex < cheatsNumber)
+	{
+		this->address = cheatsList[editIndex].address;
+		sizeType = cheatsList[editIndex].size;
+		// V8 stores raw 16/32-bit codes with these internal type values.
+		if (sizeType == 114)
+			sizeType = 1;
+		else if (sizeType == 115)
+			sizeType = 2;
+		if (sizeType < 0 || sizeType > 2)
+			sizeType = 0;
+	}
 }
 
 void AddCheat::DoDataExchange(CDataExchange*pDX)
@@ -600,6 +912,7 @@ void AddCheat::DoDataExchange(CDataExchange*pDX)
 	DDX_Control(pDX, IDC_VALUE, m_value);
 	DDX_Control(pDX, IDC_DESC, m_desc);
 	DDX_Control(pDX, IDC_ADDRESS, m_address);
+	DDX_Control(pDX, IDC_CHEAT_ENABLED, m_enabled);
 	DDX_Radio(pDX, IDC_SIZE_8, sizeType);
 	DDX_Radio(pDX, IDC_SIGNED, numberType);
 	//}}AFX_DATA_MAP
@@ -635,9 +948,30 @@ BOOL AddCheat::OnInitDialog()
 {
 	CDialog::OnInitDialog();
 
-	if (address != 0)
+	CString buffer;
+
+	if (editIndex >= 0 && editIndex < cheatsNumber)
 	{
-		CString buffer;
+		buffer.Format("%08x", cheatsList[editIndex].address);
+		m_address.SetWindowText(buffer);
+
+		switch (numberType)
+		{
+		case 0:
+			buffer.Format("%d", (int)cheatsList[editIndex].value);
+			break;
+		case 1:
+			buffer.Format("%u", cheatsList[editIndex].value);
+			break;
+		default:
+			buffer.Format("%x", cheatsList[editIndex].value);
+			break;
+		}
+		m_value.SetWindowText(buffer);
+		m_desc.SetWindowText(cheatsList[editIndex].desc);
+	}
+	else if (address != 0)
+	{
 		buffer.Format("%08x", address);
 		m_address.SetWindowText(buffer);
 		m_address.EnableWindow(FALSE);
@@ -646,9 +980,20 @@ BOOL AddCheat::OnInitDialog()
 	UpdateData(FALSE);
 
 	GetDlgItem(IDC_DESC)->SendMessage(EM_LIMITTEXT,
-	                                  32,
+	                                  31,
 	                                  0);
-	if (address != 0)
+
+	if (editIndex < 0)
+	{
+		CString desc;
+		m_desc.GetWindowText(desc);
+		if (desc.IsEmpty())
+			m_desc.SetWindowText(CTime::GetCurrentTime().Format("%Y-%m-%d %H:%M:%S"));
+	}
+
+	m_enabled.SetCheck(initialEnabled ? BST_CHECKED : BST_UNCHECKED);
+
+	if (editIndex < 0 && address != 0)
 	{
 		GetDlgItem(IDC_SIZE_8)->EnableWindow(FALSE);
 		GetDlgItem(IDC_SIZE_16)->EnableWindow(FALSE);
@@ -657,6 +1002,9 @@ BOOL AddCheat::OnInitDialog()
 		GetDlgItem(IDC_UNSIGNED)->EnableWindow(FALSE);
 		GetDlgItem(IDC_SIGNED)->EnableWindow(FALSE);
 	}
+
+	if (editIndex >= 0)
+		SetWindowText(winResLoadString(IDS_EDIT_CHEAT));
 
 	CenterWindow();
 
@@ -707,9 +1055,29 @@ bool AddCheat::addCheat()
 	CString buffer;
 	CString code;
 
+	if (editIndex < 0 && cheatsNumber >= MAX_CHEATS)
+	{
+		systemMessage(0, N_("The cheat list is full."));
+		return false;
+	}
+
 	m_address.GetWindowText(buffer);
-	u32 address = 0;
-	sscanf(buffer, "%x", &address);
+	buffer.Trim();
+	if (buffer.IsEmpty())
+	{
+		systemMessage(0, N_("Address cannot be empty"));
+		return false;
+	}
+
+	char *end = NULL;
+	const char *start = buffer;
+	u32 address = (u32)strtoul(start, &end, 16);
+	if (end == start || *end != 0)
+	{
+		systemMessage(0, N_("Invalid address: %s"), (LPCSTR)buffer);
+		return false;
+	}
+
 	if ((address >= 0x02000000 && address < 0x02040000) ||
 	    (address >= 0x03000000 && address < 0x03008000))
 	{}
@@ -731,8 +1099,9 @@ bool AddCheat::addCheat()
 			return false;
 		}
 	}
-	u32 value;
+	u32 value = 0;
 	m_value.GetWindowText(buffer);
+	buffer.Trim();
 
 	if (buffer.IsEmpty())
 	{
@@ -740,16 +1109,23 @@ bool AddCheat::addCheat()
 		return false;
 	}
 
+	end = NULL;
+	start = buffer;
 	switch (numberType)
 	{
 	case 0:
-		sscanf(buffer, "%d", &value);
+		value = (u32)strtol(start, &end, 10);
 		break;
 	case 1:
-		sscanf(buffer, "%u", &value);
+		value = (u32)strtoul(start, &end, 10);
 		break;
 	default:
-		sscanf(buffer, "%x", &value);
+		value = (u32)strtoul(start, &end, 16);
+	}
+	if (end == start || *end != 0)
+	{
+		systemMessage(0, N_("Invalid value: %s"), (LPCSTR)buffer);
+		return false;
 	}
 
 	m_desc.GetWindowText(buffer);
@@ -767,11 +1143,24 @@ bool AddCheat::addCheat()
 		break;
 	}
 
+	if (editIndex >= 0 && editIndex < cheatsNumber)
+		cheatsDelete(editIndex, false);
+
+	int newIndex = cheatsNumber;
+
 #ifdef USE_GBA_CORE_V7
 	cheatsAdd(code, buffer, address, value, -1, sizeType);
 #else
 	cheatsAdd(code, buffer, address, address, value, -1, sizeType);
 #endif
+
+	if (cheatsNumber > newIndex)
+	{
+		if (m_enabled.GetCheck() == BST_CHECKED)
+			cheatsEnable(newIndex);
+		else
+			cheatsDisable(newIndex);
+	}
 
 	return true;
 }
@@ -785,6 +1174,7 @@ GBACheatList::GBACheatList(CWnd*pParent /*=NULL*/)
 	//{{AFX_DATA_INIT(GBACheatList)
 	// NOTE: the ClassWizard will add member initialization here
 	//}}AFX_DATA_INIT
+	duringRefresh = false;
 }
 
 void GBACheatList::DoDataExchange(CDataExchange*pDX)
@@ -803,11 +1193,13 @@ ON_BN_CLICKED(IDC_ADD_CODE, OnAddCode)
 ON_BN_CLICKED(IDC_ADD_CODEBREAKER, OnAddCodebreaker)
 ON_BN_CLICKED(IDC_ADD_GAMESHARK, OnAddGameshark)
 ON_BN_CLICKED(IDC_ENABLE, OnEnable)
+ON_BN_CLICKED(IDC_EDIT, OnEdit)
 ON_BN_CLICKED(IDC_REMOVE, OnRemove)
-ON_BN_CLICKED(IDC_REMOVE_ALL, OnRemoveAll)
 ON_BN_CLICKED(IDC_RESTORE, OnRestore)
 ON_BN_CLICKED(ID_OK, OnOk)
+ON_NOTIFY(LVN_ITEMCHANGING, IDC_CHEAT_LIST, OnItemchangingCheatList)
 ON_NOTIFY(LVN_ITEMCHANGED, IDC_CHEAT_LIST, OnItemchangedCheatList)
+ON_NOTIFY(NM_CLICK, IDC_CHEAT_LIST, OnClickCheatList)
 //}}AFX_MSG_MAP
 END_MESSAGE_MAP()
 
@@ -849,6 +1241,7 @@ void GBACheatList::OnEnable()
 
 	if (mark != -1)
 	{
+		std::vector<bool> handled(cheatsNumber, false);
 		LVITEM item;
 		for (int i = 0; i < count; i++)
 		{
@@ -856,50 +1249,102 @@ void GBACheatList::OnEnable()
 			item.mask      = LVIF_PARAM|LVIF_STATE;
 			item.stateMask = LVIS_SELECTED;
 			item.iItem     = i;
-			if (m_list.GetItem(&item))
+			if (m_list.GetItem(&item) && (item.state & LVIS_SELECTED))
 			{
-				if (item.state & LVIS_SELECTED)
+				if (rows[i].kind == GBACheatListRow::GROUP)
 				{
-					if (cheatsList[item.lParam].enabled)
-						cheatsDisable((int)item.lParam);
+					bool allEnabled = true;
+					for (int j = rows[i].first; j < rows[i].first + rows[i].count; j++)
+					{
+						if (!cheatsList[j].enabled)
+							allEnabled = false;
+						handled[j] = true;
+					}
+					for (int j = rows[i].first; j < rows[i].first + rows[i].count; j++)
+					{
+						if (allEnabled)
+							cheatsDisable(j);
+						else
+							cheatsEnable(j);
+					}
+				}
+				else if (!handled[rows[i].first])
+				{
+					int index = rows[i].first;
+					if (cheatsList[index].enabled)
+						cheatsDisable(index);
 					else
-						cheatsEnable((int)item.lParam);
+						cheatsEnable(index);
+					handled[index] = true;
 				}
 			}
 		}
 		refresh();
 	}
+}
+
+void GBACheatList::OnEdit()
+{
+	if (m_list.GetSelectedCount() != 1)
+		return;
+
+	int mark = m_list.GetSelectionMark();
+	if (mark < 0 || mark >= (int)rows.size())
+		return;
+
+	if (rows[mark].kind == GBACheatListRow::GROUP)
+		editGroup(mark);
+	else
+		editCheat(rows[mark].first);
 }
 
 void GBACheatList::OnRemove()
 {
-	int mark  = m_list.GetSelectionMark();
+	if (m_list.GetSelectedCount() == 0)
+		return;
+
 	int count = m_list.GetItemCount();
-
-	if (mark != -1)
+	std::vector<bool> remove(cheatsNumber, false);
+	LVITEM item;
+	for (int i = 0; i < count; i++)
 	{
-		for (int i = count - 1; i >= 0; i--)
+		memset(&item, 0, sizeof(item));
+		item.mask      = LVIF_PARAM|LVIF_STATE;
+		item.iItem     = i;
+		item.stateMask = LVIS_SELECTED;
+		if (m_list.GetItem(&item) && (item.state & LVIS_SELECTED))
 		{
-			LVITEM item;
-			memset(&item, 0, sizeof(item));
-			item.mask      = LVIF_PARAM|LVIF_STATE;
-			item.iItem     = i;
-			item.stateMask = LVIS_SELECTED;
-			if (m_list.GetItem(&item))
+			if (rows[i].kind == GBACheatListRow::GROUP)
 			{
-				if (item.state & LVIS_SELECTED)
-				{
-					cheatsDelete((int)item.lParam, restoreValues);
-				}
+				for (int j = rows[i].first; j < rows[i].first + rows[i].count; j++)
+					remove[j] = true;
 			}
+			else
+				remove[rows[i].first] = true;
 		}
-		refresh();
 	}
-}
 
-void GBACheatList::OnRemoveAll()
-{
-	cheatsDeleteAll(restoreValues);
+	int deleteCount = 0;
+	for (int i = 0; i < cheatsNumber; i++)
+	{
+		if (remove[i])
+			deleteCount++;
+	}
+	if (deleteCount == 0)
+		return;
+
+	CString format = winResLoadString(IDS_CONFIRM_DELETE_CHEATS);
+	CString message;
+	message.Format((LPCSTR)format, deleteCount);
+	if (MessageBox(message, winResLoadString(IDS_CONFIRM_DELETE),
+	               MB_YESNO | MB_ICONQUESTION) != IDYES)
+		return;
+
+	for (int i = cheatsNumber - 1; i >= 0; i--)
+	{
+		if (remove[i])
+			cheatsDelete(i, restoreValues);
+	}
 	refresh();
 }
 
@@ -914,56 +1359,134 @@ void GBACheatList::OnOk()
 	EndDialog(TRUE);
 }
 
-void GBACheatList::OnItemchangedCheatList(NMHDR*pNMHDR, LRESULT*pResult)
+void GBACheatList::selectRow(int index)
 {
-	if (m_list.GetSelectionMark() != -1)
-	{
-		GetDlgItem(IDC_REMOVE)->EnableWindow(TRUE);
-		GetDlgItem(IDC_ENABLE)->EnableWindow(TRUE);
-	}
-	else
-	{
-		GetDlgItem(IDC_REMOVE)->EnableWindow(FALSE);
-		GetDlgItem(IDC_ENABLE)->EnableWindow(FALSE);
-	}
+	if (index < 0 || index >= m_list.GetItemCount())
+		return;
 
-	if (!duringRefresh)
-	{
-		LPNMLISTVIEW l = (LPNMLISTVIEW)pNMHDR;
-		if (l->uChanged & LVIF_STATE)
-		{
-			if (((l->uOldState & LVIS_STATEIMAGEMASK)>>12) !=
-			    (((l->uNewState & LVIS_STATEIMAGEMASK)>>12)))
-			{
-				if (m_list.GetCheck(l->iItem))
-					cheatsEnable((int)l->lParam);
-				else
-					cheatsDisable((int)l->lParam);
-				refresh();
-			}
-		}
-	}
+	m_list.SetItemState(index, LVIS_SELECTED | LVIS_FOCUSED,
+	                    LVIS_SELECTED | LVIS_FOCUSED);
+	m_list.SetSelectionMark(index);
+	m_list.EnsureVisible(index, FALSE);
+	updateButtonStates();
+}
+
+void GBACheatList::updateButtonStates()
+{
+	int selected = m_list.GetSelectedCount();
+	GetDlgItem(IDC_REMOVE)->EnableWindow(selected > 0);
+	GetDlgItem(IDC_EDIT)->EnableWindow(selected == 1);
+	GetDlgItem(IDC_ENABLE)->EnableWindow(selected > 0);
+}
+
+void GBACheatList::OnItemchangingCheatList(NMHDR*pNMHDR, LRESULT*pResult)
+{
+	*pResult = FALSE;
+
+	if (duringRefresh)
+		return;
+
+	LPNMLISTVIEW info = (LPNMLISTVIEW)pNMHDR;
+	if (info->iItem < 0 || info->iItem >= (int)rows.size())
+		return;
+	if (!(info->uChanged & LVIF_STATE))
+		return;
+	if (((info->uOldState ^ info->uNewState) & LVIS_STATEIMAGEMASK) == 0)
+		return;
+
+	// The checkbox/arrow is handled explicitly in OnClickCheatList().
+	// Rejecting the control's automatic state change also stops the native
+	// checkbox from cycling into the arrow images.
+	*pResult = TRUE;
+}
+
+void GBACheatList::OnItemchangedCheatList(NMHDR*, LRESULT*pResult)
+{
+	updateButtonStates();
+	*pResult = 0;
+}
+
+void GBACheatList::OnClickCheatList(NMHDR*pNMHDR, LRESULT*pResult)
+{
+	LPNMITEMACTIVATE info = (LPNMITEMACTIVATE)pNMHDR;
 
 	*pResult = 0;
+
+	LVHITTESTINFO hit;
+	memset(&hit, 0, sizeof(hit));
+	hit.pt = info->ptAction;
+	int index = m_list.HitTest(&hit);
+
+	if (index < 0 || index >= (int)rows.size())
+		return;
+
+	bool onStateIcon = (hit.flags & LVHT_ONITEMSTATEICON) != 0;
+
+	if (rows[index].kind == GBACheatListRow::GROUP)
+	{
+		if (!onStateIcon &&
+		    ((GetKeyState(VK_CONTROL) & 0x8000) ||
+		     (GetKeyState(VK_SHIFT) & 0x8000)))
+			return;
+
+		int first = rows[index].first;
+		if (expandedGroups.count(first))
+			expandedGroups.erase(first);
+		else
+			expandedGroups.insert(first);
+
+		refresh();
+		selectRow(index);
+	}
+	else if (onStateIcon)
+	{
+		int first = rows[index].first;
+		if (cheatsList[first].enabled)
+			cheatsDisable(first);
+		else
+			cheatsEnable(first);
+
+		refresh();
+		selectRow(index);
+	}
 }
 
 BOOL GBACheatList::OnInitDialog()
 {
 	CDialog::OnInitDialog();
 
+	CRect client;
+	m_list.GetClientRect(&client);
+	int total = client.Width() - GetSystemMetrics(SM_CXVSCROLL);
+	if (total < 220)
+		total = 220;
+
+	int statusWidth = total / 10;
+	if (statusWidth < 40)
+		statusWidth = 40;
+	int typeWidth = total / 4;
+	if (typeWidth < 90)
+		typeWidth = 90;
+
+	int remaining = total - statusWidth - typeWidth;
+	int codeWidth = remaining / 2;
+	int descWidth = remaining - codeWidth;
+
 	CString temp = winResLoadString(IDS_CODE);
-	m_list.InsertColumn(0, temp, LVCFMT_LEFT, 170, 0);
+	m_list.InsertColumn(0, temp, LVCFMT_LEFT, codeWidth, 0);
 	temp = winResLoadString(IDS_DESCRIPTION);
-	m_list.InsertColumn(1, temp, LVCFMT_LEFT, 150, 1);
+	m_list.InsertColumn(1, temp, LVCFMT_LEFT, descWidth, 1);
 	temp = winResLoadString(IDS_STATUS);
-	m_list.InsertColumn(2, temp, LVCFMT_LEFT, 80, 1);
+	m_list.InsertColumn(2, temp, LVCFMT_LEFT, statusWidth, 2);
+	temp = winResLoadString(IDS_TYPE);
+	m_list.InsertColumn(3, temp, LVCFMT_LEFT, typeWidth, 3);
 
 	m_list.SetFont(CFont::FromHandle(uiFont::mono()),
 	               TRUE);
 
-	m_list.SetExtendedStyle(LVS_EX_CHECKBOXES | LVS_EX_FULLROWSELECT);
-
 	duringRefresh = false;
+	m_list.SetExtendedStyle(LVS_EX_CHECKBOXES | LVS_EX_FULLROWSELECT);
+	addCheatArrowImages(m_list);
 
 	restoreValues = regQueryDwordValue("cheatsRestore", 0) ?
 	                true : false;
@@ -971,12 +1494,65 @@ BOOL GBACheatList::OnInitDialog()
 	m_restore.SetCheck(restoreValues);
 
 	refresh();
-	GetDlgItem(IDC_REMOVE)->EnableWindow(FALSE);
-	GetDlgItem(IDC_ENABLE)->EnableWindow(FALSE);
 	CenterWindow();
 
 	return TRUE; // return TRUE unless you set the focus to a control
 	             // EXCEPTION: OCX Property Pages should return FALSE
+}
+
+void GBACheatList::rebuildRows()
+{
+	rows.clear();
+	std::set<int> stillExpanded;
+
+	int i = 0;
+	while (i < cheatsNumber)
+	{
+		int j = i + 1;
+		while (j < cheatsNumber && gbaCheatsCanGroup(i, j))
+			j++;
+
+		int count = j - i;
+		if (count >= 2)
+		{
+			bool expanded = expandedGroups.count(i) != 0;
+			if (expanded)
+				stillExpanded.insert(i);
+
+			GBACheatListRow row;
+			row.kind     = GBACheatListRow::GROUP;
+			row.first    = i;
+			row.count    = count;
+			row.expanded = expanded;
+			rows.push_back(row);
+
+			if (expanded)
+			{
+				for (int k = i; k < j; k++)
+				{
+					GBACheatListRow code;
+					code.kind     = GBACheatListRow::CHEAT;
+					code.first    = k;
+					code.count    = 1;
+					code.expanded = false;
+					rows.push_back(code);
+				}
+			}
+			i = j;
+		}
+		else
+		{
+			GBACheatListRow row;
+			row.kind     = GBACheatListRow::CHEAT;
+			row.first    = i;
+			row.count    = 1;
+			row.expanded = false;
+			rows.push_back(row);
+			i++;
+		}
+	}
+
+	expandedGroups.swap(stillExpanded);
 }
 
 void GBACheatList::refresh()
@@ -984,36 +1560,150 @@ void GBACheatList::refresh()
 	duringRefresh = true;
 	m_list.DeleteAllItems();
 
-	CString buffer;
+	rebuildRows();
 
-	for (int i = 0; i < cheatsNumber; i++)
+	for (int i = 0; i < (int)rows.size(); i++)
 	{
+		const GBACheatListRow &row = rows[i];
 		LVITEM item;
 
-		item.mask      = LVIF_TEXT | LVIF_PARAM | LVIF_STATE;
-		item.iItem     = i;
-		item.iSubItem  = 0;
-		item.lParam    = i;
-		item.state     = 0;
-		item.stateMask = 0;
-		item.pszText   = cheatsList[i].codestring;
-		m_list.InsertItem(&item);
+		memset(&item, 0, sizeof(item));
+		item.mask     = LVIF_TEXT | LVIF_PARAM | LVIF_STATE;
+		item.iItem    = i;
+		item.iSubItem = 0;
+		item.lParam   = row.first;
 
-		m_list.SetCheck(i, (cheatsList[i].enabled) ? TRUE : FALSE);
+		if (row.kind == GBACheatListRow::GROUP)
+		{
+			// The state image shows the Unicode arrow; the Code text names the
+			// action.  Together they read as "arrow [Expand]/[Collapse]".
+			CString text = row.expanded ? "[Collapse]" : "[Expand]";
+			item.pszText = (LPSTR)(LPCSTR)text;
+			m_list.InsertItem(&item);
 
-		m_list.SetItemText(i, 1, cheatsList[i].desc);
+			m_list.SetItemText(i, 1, cheatsList[row.first].desc);
 
-		buffer = (cheatsList[i].enabled) ? 'E' : 'D';
-		m_list.SetItemText(i, 2, buffer);
+			bool anyEnabled = false;
+			bool allEnabled = true;
+			for (int j = row.first; j < row.first + row.count; j++)
+			{
+				if (cheatsList[j].enabled)
+					anyEnabled = true;
+				else
+					allEnabled = false;
+			}
+
+			CString status = allEnabled ? "E" : (anyEnabled ? "-" : "D");
+			m_list.SetItemText(i, 2, status);
+			m_list.SetItemText(i, 3, gbaCheatTypeName(cheatsList[row.first].code));
+
+			int state = row.expanded ? CHEAT_STATE_EXPANDED : CHEAT_STATE_COLLAPSED;
+			m_list.SetItemState(i, INDEXTOSTATEIMAGEMASK(state), LVIS_STATEIMAGEMASK);
+		}
+		else
+		{
+			item.pszText = cheatsList[row.first].codestring;
+			m_list.InsertItem(&item);
+
+			m_list.SetItemText(i, 1, cheatsList[row.first].desc);
+			CString status = cheatsList[row.first].enabled ? "E" : "D";
+			m_list.SetItemText(i, 2, status);
+			m_list.SetItemText(i, 3, gbaCheatTypeName(cheatsList[row.first].code));
+
+			m_list.SetCheck(i, cheatsList[row.first].enabled ? TRUE : FALSE);
+		}
 	}
+
 	duringRefresh = false;
+	updateButtonStates();
+}
+
+void GBACheatList::editCheat(int cheatIndex)
+{
+	if (cheatIndex < 0 || cheatIndex >= cheatsNumber)
+		return;
+
+	bool enabled = cheatsList[cheatIndex].enabled;
+	GBACheatType type = gbaCheatType(cheatsList[cheatIndex].code);
+
+	if (type == GBA_CHEAT_TYPE_CODE)
+	{
+		AddCheat dlg(0, this, cheatIndex, enabled);
+		dlg.DoModal();
+	}
+	else if (type == GBA_CHEAT_TYPE_CODEBREAKER)
+	{
+		AddCBACode dlg(this, cheatsList[cheatIndex].codestring, cheatsList[cheatIndex].desc,
+		               cheatIndex, 1, enabled);
+		dlg.DoModal();
+	}
+	else
+	{
+		CString code = cheatsList[cheatIndex].codestring;
+		if (cheatsList[cheatIndex].code == 257)
+			code = gsaV3CodeForEdit(code);
+
+		AddGSACode dlg(this, code, cheatsList[cheatIndex].desc,
+		               cheatIndex, 1, enabled);
+		dlg.DoModal();
+	}
+	refresh();
+}
+
+void GBACheatList::editGroup(int rowIndex)
+{
+	if (rowIndex < 0 || rowIndex >= (int)rows.size())
+		return;
+
+	const GBACheatListRow &row = rows[rowIndex];
+	CString code;
+	CString desc = cheatsList[row.first].desc;
+	bool allEnabled = true;
+
+	for (int i = row.first; i < row.first + row.count; i++)
+	{
+		if (i > row.first)
+			code += "\r\n";
+
+		CString line = cheatsList[i].codestring;
+		if (cheatsList[i].code == 257)
+			line = gsaV3CodeForEdit(line);
+		code += line;
+
+		if (!cheatsList[i].enabled)
+			allEnabled = false;
+	}
+
+	GBACheatType type = gbaCheatType(cheatsList[row.first].code);
+	if (type == GBA_CHEAT_TYPE_CODE)
+	{
+		AddCheatCode dlg(this, code, desc, row.first, row.count, allEnabled);
+		dlg.DoModal();
+	}
+	else if (type == GBA_CHEAT_TYPE_CODEBREAKER)
+	{
+		AddCBACode dlg(this, code, desc, row.first, row.count, allEnabled);
+		dlg.DoModal();
+	}
+	else
+	{
+		AddGSACode dlg(this, code, desc, row.first, row.count, allEnabled);
+		dlg.DoModal();
+	}
+	refresh();
 }
 
 /////////////////////////////////////////////////////////////////////////////
 // AddGSACode dialog
 
-AddGSACode::AddGSACode(CWnd*pParent /*=NULL*/)
+AddGSACode::AddGSACode(CWnd*pParent /*=NULL*/, const char *code /*=NULL*/, const char *desc /*=NULL*/,
+                       int editIndex /*=-1*/, int editCount /*=1*/, bool initialEnabled /*=true*/)
 	: CDialog(AddGSACode::IDD, pParent)
+	, initialCode(code ? code : "")
+	, initialDesc(desc ? desc : "")
+	, editIndex(editIndex)
+	, editCount(editCount)
+	, initialEnabled(initialEnabled)
 {
 	//{{AFX_DATA_INIT(AddGSACode)
 	// NOTE: the ClassWizard will add member initialization here
@@ -1026,6 +1716,7 @@ void AddGSACode::DoDataExchange(CDataExchange*pDX)
 	//{{AFX_DATA_MAP(AddGSACode)
 	DDX_Control(pDX, IDC_DESC, m_desc);
 	DDX_Control(pDX, IDC_CODE, m_code);
+	DDX_Control(pDX, IDC_CHEAT_ENABLED, m_enabled);
 	//}}AFX_DATA_MAP
 }
 
@@ -1043,50 +1734,33 @@ void AddGSACode::OnOk()
 {
 	CString desc;
 	CString buffer;
-	CString part1;
-	CString code;
-	CString token;
 
 	m_code.GetWindowText(buffer);
 	m_desc.GetWindowText(desc);
 
-	StringTokenizer st(buffer, " \t\n\r");
-	part1.Empty();
-	const char *t = st.next();
-	while (t)
-	{
-		token = t;
-		token.MakeUpper();
-		if (token.GetLength() == 16)
-			cheatsAddGSACode(token, desc, false);
-		else if (token.GetLength() == 12)
-		{
-			code  = token.Left(8);
-			code += " ";
-			code += token.Right(4);
-			cheatsAddCBACode(code, desc);
-		}
-		else if (part1.IsEmpty())
-			part1 = token;
-		else
-		{
-			if (token.GetLength() == 4)
-			{
-				code  = part1;
-				code += " ";
-				code += token;
-				cheatsAddCBACode(code, desc);
-			}
-			else
-			{
-				code = part1 + token;
-				cheatsAddGSACode(code, desc, true);
-			}
-			part1.Empty();
-		}
+	int newCount = 0;
+	if (!processGsaCbaCodes(buffer, desc, false, &newCount))
+		return;
 
-		t = st.next();
+	int available = MAX_CHEATS - cheatsNumber + (editIndex >= 0 ? editCount : 0);
+	if (newCount > available)
+	{
+		systemMessage(0, N_("The cheat list is full."));
+		return;
 	}
+
+	if (editIndex >= 0)
+		deleteCheatRange(editIndex, editCount);
+
+	int first = cheatsNumber;
+	processGsaCbaCodes(buffer, desc, true);
+
+	if (!m_enabled.GetCheck())
+	{
+		for (int i = first; i < cheatsNumber; i++)
+			cheatsDisable(i);
+	}
+
 	EndDialog(TRUE);
 }
 
@@ -1100,8 +1774,22 @@ BOOL AddGSACode::OnInitDialog()
 	CDialog::OnInitDialog();
 
 	m_code.LimitText(1024);
-	m_desc.LimitText(32);
-	CString title = winResLoadString(IDS_ADD_GSA_CODE);
+	m_desc.LimitText(31);
+
+	CString title;
+	if (editIndex >= 0)
+	{
+		m_code.SetWindowText(initialCode);
+		m_desc.SetWindowText(initialDesc);
+		title = winResLoadString(IDS_EDIT_GSA_CODE);
+	}
+	else
+	{
+		m_desc.SetWindowText(CTime::GetCurrentTime().Format("%Y-%m-%d %H:%M:%S"));
+		title = winResLoadString(IDS_ADD_GSA_CODE);
+	}
+
+	m_enabled.SetCheck(initialEnabled ? BST_CHECKED : BST_UNCHECKED);
 	SetWindowText(title);
 	CenterWindow();
 
@@ -1112,8 +1800,14 @@ BOOL AddGSACode::OnInitDialog()
 /////////////////////////////////////////////////////////////////////////////
 // AddCBACode dialog
 
-AddCBACode::AddCBACode(CWnd*pParent /*=NULL*/)
+AddCBACode::AddCBACode(CWnd*pParent /*=NULL*/, const char *code /*=NULL*/, const char *desc /*=NULL*/,
+                       int editIndex /*=-1*/, int editCount /*=1*/, bool initialEnabled /*=true*/)
 	: CDialog(AddCBACode::IDD, pParent)
+	, initialCode(code ? code : "")
+	, initialDesc(desc ? desc : "")
+	, editIndex(editIndex)
+	, editCount(editCount)
+	, initialEnabled(initialEnabled)
 {
 	//{{AFX_DATA_INIT(AddCBACode)
 	// NOTE: the ClassWizard will add member initialization here
@@ -1126,6 +1820,7 @@ void AddCBACode::DoDataExchange(CDataExchange*pDX)
 	//{{AFX_DATA_MAP(AddCBACode)
 	DDX_Control(pDX, IDC_DESC, m_desc);
 	DDX_Control(pDX, IDC_CODE, m_code);
+	DDX_Control(pDX, IDC_CHEAT_ENABLED, m_enabled);
 	//}}AFX_DATA_MAP
 }
 
@@ -1143,50 +1838,33 @@ void AddCBACode::OnOk()
 {
 	CString desc;
 	CString buffer;
-	CString part1;
-	CString code;
-	CString token;
 
 	m_code.GetWindowText(buffer);
 	m_desc.GetWindowText(desc);
 
-	StringTokenizer st(buffer, " \t\n\r");
-	part1.Empty();
-	const char *t = st.next();
-	while (t)
-	{
-		token = t;
-		token.MakeUpper();
-		if (token.GetLength() == 16)
-			cheatsAddGSACode(token, desc, false);
-		else if (token.GetLength() == 12)
-		{
-			code  = token.Left(8);
-			code += " ";
-			code += token.Right(4);
-			cheatsAddCBACode(code, desc);
-		}
-		else if (part1.IsEmpty())
-			part1 = token;
-		else
-		{
-			if (token.GetLength() == 4)
-			{
-				code  = part1;
-				code += " ";
-				code += token;
-				cheatsAddCBACode(code, desc);
-			}
-			else
-			{
-				code = part1 + token;
-				cheatsAddGSACode(code, desc, true);
-			}
-			part1.Empty();
-		}
+	int newCount = 0;
+	if (!processGsaCbaCodes(buffer, desc, false, &newCount))
+		return;
 
-		t = st.next();
+	int available = MAX_CHEATS - cheatsNumber + (editIndex >= 0 ? editCount : 0);
+	if (newCount > available)
+	{
+		systemMessage(0, N_("The cheat list is full."));
+		return;
 	}
+
+	if (editIndex >= 0)
+		deleteCheatRange(editIndex, editCount);
+
+	int first = cheatsNumber;
+	processGsaCbaCodes(buffer, desc, true);
+
+	if (!m_enabled.GetCheck())
+	{
+		for (int i = first; i < cheatsNumber; i++)
+			cheatsDisable(i);
+	}
+
 	EndDialog(TRUE);
 }
 
@@ -1200,8 +1878,22 @@ BOOL AddCBACode::OnInitDialog()
 	CDialog::OnInitDialog();
 
 	m_code.LimitText(1024);
-	m_desc.LimitText(32);
-	CString title = winResLoadString(IDS_ADD_CBA_CODE);
+	m_desc.LimitText(31);
+
+	CString title;
+	if (editIndex >= 0)
+	{
+		m_code.SetWindowText(initialCode);
+		m_desc.SetWindowText(initialDesc);
+		title = winResLoadString(IDS_EDIT_CBA_CODE);
+	}
+	else
+	{
+		m_desc.SetWindowText(CTime::GetCurrentTime().Format("%Y-%m-%d %H:%M:%S"));
+		title = winResLoadString(IDS_ADD_CBA_CODE);
+	}
+
+	m_enabled.SetCheck(initialEnabled ? BST_CHECKED : BST_UNCHECKED);
 	SetWindowText(title);
 	CenterWindow();
 
@@ -1212,8 +1904,14 @@ BOOL AddCBACode::OnInitDialog()
 /////////////////////////////////////////////////////////////////////////////
 // AddCheatCode dialog
 
-AddCheatCode::AddCheatCode(CWnd*pParent /*=NULL*/)
+AddCheatCode::AddCheatCode(CWnd*pParent /*=NULL*/, const char *code /*=NULL*/, const char *desc /*=NULL*/,
+                           int editIndex /*=-1*/, int editCount /*=1*/, bool initialEnabled /*=true*/)
 	: CDialog(AddCheatCode::IDD, pParent)
+	, initialCode(code ? code : "")
+	, initialDesc(desc ? desc : "")
+	, editIndex(editIndex)
+	, editCount(editCount)
+	, initialEnabled(initialEnabled)
 {
 	//{{AFX_DATA_INIT(AddCheatCode)
 	// NOTE: the ClassWizard will add member initialization here
@@ -1226,6 +1924,7 @@ void AddCheatCode::DoDataExchange(CDataExchange*pDX)
 	//{{AFX_DATA_MAP(AddCheatCode)
 	DDX_Control(pDX, IDC_DESC, m_desc);
 	DDX_Control(pDX, IDC_CODE, m_code);
+	DDX_Control(pDX, IDC_CHEAT_ENABLED, m_enabled);
 	//}}AFX_DATA_MAP
 }
 
@@ -1243,20 +1942,33 @@ void AddCheatCode::OnOk()
 {
 	CString desc;
 	CString buffer;
-	CString token;
 
 	m_code.GetWindowText(buffer);
 	m_desc.GetWindowText(desc);
 
-	StringTokenizer st(buffer, " \t\n\r");
-	const char *    t = st.next();
-	while (t)
+	int newCount = 0;
+	if (!processRawCheatCodes(buffer, desc, false, &newCount))
+		return;
+
+	int available = MAX_CHEATS - cheatsNumber + (editIndex >= 0 ? editCount : 0);
+	if (newCount > available)
 	{
-		token = t;
-		token.MakeUpper();
-		cheatsAddCheatCode(token, desc);
-		t = st.next();
+		systemMessage(0, N_("The cheat list is full."));
+		return;
 	}
+
+	if (editIndex >= 0)
+		deleteCheatRange(editIndex, editCount);
+
+	int first = cheatsNumber;
+	processRawCheatCodes(buffer, desc, true);
+
+	if (!m_enabled.GetCheck())
+	{
+		for (int i = first; i < cheatsNumber; i++)
+			cheatsDisable(i);
+	}
+
 	EndDialog(TRUE);
 }
 
@@ -1270,8 +1982,22 @@ BOOL AddCheatCode::OnInitDialog()
 	CDialog::OnInitDialog();
 
 	m_code.LimitText(1024);
-	m_desc.LimitText(32);
-	CString title = winResLoadString(IDS_ADD_CHEAT_CODE);
+	m_desc.LimitText(31);
+
+	CString title;
+	if (editIndex >= 0)
+	{
+		m_code.SetWindowText(initialCode);
+		m_desc.SetWindowText(initialDesc);
+		title = winResLoadString(IDS_EDIT_CHEAT_CODE);
+	}
+	else
+	{
+		m_desc.SetWindowText(CTime::GetCurrentTime().Format("%Y-%m-%d %H:%M:%S"));
+		title = winResLoadString(IDS_ADD_CHEAT_CODE);
+	}
+
+	m_enabled.SetCheck(initialEnabled ? BST_CHECKED : BST_UNCHECKED);
 	SetWindowText(title);
 	CenterWindow();
 

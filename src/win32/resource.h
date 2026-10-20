@@ -195,6 +195,15 @@
 #define IDS_STOPSOUNDRECORDING          192
 #define IDS_ERROR_ENCODER_MISSING       193
 #define IDS_ERROR_NO_WIC                194
+#define IDS_ENABLED                     195
+#define IDS_TYPE                        196
+#define IDS_EDIT_CHEAT_CODE             197
+#define IDS_EDIT_GSA_CODE               198
+#define IDS_EDIT_CBA_CODE               199
+#define IDS_INVALID_CHEAT_CODES         200
+#define IDS_EDIT_CHEAT                  201
+#define IDS_CONFIRM_DELETE_CHEATS       202
+#define IDS_CONFIRM_DELETE              203
 #define IDR_MENU                        401
 #define IDR_ACCELERATOR                 405
 #define IDR_GB_PRINTER                  406
@@ -325,6 +334,8 @@
 #define IDC_GBC                         1072
 #define IDC_CODE                        1073
 #define IDC_DESC                        1074
+#define IDC_CHEAT_ENABLED               1075
+#define IDC_EDIT                        1076
 #define IDC_ROM_TITLE                   1079
 #define IDC_ROM_GAME_CODE               1080
 #define IDC_ROM_MAKER_CODE              1081
