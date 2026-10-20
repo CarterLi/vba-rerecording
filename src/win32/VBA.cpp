@@ -4,6 +4,7 @@
 #include <mmsystem.h>
 #include <cassert>
 #include <locale>
+#include <share.h>
 
 #include "resource.h"
 #include "VBA.h"
@@ -117,8 +118,68 @@ static const char *winlogStamp()
 	return stamp;
 }
 
+// The CPU core this build carries.  The v7 and the v8 core are shipped as two
+// builds and both can run at the same time, so each writes its own trace, named
+// after the core it belongs to.
+static const char *winlogCoreVersion()
+{
+#if defined(USE_GB_CORE_V7) || defined(USE_GBA_CORE_V7)
+	return "v7";
+#else
+	return "v8";
+#endif
+}
+
+// The trace file, opened on the first line and kept open for the whole run:
+// opening and closing it around every line was a whole open, seek and close
+// per line, and a line a reader could not see while the program was running.
+static FILE *winlogFile = NULL;
+static bool  winlogOff  = false;
+
+static bool winlogOpen()
+{
+	char name[64];
+	sprintf(name, "vba-trace-%s.log", winlogCoreVersion());
+
+	// Denying writes makes a second instance of the same build fail to open the
+	// file, so the two do not interleave into it; that instance then writes no
+	// trace at all instead of half of one.  A second instance of the other core
+	// has its own file and is unaffected.
+	winlogFile = _fsopen(name, "w", _SH_DENYWR);
+	if (winlogFile == NULL)
+	{
+		winlogOff = true;
+		return false;
+	}
+
+	// The trace is UTF-8.  Windows hands back localized text (encoder names,
+	// FormatMessage output) in the ANSI code page, and anything that reads the
+	// file as UTF-8 turns that into mojibake.  The byte order mark goes in
+	// once, when the file is made, so editors that guess the encoding guess
+	// right.
+	fwrite("\xEF\xBB\xBF", 1, 3, winlogFile);
+	return true;
+}
+
+// The file stays open until the program ends, so closing it is a step of the
+// shutdown rather than something a line does.
+void winlogClose()
+{
+	if (winlogFile != NULL)
+	{
+		fclose(winlogFile);
+		winlogFile = NULL;
+	}
+
+	// Nothing is logged after this, even if a late message comes through.
+	winlogOff = true;
+}
+
 void winlog(const char *msg, ...)
 {
+	if (winlogOff)
+		return;
+
 	CString buffer;
 	va_list valist;
 
@@ -126,21 +187,8 @@ void winlog(const char *msg, ...)
 	buffer.FormatV(msg, valist);
 	va_end(valist);
 
-	// One file per run: the first message of a run starts it and everything
-	// after that is appended, so the trace keeps the whole sequence instead of
-	// only whatever was written last.
-	static bool started = false;
-	FILE *winout = fopen("vba-trace.log", started ? "a" : "w");
-	if (winout == NULL)
+	if (winlogFile == NULL && !winlogOpen())
 		return;
-
-	// The trace is UTF-8.  Windows hands back localized text (encoder names,
-	// FormatMessage output) in the ANSI code page, and anything that reads the
-	// file as UTF-8 turns that into mojibake.  The byte order mark goes in once,
-	// when a run starts the file, so editors that guess the encoding guess right.
-	if (!started)
-		fwrite("\xEF\xBB\xBF", 1, 3, winout);
-	started = true;
 
 	// One stamp per line, and exactly one line break per line.  Most formats
 	// already end with "\n", and a driver log can end with two, so a message is
@@ -197,7 +245,7 @@ void winlog(const char *msg, ...)
 					if (WideCharToMultiByte(CP_UTF8, 0, wide, wideLength,
 					                        utf8, utf8Length, NULL, NULL) == utf8Length)
 					{
-						fwrite(utf8, 1, (size_t)utf8Length, winout);
+						fwrite(utf8, 1, (size_t)utf8Length, winlogFile);
 						written = true;
 					}
 
@@ -212,9 +260,12 @@ void winlog(const char *msg, ...)
 	// ASCII already, or the conversion failed: keep the bytes rather than drop
 	// the line.  Every line already ends with its break, so none is added here.
 	if (!written)
-		fputs(buffer, winout);
+		fputs(buffer, winlogFile);
 
-	fclose(winout);
+	// The handle stays open, but the line is pushed out now: a trace that is
+	// followed while the program runs, or read after it crashed, is worth more
+	// than the buffer the flush would save.
+	fflush(winlogFile);
 }
 
 // The image writers live in src/common and only know a one argument callback,
@@ -583,6 +634,9 @@ VBA::~VBA()
 		free(frameSearchMemory);
 
 	timeEndPeriod(wmTimerRes);
+
+	// The trace was open for the whole run; this is what closes and flushes it.
+	winlogClose();
 }
 
 /////////////////////////////////////////////////////////////////////////////
@@ -593,6 +647,13 @@ VBA::~VBA()
 BOOL VBA::InitInstance()
 {
 	AfxEnableControlContainer();
+
+	// The trace begins with what build it is: a report that only carries the
+	// log then still says which revision, build type and core produced it.
+	winlog("%s\n", VBA_NAME_AND_VERSION);
+	winlog("%s build, %s core, %s\n", VBA_BUILDTYPE_STRING, winlogCoreVersion(),
+	       sizeof(void *) == 8 ? "64-bit" : "32-bit");
+
 	// Standard initialization
 	// If you are not using these features and wish to reduce the size
 	//  of your final executable, you should remove from the following
@@ -881,6 +942,10 @@ invalidArgument:
 		}
 		free(argv);
 	}
+
+	// The window is up, the display is running and the command line has been
+	// obeyed, so the message loop takes over from here.
+	winlog("ready, handing control to the user");
 
 	return TRUE;
 }
