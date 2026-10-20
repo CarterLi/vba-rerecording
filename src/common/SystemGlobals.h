@@ -65,9 +65,11 @@ extern u8 osd[];
 
 extern u16 joypadButtons[4];
 extern u16 movieButtons[4];
-extern u16 currentButtons[4];
-extern u16 lastButtons[4];
-extern u16 nextButtons[4];
+// These need to be 32 bits: the speed, capture and GameShark
+// buttons live above bit 15.
+extern u32 currentButtons[4];
+extern u32 lastButtons[4];
+extern u32 nextButtons[4];
 
 extern int32 sensorX, sensorY;
 

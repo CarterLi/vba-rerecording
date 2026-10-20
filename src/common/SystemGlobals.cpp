@@ -34,9 +34,9 @@ u8 *pix	 = NULL;
 
 u16	  joypadButtons[4] = { 0, 0, 0, 0 };
 u16	  movieButtons[4] = { 0, 0, 0, 0 };
-u16	  currentButtons[4] = { 0, 0, 0, 0 };
-u16	  lastButtons[4] = { 0, 0, 0, 0 };
-u16	  nextButtons[4] = { 0, 0, 0, 0 };
+u32	  currentButtons[4] = { 0, 0, 0, 0 };
+u32	  lastButtons[4] = { 0, 0, 0, 0 };
+u32	  nextButtons[4] = { 0, 0, 0, 0 };
 
 int32 sensorX  = 0;
 int32 sensorY  = 0;

@@ -1949,6 +1949,10 @@ static int joy_set_internal(lua_State *L, enum LuaJoypadType type)
 	luaL_checktype(L, 2, LUA_TTABLE);
 
 	u16 *buttons = NULL;
+	// The record input is 32 bits wide (speed, capture and GameShark
+	// buttons live above bit 15), so build the regular buttons here and
+	// hand them over once.
+	u16 recordButtons = 0;
 	if (type == LuaJoypadType::LUAJOYPAD_USER)
 	{
 		// Overwrites the joypad input by the user
@@ -1962,7 +1966,7 @@ static int joy_set_internal(lua_State *L, enum LuaJoypadType type)
 	else if (type == LuaJoypadType::LUAJOYPAD_RECORD)
 	{
 		// Overwrites the mixed input that is supposed to be recorded in a movie
-		buttons = &currentButtons[which];
+		buttons = &recordButtons;
 	}
 	else //if (type == LuaJoypadType::LUAJOYPAD_LUA)
 	{
@@ -1988,6 +1992,9 @@ static int joy_set_internal(lua_State *L, enum LuaJoypadType type)
 		}
 		lua_pop(L, 1);
 	}
+
+	if (type == LuaJoypadType::LUAJOYPAD_RECORD)
+		currentButtons[which] = recordButtons;
 
 	// re-mix the input
 	systemMixJoypadInput(which, type);
@@ -3137,8 +3144,12 @@ static int gui_gdscreenshot(lua_State *L)
 	*ptr++ = 255;
 	*ptr++ = 255;
 
-	GetColorFunc getColor;
-	getColorIOFunc(systemColorDepth, &getColor, NULL);
+	GetColorFunc getColor = NULL;
+	if (!getColorIOFunc(systemColorDepth, &getColor, NULL) || getColor == NULL)
+	{
+		delete[] str;
+		return 0;
+	}
 
 	int x, y;
 	for (y = 0; y < height; y++)
@@ -5293,9 +5304,10 @@ void VBALuaGui(uint8 *screen, int pitch, int width, int height)
 	//if (height > LUA_SCREEN_HEIGHT)
 	//	height = LUA_SCREEN_HEIGHT;
 
-	GetColorFunc getColor;
-	SetColorFunc setColor;
-	getColorIOFunc(systemColorDepth, &getColor, &setColor);
+	GetColorFunc getColor = NULL;
+	SetColorFunc setColor = NULL;
+	if (!getColorIOFunc(systemColorDepth, &getColor, &setColor) || getColor == NULL || setColor == NULL)
+		return;
 
 	for (int y = 0; y < height; y++)
 	{

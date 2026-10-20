@@ -1131,8 +1131,8 @@ void VBAUpdateButtonPressDisplay()
 	const static int  KeyOrder[] = {  5,  6,  4,  7,  0,  1,  9,  8,  3,  2, 12, 15, 13, 14, 11, 10 };
 
 	int which = 0;
-	uint16 currKeys = currentButtons[which];
-	uint16 nextKeys = nextButtons[which];
+	u32 currKeys = currentButtons[which];
+	u32 nextKeys = nextButtons[which];
 
 	if (VBALuaRemappingInputDisplay(which))
 	{
@@ -1151,10 +1151,10 @@ void VBAUpdateButtonPressDisplay()
 	memset(grayList, 4, strnlen(buffer, BufferSize));
 	memset(colorList, 1, strnlen(buffer, BufferSize));
 
-	uint16	autoHeldKeys = eraseAll ? 0 : theApp.autoHold & BUTTON_REGULAR_RECORDING_MASK;
-	uint16	autoFireKeys = eraseAll ? 0 : (theApp.autoFire | theApp.autoFire2) & BUTTON_REGULAR_RECORDING_MASK;
-	uint16	pressedKeys	 = eraseAll ? 0 : currKeys;
-	uint16 &lastKeys     = lastButtons[which];
+	u32	autoHeldKeys = eraseAll ? 0 : theApp.autoHold & BUTTON_REGULAR_RECORDING_MASK;
+	u32	autoFireKeys = eraseAll ? 0 : (theApp.autoFire | theApp.autoFire2) & BUTTON_REGULAR_RECORDING_MASK;
+	u32	pressedKeys	 = eraseAll ? 0 : currKeys;
+	u32 &lastKeys     = lastButtons[which];
 
 	if (resetSignaled)
 		autoHeldKeys |= BUTTON_MASK_NEW_RESET;
