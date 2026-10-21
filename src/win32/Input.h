@@ -19,6 +19,29 @@ public:
 
 	virtual bool initialize() = 0;
 
+	// Re-reads the attached devices.  The list is built once at startup, so a
+	// controller that woke up, was plugged in, or was paired afterwards is not
+	// in it; the setup dialogs call this before they start capturing.
+	virtual void refreshDevices() {}
+
+	// Reports controllers that were found since the last call, for the ports
+	// that tell the user about it.  Called once the main window exists: the
+	// devices are enumerated before there is anything to show a message on.
+	virtual void announceDevices() {}
+
+	// The controllers that are attached right now, for the list the setup
+	// dialog shows.  n counts from 0; deviceIndex is the number the bindings
+	// use, the one getKeyName() prints as "Joy <n>", and name is what the
+	// device calls itself.
+	virtual int  gamepadCount() { return 0; }
+	virtual bool gamepadInfo(int n, int &deviceIndex, CString &name) { return false; }
+
+	// How far a stick has to travel before it counts as pushed, in percent of
+	// the way from the centre to the end.  DirectInput's own DIPROP_DEADZONE
+	// is ignored by HID pads, so the comparison happens here.
+	virtual int  getDeadzone() { return 0; }
+	virtual void setDeadzone(int percent) {}
+
 	virtual bool readDevices() = 0;
 	virtual u32 readDevice(int which, bool sensor) = 0;
 	virtual CString getKeyName(LONG_PTR key) = 0;

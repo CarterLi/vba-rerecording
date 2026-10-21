@@ -58,6 +58,7 @@ JoypadConfig::JoypadConfig(int w, CWnd*pParent /*=NULL*/)
 	//{{AFX_DATA_INIT(JoypadConfig)
 	//}}AFX_DATA_INIT
 	timerId = 0;
+	lastKeyId = IDC_EDIT_UP;
 	which   = w;
 	if (which < 0 || which > 3)
 		which = 0;
@@ -81,6 +82,7 @@ void JoypadConfig::DoDataExchange(CDataExchange*pDX)
 	DDX_Control(pDX, IDC_EDIT_BUTTON_B, buttonB);
 	DDX_Control(pDX, IDC_EDIT_BUTTON_A, buttonA);
 	DDX_Control(pDX, IDC_JOYPAD_TAB, tab);
+	DDX_Control(pDX, IDC_GAMEPAD_LIST, gamepadList);
 	DDX_Control(pDX, IDC_EDIT_AF_UP, afUp);
 	DDX_Control(pDX, IDC_EDIT_AF_DOWN, afDown);
 	DDX_Control(pDX, IDC_EDIT_AF_LEFT, afLeft);
@@ -102,7 +104,12 @@ ON_WM_CHAR()
 ON_WM_DESTROY()
 ON_WM_TIMER()
 ON_WM_KEYDOWN()
+ON_WM_CTLCOLOR()
 ON_NOTIFY(TCN_SELCHANGE, IDC_JOYPAD_TAB, OnSelChangeTab)
+ON_CONTROL_RANGE(EN_SETFOCUS, IDC_EDIT_UP, IDC_EDIT_BUTTON_GS, OnKeyFocus)
+ON_CONTROL_RANGE(EN_SETFOCUS, IDC_EDIT_AF_UP, IDC_EDIT_AF_START, OnKeyFocus)
+ON_BN_CLICKED(IDC_CLEAR_KEY, OnClearKey)
+ON_EN_CHANGE(IDC_EDIT_DEADZONE, OnDeadzoneChanged)
 //}}AFX_MSG_MAP
 END_MESSAGE_MAP()
 
@@ -141,11 +148,60 @@ void JoypadConfig::OnTimer(UINT_PTR nIDEvent)
 void JoypadConfig::OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags)
 {}
 
+// The labels of this dialog are siblings of the tab control and are drawn on
+// top of it, but a static control fills its rectangle with the dialog
+// background - COLOR_3DFACE, #f0f0f0 - while the tab paints its page with the
+// surface colour of the current visual style, which on Windows 11 is a card a
+// few shades lighter than the dialog.  Left to itself every label therefore
+// shows up as a grey box.  Returning a hollow brush and a transparent text
+// mode lets the tab page show through instead, so the label sits on the same
+// surface as the rest of the page.  The labels carry a fixed text, so nothing
+// ever needs the background erased underneath them.
+HBRUSH JoypadConfig::OnCtlColor(CDC *pDC, CWnd *pWnd, UINT nCtlColor)
+{
+	if (nCtlColor == CTLCOLOR_STATIC)
+	{
+		pDC->SetBkMode(TRANSPARENT);
+		return (HBRUSH)GetStockObject(NULL_BRUSH);
+	}
+
+	return CDialog::OnCtlColor(pDC, pWnd, nCtlColor);
+}
+
+void JoypadConfig::OnKeyFocus(UINT nID)
+{
+	lastKeyId = nID;
+}
+
+// Clearing a binding stores 0: device 0, scan code 0, a code no key produces,
+// so the button stays released.  There is no other way back from an assigned
+// key to "unassigned", and the Auto-Fire toggles need one as much as the
+// game buttons do - a toggle key that is set by accident keeps toggling.
+void JoypadConfig::OnClearKey()
+{
+	CWnd *wnd = GetDlgItem(lastKeyId);
+
+	if (wnd == NULL)
+		return;
+
+	SetWindowLongPtr(wnd->m_hWnd, GWLP_USERDATA, 0);
+	wnd->SetWindowText("");
+	wnd->SetFocus();
+}
+
 BOOL JoypadConfig::OnInitDialog()
 {
 	CDialog::OnInitDialog();
 
 	timerId = SetTimer(0, 200, NULL);
+
+	// A controller that was asleep, was plugged in, or was paired after the
+	// emulator started is not in the device list yet: the list is built once
+	// at startup.  Without this the dialog simply ignores that pad.
+	if (theApp.input)
+		theApp.input->refreshDevices();
+
+	lastKeyId = IDC_EDIT_UP;
 
 	SetWindowLongPtr(up, GWLP_USERDATA, joypad[which][KEY_UP]);
 	up.SetWindowText(theApp.input->getKeyName(joypad[which][KEY_UP]));
@@ -188,6 +244,25 @@ BOOL JoypadConfig::OnInitDialog()
 
 	tab.InsertItem(0, _T("Buttons"));
 	tab.InsertItem(1, _T("Auto-Fire"));
+
+	// the page only exists when there is something to put on it
+	if (theApp.input->gamepadCount() > 0)
+	{
+		tab.InsertItem(2, _T("Gamepads"));
+
+		CString deadzone;
+		deadzone.Format("%d", theApp.input->getDeadzone());
+		SetDlgItemText(IDC_EDIT_DEADZONE, deadzone);
+
+		fillGamepadList();
+	}
+	else
+	{
+		gamepadList.ShowWindow(SW_HIDE);
+		GetDlgItem(IDC_STATIC_DEADZONE)->ShowWindow(SW_HIDE);
+		GetDlgItem(IDC_EDIT_DEADZONE)->ShowWindow(SW_HIDE);
+		GetDlgItem(IDC_STATIC_DEADZONE_UNIT)->ShowWindow(SW_HIDE);
+	}
 
 	SetWindowLongPtr(afUp, GWLP_USERDATA, autoFireKeys[which][KEY_UP]);
 	afUp.SetWindowText(theApp.input->getKeyName(autoFireKeys[which][KEY_UP]));
@@ -233,6 +308,77 @@ void JoypadConfig::OnSelChangeTab(NMHDR *pNMHDR, LRESULT *pResult)
 	*pResult = 0;
 }
 
+// The list takes the rectangle the tab control keeps for its page, so it looks
+// like part of the page instead of a control that happens to sit on it.
+// The dead zone is applied where the axes are compared, because the pads that
+// drift are the ones whose driver ignores DirectInput's own dead zone.
+void JoypadConfig::OnDeadzoneChanged()
+{
+	CString text;
+
+	GetDlgItemText(IDC_EDIT_DEADZONE, text);
+
+	if (text.IsEmpty())
+		return;
+
+	int percent = atoi(text);
+
+	if (percent < 0)
+		percent = 0;
+	if (percent > 100)
+		percent = 100;
+
+	theApp.input->setDeadzone(percent);
+}
+
+void JoypadConfig::fillGamepadList()
+{
+	CRect tabRect;
+	tab.GetWindowRect(&tabRect);
+	ScreenToClient(&tabRect);
+
+	CRect page;
+	tab.GetClientRect(&page);
+	tab.AdjustRect(FALSE, &page);
+	page.OffsetRect(tabRect.left, tabRect.top);
+	page.DeflateRect(3, 3);
+
+	// the dead zone sits at the bottom of the page, so the list stops above it
+	if (CWnd *deadzone = GetDlgItem(IDC_EDIT_DEADZONE))
+	{
+		CRect row;
+		deadzone->GetWindowRect(&row);
+		ScreenToClient(&row);
+		page.bottom = row.top - 6;
+	}
+
+	gamepadList.MoveWindow(&page);
+
+	gamepadList.SetExtendedStyle(LVS_EX_FULLROWSELECT | LVS_EX_GRIDLINES);
+	gamepadList.InsertColumn(0, _T("No"), LVCFMT_LEFT, 32);
+	// leave room for the border and a vertical scrollbar, or the name column
+	// alone adds a horizontal one
+	gamepadList.InsertColumn(1, _T("Name"), LVCFMT_LEFT, page.Width() - 32 - 24);
+
+	int count = theApp.input->gamepadCount();
+
+	for (int i = 0, row = 0; i < count; i++)
+	{
+		int     device = 0;
+		CString name;
+
+		if (!theApp.input->gamepadInfo(i, device, name))
+			continue;
+
+		// the number is the one the captured key shows as "Joy <n>"
+		CString number;
+		number.Format("%d", device);
+
+		int item = gamepadList.InsertItem(row++, number);
+		gamepadList.SetItemText(item, 1, name);
+	}
+}
+
 void JoypadConfig::showPage(int page)
 {
 	const int joyIds[] = {
@@ -246,17 +392,30 @@ void JoypadConfig::showPage(int page)
 		IDC_EDIT_AF_A, IDC_EDIT_AF_B, IDC_EDIT_AF_L, IDC_EDIT_AF_R,
 		IDC_EDIT_AF_SELECT, IDC_EDIT_AF_START
 	};
+	// the labels used to share IDC_STATIC, which GetDlgItem() cannot find, so
+	// they stayed on screen over every page; they carry their own ids now
+	const int sharedLabels[] = {
+		IDC_STATIC_UP, IDC_STATIC_DOWN, IDC_STATIC_LEFT, IDC_STATIC_RIGHT,
+		IDC_STATIC_BUTTON_A, IDC_STATIC_BUTTON_B, IDC_STATIC_BUTTON_L, IDC_STATIC_BUTTON_R,
+		IDC_STATIC_SELECT, IDC_STATIC_START
+	};
 	const int joyOnlyLabels[] = {
 		IDC_STATIC_SPEED, IDC_STATIC_CAPTURE, IDC_STATIC_GS
 	};
 
 	bool autoFirePage = (page == 1);
+	bool gamepadPage  = (page == 2);
+	bool buttonsPage  = !autoFirePage && !gamepadPage;
+
+	// the Clear button works on a field of the page that is showing
+	if (!gamepadPage)
+		lastKeyId = autoFirePage ? IDC_EDIT_AF_UP : IDC_EDIT_UP;
 
 	for (int i = 0; i < sizeof(joyIds) / sizeof(joyIds[0]); i++)
 	{
 		CWnd *wnd = GetDlgItem(joyIds[i]);
 		if (wnd)
-			wnd->ShowWindow(autoFirePage ? SW_HIDE : SW_SHOW);
+			wnd->ShowWindow(buttonsPage ? SW_SHOW : SW_HIDE);
 	}
 	for (int i = 0; i < sizeof(afIds) / sizeof(afIds[0]); i++)
 	{
@@ -264,12 +423,42 @@ void JoypadConfig::showPage(int page)
 		if (wnd)
 			wnd->ShowWindow(autoFirePage ? SW_SHOW : SW_HIDE);
 	}
+	// the same ten labels name the fields of both pages, so they only go away
+	// on the page that has no fields
+	for (int i = 0; i < sizeof(sharedLabels) / sizeof(sharedLabels[0]); i++)
+	{
+		CWnd *wnd = GetDlgItem(sharedLabels[i]);
+		if (wnd)
+			wnd->ShowWindow(gamepadPage ? SW_HIDE : SW_SHOW);
+	}
 	for (int i = 0; i < sizeof(joyOnlyLabels) / sizeof(joyOnlyLabels[0]); i++)
 	{
 		CWnd *wnd = GetDlgItem(joyOnlyLabels[i]);
 		if (wnd)
-			wnd->ShowWindow(autoFirePage ? SW_HIDE : SW_SHOW);
+			wnd->ShowWindow(buttonsPage ? SW_SHOW : SW_HIDE);
 	}
+
+	gamepadList.ShowWindow(gamepadPage ? SW_SHOW : SW_HIDE);
+
+	const int deadzoneIds[] = {
+		IDC_STATIC_DEADZONE, IDC_EDIT_DEADZONE, IDC_STATIC_DEADZONE_UNIT
+	};
+
+	for (int i = 0; i < sizeof(deadzoneIds) / sizeof(deadzoneIds[0]); i++)
+	{
+		CWnd *wnd = GetDlgItem(deadzoneIds[i]);
+		if (wnd)
+			wnd->ShowWindow(gamepadPage ? SW_SHOW : SW_HIDE);
+	}
+
+	if (CWnd *clear = GetDlgItem(IDC_CLEAR_KEY))
+		clear->ShowWindow(gamepadPage ? SW_HIDE : SW_SHOW);
+
+	// A control that is hidden or shown leaves its pixels behind: the tab
+	// paints its page once and does not know a sibling on top of it moved, and
+	// a list that was just resized paints only the part it thinks is dirty.
+	// Repainting the dialog together with its children is what clears it.
+	RedrawWindow(NULL, NULL, RDW_INVALIDATE | RDW_ERASE | RDW_ALLCHILDREN | RDW_UPDATENOW);
 }
 
 void JoypadConfig::assignKey(int id, int key)
@@ -488,6 +677,9 @@ BOOL MotionConfig::OnInitDialog()
 	CDialog::OnInitDialog();
 
 	timerId = SetTimer(0, 200, NULL);
+
+	if (theApp.input)
+		theApp.input->refreshDevices();
 
 	SetWindowLongPtr(up, GWLP_USERDATA, motion[KEY_UP]);
 	up.SetWindowText(theApp.input->getKeyName(motion[KEY_UP]));

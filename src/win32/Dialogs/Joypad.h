@@ -69,6 +69,7 @@ public:
 	JoypadEditControl buttonB;
 	JoypadEditControl buttonA;
 	CTabCtrl           tab;
+	CListCtrl          gamepadList;
 	JoypadEditControl afUp;
 	JoypadEditControl afDown;
 	JoypadEditControl afLeft;
@@ -92,8 +93,10 @@ protected:
 protected:
 	UINT_PTR timerId;
 	int  which;
+	UINT lastKeyId;	// field the Clear button acts on
 
 	void showPage(int page);
+	void fillGamepadList();
 
 	// Generated message map functions
 	//{{AFX_MSG(JoypadConfig)
@@ -103,7 +106,11 @@ protected:
 	afx_msg void OnDestroy();
 	afx_msg void OnTimer(UINT_PTR nIDEvent);
 	afx_msg void OnKeyDown(UINT nChar, UINT nRepCnt, UINT nFlags);
+	afx_msg HBRUSH OnCtlColor(CDC *pDC, CWnd *pWnd, UINT nCtlColor);
 	afx_msg void OnSelChangeTab(NMHDR *pNMHDR, LRESULT *pResult);
+	afx_msg void OnKeyFocus(UINT nID);
+	afx_msg void OnClearKey();
+	afx_msg void OnDeadzoneChanged();
 	virtual BOOL OnInitDialog();
 	//}}AFX_MSG
 	DECLARE_MESSAGE_MAP()

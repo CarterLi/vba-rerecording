@@ -972,6 +972,11 @@ invalidArgument:
 	// obeyed, so the message loop takes over from here.
 	winlog("ready, handing control to the user");
 
+	// input was set up before the window existed, so the controllers it found
+	// could not be reported to the user yet
+	if (input)
+		input->announceDevices();
+
 	return TRUE;
 }
 

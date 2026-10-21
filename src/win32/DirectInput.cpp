@@ -2,9 +2,17 @@
 
 #include "stdafx.h"
 
-#define DIRECTINPUT_VERSION 0x0500
+#define DIRECTINPUT_VERSION 0x0800
 #include "dinput.h"
 #include <cstddef>
+
+// requestSimpleHidReports() talks to the HID device directly: DirectInput has
+// no output reports for joysticks, and the controller only switches to the
+// report the OS can decode when a host asks it to.
+#include <setupapi.h>
+#include <hidsdi.h>
+#pragma comment(lib, "setupapi.lib")
+#pragma comment(lib, "hid.lib")
 
 #include "resource.h"
 #include "Input.h"
@@ -168,6 +176,12 @@ public:
 	virtual ~DirectInput();
 
 	virtual bool initialize();
+	virtual void refreshDevices();
+	virtual void announceDevices();
+	virtual int  gamepadCount();
+	virtual bool gamepadInfo(int n, int &deviceIndex, CString &name);
+	virtual int  getDeadzone();
+	virtual void setDeadzone(int percent);
 	virtual bool readDevices();
 	virtual u32 readDevice(int which, bool sensor);
 	virtual CString getKeyName(LONG_PTR key);
@@ -184,16 +198,20 @@ public:
 
 struct deviceInfo
 {
-	LPDIRECTINPUTDEVICE device;
+	LPDIRECTINPUTDEVICE8 device;
 	BOOL isPolled;
 	int  nButtons;
 	int  nAxes;
 	int  nPovs;
 	BOOL first;
+	BOOL attached;		// the controller is plugged in right now
+	int  failCount;		// reads that have failed in a row
+	char name[128];		// product name, for the messages
 	struct
 	{
 		DWORD offset;
 		LONG  center;
+		LONG  half;		// distance from the centre to either end
 		LONG  negative;
 		LONG  positive;
 	} axis[8];
@@ -205,12 +223,125 @@ struct deviceInfo
 	};
 };
 
-static deviceInfo *  currentDevice = NULL;
-static int           numDevices    = 1;
-static deviceInfo *  pDevices      = NULL;
-static LPDIRECTINPUT pDirectInput  = NULL;
-static int           joyDebug      = 0;
-static int           axisNumber    = 0;
+static deviceInfo *   currentDevice = NULL;
+static int            numDevices    = 1;
+static deviceInfo *   pDevices      = NULL;
+static LPDIRECTINPUT8 pDirectInput  = NULL;
+static int            joyDebug      = 0;
+static int            axisNumber    = 0;
+
+// Percent of the way from the centre to the end that a stick has to travel
+// before it counts as pushed.  50 is what the axis thresholds always were:
+// half of the half range.  Lower it for a stick that needs less travel,
+// raise it for a stick that drifts.
+static int            joypadDeadzone = 50;
+
+// Controllers found by an enumeration, waiting to be reported to the user.
+// The list is flushed once the enumeration has finished, so a pad that was
+// plugged in before the emulator started produces one message and not one per
+// device.
+static CString pendingPadNames;
+static int     pendingPadCount = 0;
+
+// Recomputes where "pushed" starts for every axis of every controller.  The
+// thresholds are kept per axis, so a changed setting only has to be pushed
+// into them rather than the devices re-read.
+static void applyDeadzone()
+{
+	if (pDevices == NULL)
+		return;
+
+	for (int i = 1; i < numDevices; i++)
+	{
+		for (int a = 0; a < 8; a++)
+		{
+			LONG threshold = pDevices[i].axis[a].half * joypadDeadzone / 100;
+
+			pDevices[i].axis[a].negative = pDevices[i].axis[a].center - threshold;
+			pDevices[i].axis[a].positive = pDevices[i].axis[a].center + threshold;
+		}
+	}
+}
+
+static void rememberPad(const char *name)
+{
+	if (name == NULL || name[0] == 0)
+		return;
+
+	if (pendingPadCount > 0)
+		pendingPadNames += ", ";
+
+	pendingPadNames += name;
+	pendingPadCount++;
+}
+
+static void announcePads()
+{
+	if (pendingPadCount == 0)
+		return;
+
+	CString message;
+	message.Format(winResLoadString(IDS_JOYPAD_CONNECTED), (const char *)pendingPadNames);
+
+	// the trace log keeps the record whether or not the message reaches the
+	// screen: before a game is loaded there is no screen to put it on
+	winlog("%s\n", (const char *)message);
+
+	pendingPadNames.Empty();
+	pendingPadCount = 0;
+
+	// a status message on the game screen, the way "state loaded" and the
+	// autofire toggles are reported - a dialog would stop a frame of the game
+	// (and would need a window of its own)
+	systemScreenMessage(message);
+}
+
+// A controller came or went while the emulator was running.  These arrive at
+// frame rate, so only the edges are reported and only after the read has
+// failed twice: a single lost frame is not a disconnected controller.
+static void reportPad(deviceInfo &info, bool connected)
+{
+	CString message;
+
+	message.Format(winResLoadString(connected ? IDS_JOYPAD_CONNECTED
+	                                          : IDS_JOYPAD_DISCONNECTED),
+	               info.name);
+
+	// always in the trace log, so a controller that came or went can be traced
+	// after the on-screen message is long gone
+	winlog("%s\n", (const char *)message);
+
+	systemScreenMessage(message);
+}
+
+// Feeds the result of a device read into the attached/lost state machine and
+// answers whether there is a state to use this time.
+static bool padReadResult(int index, HRESULT hret)
+{
+	if (hret == DI_OK)
+	{
+		pDevices[index].failCount = 0;
+
+		if (!pDevices[index].attached)
+		{
+			pDevices[index].attached = TRUE;
+			reportPad(pDevices[index], true);
+		}
+
+		return true;
+	}
+
+	if (++pDevices[index].failCount < 2)
+		return false;
+
+	if (pDevices[index].attached)
+	{
+		pDevices[index].attached = FALSE;
+		reportPad(pDevices[index], false);
+	}
+
+	return false;
+}
 
 USHORT joypad[4][13] = {
 	{
@@ -337,6 +468,14 @@ void winReadKeys()
 	key = regQueryDwordValue("Motion_Down", (DWORD)-1);
 	if (key != -1)
 		motion[KEY_DOWN] = key;
+
+	joypadDeadzone = (int)regQueryDwordValue("Joy_Deadzone", joypadDeadzone);
+	if (joypadDeadzone < 0)
+		joypadDeadzone = 0;
+	if (joypadDeadzone > 100)
+		joypadDeadzone = 100;
+
+	applyDeadzone();
 }
 
 static void winSaveKey(char *name, int num, USHORT value)
@@ -386,6 +525,8 @@ void winSaveKeys()
 	                 motion[KEY_UP]);
 	regSetDwordValue("Motion_Down",
 	                 motion[KEY_DOWN]);
+
+	regSetDwordValue("Joy_Deadzone", joypadDeadzone);
 }
 
 static BOOL CALLBACK EnumAxesCallback(const DIDEVICEOBJECTINSTANCE*pdidoi,
@@ -406,7 +547,12 @@ static BOOL CALLBACK EnumAxesCallback(const DIDEVICEOBJECTINSTANCE*pdidoi,
 		if (FAILED(currentDevice->device->
 		           GetProperty(DIPROP_RANGE, &diprg.diph)))
 		{
-			return DIENUM_STOP;
+			// The device will not talk about this axis at all.  Keep going
+			// instead of dropping every axis after it: the offset is what the
+			// reads need, and a HID axis that says nothing is 0 to 65535 with
+			// the stick at rest in the middle.
+			diprg.lMin = 0;
+			diprg.lMax = 65535;
 		}
 	}
 
@@ -422,12 +568,14 @@ static BOOL CALLBACK EnumAxesCallback(const DIDEVICEOBJECTINSTANCE*pdidoi,
 	currentDevice->device->SetProperty(DIPROP_DEADZONE, &didz.diph);
 
 	LONG center    = (diprg.lMin + diprg.lMax)/2;
-	LONG threshold = (diprg.lMax - center)/2;
+	LONG half      = (diprg.lMax - center);
+	LONG threshold = half * joypadDeadzone / 100;
 
 	// only 8 axis supported
 	if (axisNumber < 8)
 	{
 		currentDevice->axis[axisNumber].center   = center;
+		currentDevice->axis[axisNumber].half     = half;
 		currentDevice->axis[axisNumber].negative = center - threshold;
 		currentDevice->axis[axisNumber].positive = center + threshold;
 		currentDevice->axis[axisNumber].offset   = pdidoi->dwOfs;
@@ -442,6 +590,192 @@ static BOOL CALLBACK EnumPovsCallback(const DIDEVICEOBJECTINSTANCE*pdidoi,
 	return DIENUM_CONTINUE;
 }
 
+// Everything that has to be redone whenever a joystick object is created: the
+// capabilities, the data format, the axis thresholds and the first-poll guard.
+// Used both when the devices are enumerated at startup and when the list is
+// refreshed because a controller appeared later.
+static void setupJoystick(int index)
+{
+	DIDEVCAPS caps;
+
+	ZeroMemory(&caps, sizeof(caps));
+	caps.dwSize = sizeof(DIDEVCAPS);
+
+	pDevices[index].isPolled = FALSE;
+	pDevices[index].nButtons = 0;
+	pDevices[index].nAxes    = 0;
+	pDevices[index].nPovs    = 0;
+
+	HRESULT hRet = pDevices[index].device->GetCapabilities(&caps);
+
+	if (hRet == DI_OK)
+	{
+		if (caps.dwFlags & DIDC_POLLEDDATAFORMAT ||
+		    caps.dwFlags & DIDC_POLLEDDEVICE)
+			pDevices[index].isPolled = TRUE;
+
+		pDevices[index].nButtons = caps.dwButtons;
+		pDevices[index].nAxes    = caps.dwAxes;
+		pDevices[index].nPovs    = caps.dwPOVs;
+	}
+	else if (joyDebug)
+		winlog("Failed to get device capabilities %08x\n", hRet);
+
+	// Thresholds the axis callback has not reported yet.  All eight, because
+	// checkKey() indexes the same array.
+	for (int i = 0; i < 8; i++)
+	{
+		pDevices[index].axis[i].center   = 0x8000;
+		pDevices[index].axis[i].half     = 0x4000;
+		pDevices[index].axis[i].negative = 0x4000;
+		pDevices[index].axis[i].positive = 0xc000;
+	}
+
+	pDevices[index].device->SetDataFormat(&c_dfDIJoystick);
+	pDevices[index].needed = FALSE;
+	pDevices[index].first  = TRUE;
+
+	// background and non-exclusive, so the pad keeps working while the emulator
+	// is not the focused window; without a level at all Acquire() is at the
+	// mercy of whatever DirectInput defaults to.
+	CWnd *wnd = AfxGetApp() != NULL ? AfxGetApp()->m_pMainWnd : NULL;
+
+	if (wnd != NULL && wnd->GetSafeHwnd() != NULL)
+		pDevices[index].device->SetCooperativeLevel(wnd->GetSafeHwnd(),
+		                                            DISCL_BACKGROUND | DISCL_NONEXCLUSIVE);
+
+	currentDevice = &pDevices[index];
+	axisNumber    = 0;
+	currentDevice->device->EnumObjects(EnumAxesCallback, NULL, DIDFT_AXIS);
+	currentDevice->device->EnumObjects(EnumPovsCallback, NULL, DIDFT_POV);
+
+	if (joyDebug)
+	{
+		winlog("Joystick %2d polled  : %d\n",    index, currentDevice->isPolled);
+		winlog("Joystick %2d buttons : %d\n",    index, currentDevice->nButtons);
+		winlog("Joystick %2d povs    : %d\n",    index, currentDevice->nPovs);
+		winlog("Joystick %2d axes    : %d\n",    index, currentDevice->nAxes);
+		for (int j = 0; j < currentDevice->nAxes && j < 8; j++)
+		{
+			winlog("Axis %2d offset      : %08lx\n", j, currentDevice->axis[j].offset);
+			winlog("Axis %2d center      : %08lx\n", j, currentDevice->axis[j].center);
+			winlog("Axis %2d negative    : %08lx\n", j, currentDevice->axis[j].negative);
+			winlog("Axis %2d positive    : %08lx\n", j, currentDevice->axis[j].positive);
+		}
+	}
+
+	currentDevice = NULL;
+}
+
+// A Nintendo-style controller (the Pro Controller and the pads that copy its
+// protocol) sends its standard report - 0x30, the one with the motion data -
+// all the time, but the HID descriptor declares that report as an opaque
+// vendor blob.  Only the "simple HID" report, 0x3F, carries the buttons and
+// sticks that the descriptor names, and the pad only sends it when a host
+// asks for it.  DirectInput reads through the OS parser, so a pad that streams
+// 0x30 alone looks like a device that never sends anything: it enumerates, it
+// acquires, and every read returns the defaults, which is what "the controller
+// does nothing" looks like from the outside.
+//
+// Output report 0x01 carries rumble plus a subcommand; subcommand 0x03 sets the
+// input report mode.  Asking for 0x3F makes the pad send the report the OS can
+// decode, and it keeps sending it until the controller reconnects.  The write
+// has to go to the HID device itself, because DirectInput has no way to send
+// an output report to a joystick.
+static void requestSimpleHidReports()
+{
+	GUID hid;
+	HidD_GetHidGuid(&hid);
+
+	HDEVINFO set = SetupDiGetClassDevsA(&hid, NULL, NULL,
+	                                    DIGCF_PRESENT | DIGCF_DEVICEINTERFACE);
+
+	if (set == INVALID_HANDLE_VALUE)
+		return;
+
+	for (DWORD i = 0; ; i++)
+	{
+		SP_DEVICE_INTERFACE_DATA iface;
+
+		ZeroMemory(&iface, sizeof(iface));
+		iface.cbSize = sizeof(iface);
+
+		if (!SetupDiEnumDeviceInterfaces(set, NULL, &hid, i, &iface))
+			break;
+
+		DWORD size = 0;
+
+		SetupDiGetDeviceInterfaceDetailA(set, &iface, NULL, 0, &size, NULL);
+
+		if (size == 0)
+			continue;
+
+		PSP_DEVICE_INTERFACE_DETAIL_DATA_A detail =
+			(PSP_DEVICE_INTERFACE_DETAIL_DATA_A)malloc(size);
+
+		if (detail == NULL)
+			continue;
+
+		ZeroMemory(detail, size);
+		detail->cbSize = sizeof(SP_DEVICE_INTERFACE_DETAIL_DATA_A);
+
+		if (SetupDiGetDeviceInterfaceDetailA(set, &iface, detail, size, NULL, NULL))
+		{
+			HIDD_ATTRIBUTES      attr;
+			PHIDP_PREPARSED_DATA preparsed = NULL;
+			HIDP_CAPS            caps;
+
+			ZeroMemory(&attr, sizeof(attr));
+			ZeroMemory(&caps, sizeof(caps));
+			attr.Size = sizeof(attr);
+
+			HANDLE device = CreateFileA(detail->DevicePath,
+			                            GENERIC_READ | GENERIC_WRITE,
+			                            FILE_SHARE_READ | FILE_SHARE_WRITE,
+			                            NULL, OPEN_EXISTING, 0, NULL);
+
+			if (device != INVALID_HANDLE_VALUE)
+			{
+				if (HidD_GetAttributes(device, &attr) &&
+				    attr.VendorID == 0x057e &&
+				    HidD_GetPreparsedData(device, &preparsed) &&
+				    HidP_GetCaps(preparsed, &caps) == HIDP_STATUS_SUCCESS &&
+				    caps.UsagePage == 0x01 && caps.Usage == 0x05 &&
+				    caps.OutputReportByteLength >= 12)
+				{
+					int   length = caps.OutputReportByteLength;
+					BYTE *packet = (BYTE *)calloc(length, 1);
+
+					if (packet != NULL)
+					{
+						DWORD written = 0;
+
+						packet[0]  = 0x01;	// rumble + subcommand
+						packet[1]  = 0x00;	// rumble counter
+						packet[10] = 0x03;	// set input report mode
+						packet[11] = 0x3f;	// simple HID reports
+
+						WriteFile(device, packet, length, &written, NULL);
+						free(packet);
+
+						if (joyDebug)
+							winlog("Nintendo pad: asked for simple HID reports\n");
+					}
+				}
+
+				if (preparsed != NULL)
+					HidD_FreePreparsedData(preparsed);
+
+				CloseHandle(device);
+			}
+		}
+
+		free(detail);
+	}
+
+	SetupDiDestroyDeviceInfoList(set);
+}
+
 static BOOL CALLBACK DIEnumDevicesCallback(LPCDIDEVICEINSTANCE pInst,
                                            LPVOID lpvContext)
 {
@@ -452,32 +786,7 @@ static BOOL CALLBACK DIEnumDevicesCallback(LPCDIDEVICEINSTANCE pInst,
 	                                          NULL);
 
 	if (hRet != DI_OK)
-		return DIENUM_STOP;
-
-	DIDEVCAPS caps;
-	caps.dwSize = sizeof(DIDEVCAPS);
-
-	hRet = pDevices[numDevices].device->GetCapabilities(&caps);
-
-	if (hRet == DI_OK)
-	{
-		if (caps.dwFlags & DIDC_POLLEDDATAFORMAT ||
-		    caps.dwFlags & DIDC_POLLEDDEVICE)
-			pDevices[numDevices].isPolled = TRUE;
-
-		pDevices[numDevices].nButtons = caps.dwButtons;
-		pDevices[numDevices].nAxes    = caps.dwAxes;
-		pDevices[numDevices].nPovs    = caps.dwPOVs;
-
-		for (int i = 0; i < 6; i++)
-		{
-			pDevices[numDevices].axis[i].center   = 0x8000;
-			pDevices[numDevices].axis[i].negative = 0x4000;
-			pDevices[numDevices].axis[i].positive = 0xc000;
-		}
-	}
-	else if (joyDebug)
-		winlog("Failed to get device capabilities %08x\n", hRet);
+		return DIENUM_CONTINUE;
 
 	if (joyDebug)
 	{
@@ -485,6 +794,12 @@ static BOOL CALLBACK DIEnumDevicesCallback(LPCDIDEVICEINSTANCE pInst,
 		winlog("******************************\n");
 		winlog("Joystick %2d name    : %s\n", numDevices, pInst->tszProductName);
 	}
+
+	rememberPad(pInst->tszProductName);
+
+	lstrcpynA(pDevices[numDevices].name, pInst->tszProductName,
+	          sizeof(pDevices[numDevices].name));
+	pDevices[numDevices].attached = TRUE;
 
 	numDevices++;
 
@@ -689,7 +1004,7 @@ static bool readJoystick(int joy)
 	if (pDevices[joy].needed)
 	{
 		if (pDevices[joy].isPolled)
-			((LPDIRECTINPUTDEVICE2)pDevices[joy].device)->Poll();
+			pDevices[joy].device->Poll();
 
 		HRESULT hret = pDevices[joy].device->
 		               GetDeviceState(sizeof(DIJOYSTATE),
@@ -702,7 +1017,7 @@ static bool readJoystick(int joy)
 			if (hret == DI_OK)
 			{
 				if (pDevices[joy].isPolled)
-					((LPDIRECTINPUTDEVICE2)pDevices[joy].device)->Poll();
+					pDevices[joy].device->Poll();
 
 				hret = pDevices[joy].device->
 				       GetDeviceState(sizeof(DIJOYSTATE),
@@ -710,7 +1025,7 @@ static bool readJoystick(int joy)
 			}
 		}
 
-		return hret == DI_OK;
+		return padReadResult(joy, hret);
 	}
 
 	return true;
@@ -770,11 +1085,17 @@ static void checkJoypads()
 		HRESULT hret = pDevices[i].device->Acquire();
 
 		if (pDevices[i].isPolled)
-			((LPDIRECTINPUTDEVICE2)pDevices[i].device)->Poll();
+			pDevices[i].device->Poll();
 
 		hret = pDevices[i].device->GetDeviceState(sizeof(joystick), &joystick);
 
 		int j;
+
+		// Without a state there is nothing to compare against: the snapshot
+		// would be whatever the stack held.  This is also where a controller
+		// that was unplugged while the dialog was open gets noticed.
+		if (!padReadResult(i, hret))
+			continue;
 
 		if (pDevices[i].first)
 		{
@@ -789,6 +1110,12 @@ static void checkJoypads()
 			     & joystick.rgbButtons[j]) & 0x80)
 			{
 				HWND focus = GetFocus();
+
+				// joyDebug: a pad that is enumerated but delivers nothing and
+				// a pad whose events never reach the field look the same from
+				// the outside, so say which one it is.
+				if (joyDebug)
+					winlog("Joystick %2d button %d -> key %d\n", i, j, (i << 8) | (j + 128));
 
 				SendMessage(focus, JOYCONFIG_MESSAGE, i, j+128);
 			}
@@ -982,34 +1309,64 @@ DirectInput::~DirectInput()
 	}
 }
 
+// "VBA.ini" next to the executable.  A bare file name does not mean the
+// working directory to the profile API - it means the Windows directory - so
+// the debug switch below could never be turned on from where the emulator
+// actually lives.
+static const char *settingsPath()
+{
+	static char path[MAX_PATH] = "";
+
+	if (path[0] == 0)
+	{
+		if (GetModuleFileNameA(NULL, path, MAX_PATH) == 0)
+			lstrcpyA(path, "VBA.ini");
+		else
+		{
+			char *slash = strrchr(path, '\\');
+
+			if (slash != NULL)
+				lstrcpyA(slash + 1, "VBA.ini");
+		}
+	}
+
+	return path;
+}
+
 bool DirectInput::initialize()
 {
 	joyDebug = GetPrivateProfileInt("config",
 	                                "joyDebug",
 	                                0,
-	                                "VBA.ini");
-	dinputDLL = /**/ ::LoadLibrary("DINPUT.DLL");
-	HRESULT (WINAPI *DInputCreate)(HINSTANCE, DWORD, LPDIRECTINPUT *, IUnknown *);
+	                                settingsPath());
+	// DirectInput 8 rather than the DirectInput 5 in DINPUT.DLL: same
+	// interfaces, but the HID side is the one every program written since
+	// 2000 uses, and it is the one that gets the bug fixes.
+	dinputDLL = /**/ ::LoadLibrary("dinput8.dll");
+
+	HRESULT (WINAPI *DInputCreate)(HINSTANCE, DWORD, REFIID, LPVOID *, LPUNKNOWN);
+
 	if (dinputDLL != NULL)
 	{
-		DInputCreate = (HRESULT (WINAPI *)(HINSTANCE, DWORD, LPDIRECTINPUT *, IUnknown *))
-		               GetProcAddress(dinputDLL, "DirectInputCreateA");
+		DInputCreate = (HRESULT (WINAPI *)(HINSTANCE, DWORD, REFIID, LPVOID *, LPUNKNOWN))
+		               GetProcAddress(dinputDLL, "DirectInput8Create");
 
 		if (DInputCreate == NULL)
 		{
-			directXMessage("DirectInputCreateA");
+			directXMessage("DirectInput8Create");
 			return false;
 		}
 	}
 	else
 	{
-		directXMessage("DINPUT.DLL");
+		directXMessage("dinput8.dll");
 		return false;
 	}
 
 	HRESULT hret = DInputCreate(AfxGetInstanceHandle(),
 	                            DIRECTINPUT_VERSION,
-	                            &pDirectInput,
+	                            IID_IDirectInput8,
+	                            (LPVOID *)&pDirectInput,
 	                            NULL);
 	if (hret != DI_OK)
 	{
@@ -1017,7 +1374,7 @@ bool DirectInput::initialize()
 		return false;
 	}
 
-	hret = pDirectInput->EnumDevices(DIDEVTYPE_JOYSTICK,
+	hret = pDirectInput->EnumDevices(DI8DEVCLASS_GAMECTRL,
 	                                 DIEnumDevicesCallback2,
 	                                 NULL,
 	                                 DIEDFL_ATTACHEDONLY);
@@ -1037,7 +1394,11 @@ bool DirectInput::initialize()
 
 	numDevices = 1;
 
-	hret = pDirectInput->EnumDevices(DIDEVTYPE_JOYSTICK,
+	// before the pads are enumerated: a Nintendo-style controller has to be
+	// asked for the report the OS can decode, or it never sends one
+	requestSimpleHidReports();
+
+	hret = pDirectInput->EnumDevices(DI8DEVCLASS_GAMECTRL,
 	                                 DIEnumDevicesCallback,
 	                                 NULL,
 	                                 DIEDFL_ATTACHEDONLY);
@@ -1061,41 +1422,167 @@ bool DirectInput::initialize()
 	}
 
 	for (int i = 1; i < numDevices; i++)
-	{
-		pDevices[i].device->SetDataFormat(&c_dfDIJoystick);
-		pDevices[i].needed = false;
-		pDevices[i].first  = true;
-		currentDevice      = &pDevices[i];
-		axisNumber         = 0;
-		currentDevice->device->EnumObjects(EnumAxesCallback, NULL, DIDFT_AXIS);
-		currentDevice->device->EnumObjects(EnumPovsCallback, NULL, DIDFT_POV);
-		if (joyDebug)
-		{
-			// don't translate. debug only
-			winlog("Joystick %2d polled  : %d\n",    i, currentDevice->isPolled);
-			winlog("Joystick %2d buttons : %d\n",    i, currentDevice->nButtons);
-			winlog("Joystick %2d povs    : %d\n",    i, currentDevice->nPovs);
-			winlog("Joystick %2d axes    : %d\n",    i, currentDevice->nAxes);
-			for (int j = 0; j < currentDevice->nAxes; j++)
-			{
-				winlog("Axis %2d offset      : %08lx\n", j, currentDevice->axis[j].
-				       offset);
-				winlog("Axis %2d center      : %08lx\n", j, currentDevice->axis[j].
-				       center);
-				winlog("Axis %2d negative    : %08lx\n",   j, currentDevice->axis[j].
-				       negative);
-				winlog("Axis %2d positive    : %08lx\n",   j, currentDevice->axis[j].
-				       positive);
-			}
-		}
-
-		currentDevice = NULL;
-	}
+		setupJoystick(i);
 
 	for (int i = 0; i < numDevices; i++)
 		pDevices[i].device->Acquire();
 
 	return true;
+}
+
+namespace
+{
+	struct AttachedDevices
+	{
+		int  count;
+		GUID guid[16];
+	};
+
+	BOOL CALLBACK collectDevice(LPCDIDEVICEINSTANCE inst, LPVOID param)
+	{
+		AttachedDevices *list = (AttachedDevices *)param;
+
+		if (list->count < (int)(sizeof(list->guid) / sizeof(list->guid[0])))
+			list->guid[list->count++] = inst->guidInstance;
+
+		return DIENUM_CONTINUE;
+	}
+
+	bool deviceMatches(LPDIRECTINPUTDEVICE8 device, const GUID &guid)
+	{
+		if (device == NULL)
+			return false;
+
+		DIDEVICEINSTANCE info;
+		ZeroMemory(&info, sizeof(info));
+		info.dwSize = sizeof(info);
+
+		return SUCCEEDED(device->GetDeviceInfo(&info)) &&
+		       IsEqualGUID(info.guidInstance, guid) != 0;
+	}
+}
+
+// The device list is built once, at startup.  A controller that was asleep,
+// unplugged, or paired after the emulator started is not in it - and the
+// setup dialog then captures nothing at all, without an error to show for it.
+// The dialogs re-read the attached devices when they open.
+//
+// The index of a device is part of every saved binding, so a known device is
+// recreated in place and keeps its index; only devices that were never seen
+// before are appended.  A device that is gone keeps its slot dead, which is
+// what an unplugged controller has always looked like.
+void DirectInput::refreshDevices()
+{
+	if (pDirectInput == NULL || pDevices == NULL)
+		return;
+
+	// a pad that reconnected since startup is back in its standard report
+	// mode, so ask again before the device list is rebuilt
+	requestSimpleHidReports();
+
+	AttachedDevices attached;
+	attached.count = 0;
+
+	pDirectInput->EnumDevices(DI8DEVCLASS_GAMECTRL, collectDevice, &attached,
+	                          DIEDFL_ATTACHEDONLY);
+
+	for (int i = 1; i < numDevices; i++)
+	{
+		GUID guid;
+		bool attachedNow = false;
+
+		for (int d = 0; d < attached.count && !attachedNow; d++)
+		{
+			if (deviceMatches(pDevices[i].device, attached.guid[d]))
+			{
+				guid        = attached.guid[d];
+				attachedNow = true;
+			}
+		}
+
+		if (!attachedNow)
+		{
+			// the pad was pulled out or went to sleep: nothing else polls the
+			// device list, so this is where the loss is noticed
+			if (pDevices[i].attached)
+			{
+				pDevices[i].attached  = FALSE;
+				pDevices[i].failCount = 0;
+				reportPad(pDevices[i], false);
+			}
+			continue;
+		}
+
+		// a controller that slept and woke up comes back with the old object
+		// still pointing at a device that no longer exists
+		pDevices[i].device->Unacquire();
+		pDevices[i].device->Release();
+		pDevices[i].device = NULL;
+
+		if (SUCCEEDED(pDirectInput->CreateDevice(guid, &pDevices[i].device, NULL)) &&
+		    pDevices[i].device != NULL)
+		{
+			setupJoystick(i);
+			pDevices[i].device->Acquire();
+
+			if (!pDevices[i].attached)
+			{
+				pDevices[i].attached = TRUE;
+				reportPad(pDevices[i], true);
+			}
+		}
+	}
+
+	for (int d = 0; d < attached.count; d++)
+	{
+		bool known = false;
+
+		for (int i = 1; i < numDevices && !known; i++)
+			known = deviceMatches(pDevices[i].device, attached.guid[d]);
+
+		if (known)
+			continue;
+
+		LPDIRECTINPUTDEVICE8 device = NULL;
+
+		if (FAILED(pDirectInput->CreateDevice(attached.guid[d], &device, NULL)) ||
+		    device == NULL)
+			continue;
+
+		deviceInfo *grown = (deviceInfo *)realloc(pDevices, (numDevices + 1) * sizeof(deviceInfo));
+
+		if (grown == NULL)
+		{
+			device->Release();
+			continue;
+		}
+
+		pDevices = grown;
+		ZeroMemory(&pDevices[numDevices], sizeof(deviceInfo));
+		pDevices[numDevices].device = device;
+
+		if (joyDebug)
+			winlog("Joystick %2d added   : (attached after startup)\n", numDevices);
+
+		DIDEVICEINSTANCE instance;
+		ZeroMemory(&instance, sizeof(instance));
+		instance.dwSize = sizeof(instance);
+
+		if (SUCCEEDED(device->GetDeviceInfo(&instance)))
+		{
+			rememberPad(instance.tszProductName);
+			lstrcpynA(pDevices[numDevices].name, instance.tszProductName,
+			          sizeof(pDevices[numDevices].name));
+		}
+
+		pDevices[numDevices].attached = TRUE;
+
+		setupJoystick(numDevices);
+		device->Acquire();
+		numDevices++;
+	}
+
+	announcePads();
 }
 
 bool DirectInput::readDevices()
@@ -1299,6 +1786,11 @@ u32 DirectInput::readDevice(int i, bool sensor)
 
 CString DirectInput::getKeyName(LONG_PTR key)
 {
+	// Nothing bound: the setup dialog clears a key by storing 0, which is
+	// device 0, scan code 0 - a code no key produces.
+	if (key == 0)
+		return "";
+
 	LONG_PTR d = (key >> 8);
 	LONG_PTR k = key & 255;
 
@@ -1395,6 +1887,65 @@ void DirectInput::checkDevices()
 {
 	checkJoypads();
 	checkKeyboard();
+}
+
+// The devices are enumerated before the main window exists, so the message
+// about them waits until there is one to own it.
+void DirectInput::announceDevices()
+{
+	announcePads();
+}
+
+int DirectInput::gamepadCount()
+{
+	int count = 0;
+
+	if (pDevices == NULL)
+		return 0;
+
+	for (int i = 1; i < numDevices; i++)
+		if (pDevices[i].attached && pDevices[i].name[0] != 0)
+			count++;
+
+	return count;
+}
+
+bool DirectInput::gamepadInfo(int n, int &deviceIndex, CString &name)
+{
+	if (pDevices == NULL)
+		return false;
+
+	for (int i = 1; i < numDevices; i++)
+	{
+		if (!pDevices[i].attached || pDevices[i].name[0] == 0)
+			continue;
+
+		if (n-- == 0)
+		{
+			deviceIndex = i;
+			name        = pDevices[i].name;
+			return true;
+		}
+	}
+
+	return false;
+}
+
+int DirectInput::getDeadzone()
+{
+	return joypadDeadzone;
+}
+
+void DirectInput::setDeadzone(int percent)
+{
+	if (percent < 0)
+		percent = 0;
+	if (percent > 100)
+		percent = 100;
+
+	joypadDeadzone = percent;
+
+	applyDeadzone();
 }
 
 void DirectInput::activate()
