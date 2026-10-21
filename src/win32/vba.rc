@@ -143,6 +143,7 @@ PT_SKYWALKER541_SHADER  RCDATA                  "upscalers\\libretro\\PT_SkyWalk
 // Lanczos, the resampler of the windowed folder
 LANCZOS3_GLSL           RCDATA                  "upscalers\\libretro\\lanczos3.glsl"
 LANCZOS3_SHADER         RCDATA                  "upscalers\\libretro\\Lanczos3.hlsl"
+LANCZOS3_WGSL           RCDATA                  "upscalers\\libretro\\Lanczos3.wgsl"
 
 
 /////////////////////////////////////////////////////////////////////////////

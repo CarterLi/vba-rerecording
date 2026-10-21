@@ -103,6 +103,7 @@ libretro/PT_SkyWalker541.glsl       -> PT_SKYWALKER541_GLSL      handheld/shader
 libretro/PT_SkyWalker541.hlsl       -> PT_SKYWALKER541_SHADER
 libretro/lanczos3.glsl              -> LANCZOS3_GLSL             windowed/shaders
 libretro/Lanczos3.hlsl              -> LANCZOS3_SHADER
+libretro/Lanczos3.wgsl              -> LANCZOS3_WGSL
 libretro/stock.glsl                 the skeleton of the directory, unused
 
 The chains, in the order the presets of those directories run them:
@@ -123,6 +124,15 @@ the frame, n the target of pass n - 1 - and the size of that texture is handed
 to the shader as SecondSize, which is where a GLSL shader reads
 OrigTextureSize and PassPrev<N>TextureSize.  The OpenGL backend resolves the
 same names from the uniforms the pass declares.
+
+The WebGPU renderer runs the chains from WGSL, and only the ones that have a
+WGSL port: wgpu compiles neither GLSL nor HLSL, so Lanczos3.wgsl is a port
+written against the same upstream file rather than a translation of the two
+above, and the upscaling menu leaves the rest out while that renderer runs.
+Its taps are read with textureLoad and integer coordinates instead of through
+a sampler, which is exact where a tap lands on a texel centre and cheaper than
+a filtered fetch.  The chain there draws its last pass straight into the back
+buffer when it comes out at its size, so it pays no blit of its own.
 
 The ports are written the way the upstream files are rather than transcribed by
 a translator, so that they stay diffable against them: same names, same

@@ -614,6 +614,101 @@ static const char *g_quadShader =
     "    return textureSample(sourceTex, sourceSampler, inside.uv);\n"
     "}\n";
 
+// ---------------------------------------------------------------------------
+// The upscalers.
+//
+// A chain of WGSL passes over the frame, the shape the other two renderers
+// run: a pass reads the texture the pass before it made - the frame for the
+// first one - and writes one of its own.  The last pass writes the back buffer
+// itself whenever it comes out at its size, so a single pass upscaler costs no
+// blit at all and a chain costs one render pass per pass and nothing more.
+//
+// Nothing is uploaded per frame.  The constants of a pass are the sizes of the
+// pass, which change when the frame, the window or the scale cap does and not
+// otherwise, so they are written then and read from the same buffer after.
+
+// The most passes any of them has; ScaleFX has five in the other renderers.
+#define WGPU_MAX_PASSES 5
+
+// The four float4s a pass is handed, in the order and the layout of the struct
+// the shaders declare, and the same numbers Direct3D 11 puts in its constant
+// buffer.
+struct WgpuUpscalerConstants
+{
+	float sourceSize[4]; // xy: the size the pass reads, zw: one texel
+	float outputSize[4]; // xy: the size of its target, zw: one pixel of it
+	float scale[4];      // xy: outputSize.xy / sourceSize.xy
+	float secondSize[4]; // xy: the size of a second texture, zw: one texel
+};
+
+struct WgpuUpscalerPass
+{
+	WGPURenderPipeline pipeline;  // into a texture of the chain
+	WGPUBindGroup      group;     // what it reads, and its constants
+	WGPUBuffer         constants;
+	WGPUTexture        texture;   // the target it draws into
+	WGPUTextureView    view;
+};
+
+struct WgpuUpscalerSource
+{
+	int         value;    // the UPSCALER_* value it implements
+	const char *name;     // for the trace log and the screen message
+	const char *resource; // the RCDATA resource holding its WGSL
+	const int  *scales;   // per pass: 0 is the target size, n is n times the frame
+	int         passCount;
+};
+
+// Only the upscalers with a WGSL port are here, and the menu greys out the
+// rest while this renderer runs: the shaders of the other two are GLSL and
+// HLSL, and wgpu compiles neither.
+static const int g_lanczos3Scales[] = { 0 };
+
+static const WgpuUpscalerSource g_wgpuUpscalers[] =
+{
+	{ UPSCALER_LANCZOS3, "Lanczos", "LANCZOS3_WGSL", g_lanczos3Scales, 1 },
+};
+
+#define WGPU_UPSCALER_COUNT (sizeof(g_wgpuUpscalers) / sizeof(g_wgpuUpscalers[0]))
+
+// The row of the table a UPSCALER_* value is, or -1.
+static int wgpuUpscalerIndex(int value)
+{
+	for (int i = 0; i < (int)WGPU_UPSCALER_COUNT; i++)
+		if (g_wgpuUpscalers[i].value == value)
+			return i;
+
+	return -1;
+}
+
+// The shader sources ship inside the executable as RCDATA, the way the ones of
+// the other two renderers do, so that they stay readable and diffable against
+// upstream.  The resource is not NUL terminated, so its length goes with it.
+static WGPUStringView resourceInWgpu(LPCSTR name)
+{
+	WGPUStringView view;
+	view.data   = NULL;
+	view.length = 0;
+
+	HRSRC resource = FindResource(NULL, name, RT_RCDATA);
+	if (resource == NULL)
+	{
+		winlog("wgpu: the shader resource %s is missing from the executable\n", name);
+		return view;
+	}
+
+	HGLOBAL handle = LoadResource(NULL, resource);
+	if (handle == NULL)
+	{
+		winlog("wgpu: cannot load %s\n", name);
+		return view;
+	}
+
+	view.data   = (const char *)LockResource(handle);
+	view.length = (size_t)SizeofResource(NULL, resource);
+	return view;
+}
+
 class WgpuDisplay : public IDisplay
 {
 public:
@@ -631,7 +726,14 @@ public:
 	virtual DISPLAY_TYPE getType() { return WGPU; };
 	virtual void setOption(const char *, int);
 	virtual int selectFullScreenMode(GUID * *);
-	virtual bool upscalerAvailable(int upscaler) { return upscaler == UPSCALER_OFF; };
+	// The upscalers this renderer has a WGSL port of, plus Off.  One whose
+	// WGSL did not compile on this device is left out, the way the other two
+	// renderers leave out theirs.
+	virtual bool upscalerAvailable(int upscaler)
+	{
+		return upscaler == UPSCALER_OFF ||
+		       (wgpuUpscalerIndex(upscaler) >= 0 && !(upscalerValue == upscaler && upscalerFailed));
+	};
 	// The frame is uploaded straight into the texture that is sampled, and
 	// wgpu makes no mip chain of its own: a chain would take a render pass per
 	// level here, so the two filters the sampler has are the two on offer.
@@ -656,6 +758,9 @@ private:
 	void updateFrameData();
 	void uploadOverlay();
 	bool drawAndPresent(bool clearOnly);
+	bool prepareUpscaler();
+	void releaseUpscaler();
+	void releaseUpscalerTargets();
 
 	HWND          hwnd;
 	WGPUSurface   surface;
@@ -679,6 +784,25 @@ private:
 	WGPUTexture     overlayTexture;
 	WGPUTextureView overlayView;
 	WGPUBindGroup   overlayGroup;
+
+	// The upscaling chain the menu selected, when this renderer has a WGSL
+	// port of it: one bind group layout and one pipeline layout of their own,
+	// because a pass is handed a uniform buffer as well as the texture it
+	// reads, and one pipeline per pass - plus the variant of the last pass
+	// that writes the back buffer, which is a different format.
+	WGPUBindGroupLayout upscalerGroupLayout;
+	WGPUPipelineLayout  upscalerPipelineLayout;
+	WGPUShaderModule    upscalerModule;
+	WGPURenderPipeline  upscalerSurfacePipeline;
+	WGPUBindGroup       upscalerBlitGroup; // the last target, for the capped path
+	WgpuUpscalerPass    upscalerPasses[WGPU_MAX_PASSES];
+	int                 upscalerPassCount;
+	int                 upscalerValue;  // the value the pipelines were built for, -1 for none
+	bool                upscalerFailed; // the WGSL did not compile on this device
+	int                 upscalerFrameWidth;
+	int                 upscalerFrameHeight;
+	int                 upscalerTargetWidth;
+	int                 upscalerTargetHeight;
 
 	// A desktop in 16 bit mode gives the core a 565 frame, and the upload
 	// widens those pixels into the RGBA8 texture; the 32 bit frame is BGRA
@@ -753,6 +877,19 @@ WgpuDisplay::WgpuDisplay()
 	overlayTexture   = NULL;
 	overlayView      = NULL;
 	overlayGroup     = NULL;
+	upscalerGroupLayout     = NULL;
+	upscalerPipelineLayout  = NULL;
+	upscalerModule          = NULL;
+	upscalerSurfacePipeline = NULL;
+	upscalerBlitGroup       = NULL;
+	upscalerPassCount       = 0;
+	upscalerValue           = -1;
+	upscalerFailed          = false;
+	upscalerFrameWidth      = 0;
+	upscalerFrameHeight     = 0;
+	upscalerTargetWidth     = 0;
+	upscalerTargetHeight    = 0;
+	ZeroMemory(upscalerPasses, sizeof(upscalerPasses));
 	frameBgr565      = false;
 	surfaceFormat    = WGPUTextureFormat_Undefined;
 	surfaceWidth     = 0;
@@ -788,8 +925,13 @@ void WgpuDisplay::cleanup()
 
 	// The objects the device made go before the device itself: every one of
 	// them holds a reference to it, and the device is the last thing to fall.
+	releaseUpscaler();
 	releaseFrameTexture();
 	releaseOverlayTexture();
+
+	if (upscalerSurfacePipeline) { wgpuRenderPipelineRelease_fn(upscalerSurfacePipeline); upscalerSurfacePipeline = NULL; }
+	if (upscalerPipelineLayout)  { wgpuPipelineLayoutRelease_fn(upscalerPipelineLayout);   upscalerPipelineLayout = NULL; }
+	if (upscalerGroupLayout)     { wgpuBindGroupLayoutRelease_fn(upscalerGroupLayout);     upscalerGroupLayout = NULL; }
 
 	if (vertexBuffer)  { wgpuBufferRelease_fn(vertexBuffer);          vertexBuffer = NULL; }
 	if (samplerLinear) { wgpuSamplerRelease_fn(samplerLinear);        samplerLinear = NULL; }
@@ -1333,6 +1475,58 @@ bool WgpuDisplay::createPipeline()
 		return false;
 	}
 
+	// The upscaler passes read the texture the pass before them made and are
+	// handed their sizes in a uniform buffer, so their layout carries a third
+	// binding.  The sampler is declared although the taps of the shaders that
+	// land on texel centres read them with textureLoad: a layout entry the
+	// shader does not use costs nothing, and the ones that do need it.
+	WGPUBindGroupLayoutEntry upscalerEntries[3];
+
+	upscalerEntries[0] = WGPU_BIND_GROUP_LAYOUT_ENTRY_INIT;
+	upscalerEntries[0].binding    = 0;
+	upscalerEntries[0].visibility = WGPUShaderStage_Fragment;
+	upscalerEntries[0].texture.sampleType    = WGPUTextureSampleType_Float;
+	upscalerEntries[0].texture.viewDimension = WGPUTextureViewDimension_2D;
+	upscalerEntries[0].texture.multisampled  = false;
+
+	upscalerEntries[1] = WGPU_BIND_GROUP_LAYOUT_ENTRY_INIT;
+	upscalerEntries[1].binding    = 1;
+	upscalerEntries[1].visibility = WGPUShaderStage_Fragment;
+	upscalerEntries[1].sampler.type = WGPUSamplerBindingType_Filtering;
+
+	upscalerEntries[2] = WGPU_BIND_GROUP_LAYOUT_ENTRY_INIT;
+	upscalerEntries[2].binding    = 2;
+	upscalerEntries[2].visibility = WGPUShaderStage_Fragment;
+	upscalerEntries[2].buffer.type            = WGPUBufferBindingType_Uniform;
+	upscalerEntries[2].buffer.hasDynamicOffset = false;
+	upscalerEntries[2].buffer.minBindingSize  = sizeof(WgpuUpscalerConstants);
+
+	WGPUBindGroupLayoutDescriptor upscalerLayoutDescriptor;
+	upscalerLayoutDescriptor = WGPU_BIND_GROUP_LAYOUT_DESCRIPTOR_INIT;
+	upscalerLayoutDescriptor.entryCount = 3;
+	upscalerLayoutDescriptor.entries    = upscalerEntries;
+	upscalerLayoutDescriptor.label      = textInWgpu("upscaler layout");
+
+	upscalerGroupLayout = wgpuDeviceCreateBindGroupLayout_fn(device, &upscalerLayoutDescriptor);
+	if (upscalerGroupLayout == NULL)
+	{
+		winlog("wgpu: the upscaler layout cannot be made\n");
+		return false;
+	}
+
+	WGPUPipelineLayoutDescriptor upscalerFull;
+	upscalerFull = WGPU_PIPELINE_LAYOUT_DESCRIPTOR_INIT;
+	upscalerFull.bindGroupLayoutCount = 1;
+	upscalerFull.bindGroupLayouts     = &upscalerGroupLayout;
+	upscalerFull.label                = textInWgpu("upscaler pipeline");
+
+	upscalerPipelineLayout = wgpuDeviceCreatePipelineLayout_fn(device, &upscalerFull);
+	if (upscalerPipelineLayout == NULL)
+	{
+		winlog("wgpu: the upscaler pipeline layout cannot be made\n");
+		return false;
+	}
+
 	WGPUVertexAttribute attributes[2];
 	attributes[0] = WGPU_VERTEX_ATTRIBUTE_INIT;
 	attributes[0].shaderLocation = 0;
@@ -1663,10 +1857,17 @@ void WgpuDisplay::setOption(const char *option, int value)
 	}
 	else if (!strcmp(option, "upscaler"))
 	{
-		winlog("wgpu: upscaler %d is not available, Off is in effect\n", value);
+		// The chain is built when the next frame is drawn, so all this has to
+		// do is let go of the one that was there.
+		releaseUpscaler();
 
-		if (value != UPSCALER_OFF)
-			systemScreenMessage("The wgpu renderer does not run upscalers yet");
+		if (value != UPSCALER_OFF && wgpuUpscalerIndex(value) < 0)
+		{
+			winlog("wgpu: upscaler %d has no WGSL port, Off is in effect\n", value);
+			systemScreenMessage("The wgpu renderer does not run that upscaler yet");
+		}
+		else
+			winlog("wgpu: upscaler %d picked, the chain is built with the next frame\n", value);
 	}
 }
 
@@ -1851,6 +2052,324 @@ void WgpuDisplay::uploadOverlay()
 	                      &layout, &writeSize);
 }
 
+// One pass of a chain: the quad the vertex shader makes out of the vertex
+// index, drawn over the whole of its target.  It covers every pixel of it, so
+// the pass clears rather than loads - there is nothing in the target worth
+// keeping, and a clear is what the tile based backends want.
+static void drawUpscalerPass(WGPUCommandEncoder encoder, WGPURenderPipeline pipeline,
+                             WGPUBindGroup group, WGPUTextureView target)
+{
+	WGPURenderPassColorAttachment attachment;
+	attachment = WGPU_RENDER_PASS_COLOR_ATTACHMENT_INIT;
+	attachment.view    = target;
+	attachment.loadOp  = WGPULoadOp_Clear;
+	attachment.storeOp = WGPUStoreOp_Store;
+	attachment.clearValue.r = 0.0;
+	attachment.clearValue.g = 0.0;
+	attachment.clearValue.b = 0.0;
+	attachment.clearValue.a = 1.0;
+
+	WGPURenderPassDescriptor descriptor;
+	descriptor = WGPU_RENDER_PASS_DESCRIPTOR_INIT;
+	descriptor.colorAttachmentCount = 1;
+	descriptor.colorAttachments     = &attachment;
+
+	WGPURenderPassEncoder pass = wgpuCommandEncoderBeginRenderPass_fn(encoder, &descriptor);
+	if (pass == NULL)
+		return;
+
+	wgpuRenderPassEncoderSetPipeline_fn(pass, pipeline);
+	wgpuRenderPassEncoderSetBindGroup_fn(pass, 0, group, 0, NULL);
+	wgpuRenderPassEncoderDraw_fn(pass, 4, 1, 0, 0);
+	wgpuRenderPassEncoderEnd_fn(pass);
+	wgpuRenderPassEncoderRelease_fn(pass);
+}
+
+// A pipeline of one pass, for one target format: the chain's own targets are
+// RGBA8, the back buffer is whatever the surface came with, and the last pass
+// needs both.
+static bool createUpscalerPipeline(WGPUDevice device, WGPUPipelineLayout layout,
+                                   WGPUShaderModule module, WGPUTextureFormat format,
+                                   const char *name, WGPURenderPipeline *pipeline)
+{
+	WGPUVertexState vertex;
+	vertex = WGPU_VERTEX_STATE_INIT;
+	vertex.module      = module;
+	vertex.entryPoint  = textInWgpu("vsMain");
+	vertex.bufferCount = 0; // the vertex index makes the quad
+
+	WGPUColorTargetState target;
+	target = WGPU_COLOR_TARGET_STATE_INIT;
+	target.format    = format;
+	target.blend     = NULL;
+	target.writeMask = WGPUColorWriteMask_All;
+
+	WGPUFragmentState fragment;
+	fragment = WGPU_FRAGMENT_STATE_INIT;
+	fragment.module      = module;
+	fragment.entryPoint  = textInWgpu("fsMain");
+	fragment.targetCount = 1;
+	fragment.targets     = &target;
+
+	WGPURenderPipelineDescriptor descriptor;
+	descriptor = WGPU_RENDER_PIPELINE_DESCRIPTOR_INIT;
+	descriptor.label     = textInWgpu(name);
+	descriptor.layout    = layout;
+	descriptor.vertex    = vertex;
+	descriptor.primitive = WGPU_PRIMITIVE_STATE_INIT;
+	descriptor.primitive.topology = WGPUPrimitiveTopology_TriangleStrip;
+	descriptor.primitive.cullMode = WGPUCullMode_None;
+	descriptor.multisample = WGPU_MULTISAMPLE_STATE_INIT;
+	descriptor.fragment  = &fragment;
+
+	*pipeline = wgpuDeviceCreateRenderPipeline_fn(device, &descriptor);
+
+	return *pipeline != NULL;
+}
+
+void WgpuDisplay::releaseUpscalerTargets()
+{
+	for (int pass = 0; pass < WGPU_MAX_PASSES; pass++)
+	{
+		WgpuUpscalerPass &state = upscalerPasses[pass];
+
+		if (state.group)     { wgpuBindGroupRelease_fn(state.group);  state.group = NULL; }
+		if (state.constants) { wgpuBufferRelease_fn(state.constants); state.constants = NULL; }
+		if (state.view)      { wgpuTextureViewRelease_fn(state.view); state.view = NULL; }
+		if (state.texture)   { wgpuTextureRelease_fn(state.texture);  state.texture = NULL; }
+	}
+
+	if (upscalerBlitGroup) { wgpuBindGroupRelease_fn(upscalerBlitGroup); upscalerBlitGroup = NULL; }
+
+	upscalerPassCount    = 0;
+	upscalerFrameWidth   = 0;
+	upscalerFrameHeight  = 0;
+	upscalerTargetWidth  = 0;
+	upscalerTargetHeight = 0;
+}
+
+void WgpuDisplay::releaseUpscaler()
+{
+	releaseUpscalerTargets();
+
+	for (int pass = 0; pass < WGPU_MAX_PASSES; pass++)
+	{
+		if (upscalerPasses[pass].pipeline)
+		{
+			wgpuRenderPipelineRelease_fn(upscalerPasses[pass].pipeline);
+			upscalerPasses[pass].pipeline = NULL;
+		}
+	}
+
+	if (upscalerSurfacePipeline) { wgpuRenderPipelineRelease_fn(upscalerSurfacePipeline); upscalerSurfacePipeline = NULL; }
+	if (upscalerModule)          { wgpuShaderModuleRelease_fn(upscalerModule);           upscalerModule = NULL; }
+
+	upscalerValue  = -1;
+	upscalerFailed = false;
+}
+
+// Builds what the menu selected, and only that: the pipelines when the
+// selection changes, the targets when the sizes do.  False leaves the frame
+// drawn as it is, which is what a renderer without a port of the selected
+// shader does.
+bool WgpuDisplay::prepareUpscaler()
+{
+	int index = wgpuUpscalerIndex(theApp.upscaler);
+
+	if (index < 0 || device == NULL || queue == NULL || frameTexture == NULL || frameView == NULL ||
+	    upscalerGroupLayout == NULL || upscalerPipelineLayout == NULL)
+	{
+		releaseUpscalerTargets();
+		return false;
+	}
+
+	const WgpuUpscalerSource &source = g_wgpuUpscalers[index];
+
+	if (upscalerValue != source.value)
+	{
+		releaseUpscaler();
+
+		upscalerValue = source.value;
+
+		WGPUShaderSourceWGSL code;
+		code = WGPU_SHADER_SOURCE_WGSL_INIT;
+		code.code = resourceInWgpu(source.resource);
+
+		WGPUShaderModuleDescriptor moduleDescriptor;
+		moduleDescriptor = WGPU_SHADER_MODULE_DESCRIPTOR_INIT;
+		moduleDescriptor.nextInChain = &code.chain;
+		moduleDescriptor.label       = textInWgpu(source.name);
+
+		if (code.code.data != NULL)
+			upscalerModule = wgpuDeviceCreateShaderModule_fn(device, &moduleDescriptor);
+
+		bool built = upscalerModule != NULL;
+
+		for (int pass = 0; pass < source.passCount && built; pass++)
+			built = createUpscalerPipeline(device, upscalerPipelineLayout, upscalerModule,
+			                               WGPUTextureFormat_RGBA8Unorm, source.name,
+			                               &upscalerPasses[pass].pipeline);
+
+		// The last pass writes the back buffer whenever it comes out at its
+		// size, and the surface format is not the one of the targets.
+		if (built)
+			built = createUpscalerPipeline(device, upscalerPipelineLayout, upscalerModule,
+			                               surfaceFormat, source.name, &upscalerSurfacePipeline);
+
+		if (!built)
+		{
+			winlog("wgpu: the %s upscaler is not available on this device\n", source.name);
+			releaseUpscaler();
+			upscalerValue  = source.value;
+			upscalerFailed = true;
+			return false;
+		}
+
+		winlog("wgpu: the %s upscaler is ready, %d pass(es)\n", source.name, source.passCount);
+	}
+
+	if (upscalerFailed)
+		return false;
+
+	// The window, unless the user capped the ratio the upscaler may reach.
+	int targetWidth, targetHeight;
+	upscalerTargetSize(width, height, backWidth, backHeight,
+	                   theApp.upscalerMaxScale, &targetWidth, &targetHeight);
+
+	if (upscalerPassCount != source.passCount ||
+	    upscalerFrameWidth != width || upscalerFrameHeight != height ||
+	    upscalerTargetWidth != targetWidth || upscalerTargetHeight != targetHeight)
+	{
+		releaseUpscalerTargets();
+
+		upscalerFrameWidth   = width;
+		upscalerFrameHeight  = height;
+		upscalerTargetWidth  = targetWidth;
+		upscalerTargetHeight = targetHeight;
+
+		WGPUTextureView input = frameView;
+		int inputWidth  = width;
+		int inputHeight = height;
+
+		for (int pass = 0; pass < source.passCount; pass++)
+		{
+			WgpuUpscalerPass &state = upscalerPasses[pass];
+
+			// A fixed scale is a multiple of the frame rather than of the
+			// pass before it, which is what the presets ask for.
+			int passWidth  = source.scales[pass] > 0 ? width  * source.scales[pass] : targetWidth;
+			int passHeight = source.scales[pass] > 0 ? height * source.scales[pass] : targetHeight;
+
+			WGPUExtent3D size;
+			size.width              = (uint32_t)passWidth;
+			size.height             = (uint32_t)passHeight;
+			size.depthOrArrayLayers = 1;
+
+			WGPUTextureDescriptor textureDescriptor;
+			textureDescriptor = WGPU_TEXTURE_DESCRIPTOR_INIT;
+			textureDescriptor.size          = size;
+			textureDescriptor.mipLevelCount = 1;
+			textureDescriptor.sampleCount   = 1;
+			textureDescriptor.dimension     = WGPUTextureDimension_2D;
+			textureDescriptor.format        = WGPUTextureFormat_RGBA8Unorm;
+			textureDescriptor.usage         = WGPUTextureUsage_RenderAttachment |
+			                                  WGPUTextureUsage_TextureBinding;
+			textureDescriptor.label         = textInWgpu(source.name);
+
+			state.texture = wgpuDeviceCreateTexture_fn(device, &textureDescriptor);
+			state.view    = state.texture != NULL ? wgpuTextureCreateView_fn(state.texture, NULL) : NULL;
+
+			WGPUBufferDescriptor bufferDescriptor;
+			bufferDescriptor = WGPU_BUFFER_DESCRIPTOR_INIT;
+			bufferDescriptor.size    = sizeof(WgpuUpscalerConstants);
+			bufferDescriptor.usage   = WGPUBufferUsage_Uniform | WGPUBufferUsage_CopyDst;
+			bufferDescriptor.label   = textInWgpu(source.name);
+			bufferDescriptor.mappedAtCreation = false;
+
+			state.constants = wgpuDeviceCreateBuffer_fn(device, &bufferDescriptor);
+
+			if (state.view == NULL || state.constants == NULL)
+			{
+				winlog("wgpu: %s pass %d cannot be made\n", source.name, pass + 1);
+				releaseUpscalerTargets();
+				return false;
+			}
+
+			// The sizes of this pass, written once: they change when the
+			// window or the cap does, and not per frame.
+			WgpuUpscalerConstants constants;
+			constants.sourceSize[0] = (float)inputWidth;
+			constants.sourceSize[1] = (float)inputHeight;
+			constants.sourceSize[2] = 1.0f / (float)inputWidth;
+			constants.sourceSize[3] = 1.0f / (float)inputHeight;
+			constants.outputSize[0] = (float)passWidth;
+			constants.outputSize[1] = (float)passHeight;
+			constants.outputSize[2] = 1.0f / (float)passWidth;
+			constants.outputSize[3] = 1.0f / (float)passHeight;
+			constants.scale[0]      = (float)passWidth  / (float)inputWidth;
+			constants.scale[1]      = (float)passHeight / (float)inputHeight;
+			constants.scale[2]      = 0.0f;
+			constants.scale[3]      = 0.0f;
+			constants.secondSize[0] = (float)inputWidth;
+			constants.secondSize[1] = (float)inputHeight;
+			constants.secondSize[2] = 1.0f / (float)inputWidth;
+			constants.secondSize[3] = 1.0f / (float)inputHeight;
+
+			wgpuQueueWriteBuffer_fn(queue, state.constants, 0, &constants, sizeof(constants));
+
+			WGPUBindGroupEntry entries[3];
+			entries[0] = WGPU_BIND_GROUP_ENTRY_INIT;
+			entries[0].binding     = 0;
+			entries[0].textureView = input;
+
+			entries[1] = WGPU_BIND_GROUP_ENTRY_INIT;
+			entries[1].binding = 1;
+			entries[1].sampler = samplerPoint;
+
+			entries[2] = WGPU_BIND_GROUP_ENTRY_INIT;
+			entries[2].binding = 2;
+			entries[2].buffer  = state.constants;
+			entries[2].offset  = 0;
+			entries[2].size    = sizeof(WgpuUpscalerConstants);
+
+			WGPUBindGroupDescriptor groupDescriptor;
+			groupDescriptor = WGPU_BIND_GROUP_DESCRIPTOR_INIT;
+			groupDescriptor.layout     = upscalerGroupLayout;
+			groupDescriptor.entryCount = 3;
+			groupDescriptor.entries    = entries;
+
+			state.group = wgpuDeviceCreateBindGroup_fn(device, &groupDescriptor);
+
+			if (state.group == NULL)
+			{
+				winlog("wgpu: %s pass %d has no bind group\n", source.name, pass + 1);
+				releaseUpscalerTargets();
+				return false;
+			}
+
+			input       = state.view;
+			inputWidth  = passWidth;
+			inputHeight = passHeight;
+		}
+
+		// The capped path draws the last target over the back buffer with the
+		// sampler stretching it the rest of the way.
+		upscalerBlitGroup = makeBindGroup(upscalerPasses[source.passCount - 1].view, true);
+		upscalerPassCount = source.passCount;
+
+		if (upscalerBlitGroup == NULL)
+		{
+			releaseUpscalerTargets();
+			return false;
+		}
+
+		winlog("wgpu: %s: %dx%d frame over %dx%d, pass(es) at %dx%d\n",
+		       source.name, width, height, backWidth, backHeight, targetWidth, targetHeight);
+	}
+
+	return upscalerPassCount == source.passCount;
+}
+
 // The pass and the present: whatever comes in front of the frame draws into
 // the buffer the surface hands out, and that buffer is what ends up shown.
 // The states the buffer comes back in are the ones the flip model swap chain
@@ -1906,6 +2425,12 @@ bool WgpuDisplay::drawAndPresent(bool clearOnly)
 	passDescriptor.colorAttachmentCount = 1;
 	passDescriptor.colorAttachments     = &colorAttachment;
 
+	// No bind group means the frame texture could not be made, and a pass
+	// drawn against one would be a validation error per frame: the pass is
+	// then the clear it already is, and the rest of the path is the same.
+	if (frameGroupPoint == NULL || frameGroupLinear == NULL)
+		clearOnly = true;
+
 	WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder_fn(device, NULL);
 	if (encoder == NULL)
 	{
@@ -1915,30 +2440,74 @@ bool WgpuDisplay::drawAndPresent(bool clearOnly)
 		return false;
 	}
 
-	WGPURenderPassEncoder pass = wgpuCommandEncoderBeginRenderPass_fn(encoder, &passDescriptor);
-	if (pass == NULL)
+	// The upscaling chain, when the menu selected one this renderer has.  Its
+	// passes are encoded before the pass that draws the back buffer, and the
+	// last of them writes the back buffer itself when it comes out at its
+	// size - which is the whole point of the last pass having a pipeline for
+	// the surface format, and what saves the blit the other two renderers pay
+	// for on every frame.
+	bool chain  = !clearOnly && prepareUpscaler();
+	bool direct = chain && upscalerTargetWidth == backWidth && upscalerTargetHeight == backHeight;
+
+	if (chain)
 	{
-		winlog("wgpu: the render pass cannot be opened\n");
-		wgpuCommandEncoderRelease_fn(encoder);
-		wgpuTextureViewRelease_fn(backBuffer);
-		wgpuTextureRelease_fn(surfaceTexture.texture);
-		return false;
+		int last = upscalerPassCount - 1;
+
+		for (int i = 0; i <= last; i++)
+		{
+			bool toBackBuffer = direct && i == last;
+
+			drawUpscalerPass(encoder,
+			                 toBackBuffer ? upscalerSurfacePipeline : upscalerPasses[i].pipeline,
+			                 upscalerPasses[i].group,
+			                 toBackBuffer ? backBuffer : upscalerPasses[i].view);
+		}
 	}
 
-	// No bind group means the frame texture could not be made, and a pass
-	// drawn against one would be a validation error per frame: the pass is
-	// then the clear it already is, and the rest of the path is the same.
-	if (frameGroupPoint == NULL || frameGroupLinear == NULL)
-		clearOnly = true;
+	// What is left to draw on the back buffer is the on screen display, over
+	// the picture the chain made.  With the chain in place and nothing to put
+	// over it, no pass is opened at all.
+	bool overlayPass = !direct || textMethod == 2;
 
-	if (!clearOnly)
+	WGPURenderPassEncoder pass = NULL;
+
+	if (overlayPass)
 	{
-		wgpuRenderPassEncoderSetPipeline_fn(pass, framePipeline);
+		// The pass below is the overlay over what the chain drew, and it must
+		// not clear it.
+		colorAttachment.loadOp = direct ? WGPULoadOp_Load : WGPULoadOp_Clear;
 
-		WGPUBindGroup frameGroup = filterMode == 1 ? frameGroupLinear : frameGroupPoint;
-		wgpuRenderPassEncoderSetBindGroup_fn(pass, 0, frameGroup, 0, NULL);
-		wgpuRenderPassEncoderSetVertexBuffer_fn(pass, 0, vertexBuffer, 0, sizeof(quad));
-		wgpuRenderPassEncoderDraw_fn(pass, 4, 1, 0, 0);
+		pass = wgpuCommandEncoderBeginRenderPass_fn(encoder, &passDescriptor);
+		if (pass == NULL)
+		{
+			winlog("wgpu: the render pass cannot be opened\n");
+			wgpuCommandEncoderRelease_fn(encoder);
+			wgpuTextureViewRelease_fn(backBuffer);
+			wgpuTextureRelease_fn(surfaceTexture.texture);
+			return false;
+		}
+	}
+
+	if (!clearOnly && pass != NULL)
+	{
+		if (chain && !direct)
+		{
+			// The cap asked for a smaller target than the window, so the last
+			// one is stretched over the back buffer by the sampler.
+			wgpuRenderPassEncoderSetPipeline_fn(pass, framePipeline);
+			wgpuRenderPassEncoderSetBindGroup_fn(pass, 0, upscalerBlitGroup, 0, NULL);
+			wgpuRenderPassEncoderSetVertexBuffer_fn(pass, 0, vertexBuffer, OVERLAY_QUAD_OFFSET, sizeof(quad));
+			wgpuRenderPassEncoderDraw_fn(pass, 4, 1, 0, 0);
+		}
+		else if (!chain)
+		{
+			wgpuRenderPassEncoderSetPipeline_fn(pass, framePipeline);
+
+			WGPUBindGroup frameGroup = filterMode == 1 ? frameGroupLinear : frameGroupPoint;
+			wgpuRenderPassEncoderSetBindGroup_fn(pass, 0, frameGroup, 0, NULL);
+			wgpuRenderPassEncoderSetVertexBuffer_fn(pass, 0, vertexBuffer, 0, sizeof(quad));
+			wgpuRenderPassEncoderDraw_fn(pass, 4, 1, 0, 0);
+		}
 
 		// The overlay follows the back buffer, so it is made with the surface
 		// and remade whenever the window changes size.  This covers a path
@@ -1989,8 +2558,11 @@ bool WgpuDisplay::drawAndPresent(bool clearOnly)
 		}
 	}
 
-	wgpuRenderPassEncoderEnd_fn(pass);
-	wgpuRenderPassEncoderRelease_fn(pass);
+	if (pass != NULL)
+	{
+		wgpuRenderPassEncoderEnd_fn(pass);
+		wgpuRenderPassEncoderRelease_fn(pass);
+	}
 
 	WGPUCommandBuffer commands = wgpuCommandEncoderFinish_fn(encoder, NULL);
 	wgpuCommandEncoderRelease_fn(encoder);
