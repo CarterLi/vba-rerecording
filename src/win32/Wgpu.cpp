@@ -695,6 +695,10 @@ static const char *const g_superXbrResources[] = { "SUPER_XBR_PASS0_WGSL", "SUPE
 // at each of them.
 static const char *const g_scalefxResources[] = { "SCALEFX_PASS0_WGSL", "SCALEFX_PASS1_WGSL", "SCALEFX_PASS2_WGSL", "SCALEFX_PASS3_WGSL", "SCALEFX_PASS4_WGSL" };
 
+// xBR-mlv4: two passes of edge data, the line each quarter of the pixel
+// follows at twice the frame size, and the interpolation along it.
+static const char *const g_xbrMlv4Resources[] = { "XBR_MLV4_PASS1_WGSL", "XBR_MLV4_PASS2_WGSL", "XBR_MLV4_PASS3_WGSL", "XBR_MLV4_PASS4_WGSL" };
+
 static const int g_xbrzScales[] = { 0 };
 static const int g_lanczos3Scales[] = { 0 };
 static const int g_xbrLv2Scales[]   = { 0 };
@@ -705,6 +709,7 @@ static const int g_xbr2xScales[]    = { 1, 0 };
 static const int g_xbrLv3MultipassScales[] = { 1, 0 };
 static const int g_superXbrScales[] = { 1, 2, 0 };
 static const int g_scalefxScales[] = { 1, 1, 1, 1, 0 };
+static const int g_xbrMlv4Scales[] = { 1, 1, 2, 0 };
 
 static const int g_xbrzSeconds[] = { -1 };
 static const int g_lanczos3Seconds[] = { -1 };
@@ -716,6 +721,7 @@ static const int g_xbr2xSeconds[]    = { -1, 0 };
 static const int g_xbrLv3MultipassSeconds[] = { -1, 0 };
 static const int g_superXbrSeconds[] = { -1, 0, -1 };
 static const int g_scalefxSeconds[] = { -1, -1, 1, -1, 0 };
+static const int g_xbrMlv4Seconds[] = { -1, 0, 0, 0 };
 
 static const WgpuUpscalerSource g_wgpuUpscalers[] =
 {
@@ -728,6 +734,7 @@ static const WgpuUpscalerSource g_wgpuUpscalers[] =
 	{ UPSCALER_SUPER_XBR,         "super-xBR",         g_superXbrResources,        g_superXbrScales,       g_superXbrSeconds,       3 },
 	{ UPSCALER_SCALEFX,           "ScaleFX",           g_scalefxResources,         g_scalefxScales,        g_scalefxSeconds,        5 },
 	{ UPSCALER_XBR_2X,            "2xBR",              g_xbr2xResources,           g_xbr2xScales,          g_xbr2xSeconds,          2 },
+	{ UPSCALER_XBR_MLV4,          "xBR-mlv4",          g_xbrMlv4Resources,         g_xbrMlv4Scales,        g_xbrMlv4Seconds,        4 },
 	{ UPSCALER_PT_SKYWALKER,      "PT SkyWalker541",   g_ptSkyWalkerResources,     g_ptSkyWalkerScales,    g_ptSkyWalkerSeconds,    1 },
 };
 

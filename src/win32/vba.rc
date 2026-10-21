@@ -120,6 +120,10 @@ XBR_MLV4_PASS3_GLSL     RCDATA                  "upscalers\\libretro\\xbr-mlv4-p
 XBR_MLV4_PASS3_SHADER   RCDATA                  "upscalers\\libretro\\XBR_Mlv4_Pass3.hlsl"
 XBR_MLV4_PASS4_GLSL     RCDATA                  "upscalers\\libretro\\xbr-mlv4-pass4.glsl"
 XBR_MLV4_PASS4_SHADER   RCDATA                  "upscalers\\libretro\\XBR_Mlv4_Pass4.hlsl"
+XBR_MLV4_PASS1_WGSL     RCDATA                  "upscalers\\libretro\\XbrMlv4Pass1.wgsl"
+XBR_MLV4_PASS2_WGSL     RCDATA                  "upscalers\\libretro\\XbrMlv4Pass2.wgsl"
+XBR_MLV4_PASS3_WGSL     RCDATA                  "upscalers\\libretro\\XbrMlv4Pass3.wgsl"
+XBR_MLV4_PASS4_WGSL     RCDATA                  "upscalers\\libretro\\XbrMlv4Pass4.wgsl"
 
 // super-xBR
 SUPER_XBR_PASS0_GLSL    RCDATA                  "upscalers\\libretro\\super-xbr-pass0.glsl"

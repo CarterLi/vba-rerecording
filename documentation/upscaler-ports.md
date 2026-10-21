@@ -83,6 +83,12 @@ Three rewrites, all of them things Vulkan GLSL or naga demand:
   GLSL has no three argument `texture(texture, sampler, uv)`; that spelling
   is HLSL and glslang says "no matching overloaded function".
 
+The two stages are cut out of the file by anchoring on its last `#endif` - a
+non-greedy match without that anchor stops at the first `#ifdef GL_ES` in the
+fragment stage.  A line of comment after that `#endif` is allowed, because
+xBR-mlv4's last pass has one (`// PZ doesn't seem to be working right...?`),
+and without the allowance the file reads as having no stages at all.
+
 A file with two samplers - PT SkyWalker reads the frame and the raw frame -
 takes two slots: 0 and 1 for the first texture and its sampler, 3 and 4 for
 the second, with 2 kept for the sizes so that a file with one sampler lands
@@ -151,9 +157,13 @@ expanded, which asks for a `SourceSampler` that does not exist.
   pass snaps a four by four with `floor(pc - 0.5)`, where a sample sitting on
   a half falls on the wrong side of the floor and the whole window moves one
   texel.  Both ports multiply by 1.0001 themselves, at a cost of nothing, so
-  that they agree with the two renderers that compile the nudge.  The others
-  leave it out: a tap that is a whole texel from a texel centre reads the
-  same texel either way.
+  that they agree with the two renderers that compile the nudge.  xBR-mlv4's
+  last pass nudges too, and differently on each axis - `vec2(1.0004, 0.9995)`,
+  in its pixel stage rather than its vertex stage - and there the nudge is not
+  a nicety: `fract()` of the coordinate decides which quarter of a frame texel
+  a pixel is, and a 1:1 pixel sits exactly on a boundary without it.  The
+  others leave it out: a tap that is a whole texel from a texel centre reads
+  the same texel either way.
 * The quad comes out of `@builtin(vertex_index)`; a pass binds no vertex
   buffer and reads no attribute.
 * Constants are written once, when the frame, the window or the scale cap
@@ -171,8 +181,8 @@ Two levels, both cheap once set up:
   cancel there); at 3x it is compared against the translated version, and
   against a CPU reference where one exists.
 
-The eighteen files of the ten chains ported so far all came out at **0/255 in
-every colour channel** against the translated shaders.  Alpha is not
+The twenty-two files of the eleven chains ported so far all came out at **0/255
+in every colour channel** against the translated shaders.  Alpha is not
 compared: upstream writes `.rgb` only, and the renderer draws with blending
 off.
 
@@ -206,6 +216,35 @@ that means anything there is the 3x one, and both levels came out at 0/255.
 Its `scale` comes from the constants block rather than from
 `OutputSize * SourceSize.zw` as upstream writes it: the renderer's `scale.xy`
 is that product, and at 1x and 3x the two are the same number.
+
+xBR-mlv4 is the last one, and the only chain whose middle pass runs at twice
+the frame size - which is where its arithmetic lives, because the quarter of a
+frame texel a pixel sits in is `fract(uv * size) - 0.5`, and at 1:1 that is
+zero for every pixel.  **The 1:1 comparison of that pass is therefore
+vacuous**: both sides take the same degenerate branch and agree on nothing.
+`refcheckN.py` draws every pass at the frame size and only the last one at 3x,
+so the pass was checked on its own as well, as a chain of one - then it is the
+last pass and gets its 3x run - with the frame standing in for the edge data it
+would read.  Two bugs came out of that, and neither would have shown up at 1:1:
+
+* **A chain of ternaries is not a clamp.**  The else branch of pass 3 picks
+  `lines[1]` to `lines[8]` for exactly those levels and `lines[0]` for
+  everything else, and the channel is not always a level: on a frame it reads
+  128.  Clamping that to the table gives `lines[8]`, the other end of it, and
+  the whole block of the picture takes a line it never had.  24/255 across
+  most of the frame.
+* **Upstream's `jag2` is a bug, and it has to be copied.**  Pass 2 assigns
+  `.x` of the `bvec4` four times - the vector form above it is commented out -
+  so `.x` ends up being the `w` test and `y`, `z`, `w` are whatever the
+  declaration left, which glslang zeroes and the HLSL port shows.  Read as
+  "the four channels are tested alike" it is wrong; it is one channel.
+
+A harness detail worth knowing before trusting a debug shader: `rendertest -c`
+lays a block out **for the translated module**, and the port reads its own
+struct, which starts at the same offset with a different member.  Feeding a
+block to a port samples garbage, and the shader still compiles and still
+writes a plausible picture.  `refcheckN.py` only passes `-c` to the reference
+side for that reason.
 
 ## Colour space: the one that got shipped broken
 

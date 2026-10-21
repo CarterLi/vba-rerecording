@@ -96,6 +96,7 @@ libretro/XBR_2x_Pass1.hlsl          -> XBR_2X_PASS1_SHADER
 libretro/Xbr2xPass1.wgsl            -> XBR_2X_PASS1_WGSL
 libretro/xbr-mlv4-pass1..4.glsl     -> XBR_MLV4_PASS1..4_GLSL    xbr/shaders
 libretro/XBR_Mlv4_Pass1..4.hlsl     -> XBR_MLV4_PASS1..4_SHADER
+libretro/XbrMlv4Pass1..4.wgsl       -> XBR_MLV4_PASS1..4_WGSL
 libretro/super-xbr-pass0.glsl       -> SUPER_XBR_PASS0_GLSL      super-xbr/shaders
 libretro/SuperXBR_Pass0.hlsl        -> SUPER_XBR_PASS0_SHADER
 libretro/SuperXbrPass0.wgsl         -> SUPER_XBR_PASS0_WGSL
@@ -138,17 +139,13 @@ to the shader as SecondSize, which is where a GLSL shader reads
 OrigTextureSize and PassPrev<N>TextureSize.  The OpenGL backend resolves the
 same names from the uniforms the pass declares.
 
-The WebGPU renderer runs the chains from WGSL, and only the ones that have a
-WGSL port: wgpu compiles neither GLSL nor HLSL, so XbrzFreescale.wgsl,
-Lanczos3.wgsl, XbrLv2.wgsl, XbrLv2NoBlend.wgsl, XbrLv3.wgsl,
-Xbr2xPass0/1.wgsl, XbrLv3Multipass0/1.wgsl, SuperXbrPass0/1.wgsl,
-SuperXbrJinc2.wgsl, ScaleFxPass0..4.wgsl and PT_SkyWalker541.wgsl are ports
-written against the same upstream files rather than translations of the two
-above, and the upscaling menu leaves the rest out while that renderer runs.  The
-one chain still without a port - xBR-mlv4 - reads a second texture the same way
-2xBR and xBR lv3 multipass do, so the chain there carries a second binding: a
-row of g_wgpuUpscalers lists, per pass, the output it reads besides the one the
-pass before it made, 0 being the frame.
+The WebGPU renderer runs every chain, from WGSL: wgpu compiles neither GLSL nor
+HLSL, so the .wgsl files beside the other two are ports written against the same
+upstream files rather than translations - one per pass, the same names and the
+same expressions.  The chains that read a second texture - xBR-mlv4, super-xBR,
+ScaleFX, 2xBR and xBR lv3 multipass - carry a second binding, and a row of
+g_wgpuUpscalers lists, per pass, the output it reads besides the one the pass
+before it made, 0 being the frame.
 Their taps are read with textureLoad and integer coordinates instead of
 through a sampler, which is exact where a tap lands on a texel centre and
 cheaper than a filtered fetch.  The chain there draws its last pass straight
