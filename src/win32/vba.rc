@@ -148,6 +148,7 @@ LANCZOS3_WGSL           RCDATA                  "upscalers\\libretro\\Lanczos3.w
 // xBR lv2, and the WGSL ports the WebGPU renderer runs
 XBR_LV2_WGSL            RCDATA                  "upscalers\\libretro\\XbrLv2.wgsl"
 XBR_LV2_NOBLEND_WGSL    RCDATA                  "upscalers\\libretro\\XbrLv2NoBlend.wgsl"
+XBR_LV3_WGSL            RCDATA                  "upscalers\\libretro\\XbrLv3.wgsl"
 
 
 /////////////////////////////////////////////////////////////////////////////
