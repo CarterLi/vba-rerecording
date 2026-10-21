@@ -225,7 +225,7 @@ vacuous**: both sides take the same degenerate branch and agree on nothing.
 `refcheckN.py` draws every pass at the frame size and only the last one at 3x,
 so the pass was checked on its own as well, as a chain of one - then it is the
 last pass and gets its 3x run - with the frame standing in for the edge data it
-would read.  Two bugs came out of that, and neither would have shown up at 1:1:
+would read.  Two bugs came out of that work:
 
 * **A chain of ternaries is not a clamp.**  The else branch of pass 3 picks
   `lines[1]` to `lines[8]` for exactly those levels and `lines[0]` for
@@ -233,11 +233,16 @@ would read.  Two bugs came out of that, and neither would have shown up at 1:1:
   128.  Clamping that to the table gives `lines[8]`, the other end of it, and
   the whole block of the picture takes a line it never had.  24/255 across
   most of the frame.
-* **Upstream's `jag2` is a bug, and it has to be copied.**  Pass 2 assigns
-  `.x` of the `bvec4` four times - the vector form above it is commented out -
-  so `.x` ends up being the `w` test and `y`, `z`, `w` are whatever the
-  declaration left, which glslang zeroes and the HLSL port shows.  Read as
-  "the four channels are tested alike" it is wrong; it is one channel.
+* **Upstream's `jag2` was a bug, and it is fixed in all three copies now.**
+  Pass 2 assigned `.x` of the `bvec4` four times - the vector form above it is
+  commented out - so `.x` ended up being the `w` test and `y`, `z`, `w` were
+  whatever the declaration left, which glslang zeroes.  Three quarters of the
+  channels therefore read false, and every level 5 or 6 edge in them was
+  demoted by two levels: 144 of the 576 texels of that pass at 3x.  The GLSL, the HLSL and the WGSL carry the four assignments now, so
+  the file is no longer byte identical to upstream at that block and a re-sync
+  has to keep it.  That also moves the oracle: the comparison translates our
+  GLSL, so upstream's own output differs from both sides here by design.  It
+  is the agreement of the three renderers that the check is for.
 
 A harness detail worth knowing before trusting a debug shader: `rendertest -c`
 lays a block out **for the translated module**, and the port reads its own

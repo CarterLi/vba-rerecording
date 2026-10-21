@@ -273,6 +273,8 @@ void frag_main()
     {
         _595 = _588;
     }
+    // Upstream assigns jag2.x four times, which leaves .y, .z and .w
+    // uninitialised.  Fixed here and in the GLSL and WGSL copies together.
     bool4 jag2 = bool4(false, false, false, false);
     jag2.x = _595;
     bool _599 = f2.y > 2.0f;
@@ -285,7 +287,7 @@ void frag_main()
     {
         _606 = _599;
     }
-    jag2.x = _606;
+    jag2.y = _606;
     bool _610 = f2.z > 2.0f;
     bool _617;
     if (!_610)
@@ -296,7 +298,7 @@ void frag_main()
     {
         _617 = _610;
     }
-    jag2.x = _617;
+    jag2.z = _617;
     bool _621 = f2.w > 2.0f;
     bool _628;
     if (!_621)
@@ -307,7 +309,7 @@ void frag_main()
     {
         _628 = _621;
     }
-    jag2.x = _628;
+    jag2.w = _628;
     bool _634 = f2.x > 4.0f;
     bool _641;
     if (!_634)

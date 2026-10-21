@@ -35,15 +35,15 @@
 // to survive.  The four channels are the four quarters of the pixel, as they
 // were in pass 1.
 //
-// Two things here are upstream's and are kept as they are:
+// One thing here is upstream's and is kept as it is: the distances are the Y
+// of YUV times 48, with no abs() around it, where pass 1 weights three axes
+// and takes the absolute value of each.
 //
-//   * the distances are the Y of YUV times 48, with no abs() around it, where
-//     pass 1 weights three axes and takes the absolute value of each;
-//   * jag2 sets its x component four times and never its y, z or w - the .x
-//     line the upstream file has commented out uses the vector form, and what
-//     runs is the four lines below it.  glslang zeroes the rest of the bvec4,
-//     which the HLSL port shows, and so does this port: the three channels
-//     other than the first read false.
+// jag2 is fixed, and fixed in all three copies at once.  Upstream assigns its
+// .x four times and never its .y, .z or .w, which glslang zeroes - three
+// quarters of the channels read false, which looks like a copy-paste slip
+// rather than intent.  The GLSL and the HLSL beside this file now carry the
+// four assignments, and the three renderers still agree.
 
 // The block the renderer hands every pass, the one WgpuDisplay::prepareUpscaler()
 // fills:
@@ -237,12 +237,7 @@ fn fsMain(input : VertexOutput) -> @location(0) vec4f
     // A neighbour above one has an edge of its own.
     let nbrs = or4(gt4(pe.yzwx, 1.0), gt4(pe.wxyz, 1.0));
     let jag1 = or4(gt4(f2, 1.0), gt4(h2, 1.0));
-
-    // Upstream sets .x four times here and leaves the rest of the vector at
-    // whatever the declaration left it: the .x it keeps is the one from the
-    // fourth line, the w of f2 and h2, and the other three are false.
-    let jag2w = max(1.0 - step(f2.w, 2.0), 1.0 - step(h2.w, 2.0));
-    let jag2  = vec4f(jag2w, 0.0, 0.0, 0.0);
+    let jag2 = or4(gt4(f2, 2.0), gt4(h2, 2.0));
     let jag3 = or4(gt4(f2, 4.0), gt4(h2, 4.0));
 
     pe = choose(eq4(pe, 7.0) + eq4(pe, 8.0), choose(jag3, pe, pe - 2.0), pe);
