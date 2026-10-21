@@ -216,10 +216,6 @@ protected:
 #if VBA_ENABLE_WGPU
 	afx_msg void OnOptionsVideoRendermethodWebgpu();
 	afx_msg void OnUpdateOptionsVideoRendermethodWebgpu(CCmdUI*pCmdUI);
-	afx_msg void OnOptionsVideoRenderoptionsWgpunearest();
-	afx_msg void OnUpdateOptionsVideoRenderoptionsWgpunearest(CCmdUI*pCmdUI);
-	afx_msg void OnOptionsVideoRenderoptionsWgpubilinear();
-	afx_msg void OnUpdateOptionsVideoRenderoptionsWgpubilinear(CCmdUI*pCmdUI);
 #endif
 	afx_msg void OnOptionsVideoTriplebuffering();
 	afx_msg void OnUpdateOptionsVideoTriplebuffering(CCmdUI*pCmdUI);
@@ -227,14 +223,8 @@ protected:
 	afx_msg void OnUpdateOptionsVideoDdrawemulationonly(CCmdUI*pCmdUI);
 	afx_msg void OnOptionsVideoDdrawusevideomemory();
 	afx_msg void OnUpdateOptionsVideoDdrawusevideomemory(CCmdUI*pCmdUI);
-	afx_msg void OnOptionsVideoRenderoptionsD3dnofilter();
-	afx_msg void OnUpdateOptionsVideoRenderoptionsD3dnofilter(CCmdUI*pCmdUI);
-	afx_msg void OnOptionsVideoRenderoptionsD3dbilinear();
-	afx_msg void OnUpdateOptionsVideoRenderoptionsD3dbilinear(CCmdUI*pCmdUI);
-	afx_msg void OnOptionsVideoRenderoptionsGlnearest();
-	afx_msg void OnUpdateOptionsVideoRenderoptionsGlnearest(CCmdUI*pCmdUI);
-	afx_msg void OnOptionsVideoRenderoptionsGlbilinear();
-	afx_msg void OnUpdateOptionsVideoRenderoptionsGlbilinear(CCmdUI*pCmdUI);
+	afx_msg void OnOptionsVideoTexturefilter(UINT nID);
+	afx_msg void OnUpdateOptionsVideoTexturefilter(CCmdUI*pCmdUI);
 	afx_msg void OnOptionsVideoRenderoptionsGltriangle();
 	afx_msg void OnUpdateOptionsVideoRenderoptionsGltriangle(CCmdUI*pCmdUI);
 	afx_msg void OnOptionsVideoRenderoptionsGlquads();

@@ -96,6 +96,13 @@ public:
 	virtual DISPLAY_TYPE getType() { return DIRECT_3D; };
 	virtual void setOption(const char *, int);
 	virtual int selectFullScreenMode(GUID * *);
+	// Trilinear is the one that needs something of its own, the mip chain the
+	// device makes for pMipTexture, so it stays unselectable where that
+	// texture could not be made.
+	virtual bool filterAvailable(int filter)
+	{
+		return filter >= 0 && filter <= 2 && (filter != 2 || pMipTexture != NULL);
+	};
 
 private:
 	HINSTANCE             d3dDLL;
@@ -104,12 +111,19 @@ private:
 	LPDIRECT3DDEVICE9     pDevice;
 	LPDIRECT3DDEVICE9EX   pDeviceEx;
 	LPDIRECT3DTEXTURE9    pTexture;
+	// The trilinear filter reads a mip chain, which the trilinear path keeps
+	// in a texture of its own: the frame is written into a staging texture and
+	// UpdateTexture copies it over, which is what makes the device generate
+	// the chain again.  See initializeOffscreen().
+	LPDIRECT3DTEXTURE9    pMipTexture;
+	LPDIRECT3DTEXTURE9    pMipStaging;
 	LPDIRECT3DTEXTURE9    pOverlayTexture;
 	D3DSURFACE_DESC       dsdBackBuffer;
 	D3DPRESENT_PARAMETERS dpp;
 	D3DFORMAT             screenFormat;
 	int  width;
 	int  height;
+	int  filterMode;
 	bool filterDisabled;
 	bool       failed;
 	unsigned int textureSize;
@@ -121,6 +135,8 @@ private:
 	void releaseTextures();
 	bool initializeOffscreen(int w, int h);
 	void updateFiltering(int);
+	void fillFrame(u8 *bits, int pitch, u8 *data, int dataPitch);
+	void extendFrame(u8 *bits, int pitch, int frameWidth, int frameHeight);
 	void calculateVertices();
 	void present();
 	void drawTextOverlay();
@@ -134,10 +150,13 @@ Direct3DDisplay::Direct3DDisplay()
 	pDevice        = NULL;
 	pDeviceEx      = NULL;
 	pTexture       = NULL;
+	pMipTexture    = NULL;
+	pMipStaging    = NULL;
 	pOverlayTexture = NULL;
 	screenFormat   = D3DFMT_R5G6B5;
 	width          = 0;
 	height         = 0;
+	filterMode     = 0;
 	filterDisabled = false;
 	failed         = false;
 	textureSize    = 0;
@@ -165,6 +184,18 @@ void Direct3DDisplay::cleanup()
 	{
 		pTexture->Release();
 		pTexture = NULL;
+	}
+
+	if (pMipStaging)
+	{
+		pMipStaging->Release();
+		pMipStaging = NULL;
+	}
+
+	if (pMipTexture)
+	{
+		pMipTexture->Release();
+		pMipTexture = NULL;
 	}
 
 	// pDevice / pDeviceEx and pD3D / pD3DEx may point at the same object, so
@@ -384,6 +415,16 @@ void Direct3DDisplay::releaseTextures()
 		pOverlayTexture->Release();
 		pOverlayTexture = NULL;
 	}
+	if (pMipStaging)
+	{
+		pMipStaging->Release();
+		pMipStaging = NULL;
+	}
+	if (pMipTexture)
+	{
+		pMipTexture->Release();
+		pMipTexture = NULL;
+	}
 	if (pTexture)
 	{
 		pTexture->Release();
@@ -433,6 +474,48 @@ bool Direct3DDisplay::initializeOffscreen(int w, int h)
 	                                     &pTexture,
 	                                     NULL)))
 	{
+		// The trilinear filter reads a mip chain, and Direct3D 9 makes the
+		// chain itself only for a texture in the default pool with the
+		// automatic mipmap generation.  Such a texture cannot be locked, so
+		// the frame is written into a system memory staging texture of the
+		// same size and UpdateTexture copies it over, which is what has the
+		// device rebuild the chain from the new frame.  The chain is made of
+		// the whole square, hence extendFrame().
+		if (SUCCEEDED(pDevice->CreateTexture(size,
+		                                     size,
+		                                     1,
+		                                     D3DUSAGE_AUTOGENMIPMAP,
+		                                     screenFormat,
+		                                     D3DPOOL_DEFAULT,
+		                                     &pMipTexture,
+		                                     NULL)) &&
+		    SUCCEEDED(pDevice->CreateTexture(size,
+		                                     size,
+		                                     1,
+		                                     0,
+		                                     screenFormat,
+		                                     D3DPOOL_SYSTEMMEM,
+		                                     &pMipStaging,
+		                                     NULL)))
+		{
+			winlog("Direct3D 9: trilinear filtering through %d levels of automatic mipmaps\n",
+			       (int)pMipTexture->GetLevelCount());
+		}
+		else
+		{
+			if (pMipStaging)
+			{
+				pMipStaging->Release();
+				pMipStaging = NULL;
+			}
+			if (pMipTexture)
+			{
+				pMipTexture->Release();
+				pMipTexture = NULL;
+			}
+			winlog("Direct3D 9: no automatic mipmaps, trilinear filtering is not available\n");
+		}
+
 		width  = w;
 		height = h;
 		return true;
@@ -442,6 +525,8 @@ bool Direct3DDisplay::initializeOffscreen(int w, int h)
 
 void Direct3DDisplay::updateFiltering(int filter)
 {
+	filterMode = filter;
+
 	switch (filter)
 	{
 	default:
@@ -456,6 +541,12 @@ void Direct3DDisplay::updateFiltering(int filter)
 		pDevice->SetSamplerState(0, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
 		pDevice->SetSamplerState(0, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
 		pDevice->SetSamplerState(0, D3DSAMP_MIPFILTER, D3DTEXF_POINT);
+		break;
+	case 2:
+		// trilinear
+		pDevice->SetSamplerState(0, D3DSAMP_MINFILTER, D3DTEXF_LINEAR);
+		pDevice->SetSamplerState(0, D3DSAMP_MAGFILTER, D3DTEXF_LINEAR);
+		pDevice->SetSamplerState(0, D3DSAMP_MIPFILTER, D3DTEXF_LINEAR);
 		break;
 	}
 }
@@ -479,7 +570,7 @@ void Direct3DDisplay::restoreDeviceObjects()
 	pDevice->SetTextureStageState(0, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
 
 	int filter = regQueryDwordValue("d3dFilter", 0);
-	if (filter < 0 || filter > 3)
+	if (filter < 0 || filter > 2)
 		filter = 0;
 	updateFiltering(filter);
 
@@ -607,9 +698,60 @@ void Direct3DDisplay::drawTextOverlay()
 	pDevice->SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
 
 	int filter = regQueryDwordValue("d3dFilter", 0);
-	if (filter < 0 || filter > 3)
+	if (filter < 0 || filter > 2)
 		filter = 0;
 	updateFiltering(filter);
+}
+
+// Copies the frame into the texture: the source buffer carries a one row
+// border and, except at 24 bpp, two extra pixels per row, so the copy starts
+// one row in and walks the real stride.
+void Direct3DDisplay::fillFrame(u8 *bits, int pitch, u8 *data, int dataPitch)
+{
+	int copyX, copyY;
+	systemGetLCDResolution(copyX, copyY);
+
+	const int bytesPerPixel = systemColorDepth / 8;
+	const int rowBytes = copyX * bytesPerPixel;
+	const u8 *src = data + dataPitch;
+	u8 *dst = bits;
+
+	for (int y = 0; y < copyY; ++y)
+	{
+		memcpy(dst, src, rowBytes);
+		src += dataPitch;
+		dst += pitch;
+	}
+}
+
+// The mip chain covers the whole square the texture is, not just the frame in
+// its first rows and columns, and a level is built from the four texels above
+// it: whatever the rest of the texture holds would be pulled into the edges of
+// the picture.  Repeating the last row and column of the frame across the rest
+// keeps the edges of the frame what the picture put there.
+void Direct3DDisplay::extendFrame(u8 *bits, int pitch, int frameWidth, int frameHeight)
+{
+	const int bytesPerPixel = systemColorDepth / 8;
+	const int size = (int)textureSize;
+
+	if (frameWidth <= 0 || frameHeight <= 0 || frameWidth > size || frameHeight > size)
+		return;
+
+	const int rowBytes = size * bytesPerPixel;
+
+	for (int y = 0; y < frameHeight; ++y)
+	{
+		u8 *row  = bits + y * pitch;
+		u8 *last = row + (frameWidth - 1) * bytesPerPixel;
+
+		for (int x = frameWidth; x < size; ++x)
+			memcpy(row + x * bytesPerPixel, last, bytesPerPixel);
+	}
+
+	u8 *lastRow = bits + (frameHeight - 1) * pitch;
+
+	for (int y = frameHeight; y < size; ++y)
+		memcpy(bits + y * pitch, lastRow, rowBytes);
 }
 
 void Direct3DDisplay::render()
@@ -636,8 +778,17 @@ void Direct3DDisplay::render()
 
 	if (SUCCEEDED(pDevice->BeginScene()))
 	{
+		// The trilinear filter reads a mip chain, and the chain is only made
+		// for the texture that has one: the frame goes into the staging copy
+		// of it, and UpdateTexture is what has the device rebuild the chain
+		// from the new frame.  Every other filter draws the frame texture
+		// itself.
+		const bool trilinear = filterMode == 2 && pMipTexture != NULL && pMipStaging != NULL;
+		LPDIRECT3DTEXTURE9 target = trilinear ? pMipStaging : pTexture;
+
 		D3DLOCKED_RECT locked;
-		if (pTexture && SUCCEEDED(pTexture->LockRect(0, &locked, NULL, D3DLOCK_DISCARD)))
+		if (target && SUCCEEDED(target->LockRect(0, &locked, NULL,
+		                                         trilinear ? 0 : D3DLOCK_DISCARD)))
 		{
 			if (theApp.filterFunction)
 			{
@@ -650,26 +801,7 @@ void Direct3DDisplay::render()
 					                      theApp.filterHeight);
 			}
 			else
-			{
-				int copyX, copyY;
-				systemGetLCDResolution(copyX, copyY);
-
-				// Copy the frame straight into the locked surface.  The source buffer
-				// carries a one row border and, except at 24 bpp, two extra pixels
-				// per row, so skip the first row and walk the real stride.
-				const int bytesPerPixel = systemColorDepth / 8;
-				const int rowBytes = copyX * bytesPerPixel;
-				const u8 *src = data + dataPitch;
-				u8 *dst = (u8 *)locked.pBits;
-				const int dstPitch = locked.Pitch;
-
-				for (int y = 0; y < copyY; ++y)
-				{
-					memcpy(dst, src, rowBytes);
-					src += dataPitch;
-					dst += dstPitch;
-				}
-			}
+				fillFrame((u8 *)locked.pBits, locked.Pitch, data, dataPitch);
 
 			if (isFullscreenOption(theApp.videoOption) && theApp.showSpeed)
 			{
@@ -699,10 +831,32 @@ void Direct3DDisplay::render()
 				DrawTextMessages((u8 *)locked.pBits, locked.Pitch, theApp.rect.left, theApp.rect.bottom);
 			}
 
-			pTexture->UnlockRect(0);
+			if (trilinear)
+			{
+				// The CPU filter and the text only write the frame, so the rest
+				// of the square is filled in before the chain is made.
+				int frameWidth, frameHeight;
+				if (theApp.filterFunction)
+				{
+					frameWidth  = theApp.filterWidth;
+					frameHeight = theApp.filterHeight;
+				}
+				else
+					systemGetLCDResolution(frameWidth, frameHeight);
+
+				extendFrame((u8 *)locked.pBits, locked.Pitch, frameWidth, frameHeight);
+			}
+
+			target->UnlockRect(0);
 
 			// set the texture
-			pDevice->SetTexture(0, pTexture);
+			if (trilinear)
+			{
+				pDevice->UpdateTexture(pMipStaging, pMipTexture);
+				pDevice->SetTexture(0, pMipTexture);
+			}
+			else
+				pDevice->SetTexture(0, pTexture);
 
 			// configure shader for vertex type
 			pDevice->SetVertexShader(NULL);
@@ -786,6 +940,18 @@ bool Direct3DDisplay::changeRenderSize(int w, int h)
 {
 	if (w != width || h != height)
 	{
+		// The trilinear textures are the same size as the frame, so they go
+		// with it.
+		if (pMipStaging)
+		{
+			pMipStaging->Release();
+			pMipStaging = NULL;
+		}
+		if (pMipTexture)
+		{
+			pMipTexture->Release();
+			pMipTexture = NULL;
+		}
 		if (pTexture)
 		{
 			pTexture->Release();

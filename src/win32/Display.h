@@ -37,6 +37,13 @@ public:
 	// with.  False here: the sampler is the only thing that scales the
 	// frame unless a backend says otherwise.
 	virtual bool upscalerAvailable(int upscaler) { return false; };
+
+	// Whether this backend can filter the frame with the filter whose value is
+	// given - 0 is nearest, 1 is bilinear and 2 is trilinear, the values of the
+	// texture filter menu - which is the question that menu greys its items
+	// out with.  False here: the backends without a sampler of their own do
+	// not filter the frame at all.
+	virtual bool filterAvailable(int filter) { return false; };
 };
 
 #endif // VBA_WIN32_DISASSEMBLE_H

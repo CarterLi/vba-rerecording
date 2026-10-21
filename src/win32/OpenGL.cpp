@@ -45,6 +45,11 @@ public:
 	virtual DISPLAY_TYPE getType() { return OPENGL; };
 	virtual void setOption(const char *, int);
 	virtual int selectFullScreenMode(GUID * *);
+
+	// The legacy renderer samples a texture with the two filters the fixed
+	// function pipeline has, and has no mip chain to blend between: trilinear
+	// is the one it cannot do.
+	virtual bool filterAvailable(int filter) { return filter == 0 || filter == 1; };
 };
 
 OpenGLDisplay::OpenGLDisplay()

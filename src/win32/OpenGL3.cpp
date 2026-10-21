@@ -144,6 +144,7 @@ typedef void   (APIENTRY *PFNGLBINDFRAMEBUFFERPROC)(GLenum target, GLuint frameb
 typedef void   (APIENTRY *PFNGLFRAMEBUFFERTEXTURE2DPROC)(GLenum target, GLenum attachment, GLenum textarget, GLuint texture, GLint level);
 typedef GLenum (APIENTRY *PFNGLCHECKFRAMEBUFFERSTATUSPROC)(GLenum target);
 typedef void   (APIENTRY *PFNGLDELETEFRAMEBUFFERSPROC)(GLsizei n, const GLuint *framebuffers);
+typedef void   (APIENTRY *PFNGLGENERATEMIPMAPPROC)(GLenum target);
 
 #define GL3_FUNCTIONS(X) \
 	X(PFNGLACTIVETEXTUREPROC, glActiveTexture) \
@@ -182,7 +183,8 @@ typedef void   (APIENTRY *PFNGLDELETEFRAMEBUFFERSPROC)(GLsizei n, const GLuint *
 	X(PFNGLBINDFRAMEBUFFERPROC, glBindFramebuffer) \
 	X(PFNGLFRAMEBUFFERTEXTURE2DPROC, glFramebufferTexture2D) \
 	X(PFNGLCHECKFRAMEBUFFERSTATUSPROC, glCheckFramebufferStatus) \
-	X(PFNGLDELETEFRAMEBUFFERSPROC, glDeleteFramebuffers)
+	X(PFNGLDELETEFRAMEBUFFERSPROC, glDeleteFramebuffers) \
+	X(PFNGLGENERATEMIPMAPPROC, glGenerateMipmap)
 
 #define GL3_DECLARE(type, name) static type name = NULL;
 GL3_FUNCTIONS(GL3_DECLARE)
@@ -607,7 +609,9 @@ static bool updateUpscaleTarget(UpscaleTarget &target, int width, int height, co
 	// sampler when the upscalers were capped, so it follows the same filtering
 	// the frame does; the FSR passes read it with texelFetch, where it does not
 	// come into it.
-	GLint filter = theApp.glFilter == 1 ? GL_LINEAR : GL_NEAREST;
+	// Trilinear reads between two levels, which a target that is drawn into
+	// has not got, so it magnifies like bilinear does here.
+	GLint filter = theApp.glFilter != 0 ? GL_LINEAR : GL_NEAREST;
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, filter);
@@ -1706,6 +1710,13 @@ public:
 	virtual void setOption(const char *, int);
 	virtual int selectFullScreenMode(GUID * *);
 	virtual bool upscalerAvailable(int upscaler);
+	// The frame texture gets a mip chain whenever trilinear is selected, see
+	// uploadFrame(), so all three filters run here - as long as the driver
+	// hands the entry point that builds the chain over.
+	virtual bool filterAvailable(int filter)
+	{
+		return filter >= 0 && filter <= 2 && (filter != 2 || glGenerateMipmap != NULL);
+	};
 };
 
 OpenGL33Display::OpenGL33Display()
@@ -2207,6 +2218,16 @@ void OpenGL33Display::updateFiltering()
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 		break;
+	case 2:
+		// Trilinear reads between the two mip levels the frame's own size and
+		// the window's ask for, so the chain uploadFrame() builds is what it
+		// blends.  A texture without a chain would be incomplete and draw
+		// nothing, so where the driver has no way to build one the frame is
+		// filtered bilinearly instead.
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER,
+		                glGenerateMipmap != NULL ? GL_LINEAR_MIPMAP_LINEAR : GL_LINEAR);
+		break;
 	default:
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 		glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
@@ -2345,6 +2366,13 @@ void OpenGL33Display::uploadFrame()
 	                theApp.rect.left, theApp.rect.top, rectWidth, rectHeight,
 	                GL_RGBA, GL_UNSIGNED_BYTE, image);
 	glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+
+	// Trilinear reads between two levels of the chain, and the chain is built
+	// from the frame that was just uploaded.  The frame covers the whole
+	// texture - the rectangle starts at the top left corner - so no level is
+	// built from anything left over.
+	if (theApp.glFilter == 2 && glGenerateMipmap != NULL)
+		glGenerateMipmap(GL_TEXTURE_2D);
 }
 
 // The single pass upscalers map the frame texture onto the whole window the same

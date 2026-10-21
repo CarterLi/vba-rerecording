@@ -785,34 +785,6 @@ void MainWnd::OnUpdateOptionsVideoRendermethodWebgpu(CCmdUI*pCmdUI)
 
 	pCmdUI->SetCheck(theApp.renderMethod == WGPU);
 }
-
-void MainWnd::OnOptionsVideoRenderoptionsWgpunearest()
-{
-	theApp.wgpuFilter = 0;
-	regSetDwordValue("wgpuFilter", 0);
-	if (theApp.display && theApp.display->getType() == WGPU)
-		theApp.display->setOption("wgpuFilter", 0);
-}
-
-void MainWnd::OnUpdateOptionsVideoRenderoptionsWgpunearest(CCmdUI*pCmdUI)
-{
-	pCmdUI->Enable(wgpuAvailable());
-	pCmdUI->SetCheck(theApp.renderMethod == WGPU && theApp.wgpuFilter == 0);
-}
-
-void MainWnd::OnOptionsVideoRenderoptionsWgpubilinear()
-{
-	theApp.wgpuFilter = 1;
-	regSetDwordValue("wgpuFilter", 1);
-	if (theApp.display && theApp.display->getType() == WGPU)
-		theApp.display->setOption("wgpuFilter", 1);
-}
-
-void MainWnd::OnUpdateOptionsVideoRenderoptionsWgpubilinear(CCmdUI*pCmdUI)
-{
-	pCmdUI->Enable(wgpuAvailable());
-	pCmdUI->SetCheck(theApp.renderMethod == WGPU && theApp.wgpuFilter == 1);
-}
 #endif
 
 void MainWnd::OnOptionsVideoTriplebuffering()
@@ -845,52 +817,82 @@ void MainWnd::OnUpdateOptionsVideoDdrawusevideomemory(CCmdUI*pCmdUI)
 	pCmdUI->SetCheck(theApp.ddrawUseVideoMemory);
 }
 
-void MainWnd::OnOptionsVideoRenderoptionsD3dnofilter()
+// The texture filter menu is one menu for all the renderers, while each of
+// them keeps its own setting: the two Direct3D ones share d3dFilter, the two
+// OpenGL ones share glFilter and the WebGPU one has its own.  These two read
+// and write the setting of the renderer that is running, -1 when it has none.
+static int currentTextureFilter()
 {
-	theApp.d3dFilter = 0;
+	switch (theApp.renderMethod)
+	{
+	case DIRECT_3D:
+	case DIRECT_3D11:
+		return theApp.d3dFilter;
+	case OPENGL:
+	case OPENGL33:
+		return theApp.glFilter;
+#if VBA_ENABLE_WGPU
+	case WGPU:
+		return theApp.wgpuFilter;
+#endif
+	default:
+		return -1;
+	}
+}
+
+static void setTextureFilter(int filter)
+{
+	const char *option;
+	int *value;
+
+	switch (theApp.renderMethod)
+	{
+	case DIRECT_3D:
+	case DIRECT_3D11:
+		option = "d3dFilter";
+		value  = &theApp.d3dFilter;
+		break;
+	case OPENGL:
+	case OPENGL33:
+		option = "glFilter";
+		value  = &theApp.glFilter;
+		break;
+#if VBA_ENABLE_WGPU
+	case WGPU:
+		option = "wgpuFilter";
+		value  = &theApp.wgpuFilter;
+		break;
+#endif
+	default:
+		return;
+	}
+
+	*value = filter;
+	// The Direct3D 9 renderer reads the filter from the registry once a frame,
+	// so the setting has to be there as well as in memory.
+	regSetDwordValue(option, filter);
 	if (theApp.display)
-		theApp.display->setOption("d3dFilter", 0);
+		theApp.display->setOption(option, filter);
 }
 
-void MainWnd::OnUpdateOptionsVideoRenderoptionsD3dnofilter(CCmdUI*pCmdUI)
+void MainWnd::OnOptionsVideoTexturefilter(UINT nID)
 {
-	pCmdUI->SetCheck(theApp.d3dFilter == 0);
+	int filter = (int)(nID - ID_OPTIONS_VIDEO_TEXTUREFILTER_NEAREST);
+
+	// A filter the renderer that is running cannot do stays unselectable, the
+	// same way the upscaling menu treats its items.
+	if (theApp.display == NULL || !theApp.display->filterAvailable(filter))
+		return;
+
+	setTextureFilter(filter);
 }
 
-void MainWnd::OnOptionsVideoRenderoptionsD3dbilinear()
+void MainWnd::OnUpdateOptionsVideoTexturefilter(CCmdUI*pCmdUI)
 {
-	theApp.d3dFilter = 1;
-	if (theApp.display)
-		theApp.display->setOption("d3dFilter", 1);
-}
+	int filter = (int)(pCmdUI->m_nID - ID_OPTIONS_VIDEO_TEXTUREFILTER_NEAREST);
 
-void MainWnd::OnUpdateOptionsVideoRenderoptionsD3dbilinear(CCmdUI*pCmdUI)
-{
-	pCmdUI->SetCheck(theApp.d3dFilter == 1);
-}
-
-void MainWnd::OnOptionsVideoRenderoptionsGlnearest()
-{
-	theApp.glFilter = 0;
-	if (theApp.display)
-		theApp.display->setOption("glFilter", 0);
-}
-
-void MainWnd::OnUpdateOptionsVideoRenderoptionsGlnearest(CCmdUI*pCmdUI)
-{
-	pCmdUI->SetCheck(theApp.glFilter == 0);
-}
-
-void MainWnd::OnOptionsVideoRenderoptionsGlbilinear()
-{
-	theApp.glFilter = 1;
-	if (theApp.display)
-		theApp.display->setOption("glFilter", 1);
-}
-
-void MainWnd::OnUpdateOptionsVideoRenderoptionsGlbilinear(CCmdUI*pCmdUI)
-{
-	pCmdUI->SetCheck(theApp.glFilter == 1);
+	pCmdUI->Enable(theApp.display != NULL && theApp.display->filterAvailable(filter));
+	pCmdUI->SetCheck(currentTextureFilter() == filter);
 }
 
 void MainWnd::OnOptionsVideoRenderoptionsGltriangle()

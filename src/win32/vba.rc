@@ -1968,21 +1968,21 @@ BEGIN
                 MENUITEM SEPARATOR
                 MENUITEM "Direct3D &11",                ID_OPTIONS_VIDEO_RENDERMETHOD_DIRECT3D11
                 MENUITEM "Direct&3D 9Ex",               ID_OPTIONS_VIDEO_RENDERMETHOD_DIRECT3D
-                MENUITEM "    D3D &Nearest",            ID_OPTIONS_VIDEO_RENDEROPTIONS_D3DNOFILTER
-                MENUITEM "    D3D &Bilinear",           ID_OPTIONS_VIDEO_RENDEROPTIONS_D3DBILINEAR
 #if VBA_ENABLE_WGPU
                 MENUITEM SEPARATOR
                 MENUITEM "&WebGPU",                     ID_OPTIONS_VIDEO_RENDERMETHOD_WEBGPU
-                MENUITEM "    wgpu Ne&arest",           ID_OPTIONS_VIDEO_RENDEROPTIONS_WGPUNEARNEST
-                MENUITEM "    wgpu B&ilinear",          ID_OPTIONS_VIDEO_RENDEROPTIONS_WGPUBILINEAR
 #endif
                 MENUITEM SEPARATOR
                 MENUITEM "&OpenGL 3.3",                 ID_OPTIONS_VIDEO_RENDERMETHOD_OPENGL33
                 MENUITEM "OpenGL (&Legacy)",            ID_OPTIONS_VIDEO_RENDERMETHOD_OPENGL
-                MENUITEM "    GL Ne&arest",             ID_OPTIONS_VIDEO_RENDEROPTIONS_GLNEAREST
-                MENUITEM "    GL B&ilinear",            ID_OPTIONS_VIDEO_RENDEROPTIONS_GLBILINEAR
                 MENUITEM "    GL T&riangle (Legacy)", ID_OPTIONS_VIDEO_RENDEROPTIONS_GLTRIANGLE
                 MENUITEM "    GL &Quads (Legacy)",    ID_OPTIONS_VIDEO_RENDEROPTIONS_GLQUADS
+            END
+            POPUP "&Texture Filter"
+            BEGIN
+                MENUITEM "&Nearest",                    ID_OPTIONS_VIDEO_TEXTUREFILTER_NEAREST
+                MENUITEM "&Bilinear",                   ID_OPTIONS_VIDEO_TEXTUREFILTER_BILINEAR
+                MENUITEM "Tri&linear",                  ID_OPTIONS_VIDEO_TEXTUREFILTER_TRILINEAR
             END
             MENUITEM SEPARATOR
 #if VBA_ENABLE_WGPU

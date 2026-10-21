@@ -423,6 +423,12 @@ public:
 	virtual void setOption(const char *, int);
 	virtual int selectFullScreenMode(GUID * *);
 	virtual bool upscalerAvailable(int upscaler) { return direct3D11UpscalerAvailable(upscaler); };
+	// Trilinear reads a mip chain, which is the texture pMipTexture carries,
+	// so it stays unselectable where that one could not be made.
+	virtual bool filterAvailable(int filter)
+	{
+		return filter >= 0 && filter <= 2 && (filter != 2 || pMipTexture != NULL);
+	};
 
 private:
 	bool createDevice();
@@ -471,6 +477,12 @@ private:
 	ID3D11RenderTargetView *pRTV;
 	ID3D11Texture2D      *pFrameTexture;
 	ID3D11ShaderResourceView *pFrameSRV;
+	// The trilinear filter reads a mip chain.  The frame texture is dynamic so
+	// the frame can be mapped into it, and a dynamic texture has no chain, so
+	// the frame is copied into this one and GenerateMips() rebuilds the chain
+	// from it; see render().
+	ID3D11Texture2D      *pMipTexture;
+	ID3D11ShaderResourceView *pMipSRV;
 	ID3D11Texture2D      *pOverlayTexture;
 	ID3D11ShaderResourceView *pOverlaySRV;
 	ID3D11VertexShader   *pVS;
@@ -478,6 +490,7 @@ private:
 	ID3D11InputLayout    *pLayout;
 	ID3D11SamplerState   *pSamplerPoint;
 	ID3D11SamplerState   *pSamplerLinear;
+	ID3D11SamplerState   *pSamplerTrilinear;
 	ID3D11BlendState     *pBlendAlpha;
 	ID3D11Buffer         *pVertexBuffer;
 
@@ -536,6 +549,8 @@ Direct3D11Display::Direct3D11Display()
 	pRTV          = NULL;
 	pFrameTexture = NULL;
 	pFrameSRV     = NULL;
+	pMipTexture   = NULL;
+	pMipSRV       = NULL;
 	pOverlayTexture = NULL;
 	pOverlaySRV   = NULL;
 	pVS           = NULL;
@@ -543,6 +558,7 @@ Direct3D11Display::Direct3D11Display()
 	pLayout       = NULL;
 	pSamplerPoint = NULL;
 	pSamplerLinear = NULL;
+	pSamplerTrilinear = NULL;
 	pBlendAlpha   = NULL;
 	pVertexBuffer = NULL;
 	featureLevel  = D3D_FEATURE_LEVEL_10_0;
@@ -608,6 +624,7 @@ void Direct3D11Display::releaseAll()
 	if (pRTV)          { pRTV->Release();          pRTV = NULL; }
 	if (pVertexBuffer) { pVertexBuffer->Release(); pVertexBuffer = NULL; }
 	if (pBlendAlpha)   { pBlendAlpha->Release();   pBlendAlpha = NULL; }
+	if (pSamplerTrilinear) { pSamplerTrilinear->Release(); pSamplerTrilinear = NULL; }
 	if (pSamplerLinear) { pSamplerLinear->Release(); pSamplerLinear = NULL; }
 	if (pSamplerPoint) { pSamplerPoint->Release(); pSamplerPoint = NULL; }
 	if (pLayout)       { pLayout->Release();       pLayout = NULL; }
@@ -622,6 +639,8 @@ void Direct3D11Display::releaseAll()
 
 void Direct3D11Display::releaseFrameTexture()
 {
+	if (pMipSRV)       { pMipSRV->Release();       pMipSRV = NULL; }
+	if (pMipTexture)   { pMipTexture->Release();   pMipTexture = NULL; }
 	if (pFrameSRV)     { pFrameSRV->Release();     pFrameSRV = NULL; }
 	if (pFrameTexture) { pFrameTexture->Release(); pFrameTexture = NULL; }
 }
@@ -869,6 +888,13 @@ bool Direct3D11Display::createSamplers()
 	if (FAILED(pDevice->CreateSamplerState(&sd, &pSamplerLinear)))
 		return false;
 
+	// Trilinear is the one that reads between two mip levels; without a chain
+	// to read it is bilinear with extra work, which is what the frame texture
+	// that is sampled without one gets.
+	sd.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+	if (FAILED(pDevice->CreateSamplerState(&sd, &pSamplerTrilinear)))
+		return false;
+
 	D3D11_BLEND_DESC bd;
 	ZeroMemory(&bd, sizeof(bd));
 	bd.RenderTarget[0].BlendEnable           = TRUE;
@@ -993,7 +1019,7 @@ bool Direct3D11Display::initialize()
 	}
 
 	filterMode = regQueryDwordValue("d3dFilter", 0);
-	if (filterMode < 0 || filterMode > 3)
+	if (filterMode < 0 || filterMode > 2)
 		filterMode = 0;
 
 	systemUpdateColorMaps();
@@ -1036,6 +1062,34 @@ bool Direct3D11Display::initializeOffscreen(int w, int h)
 	{
 		releaseFrameTexture();
 		return false;
+	}
+
+	// The trilinear filter reads a mip chain, and a dynamic texture - which is
+	// what the frame has to be mapped into - has none.  This one is a copy of
+	// it with the whole chain, which GenerateMips() rebuilds every frame; a
+	// format the device cannot render to or build a chain for simply leaves
+	// the filter unavailable.
+	D3D11_TEXTURE2D_DESC md;
+	ZeroMemory(&md, sizeof(md));
+	md.Width            = w;
+	md.Height           = h;
+	md.MipLevels        = 0;
+	md.ArraySize        = 1;
+	md.Format           = frameFormat;
+	md.SampleDesc.Count = 1;
+	md.Usage            = D3D11_USAGE_DEFAULT;
+	md.BindFlags        = D3D11_BIND_SHADER_RESOURCE | D3D11_BIND_RENDER_TARGET;
+	md.MiscFlags        = D3D11_RESOURCE_MISC_GENERATE_MIPS;
+
+	hr = pDevice->CreateTexture2D(&md, NULL, &pMipTexture);
+	if (SUCCEEDED(hr))
+		hr = pDevice->CreateShaderResourceView(pMipTexture, NULL, &pMipSRV);
+
+	if (FAILED(hr))
+	{
+		if (pMipSRV)     { pMipSRV->Release();     pMipSRV = NULL; }
+		if (pMipTexture) { pMipTexture->Release(); pMipTexture = NULL; }
+		winlog("D3D11: no mip chain for %dx%d, trilinear filtering is not available\n", w, h);
 	}
 
 	if (pOverlayTexture == NULL && backWidth > 0 && backHeight > 0)
@@ -1970,7 +2024,11 @@ void Direct3D11Display::drawQuad(ID3D11ShaderResourceView *srv, D3D11VERTEX *ver
 	pContext->VSSetShader(pVS, NULL, 0);
 	pContext->PSSetShader(pixelShader ? pixelShader : pPS, NULL, 0);
 
-	ID3D11SamplerState *sampler = (filterMode == 0) ? pSamplerPoint : pSamplerLinear;
+	ID3D11SamplerState *sampler = pSamplerPoint;
+	if (filterMode == 1)
+		sampler = pSamplerLinear;
+	else if (filterMode == 2 && pSamplerTrilinear != NULL)
+		sampler = pSamplerTrilinear;
 	pContext->PSSetSamplers(0, 1, &sampler);
 	pContext->PSSetShaderResources(0, 1, &srv);
 
@@ -2067,9 +2125,21 @@ void Direct3D11Display::render()
 		}
 	}
 
+	// The trilinear filter reads a mip chain, so the frame is copied into the
+	// texture that has one and the device builds the chain from the copy.  The
+	// chain covers the whole frame texture, which is exactly the frame, so
+	// nothing of it is left over from an earlier one.
+	bool trilinear = filterMode == 2 && pMipTexture != NULL && pMipSRV != NULL;
+	if (trilinear && pFrameTexture != NULL)
+	{
+		// Level 0 only: the levels below it are what GenerateMips() makes.
+		pContext->CopySubresourceRegion(pMipTexture, 0, 0, 0, 0, pFrameTexture, 0, NULL);
+		pContext->GenerateMips(pMipSRV);
+	}
+
 	// Optionally let an upscaler rebuild the frame at the back buffer size
 	// instead of letting the sampler stretch it.
-	ID3D11ShaderResourceView *frameView = pFrameSRV;
+	ID3D11ShaderResourceView *frameView = trilinear ? pMipSRV : pFrameSRV;
 	bool scaled1to1 = false;
 
 	if (pFrameSRV != NULL && theApp.upscaler != UPSCALER_OFF)

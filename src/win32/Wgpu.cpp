@@ -579,6 +579,10 @@ public:
 	virtual void setOption(const char *, int);
 	virtual int selectFullScreenMode(GUID * *);
 	virtual bool upscalerAvailable(int upscaler) { return upscaler == UPSCALER_OFF; };
+	// The frame is uploaded straight into the texture that is sampled, and
+	// wgpu makes no mip chain of its own: a chain would take a render pass per
+	// level here, so the two filters the sampler has are the two on offer.
+	virtual bool filterAvailable(int filter) { return filter == 0 || filter == 1; };
 
 private:
 	bool createSurface();

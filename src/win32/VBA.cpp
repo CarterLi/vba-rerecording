@@ -1356,8 +1356,6 @@ static void removeWgpuMenuItems(HMENU menu)
 		DeleteMenu(parent, position - 1, MF_BYPOSITION);
 
 	DeleteMenu(parent, ID_OPTIONS_VIDEO_RENDERMETHOD_WEBGPU, MF_BYCOMMAND);
-	DeleteMenu(parent, ID_OPTIONS_VIDEO_RENDEROPTIONS_WGPUNEARNEST, MF_BYCOMMAND);
-	DeleteMenu(parent, ID_OPTIONS_VIDEO_RENDEROPTIONS_WGPUBILINEAR, MF_BYCOMMAND);
 }
 #endif
 
@@ -2266,7 +2264,7 @@ void VBA::loadSettings()
 	vsync = regQueryDwordValue("vsync", false) ? true : false;
 
 	d3dFilter = regQueryDwordValue("d3dFilter", 0);
-	if (d3dFilter < 0 || d3dFilter > 1)
+	if (d3dFilter < 0 || d3dFilter > 2)
 		d3dFilter = 0;
 	upscaler = regQueryDwordValue("upscaler", UPSCALER_OFF);
 	if (upscaler < UPSCALER_OFF || upscaler > UPSCALER_XBRZ)
@@ -2278,14 +2276,14 @@ void VBA::loadSettings()
 	if (upscalerMaxScale < 0 || upscalerMaxScale > 8)
 		upscalerMaxScale = 0;
 	glFilter = regQueryDwordValue("glFilter", 0);
-	if (glFilter < 0 || glFilter > 1)
+	if (glFilter < 0 || glFilter > 2)
 		glFilter = 0;
 	glType = regQueryDwordValue("glType", 0);
 	if (glType < 0 || glType > 1)
 		glType = 0;
 #if VBA_ENABLE_WGPU
 	wgpuFilter = regQueryDwordValue("wgpuFilter", 0);
-	if (wgpuFilter < 0 || wgpuFilter > 1)
+	if (wgpuFilter < 0 || wgpuFilter > 2)
 		wgpuFilter = 0;
 #endif
 
