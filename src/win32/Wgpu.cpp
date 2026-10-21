@@ -27,6 +27,12 @@
 // When the library is missing or no adapter comes back the renderer does not
 // start, and VBA::updateRenderMethod() falls back to the renderer below it in
 // the menu list.
+//
+// Which of those backends the renderer runs on is the user's to pick, see the
+// backend menu in MainWndOptions.cpp and theApp.wgpuBackend: the request the
+// adapter comes from asks for that backend, and a backend this machine has no
+// adapter for is left out of the menu.  Automatic asks for none in particular
+// and lets the library pick, which is Direct3D 12 on Windows.
 
 #include "stdafx.h"
 #include "WgpuConfig.h"
@@ -372,6 +378,22 @@ static const char *wgpuBackendTypeName(int backend)
 	return NULL;
 }
 
+// The backend the menu asked for, as the adapter request spells it.  Automatic
+// is Undefined, which is the request that lets the library decide, and the one
+// every other value falls back to when it is not one of the entries.
+static WGPUBackendType wgpuRequestedBackendType(int backend)
+{
+	switch (backend)
+	{
+	case VBA_WGPU_BACKEND_D3D12:  return WGPUBackendType_D3D12;
+	case VBA_WGPU_BACKEND_VULKAN: return WGPUBackendType_Vulkan;
+	case VBA_WGPU_BACKEND_METAL:  return WGPUBackendType_Metal;
+	case VBA_WGPU_BACKEND_OPENGL: return WGPUBackendType_OpenGL;
+	}
+
+	return WGPUBackendType_Undefined;
+}
+
 // The adapter types wgpu reports, in the same one line per adapter the
 // enumeration below writes to the trace.
 static const char *wgpuAdapterTypeName(int type)
@@ -418,6 +440,11 @@ static bool adapterIsSoftware(WGPUAdapterType type)
 	return type == WGPUAdapterType_CPU;
 }
 
+// The backends the enumeration below found an adapter on that can carry the
+// renderer, as the instance spells them.  The backend menu greys out what is
+// not in here, so a backend this machine cannot run is not offered.
+static WGPUInstanceBackend wgpuPresentBackends = 0;
+
 // The adapters of every backend the library was built with, one line each in
 // the trace: a backend with no adapter tells the same story as one that fails
 // later, only before anything is created.  The adapters are the enumeration
@@ -438,6 +465,8 @@ static bool enumerateWgpuAdapters()
 
 	bool usable = false;
 	char usableName[128] = "";
+
+	wgpuPresentBackends = 0;
 
 	for (unsigned i = 0; i < sizeof(backends) / sizeof(backends[0]); i++)
 	{
@@ -485,6 +514,9 @@ static bool enumerateWgpuAdapters()
 					lstrcpyn(usableName, name, sizeof(usableName));
 				}
 
+				if (!software)
+					wgpuPresentBackends |= backends[i].flag;
+
 				wgpuAdapterInfoFreeMembers_fn(info);
 			}
 			else
@@ -502,6 +534,27 @@ static bool enumerateWgpuAdapters()
 		winlog("wgpu: no adapter here can carry WebGPU, the render method is disabled\n");
 
 	return usable;
+}
+
+// Whether the backend the menu names is one this machine can run the renderer
+// on: a backend the enumeration found no usable adapter on is greyed out
+// rather than offered and then fallen back from.  Automatic is always there,
+// because it is the request that leaves the choice to the library.
+bool wgpuBackendAvailable(int backend)
+{
+	if (!wgpuAvailable())
+		return false;
+
+	switch (backend)
+	{
+	case VBA_WGPU_BACKEND_AUTO:   return true;
+	case VBA_WGPU_BACKEND_D3D12:  return (wgpuPresentBackends & WGPUInstanceBackend_DX12) != 0;
+	case VBA_WGPU_BACKEND_VULKAN: return (wgpuPresentBackends & WGPUInstanceBackend_Vulkan) != 0;
+	case VBA_WGPU_BACKEND_METAL:  return (wgpuPresentBackends & WGPUInstanceBackend_Metal) != 0;
+	case VBA_WGPU_BACKEND_OPENGL: return (wgpuPresentBackends & WGPUInstanceBackend_GL) != 0;
+	}
+
+	return false;
 }
 
 // The backend the running renderer is on, named by the render method menu the
@@ -1154,14 +1207,33 @@ bool WgpuDisplay::setPresentMode(bool withVsync)
 
 bool WgpuDisplay::createDevice()
 {
+	// The backend the menu asked for.  Automatic asks for none, which is the
+	// request that lets the library pick - Direct3D 12 first on Windows, then
+	// Vulkan - the way the entry read before there was a backend menu.
+	WGPUBackendType wanted = wgpuRequestedBackendType(theApp.wgpuBackend);
+
 	WGPURequestAdapterOptions options;
 	options = WGPU_REQUEST_ADAPTER_OPTIONS_INIT;
 	options.powerPreference   = WGPUPowerPreference_HighPerformance;
 	options.compatibleSurface = surface;
-	options.backendType       = WGPUBackendType_Undefined;
+	options.backendType       = wanted;
 	options.forceFallbackAdapter = false;
 
 	adapter = requestAdapter(wgpuInstance, &options);
+
+	// A backend this machine has no adapter for answers with nothing, and a
+	// renderer that does not start for it would fall the whole render method
+	// back to Direct3D 11 over a choice that only concerned one backend.  The
+	// request is made again without one instead, and the trace says which
+	// backend the adapter really came from, the menu names it too.
+	if (adapter == NULL && wanted != WGPUBackendType_Undefined)
+	{
+		winlog("wgpu: no adapter on backend %s, the request is made without one\n",
+		       wgpuBackendTypeName((int)wanted));
+
+		options.backendType = WGPUBackendType_Undefined;
+		adapter = requestAdapter(wgpuInstance, &options);
+	}
 
 	if (adapter == NULL)
 	{

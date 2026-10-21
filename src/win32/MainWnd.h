@@ -216,6 +216,8 @@ protected:
 #if VBA_ENABLE_WGPU
 	afx_msg void OnOptionsVideoRendermethodWebgpu();
 	afx_msg void OnUpdateOptionsVideoRendermethodWebgpu(CCmdUI*pCmdUI);
+	afx_msg void OnOptionsVideoWgpubackend(UINT nID);
+	afx_msg void OnUpdateOptionsVideoWgpubackend(CCmdUI*pCmdUI);
 #endif
 	afx_msg void OnOptionsVideoTriplebuffering();
 	afx_msg void OnUpdateOptionsVideoTriplebuffering(CCmdUI*pCmdUI);

@@ -860,6 +860,14 @@
 // The WebGPU render method entries; they are compiled in with the backend,
 // see VBA_ENABLE_WGPU in WgpuConfig.h.
 #define ID_OPTIONS_VIDEO_RENDERMETHOD_WEBGPU 40282
+// The backend the WebGPU renderer runs on, in the order of VBAWgpuBackend in
+// WgpuConfig.h: the choice is the item id less the first of these, which is
+// why they are contiguous.
+#define ID_OPTIONS_VIDEO_WGPUBACKEND_AUTO   40291
+#define ID_OPTIONS_VIDEO_WGPUBACKEND_D3D12  40292
+#define ID_OPTIONS_VIDEO_WGPUBACKEND_VULKAN 40293
+#define ID_OPTIONS_VIDEO_WGPUBACKEND_METAL  40294
+#define ID_OPTIONS_VIDEO_WGPUBACKEND_OPENGL 40295
 #define ID_OPTIONS_VIDEO_RENDEROPTIONS_D3DANISOTROPIC 40236
 #define ID_OPTIONS_VIDEO_RENDEROPTIONS_GLTRIANGLE 40239
 #define ID_OPTIONS_VIDEO_RENDEROPTIONS_GLQUADS 40240

@@ -223,6 +223,7 @@ public:
 	int			 glType;
 #if VBA_ENABLE_WGPU
 	int			 wgpuFilter;
+	int			 wgpuBackend;       // VBA_WGPU_BACKEND_*, see WgpuConfig.h
 #endif
 	bool		 muteWhenInactive;
 	bool		 muteFrameAdvance;

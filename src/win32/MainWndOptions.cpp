@@ -42,6 +42,9 @@ extern bool direct3D11Available();
 // not the render method that is presenting.
 extern bool wgpuAvailable();
 extern const char *wgpuBackendModel();
+// Defined in Wgpu.cpp: whether the backend the menu names is one this machine
+// has an adapter for, so the ones it has not are greyed out.
+extern bool wgpuBackendAvailable(int backend);
 #endif
 // Defined in OpenGL3.cpp: the core profile version the OpenGL 3.3 renderer
 // created, empty while it is not the render method that is presenting.  The
@@ -784,6 +787,42 @@ void MainWnd::OnUpdateOptionsVideoRendermethodWebgpu(CCmdUI*pCmdUI)
 	setRenderMethodModel(pCmdUI, theApp.renderMethod == WGPU ? wgpuBackendModel() : NULL);
 
 	pCmdUI->SetCheck(theApp.renderMethod == WGPU);
+}
+
+// The backend the WebGPU renderer runs on, which is the item id less the first
+// of the five, see VBAWgpuBackend in WgpuConfig.h.
+//
+// Choosing one is also choosing the renderer itself: an entry that only set a
+// backend would do nothing while another render method was presenting, which
+// is not what picking "Direct3D 12" out of a WebGPU menu can be read as.  The
+// switch is forced because the render method does not change, and
+// updateRenderMethod() only rebuilds the display when it does.
+void MainWnd::OnOptionsVideoWgpubackend(UINT nID)
+{
+	int backend = (int)(nID - ID_OPTIONS_VIDEO_WGPUBACKEND_AUTO);
+
+	// A backend this machine has no adapter for is greyed out, but a menu can
+	// still be reached by an accelerator, so the choice is checked here too.
+	if (!wgpuBackendAvailable(backend))
+		return;
+
+	theApp.wgpuBackend = backend;
+	regSetDwordValue("wgpuBackend", backend);
+
+	theApp.renderMethod = WGPU;
+	theApp.updateRenderMethod(true);
+}
+
+void MainWnd::OnUpdateOptionsVideoWgpubackend(CCmdUI *pCmdUI)
+{
+	int backend = (int)(pCmdUI->m_nID - ID_OPTIONS_VIDEO_WGPUBACKEND_AUTO);
+
+	pCmdUI->Enable(wgpuBackendAvailable(backend));
+
+	// A check mark rather than a radio dot: the dot is drawn from a bitmap
+	// that reads as a white square under the dark frame this build paints,
+	// while the check mark is the one the rest of the menu already uses.
+	pCmdUI->SetCheck(theApp.wgpuBackend == backend);
 }
 #endif
 

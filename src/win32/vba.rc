@@ -1971,6 +1971,15 @@ BEGIN
 #if VBA_ENABLE_WGPU
                 MENUITEM SEPARATOR
                 MENUITEM "&WebGPU",                     ID_OPTIONS_VIDEO_RENDERMETHOD_WEBGPU
+                POPUP "    WebGPU &Backend"
+                BEGIN
+                    MENUITEM "&Automatic",              ID_OPTIONS_VIDEO_WGPUBACKEND_AUTO
+                    MENUITEM SEPARATOR
+                    MENUITEM "Direct3D &12",            ID_OPTIONS_VIDEO_WGPUBACKEND_D3D12
+                    MENUITEM "&Vulkan",                 ID_OPTIONS_VIDEO_WGPUBACKEND_VULKAN
+                    MENUITEM "&Metal",                  ID_OPTIONS_VIDEO_WGPUBACKEND_METAL
+                    MENUITEM "&OpenGL (ANGLE)",         ID_OPTIONS_VIDEO_WGPUBACKEND_OPENGL
+                END
 #endif
                 MENUITEM SEPARATOR
                 MENUITEM "&OpenGL 3.3",                 ID_OPTIONS_VIDEO_RENDERMETHOD_OPENGL33

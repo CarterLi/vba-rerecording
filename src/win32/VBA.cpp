@@ -513,6 +513,7 @@ VBA::VBA() : emulator(::theEmulator)
 	glType					= 0;
 #if VBA_ENABLE_WGPU
 	wgpuFilter				= 0;
+	wgpuBackend				= VBA_WGPU_BACKEND_AUTO;
 #endif
 	regEnabled				= false;
 	pauseWhenInactive		= true;
@@ -1348,6 +1349,13 @@ static void removeWgpuMenuItems(HMENU menu)
 
 	if (!findMenuCommand(menu, ID_OPTIONS_VIDEO_RENDERMETHOD_WEBGPU, &parent, &position))
 		return;
+
+	// The backend menu is the popup right under the entry, and it goes first:
+	// taking the entry out by command would leave the popup behind, and its
+	// position would then be the one the entry had.
+	if (position + 1 < GetMenuItemCount(parent) &&
+	    (GetMenuState(parent, position + 1, MF_BYPOSITION) & MF_POPUP) != 0)
+		DeleteMenu(parent, position + 1, MF_BYPOSITION);
 
 	// The separator that opens the family has no id of its own, so it is
 	// found by the position of the entry it stands in front of.
@@ -2285,6 +2293,9 @@ void VBA::loadSettings()
 	wgpuFilter = regQueryDwordValue("wgpuFilter", 0);
 	if (wgpuFilter < 0 || wgpuFilter > 2)
 		wgpuFilter = 0;
+	wgpuBackend = regQueryDwordValue("wgpuBackend", VBA_WGPU_BACKEND_AUTO);
+	if (wgpuBackend < 0 || wgpuBackend >= VBA_WGPU_BACKEND_COUNT)
+		wgpuBackend = VBA_WGPU_BACKEND_AUTO;
 #endif
 
 	// pixel filter & ifb
