@@ -43,7 +43,7 @@ HWND RamWatchHWnd;
 #define hInst AfxGetInstanceHandle()
 static char Str_Tmp [1024];
 
-void init_list_box(HWND Box, const char* Strs[], int numColumns, int *columnWidths); //initializes the ram search and/or ram watch listbox
+void init_list_box(HWND Box, const char* Strs[], int numColumns); //initializes the ram search and/or ram watch listbox
 
 #define MESSAGEBOXPARENT (RamWatchHWnd ? RamWatchHWnd : hWnd)
 
@@ -912,8 +912,7 @@ LRESULT CALLBACK RamWatchProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
 			UpdateRW_RMenu(rwrecentmenu, RAMMENU_FILE_RECENT, RW_MENU_FIRST_RECENT_FILE);
 			
 			const char* names[3] = {"Address","Value","Notes"};
-			int widths[3] = {70,70,64+51+53};
-			init_list_box(GetDlgItem(hDlg,IDC_WATCHLIST),names,3,widths);
+			init_list_box(GetDlgItem(hDlg,IDC_WATCHLIST),names,3);
 			if (!ResultCount)
 				reset_address_info();
 			else

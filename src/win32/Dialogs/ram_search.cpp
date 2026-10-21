@@ -1572,7 +1572,6 @@ LRESULT CALLBACK RamSearchProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 		//const char* names[5] = {"Address","Value","Previous","Changes","Notes"};
 		//int widths[5] = {62,64,64,55,55};
 		const char *names[]	  = { "Address", "Value", "Previous", "Changes" };
-		int			widths[4] = { 68, 76, 76, 68 };
 		if (!ResultCount)
 			reset_address_info();
 		else
@@ -1580,8 +1579,8 @@ LRESULT CALLBACK RamSearchProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 			signal_new_frame();
 			CompactAddrs();
 		}
-		void init_list_box(HWND Box, const char *Strs[], int numColumns, int *columnWidths);
-		init_list_box(GetDlgItem(hDlg, IDC_RAMLIST), names, 4, widths);
+		void init_list_box(HWND Box, const char *Strs[], int numColumns);
+		init_list_box(GetDlgItem(hDlg, IDC_RAMLIST), names, 4);
 		//ListView_SetItemCount(GetDlgItem(hDlg,IDC_RAMLIST),ResultCount);
 		if (!noMisalign) SendDlgItemMessage(hDlg, IDC_MISALIGN, BM_SETCHECK, BST_CHECKED, 0);
 		//if (littleEndian) SendDlgItemMessage(hDlg, IDC_ENDIAN, BM_SETCHECK, BST_CHECKED, 0);
@@ -2177,9 +2176,27 @@ struct InitRamSearch
 	}
 } initRamSearch;
 
-void init_list_box(HWND Box, const char *Strs[], int numColumns, int *columnWidths) //initializes the ram search and/or ram
-                                                                                    // watch listbox
+void init_list_box(HWND Box, const char *Strs[], int numColumns) //initializes the ram search and/or ram
+                                                                // watch listbox
 {
+	// the columns share the width of the list view, with the remainder going to
+	// the last one: the fixed widths they used to get did not add up to the
+	// control, so the last column was either cut off or left a gap beside it.
+	//
+	// the client area is in pixels for the monitor the dialog is on, so this
+	// follows the display scale on its own
+	RECT client;
+	GetClientRect(Box, &client);
+
+	// room for the vertical scroll bar, which turns up as soon as there are
+	// more rows than fit, plus a couple of pixels so nothing runs into the edge
+	int width = client.right - client.left - GetSystemMetrics(SM_CXVSCROLL) - 2;
+
+	if (width < numColumns * 24)
+		width = numColumns * 24;
+
+	int each = width / numColumns;
+
 	LVCOLUMN Col;
 	Col.mask = LVCF_FMT | LVCF_ORDER | LVCF_SUBITEM | LVCF_TEXT | LVCF_WIDTH;
 	Col.fmt	 = LVCFMT_CENTER;
@@ -2188,7 +2205,8 @@ void init_list_box(HWND Box, const char *Strs[], int numColumns, int *columnWidt
 		Col.iOrder	 = i;
 		Col.iSubItem = i;
 		Col.pszText	 = (LPSTR)(Strs[i]);
-		Col.cx		 = columnWidths[i];
+		// the remainder goes to the last column, so the row ends at the edge
+		Col.cx		 = (i == numColumns - 1) ? width - each * (numColumns - 1) : each;
 		ListView_InsertColumn(Box, i, &Col);
 	}
 
