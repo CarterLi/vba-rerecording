@@ -10,13 +10,19 @@
 #include <vector>
 
 // SIMD headers
+// ARM64: run the SSE2 code paths on NEON through the vendored sse2neon header.
 // Don't use SSE2 on WINXP builds (32-bit) - target older CPUs with only SSE/MMX
-#if !defined(WINXP) && (defined(__SSE2__) || (defined(_M_X64) || (defined(_M_IX86_FP) && _M_IX86_FP >= 2)))
+#if defined(_M_ARM64)
+
+#define USE_SSE2
+#include "sse2neon.h"
+
+#elif !defined(WINXP) && (defined(__SSE2__) || (defined(_M_X64) || (defined(_M_IX86_FP) && _M_IX86_FP >= 2)))
 #define USE_SSE2
 #include <emmintrin.h>
 #endif
 
-#if defined(__SSE__) || (defined(_M_IX86_FP) && _M_IX86_FP >= 1)
+#if !defined(_M_ARM64) && (defined(__SSE__) || (defined(_M_IX86_FP) && _M_IX86_FP >= 1))
 #define USE_SSE
 #include <xmmintrin.h>
 #endif

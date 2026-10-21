@@ -10,8 +10,14 @@
 // SIMD Detection (following interframe.cpp pattern)
 // ============================================================================
 
+// ARM64: run the SSE2 code paths on NEON through the vendored sse2neon
+// translation header instead of falling back to scalar C.
+#if defined(_M_ARM64)
+#define USE_SSE2
+#include "sse2neon.h"
+
 // SSE2 detection: available on all x86_64 and x86 with SSE2 support
-#if defined(__SSE2__) || (defined(_M_X64) || (defined(_M_IX86_FP) && _M_IX86_FP >= 2))
+#elif defined(__SSE2__) || (defined(_M_X64) || (defined(_M_IX86_FP) && _M_IX86_FP >= 2))
 #define USE_SSE2
 #include <emmintrin.h>
 #endif

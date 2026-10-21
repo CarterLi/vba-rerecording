@@ -17,6 +17,7 @@
 # Build output and intermediate directories (see OutDir / IntDir in the vcxproj)
 # ---------------------------------------------------------------------------
 win32/x64/
+win32/arm64/
 win32/__bins/
 win32/__V72Xbins/
 win32/__V82Xbins/

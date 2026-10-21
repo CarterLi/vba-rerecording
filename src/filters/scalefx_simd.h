@@ -9,19 +9,25 @@
 #include <algorithm>
 
 // SIMD detection (following interframe.cpp patterns)
-// 64-bit builds always have SSE2/SSE3 available
-#if !defined(WINXP) && (defined(__SSE2__) || (defined(_M_X64) || (defined(_M_IX86_FP) && _M_IX86_FP >= 2)))
+// ARM64: run the SSE2/SSE3 code paths on NEON through the vendored sse2neon header.
+#if defined(_M_ARM64)
+
+#define SCALEFX_USE_SSE2
+#define SCALEFX_USE_SSE3
+#include "sse2neon.h"
+
+#elif !defined(WINXP) && (defined(__SSE2__) || (defined(_M_X64) || (defined(_M_IX86_FP) && _M_IX86_FP >= 2)))
 #define SCALEFX_USE_SSE2
 #include <emmintrin.h>
 #endif
 
 // SSE3 detection - available on all x64 CPUs
-#if !defined(WINXP) && (defined(__SSE3__) || defined(_M_X64))
+#if !defined(_M_ARM64) && !defined(WINXP) && (defined(__SSE3__) || defined(_M_X64))
 #define SCALEFX_USE_SSE3
 #include <pmmintrin.h>
 #endif
 
-#if defined(__SSE__) || (defined(_M_IX86_FP) && _M_IX86_FP >= 1)
+#if !defined(_M_ARM64) && (defined(__SSE__) || (defined(_M_IX86_FP) && _M_IX86_FP >= 1))
 #define SCALEFX_USE_SSE
 #include <xmmintrin.h>
 #endif

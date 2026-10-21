@@ -53,8 +53,12 @@
 
 #define VBA_FEATURE_STRING ""
 
+// Note: the number must be built without ## pasting between macros - the
+// traditional MSVC preprocessor expanded macros on both sides of ##, but the
+// conformant one (/Zc:preprocessor, required by sse2neon on ARM64) does not.
+// A plain `24.1` pp-number needs no pasting and stringizes the same way.
 #if VBA_RR_MINOR_VERSION_NO > 0
-#	define VBA_RR_VERSION_NO VBA_RR_MAJOR_VERSION_NO ## . ## VBA_RR_MINOR_VERSION_NO
+#	define VBA_RR_VERSION_NO VBA_RR_MAJOR_VERSION_NO.VBA_RR_MINOR_VERSION_NO
 #else
 #	define VBA_RR_VERSION_NO VBA_RR_MAJOR_VERSION_NO
 #endif

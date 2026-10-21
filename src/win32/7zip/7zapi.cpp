@@ -26,6 +26,19 @@ typedef HRESULT (WINAPI* SevenZipGetModuleProp)(PROPID propID, PROPVARIANT* valu
 // (major << 16) | minor, which is exactly how the headers encode MY_VERSION.
 static const PROPID kSevenZipVersionProp = 1;
 
+// Name of the host architecture, used for logs and for the architecture-keyed
+// cache file name of the embedded DLL.
+static const char* SevenZipArch()
+{
+#if defined(_M_ARM64)
+	return "arm64";
+#elif defined(_M_X64) || defined(_WIN64)
+	return "x64";
+#else
+	return "x86";
+#endif
+}
+
 static HMODULE s_module = NULL;
 static SevenZipGetNumberOfFormats s_getNumberOfFormats = NULL;
 static SevenZipGetHandlerProperty2 s_getHandlerProperty2 = NULL;
@@ -93,7 +106,7 @@ static void SevenZipLogVersion(const char* path)
 		verdict = "MISMATCH";
 
 	winlog("7-Zip: loaded %s (%s, version %s); headers %s, %s\n",
-	       path, (sizeof(void*) == 8) ? "x64" : "x86", version,
+	       path, SevenZipArch(), version,
 	       MY_VERSION_NUMBERS, verdict);
 }
 
@@ -157,7 +170,7 @@ static bool SevenZipCachePath(char* path, size_t size)
 	strcat(directory, "VBA-M");
 	CreateDirectoryA(directory, NULL);
 
-	const char* arch = (sizeof(void*) == 8) ? "x64" : "x86";
+	const char* arch = SevenZipArch();
 	int written = _snprintf(path, size, "%s\\7z-%s-%s.dll", directory, arch, SEVENZ_DLL_TAG);
 	if (written < 0 || (size_t)written >= size)
 		return false;

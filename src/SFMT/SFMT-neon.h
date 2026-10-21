@@ -27,8 +27,11 @@ inline static void neon_recursion(uint32x4_t * r, uint32x4_t a, uint32x4_t b,
                                 uint32x4_t c, uint32x4_t d)
 {
     uint32x4_t v, x, y, z;
-    static const uint32x4_t vzero = {0,0,0,0};
-    static const uint32x4_t vmask = {SFMT_MSK1, SFMT_MSK2, SFMT_MSK3, SFMT_MSK4};
+    /* MSVC does not accept the array-style brace initializers `{0,0,0,0}` for
+       NEON vector types, so build the constants from scalars instead. */
+    static const uint32_t mask_lanes[4] = {SFMT_MSK1, SFMT_MSK2, SFMT_MSK3, SFMT_MSK4};
+    const uint32x4_t vzero = vdupq_n_u32(0);
+    const uint32x4_t vmask = vld1q_u32(mask_lanes);
 
 #define rotate_bytes(A, B, C) vreinterpretq_u32_u8(vextq_u8(vreinterpretq_u8_u32(A),vreinterpretq_u8_u32(B),(C)))
 
