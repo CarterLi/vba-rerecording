@@ -1639,6 +1639,13 @@ static const UpscalerPassSource g_ptSkyWalkerPasses[] =
 	{ "PT_SKYWALKER541_SHADER", "main", 0, 0 },
 };
 
+// Lanczos is a resampler rather than a pixel filter: three taps per axis at
+// texel centres, over the whole window.
+static const UpscalerPassSource g_lanczos3Passes[] =
+{
+	{ "LANCZOS3_SHADER", "main", 0, -1 },
+};
+
 static const UpscalerSource g_upscalers[] =
 {
 	{ UPSCALER_XBRZ,              "xBRZ",              g_xbrzPasses,             1, "ps_4_0" },
@@ -1651,6 +1658,7 @@ static const UpscalerSource g_upscalers[] =
 	{ UPSCALER_SUPER_XBR,         "super-xBR",         g_superXbrPasses,         3, "ps_4_0" },
 	{ UPSCALER_SCALEFX,           "ScaleFX",           g_scalefxPasses,          5, "ps_4_0" },
 	{ UPSCALER_PT_SKYWALKER,      "PT SkyWalker541",   g_ptSkyWalkerPasses,      1, "ps_4_0" },
+	{ UPSCALER_LANCZOS3,          "Lanczos",           g_lanczos3Passes,         1, "ps_4_0" },
 };
 
 #define UPSCALER_COUNT (sizeof(g_upscalers) / sizeof(g_upscalers[0]))

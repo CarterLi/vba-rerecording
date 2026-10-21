@@ -65,7 +65,9 @@ enum
 	UPSCALER_XBRZ,
 	// The libretro shaders of src/win32/upscalers/libretro, which filter the
 	// frame rather than reconstruct it, in the order of the folders they come
-	// from: the xbr folder, then scalefx, then the handheld one.
+	// from: the xbr folder, then scalefx, then the handheld one.  Lanczos, the
+	// resampler of the windowed folder, is last because the values above it
+	// are what the settings file of an older build holds.
 	UPSCALER_XBR_LV2,
 	UPSCALER_XBR_LV2_NOBLEND,
 	UPSCALER_XBR_LV3,
@@ -74,7 +76,14 @@ enum
 	UPSCALER_XBR_MLV4,
 	UPSCALER_SUPER_XBR,
 	UPSCALER_SCALEFX,
-	UPSCALER_PT_SKYWALKER
+	UPSCALER_PT_SKYWALKER,
+	// Windowed Lanczos, three taps per axis: the smooth enlargement of the
+	// menu, where the shaders above it rebuild edges of pixel art.
+	UPSCALER_LANCZOS3,
+	// The last of them, so that the settings file is checked against the end
+	// of the list rather than against a name that the next addition leaves
+	// behind.
+	UPSCALER_LAST = UPSCALER_LANCZOS3
 };
 
 // True for the fixed-size / custom full screen modes (as opposed to the

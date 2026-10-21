@@ -2275,7 +2275,9 @@ void VBA::loadSettings()
 	if (d3dFilter < 0 || d3dFilter > 2)
 		d3dFilter = 0;
 	upscaler = regQueryDwordValue("upscaler", UPSCALER_OFF);
-	if (upscaler < UPSCALER_OFF || upscaler > UPSCALER_XBRZ)
+	// Against the end of the list, or every shader added after xBRZ would be
+	// read back as Off on the next start.
+	if (upscaler < UPSCALER_OFF || upscaler > UPSCALER_LAST)
 		upscaler = UPSCALER_OFF;
 	upscalerSharpness = regQueryDwordValue("upscalerSharpness", 50);
 	if (upscalerSharpness < 0 || upscalerSharpness > 100)

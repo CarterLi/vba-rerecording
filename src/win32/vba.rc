@@ -140,6 +140,10 @@ SCALEFX_PASS4_SHADER    RCDATA                  "upscalers\\libretro\\ScaleFX_Pa
 PT_SKYWALKER541_GLSL    RCDATA                  "upscalers\\libretro\\PT_SkyWalker541.glsl"
 PT_SKYWALKER541_SHADER  RCDATA                  "upscalers\\libretro\\PT_SkyWalker541.hlsl"
 
+// Lanczos, the resampler of the windowed folder
+LANCZOS3_GLSL           RCDATA                  "upscalers\\libretro\\lanczos3.glsl"
+LANCZOS3_SHADER         RCDATA                  "upscalers\\libretro\\Lanczos3.hlsl"
+
 
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -2140,6 +2144,7 @@ BEGIN
             MENUITEM "&Super xBR",                  ID_OPTIONS_VIDEO_UPSCALER_SUPER_XBR
             MENUITEM "Scale&FX",                    ID_OPTIONS_VIDEO_UPSCALER_SCALEFX
             MENUITEM "&PT SkyWalker541 (LCD)",      ID_OPTIONS_VIDEO_UPSCALER_PT_SKYWALKER
+            MENUITEM "Lanc&zos",                    ID_OPTIONS_VIDEO_UPSCALER_LANCZOS3
             MENUITEM SEPARATOR
             POPUP "&Sharpening"
             BEGIN

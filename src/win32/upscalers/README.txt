@@ -101,6 +101,8 @@ libretro/scalefx-pass0..4.glsl      -> SCALEFX_PASS0..4_GLSL     scalefx/shaders
 libretro/ScaleFX_Pass0..4.hlsl      -> SCALEFX_PASS0..4_SHADER
 libretro/PT_SkyWalker541.glsl       -> PT_SKYWALKER541_GLSL      handheld/shaders
 libretro/PT_SkyWalker541.hlsl       -> PT_SKYWALKER541_SHADER
+libretro/lanczos3.glsl              -> LANCZOS3_GLSL             windowed/shaders
+libretro/Lanczos3.hlsl              -> LANCZOS3_SHADER
 libretro/stock.glsl                 the skeleton of the directory, unused
 
 The chains, in the order the presets of those directories run them:
@@ -113,6 +115,7 @@ The chains, in the order the presets of those directories run them:
     super-xBR                            1x, 2x, then the target size
     ScaleFX                              1x four times, then the target size
     PT SkyWalker541                      1 pass,  at the target size
+    Lanczos                              1 pass,  at the target size
 
 Both renderers run all of them.  A pass that reads a second texture names it
 in the table of Direct3D11.cpp as an index of the outputs of the chain - 0 is
@@ -129,7 +132,8 @@ shader instead, because the renderer has one quad vertex shader for every
 upscaler.  Where a pass takes its taps with textureOffset() it needs neither.
 The xBR and ScaleFX sources are MIT, Hyllian's and Sp00kyFox's respectively, and
 each port carries the notice of the shader it came from; PT_SkyWalker541.glsl
-carries no licence statement upstream, only its credit.
+carries no licence statement upstream, only its credit, and lanczos3.glsl
+neither.
 
 The first ScaleFX and PT ports were produced by translating the GLSL with
 glslang and SPIRV-Cross, then given the same treatment by hand: the names, the

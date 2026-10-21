@@ -825,6 +825,13 @@ static const LibretroPass g_ptSkyWalker541Passes[] =
 	{ "PT_SKYWALKER541_GLSL", 0, false },
 };
 
+// Lanczos, from the windowed folder: three taps per axis, taken at texel
+// centres, so the sampler stays on nearest.
+static const LibretroPass g_lanczos3Passes[] =
+{
+	{ "LANCZOS3_GLSL", 0, false },
+};
+
 static const LibretroShader g_libretroShaders[] =
 {
 	{ UPSCALER_XBR_LV2,           "xBR lv2",              g_xbrLv2Passes,             1 },
@@ -836,6 +843,7 @@ static const LibretroShader g_libretroShaders[] =
 	{ UPSCALER_SUPER_XBR,         "super-xBR",            g_superXbrPasses,           3 },
 	{ UPSCALER_SCALEFX,           "ScaleFX",              g_scalefxPasses,            5 },
 	{ UPSCALER_PT_SKYWALKER,      "PT SkyWalker541",      g_ptSkyWalker541Passes,     1 },
+	{ UPSCALER_LANCZOS3,          "Lanczos",              g_lanczos3Passes,           1 },
 };
 
 #define LIBRETRO_SHADER_COUNT (sizeof(g_libretroShaders) / sizeof(g_libretroShaders[0]))
