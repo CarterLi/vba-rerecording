@@ -61,8 +61,13 @@ workflow that worked:
 `glsl2wgsl.py` (transpile one upstream file), `wgslcheck.cpp` (compile a
 WGSL module through the real wgpu-native device and build its pipeline) and
 `rendertest.cpp` (draw one frame on the GPU and write it out, plus
-`refcheck.py` which does the whole comparison in one command).  They are
-not tracked; the README next to them says how to build them.
+`refcheck.py` and `refcheck2.py`, which do the comparison in one command).
+`refcheckN.py` is the same check for a chain of any length: it takes the
+upstream file, the port and the second texture of every pass - `-` for none,
+`f` for the frame, `n` for the output of pass n - which is the `seconds` column
+of the table, draws every pass at the frame size and the last one at 3x, and
+compares each pass as it runs.  They are not tracked; the README next to them
+says how to build them.
 
 ### What the translator needs, and why
 
@@ -166,7 +171,7 @@ Two levels, both cheap once set up:
   cancel there); at 3x it is compared against the translated version, and
   against a CPU reference where one exists.
 
-The thirteen files of the nine chains ported so far all came out at **0/255 in
+The eighteen files of the ten chains ported so far all came out at **0/255 in
 every colour channel** against the translated shaders.  Alpha is not
 compared: upstream writes `.rgb` only, and the renderer draws with blending
 off.

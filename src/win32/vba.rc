@@ -135,14 +135,19 @@ SUPER_XBR_JINC2_WGSL    RCDATA                  "upscalers\\libretro\\SuperXbrJi
 // ScaleFX
 SCALEFX_PASS0_GLSL      RCDATA                  "upscalers\\libretro\\scalefx-pass0.glsl"
 SCALEFX_PASS0_SHADER    RCDATA                  "upscalers\\libretro\\ScaleFX_Pass0.hlsl"
+SCALEFX_PASS0_WGSL      RCDATA                  "upscalers\\libretro\\ScaleFxPass0.wgsl"
 SCALEFX_PASS1_GLSL      RCDATA                  "upscalers\\libretro\\scalefx-pass1.glsl"
 SCALEFX_PASS1_SHADER    RCDATA                  "upscalers\\libretro\\ScaleFX_Pass1.hlsl"
+SCALEFX_PASS1_WGSL      RCDATA                  "upscalers\\libretro\\ScaleFxPass1.wgsl"
 SCALEFX_PASS2_GLSL      RCDATA                  "upscalers\\libretro\\scalefx-pass2.glsl"
 SCALEFX_PASS2_SHADER    RCDATA                  "upscalers\\libretro\\ScaleFX_Pass2.hlsl"
+SCALEFX_PASS2_WGSL      RCDATA                  "upscalers\\libretro\\ScaleFxPass2.wgsl"
 SCALEFX_PASS3_GLSL      RCDATA                  "upscalers\\libretro\\scalefx-pass3.glsl"
 SCALEFX_PASS3_SHADER    RCDATA                  "upscalers\\libretro\\ScaleFX_Pass3.hlsl"
+SCALEFX_PASS3_WGSL      RCDATA                  "upscalers\\libretro\\ScaleFxPass3.wgsl"
 SCALEFX_PASS4_GLSL      RCDATA                  "upscalers\\libretro\\scalefx-pass4.glsl"
 SCALEFX_PASS4_SHADER    RCDATA                  "upscalers\\libretro\\ScaleFX_Pass4.hlsl"
+SCALEFX_PASS4_WGSL      RCDATA                  "upscalers\\libretro\\ScaleFxPass4.wgsl"
 
 // PT SkyWalker541
 PT_SKYWALKER541_GLSL    RCDATA                  "upscalers\\libretro\\PT_SkyWalker541.glsl"

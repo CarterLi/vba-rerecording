@@ -690,6 +690,11 @@ static const char *const g_xbrLv3MultipassResources[] = { "XBR_LV3_PASS0_WGSL", 
 // then the jinc filter over it.
 static const char *const g_superXbrResources[] = { "SUPER_XBR_PASS0_WGSL", "SUPER_XBR_PASS1_WGSL", "SUPER_XBR_JINC2_WGSL" };
 
+// ScaleFX: the metrics of the edge, the strengths of the corners, the
+// junctions, the subpixels, and the pass that takes the colour from the frame
+// at each of them.
+static const char *const g_scalefxResources[] = { "SCALEFX_PASS0_WGSL", "SCALEFX_PASS1_WGSL", "SCALEFX_PASS2_WGSL", "SCALEFX_PASS3_WGSL", "SCALEFX_PASS4_WGSL" };
+
 static const int g_xbrzScales[] = { 0 };
 static const int g_lanczos3Scales[] = { 0 };
 static const int g_xbrLv2Scales[]   = { 0 };
@@ -699,6 +704,7 @@ static const int g_ptSkyWalkerScales[] = { 0 };
 static const int g_xbr2xScales[]    = { 1, 0 };
 static const int g_xbrLv3MultipassScales[] = { 1, 0 };
 static const int g_superXbrScales[] = { 1, 2, 0 };
+static const int g_scalefxScales[] = { 1, 1, 1, 1, 0 };
 
 static const int g_xbrzSeconds[] = { -1 };
 static const int g_lanczos3Seconds[] = { -1 };
@@ -709,6 +715,7 @@ static const int g_ptSkyWalkerSeconds[] = { -1 };
 static const int g_xbr2xSeconds[]    = { -1, 0 };
 static const int g_xbrLv3MultipassSeconds[] = { -1, 0 };
 static const int g_superXbrSeconds[] = { -1, 0, -1 };
+static const int g_scalefxSeconds[] = { -1, -1, 1, -1, 0 };
 
 static const WgpuUpscalerSource g_wgpuUpscalers[] =
 {
@@ -719,6 +726,7 @@ static const WgpuUpscalerSource g_wgpuUpscalers[] =
 	{ UPSCALER_XBR_LV3,           "xBR lv3",           g_xbrLv3Resources,          g_xbrLv3Scales,         g_xbrLv3Seconds,         1 },
 	{ UPSCALER_XBR_LV3_MULTIPASS,  "xBR lv3 multipass", g_xbrLv3MultipassResources,  g_xbrLv3MultipassScales, g_xbrLv3MultipassSeconds, 2 },
 	{ UPSCALER_SUPER_XBR,         "super-xBR",         g_superXbrResources,        g_superXbrScales,       g_superXbrSeconds,       3 },
+	{ UPSCALER_SCALEFX,           "ScaleFX",           g_scalefxResources,         g_scalefxScales,        g_scalefxSeconds,        5 },
 	{ UPSCALER_XBR_2X,            "2xBR",              g_xbr2xResources,           g_xbr2xScales,          g_xbr2xSeconds,          2 },
 	{ UPSCALER_PT_SKYWALKER,      "PT SkyWalker541",   g_ptSkyWalkerResources,     g_ptSkyWalkerScales,    g_ptSkyWalkerSeconds,    1 },
 };

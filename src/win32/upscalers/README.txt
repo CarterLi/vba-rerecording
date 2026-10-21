@@ -107,6 +107,7 @@ libretro/SuperXBR_Jinc2.hlsl        -> SUPER_XBR_JINC2_SHADER
 libretro/SuperXbrJinc2.wgsl         -> SUPER_XBR_JINC2_WGSL
 libretro/scalefx-pass0..4.glsl      -> SCALEFX_PASS0..4_GLSL     scalefx/shaders
 libretro/ScaleFX_Pass0..4.hlsl      -> SCALEFX_PASS0..4_SHADER
+libretro/ScaleFxPass0..4.wgsl       -> SCALEFX_PASS0..4_WGSL
 libretro/PT_SkyWalker541.glsl       -> PT_SKYWALKER541_GLSL      handheld/shaders
 libretro/PT_SkyWalker541.hlsl       -> PT_SKYWALKER541_SHADER
 libretro/PT_SkyWalker541.wgsl       -> PT_SKYWALKER541_WGSL
@@ -141,13 +142,13 @@ The WebGPU renderer runs the chains from WGSL, and only the ones that have a
 WGSL port: wgpu compiles neither GLSL nor HLSL, so XbrzFreescale.wgsl,
 Lanczos3.wgsl, XbrLv2.wgsl, XbrLv2NoBlend.wgsl, XbrLv3.wgsl,
 Xbr2xPass0/1.wgsl, XbrLv3Multipass0/1.wgsl, SuperXbrPass0/1.wgsl,
-SuperXbrJinc2.wgsl and PT_SkyWalker541.wgsl are ports written against the same
-upstream files rather than translations of the two above, and the upscaling
-menu leaves the rest out while that renderer runs.  The chains still without
-one - xBR-mlv4, ScaleFX - read a second texture the same way 2xBR and xBR lv3
-multipass do, so the chain there carries a second binding: a row of
-g_wgpuUpscalers lists, per pass, the output it reads besides the one the pass
-before it made, 0 being the frame.
+SuperXbrJinc2.wgsl, ScaleFxPass0..4.wgsl and PT_SkyWalker541.wgsl are ports
+written against the same upstream files rather than translations of the two
+above, and the upscaling menu leaves the rest out while that renderer runs.  The
+one chain still without a port - xBR-mlv4 - reads a second texture the same way
+2xBR and xBR lv3 multipass do, so the chain there carries a second binding: a
+row of g_wgpuUpscalers lists, per pass, the output it reads besides the one the
+pass before it made, 0 being the frame.
 Their taps are read with textureLoad and integer coordinates instead of
 through a sampler, which is exact where a tap lands on a texel centre and
 cheaper than a filtered fetch.  The chain there draws its last pass straight
