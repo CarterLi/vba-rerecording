@@ -1257,6 +1257,27 @@ void WgpuDisplay::nameBackend()
 // settings are re-made against what the adapter answers with - Fifo is the
 // only one the needed every time, so the rest are a preference order, the way
 // the Direct3D 11 swap chain walks its flip model levels.
+// What a surface format is called in the trace, and whether it encodes the
+// colour on the way out.  The frame arrives encoded already, so an sRGB
+// surface is the one thing this renderer cannot hand those bytes to.
+static const char *surfaceFormatName(WGPUTextureFormat format)
+{
+	switch (format)
+	{
+	case WGPUTextureFormat_RGBA8Unorm:     return "RGBA8";
+	case WGPUTextureFormat_RGBA8UnormSrgb: return "RGBA8 sRGB";
+	case WGPUTextureFormat_BGRA8Unorm:     return "BGRA8";
+	case WGPUTextureFormat_BGRA8UnormSrgb: return "BGRA8 sRGB";
+	default:                               return "another format";
+	}
+}
+
+static bool surfaceFormatEncodes(WGPUTextureFormat format)
+{
+	return format == WGPUTextureFormat_RGBA8UnormSrgb ||
+	       format == WGPUTextureFormat_BGRA8UnormSrgb;
+}
+
 bool WgpuDisplay::readSurfaceCapabilities()
 {
 	WGPUSurfaceCapabilities capabilities;
@@ -1271,6 +1292,21 @@ bool WgpuDisplay::readSurfaceCapabilities()
 	}
 
 	surfaceFormat = capabilities.formats[0];
+
+	// The core hands the frame over as bytes it has already encoded, and the
+	// other two renderers give those bytes to the swap chain as they are.  A
+	// format that encodes on the way out would encode them a second time,
+	// which washes the picture out, and that is the one the backends offer
+	// first, so a plain format is taken where there is one.
+	for (size_t i = 0; i < capabilities.formatCount; i++)
+	{
+		if (capabilities.formats[i] == WGPUTextureFormat_BGRA8Unorm ||
+		    capabilities.formats[i] == WGPUTextureFormat_RGBA8Unorm)
+		{
+			surfaceFormat = capabilities.formats[i];
+			break;
+		}
+	}
 
 	ZeroMemory(presentModeSupported, sizeof(presentModeSupported));
 	for (size_t mode = 0; mode < capabilities.presentModeCount; mode++)
@@ -1292,7 +1328,9 @@ bool WgpuDisplay::readSurfaceCapabilities()
 		names += modeText;
 	}
 
-	winlog("wgpu: surface format %d, present modes %s\n", (int)surfaceFormat, (const char *)names);
+	winlog("wgpu: surface format %s (%d), present modes %s%s\n",
+	       surfaceFormatName(surfaceFormat), (int)surfaceFormat, (const char *)names,
+	       surfaceFormatEncodes(surfaceFormat) ? " - this one encodes the frame twice" : "");
 
 	wgpuSurfaceCapabilitiesFreeMembers_fn(capabilities);
 	return true;
