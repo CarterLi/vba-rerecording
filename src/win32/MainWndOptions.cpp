@@ -90,20 +90,36 @@ static void setRenderMethodModel(CCmdUI *pCmdUI, const char *model, const char *
 	pCmdUI->m_pMenu->GetMenuString(pCmdUI->m_nID, text, MF_BYCOMMAND);
 
 	// Drop the accelerator text winAccelMgr appends and a model named by an
-	// earlier update, then add what is running now.
+	// earlier update, then add what is running now.  The list has to carry
+	// every model this function can name, or the entry grows one suffix per
+	// menu update - the WebGPU backends were missing from it and the entry
+	// read "WebGPU (D3D12) (D3D12) (D3D12)" after three of them.
 	int tab = text.Find('\t');
 	if (tab >= 0)
 		text = text.Left(tab);
 
-	const char *models[3] = { " (Flip)", " (Flip sequential)", " (Bitblt)" };
-	for (int i = 0; i < 3; i++)
+	const char *models[] =
 	{
-		CString suffix(models[i]);
-		if (text.GetLength() > suffix.GetLength() &&
-		    text.Right(suffix.GetLength()) == suffix)
+		" (Flip)", " (Flip sequential)", " (Bitblt)",
+		" (D3D12)", " (Vulkan)", " (Metal)", " (OpenGL)"
+	};
+
+	bool stripped = true;
+	while (stripped)
+	{
+		stripped = false;
+
+		for (int i = 0; i < (int)(sizeof(models) / sizeof(models[0])); i++)
 		{
-			text = text.Left(text.GetLength() - suffix.GetLength());
-			break;
+			CString suffix(models[i]);
+
+			if (text.GetLength() > suffix.GetLength() &&
+			    text.Right(suffix.GetLength()) == suffix)
+			{
+				text = text.Left(text.GetLength() - suffix.GetLength());
+				stripped = true;
+				break;
+			}
 		}
 	}
 
