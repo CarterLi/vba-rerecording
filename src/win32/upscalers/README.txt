@@ -105,6 +105,7 @@ libretro/lanczos3.glsl              -> LANCZOS3_GLSL             windowed/shader
 libretro/Lanczos3.hlsl              -> LANCZOS3_SHADER
 libretro/Lanczos3.wgsl              -> LANCZOS3_WGSL
 libretro/XbrLv2.wgsl                -> XBR_LV2_WGSL              xbr/shaders
+libretro/XbrLv2NoBlend.wgsl         -> XBR_LV2_NOBLEND_WGSL      xbr/shaders
 libretro/stock.glsl                 the skeleton of the directory, unused
 
 The chains, in the order the presets of those directories run them:

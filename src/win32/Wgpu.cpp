@@ -664,11 +664,13 @@ struct WgpuUpscalerSource
 // HLSL, and wgpu compiles neither.
 static const int g_lanczos3Scales[] = { 0 };
 static const int g_xbrLv2Scales[]   = { 0 };
+static const int g_xbrLv2NoBlendScales[] = { 0 };
 
 static const WgpuUpscalerSource g_wgpuUpscalers[] =
 {
-	{ UPSCALER_LANCZOS3, "Lanczos",  "LANCZOS3_WGSL", g_lanczos3Scales, 1 },
-	{ UPSCALER_XBR_LV2,  "xBR lv2",  "XBR_LV2_WGSL",  g_xbrLv2Scales,   1 },
+	{ UPSCALER_LANCZOS3,          "Lanczos",           "LANCZOS3_WGSL",         g_lanczos3Scales,       1 },
+	{ UPSCALER_XBR_LV2,           "xBR lv2",           "XBR_LV2_WGSL",          g_xbrLv2Scales,         1 },
+	{ UPSCALER_XBR_LV2_NOBLEND,   "xBR lv2 no-blend",  "XBR_LV2_NOBLEND_WGSL",  g_xbrLv2NoBlendScales,  1 },
 };
 
 #define WGPU_UPSCALER_COUNT (sizeof(g_wgpuUpscalers) / sizeof(g_wgpuUpscalers[0]))
