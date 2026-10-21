@@ -34,6 +34,15 @@
 // Defined in Direct3D11.cpp: false when D3D11.DLL or D3DCOMPILER_47.DLL is
 // missing, in which case the renderer is not offered at all.
 extern bool direct3D11Available();
+#if VBA_ENABLE_WGPU
+// Defined in Wgpu.cpp: false when wgpu_native.dll is missing or does not
+// carry the entry points the renderer is built against, in which case the
+// renderer is not offered at all.  wgpuBackendModel names the backend the
+// running renderer presents with ("D3D12", "Vulkan", ...), NULL while it is
+// not the render method that is presenting.
+extern bool wgpuAvailable();
+extern const char *wgpuBackendModel();
+#endif
 // Defined in OpenGL3.cpp: the core profile version the OpenGL 3.3 renderer
 // created, empty while it is not the render method that is presenting.  The
 // renderer asks for the newest core version the driver has and descends from
@@ -756,6 +765,55 @@ void MainWnd::OnUpdateOptionsVideoRendermethodDirect3d11(CCmdUI*pCmdUI)
 
 	pCmdUI->SetCheck(theApp.renderMethod == DIRECT_3D11);
 }
+
+#if VBA_ENABLE_WGPU
+void MainWnd::OnOptionsVideoRendermethodWebgpu()
+{
+	theApp.renderMethod = WGPU;
+	theApp.updateRenderMethod(false);
+}
+
+void MainWnd::OnUpdateOptionsVideoRendermethodWebgpu(CCmdUI*pCmdUI)
+{
+	// wgpu_native.dll is not part of any Windows, so the renderer is only
+	// offered where the library can be loaded, like the Direct3D 11 entry is.
+	pCmdUI->Enable(wgpuAvailable());
+
+	// The renderer runs on the developer's backend of choice out of the ones
+	// the adapter has, see requestAdapter(); the entry is named after it.
+	setRenderMethodModel(pCmdUI, theApp.renderMethod == WGPU ? wgpuBackendModel() : NULL);
+
+	pCmdUI->SetCheck(theApp.renderMethod == WGPU);
+}
+
+void MainWnd::OnOptionsVideoRenderoptionsWgpunearest()
+{
+	theApp.wgpuFilter = 0;
+	regSetDwordValue("wgpuFilter", 0);
+	if (theApp.display && theApp.display->getType() == WGPU)
+		theApp.display->setOption("wgpuFilter", 0);
+}
+
+void MainWnd::OnUpdateOptionsVideoRenderoptionsWgpunearest(CCmdUI*pCmdUI)
+{
+	pCmdUI->Enable(wgpuAvailable());
+	pCmdUI->SetCheck(theApp.renderMethod == WGPU && theApp.wgpuFilter == 0);
+}
+
+void MainWnd::OnOptionsVideoRenderoptionsWgpubilinear()
+{
+	theApp.wgpuFilter = 1;
+	regSetDwordValue("wgpuFilter", 1);
+	if (theApp.display && theApp.display->getType() == WGPU)
+		theApp.display->setOption("wgpuFilter", 1);
+}
+
+void MainWnd::OnUpdateOptionsVideoRenderoptionsWgpubilinear(CCmdUI*pCmdUI)
+{
+	pCmdUI->Enable(wgpuAvailable());
+	pCmdUI->SetCheck(theApp.renderMethod == WGPU && theApp.wgpuFilter == 1);
+}
+#endif
 
 void MainWnd::OnOptionsVideoTriplebuffering()
 {

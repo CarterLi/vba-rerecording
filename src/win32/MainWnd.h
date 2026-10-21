@@ -5,6 +5,8 @@
 // MainWnd.h : header file
 //
 
+#include "WgpuConfig.h"
+
 /////////////////////////////////////////////////////////////////////////////
 // MainWnd window
 
@@ -211,6 +213,14 @@ protected:
 	afx_msg void OnUpdateOptionsVideoRendermethodOpengl33(CCmdUI*pCmdUI);
 	afx_msg void OnOptionsVideoRendermethodDirect3d11();
 	afx_msg void OnUpdateOptionsVideoRendermethodDirect3d11(CCmdUI*pCmdUI);
+#if VBA_ENABLE_WGPU
+	afx_msg void OnOptionsVideoRendermethodWebgpu();
+	afx_msg void OnUpdateOptionsVideoRendermethodWebgpu(CCmdUI*pCmdUI);
+	afx_msg void OnOptionsVideoRenderoptionsWgpunearest();
+	afx_msg void OnUpdateOptionsVideoRenderoptionsWgpunearest(CCmdUI*pCmdUI);
+	afx_msg void OnOptionsVideoRenderoptionsWgpubilinear();
+	afx_msg void OnUpdateOptionsVideoRenderoptionsWgpubilinear(CCmdUI*pCmdUI);
+#endif
 	afx_msg void OnOptionsVideoTriplebuffering();
 	afx_msg void OnUpdateOptionsVideoTriplebuffering(CCmdUI*pCmdUI);
 	afx_msg void OnOptionsVideoDdrawemulationonly();

@@ -10,7 +10,8 @@ enum DISPLAY_TYPE
 	DIRECT_3D   = 2,
 	OPENGL      = 3,
 	DIRECT_3D11 = 4,
-	OPENGL33    = 5
+	OPENGL33    = 5,
+	WGPU        = 6
 };
 
 class IDisplay

@@ -1,7 +1,7 @@
 ﻿// Microsoft Visual C++ generated resource script.
 //
 #include "resource.h"
-
+#include "WgpuConfig.h"
 #define APSTUDIO_READONLY_SYMBOLS
 /////////////////////////////////////////////////////////////////////////////
 //
@@ -1970,6 +1970,12 @@ BEGIN
                 MENUITEM "Direct&3D 9Ex",               ID_OPTIONS_VIDEO_RENDERMETHOD_DIRECT3D
                 MENUITEM "    D3D &Nearest",            ID_OPTIONS_VIDEO_RENDEROPTIONS_D3DNOFILTER
                 MENUITEM "    D3D &Bilinear",           ID_OPTIONS_VIDEO_RENDEROPTIONS_D3DBILINEAR
+#if VBA_ENABLE_WGPU
+                MENUITEM SEPARATOR
+                MENUITEM "&WebGPU",                     ID_OPTIONS_VIDEO_RENDERMETHOD_WEBGPU
+                MENUITEM "    wgpu Ne&arest",           ID_OPTIONS_VIDEO_RENDEROPTIONS_WGPUNEARNEST
+                MENUITEM "    wgpu B&ilinear",          ID_OPTIONS_VIDEO_RENDEROPTIONS_WGPUBILINEAR
+#endif
                 MENUITEM SEPARATOR
                 MENUITEM "&OpenGL 3.3",                 ID_OPTIONS_VIDEO_RENDERMETHOD_OPENGL33
                 MENUITEM "OpenGL (&Legacy)",            ID_OPTIONS_VIDEO_RENDERMETHOD_OPENGL
@@ -1979,7 +1985,11 @@ BEGIN
                 MENUITEM "    GL &Quads (Legacy)",    ID_OPTIONS_VIDEO_RENDEROPTIONS_GLQUADS
             END
             MENUITEM SEPARATOR
+#if VBA_ENABLE_WGPU
+            MENUITEM "V&Sync (DDraw, D3D11, OpenGL 3.3, WebGPU)", ID_OPTIONS_VIDEO_VSYNC
+#else
             MENUITEM "V&Sync (DDraw, D3D11, OpenGL 3.3)", ID_OPTIONS_VIDEO_VSYNC
+#endif
             MENUITEM SEPARATOR
             POPUP "&Window Size"
             BEGIN

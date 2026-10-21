@@ -14,6 +14,7 @@
 #include "AcceleratorManager.h"
 #include "AVIWrite.h"
 #include "Display.h"
+#include "WgpuConfig.h"
 #include "../common/System.h"
 #include "../common/CoreOptions.h"
 #include "../filters/lcdfilter.h"
@@ -220,6 +221,9 @@ public:
 	                                // no limit, see upscalerTargetSize()
 	int			 glFilter;
 	int			 glType;
+#if VBA_ENABLE_WGPU
+	int			 wgpuFilter;
+#endif
 	bool		 muteWhenInactive;
 	bool		 muteFrameAdvance;
 	bool		 pauseWhenInactive;

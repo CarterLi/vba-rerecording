@@ -46,6 +46,12 @@ extern IDisplay *newDirect3DDisplay();
 extern IDisplay *newOpenGLDisplay();
 extern IDisplay *newOpenGL33Display();
 extern IDisplay *newDirect3D11Display();
+#if VBA_ENABLE_WGPU
+extern IDisplay *newWgpuDisplay();
+// Defined in Wgpu.cpp: whether wgpu_native.dll itself is there.  Where it is
+// not, the WebGPU entries leave the menu instead of staying greyed.
+extern bool wgpuLibraryAvailable();
+#endif
 
 extern Input *newDirectInput();
 
@@ -505,6 +511,9 @@ VBA::VBA() : emulator(::theEmulator)
 	upscalerMaxScale		= 0;
 	glFilter				= 0;
 	glType					= 0;
+#if VBA_ENABLE_WGPU
+	wgpuFilter				= 0;
+#endif
 	regEnabled				= false;
 	pauseWhenInactive		= true;
 	muteWhenInactive		= true;
@@ -698,7 +707,12 @@ BOOL VBA::InitInstance()
 	if (!initInput())
 		return FALSE;
 
-	if (!initDisplay())
+	// The render method the settings ask for may be one this machine cannot
+	// start - a WebGPU build on a machine whose only adapter is software, for
+	// one - and the fallback chain in updateRenderMethod() is what the menu
+	// already goes through, so the first display is made the same way rather
+	// than the emulator quitting before the window is up.
+	if (!updateRenderMethod(true))
 	{
 		if (isFullscreenOption(videoOption))
 		{
@@ -1296,10 +1310,69 @@ void VBA::updateFilter()
 		display->changeRenderSize(rect.right, rect.bottom);
 }
 
+#if VBA_ENABLE_WGPU
+// The popup the command lives in, and where in it, so the entries the resource
+// carries can be taken out by position: the separators around them have no id
+// to be found by.
+static bool findMenuCommand(HMENU menu, UINT id, HMENU *parent, int *position)
+{
+	int count = GetMenuItemCount(menu);
+
+	for (int i = 0; i < count; i++)
+	{
+		HMENU popup = GetSubMenu(menu, i);
+		if (popup != NULL)
+		{
+			if (findMenuCommand(popup, id, parent, position))
+				return true;
+		}
+		else if (GetMenuItemID(menu, i) == (int)id)
+		{
+			*parent   = menu;
+			*position = i;
+			return true;
+		}
+	}
+
+	return false;
+}
+
+// wgpu_native.dll is part of no Windows, and a build made with the WebGPU
+// renderer in it lists the entries whether the library is installed or not.
+// Where it is not there, the family is taken out of the menu rather than left
+// greyed: an entry that can never be chosen only makes the list longer.
+static void removeWgpuMenuItems(HMENU menu)
+{
+	HMENU parent;
+	int   position;
+
+	if (!findMenuCommand(menu, ID_OPTIONS_VIDEO_RENDERMETHOD_WEBGPU, &parent, &position))
+		return;
+
+	// The separator that opens the family has no id of its own, so it is
+	// found by the position of the entry it stands in front of.
+	if (position > 0 &&
+	    (GetMenuState(parent, position - 1, MF_BYPOSITION) & MF_SEPARATOR) != 0)
+		DeleteMenu(parent, position - 1, MF_BYPOSITION);
+
+	DeleteMenu(parent, ID_OPTIONS_VIDEO_RENDERMETHOD_WEBGPU, MF_BYCOMMAND);
+	DeleteMenu(parent, ID_OPTIONS_VIDEO_RENDEROPTIONS_WGPUNEARNEST, MF_BYCOMMAND);
+	DeleteMenu(parent, ID_OPTIONS_VIDEO_RENDEROPTIONS_WGPUBILINEAR, MF_BYCOMMAND);
+}
+#endif
+
 void VBA::recreateMenuBar()
 {
 	m_menu.Detach();
 	m_menu.Attach(winResLoadMenu(MAKEINTRESOURCE(IDR_MENU)));
+
+#if VBA_ENABLE_WGPU
+	// The entries leave the menu with the library, on every rebuild, so a
+	// library dropped next to the executable brings them back on the next
+	// start.
+	if (!wgpuLibraryAvailable())
+		removeWgpuMenuItems(m_menu.GetSafeHmenu());
+#endif
 
 	if (m_pMainWnd && menuToggle)   // assuming that whether the menu has been set is always kept tracked
 	{
@@ -1846,6 +1919,11 @@ bool VBA::initDisplay()
 		case DIRECT_3D11:
 			display = newDirect3D11Display();
 			break;
+#if VBA_ENABLE_WGPU
+		case WGPU:
+			display = newWgpuDisplay();
+			break;
+#endif
 		}
 
 		if (display->initialize())
@@ -1896,6 +1974,10 @@ bool VBA::updateRenderMethod(bool force)
 
 			if (renderMethod == OPENGL33)
 				renderMethod = OPENGL;
+#if VBA_ENABLE_WGPU
+			else if (renderMethod == WGPU)
+				renderMethod = DIRECT_3D11;
+#endif
 			else if (renderMethod == DIRECT_3D11)
 				renderMethod = DIRECT_3D;
 			else if (renderMethod == OPENGL)
@@ -2175,7 +2257,7 @@ void VBA::loadSettings()
 	fullScreenStretch = regQueryDwordValue("stretch", 0) ? true : false;
 
 	renderMethod = (DISPLAY_TYPE)regQueryDwordValue("renderMethod", DIRECT_DRAW);
-	if (renderMethod < GDI || renderMethod > OPENGL33)
+	if (renderMethod < GDI || renderMethod > WGPU)
 		renderMethod = DIRECT_DRAW;
 
 	ddrawEmulationOnly	= regQueryDwordValue("ddrawEmulationOnly", false) ? true : false;
@@ -2201,6 +2283,11 @@ void VBA::loadSettings()
 	glType = regQueryDwordValue("glType", 0);
 	if (glType < 0 || glType > 1)
 		glType = 0;
+#if VBA_ENABLE_WGPU
+	wgpuFilter = regQueryDwordValue("wgpuFilter", 0);
+	if (wgpuFilter < 0 || wgpuFilter > 1)
+		wgpuFilter = 0;
+#endif
 
 	// pixel filter & ifb
 	filterType = regQueryDwordValue("filter", 0);
