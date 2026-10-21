@@ -139,6 +139,16 @@ expanded, which asks for a `SourceSampler` that does not exist.
   shader here.  The renderer has one quad vertex shader for every upscaler,
   and eight varyings are eight interpolators the pixel shader does not need
   to spend.
+* **Most of the files also nudge the texcoord by 1.0001 in their vertex
+  stage** (`TEX0.xy = TexCoord.xy * 1.0001`), and almost none of them care.
+  Two do: super-xBR's second pass picks its grid by testing
+  `fract(uv * size).x > 0.5`, which at 1:1 is a half exactly, and its jinc
+  pass snaps a four by four with `floor(pc - 0.5)`, where a sample sitting on
+  a half falls on the wrong side of the floor and the whole window moves one
+  texel.  Both ports multiply by 1.0001 themselves, at a cost of nothing, so
+  that they agree with the two renderers that compile the nudge.  The others
+  leave it out: a tap that is a whole texel from a texel centre reads the
+  same texel either way.
 * The quad comes out of `@builtin(vertex_index)`; a pass binds no vertex
   buffer and reads no attribute.
 * Constants are written once, when the frame, the window or the scale cap
@@ -156,7 +166,7 @@ Two levels, both cheap once set up:
   cancel there); at 3x it is compared against the translated version, and
   against a CPU reference where one exists.
 
-The nine files of the seven chains ported so far all came out at **0/255 in
+The thirteen files of the nine chains ported so far all came out at **0/255 in
 every colour channel** against the translated shaders.  Alpha is not
 compared: upstream writes `.rgb` only, and the renderer draws with blending
 off.
@@ -183,6 +193,14 @@ worth knowing: `rendertest` samples nearest, as the renderer binds
 `samplerPoint`, so the port's nearest reads come out equal to the translated
 shader's filtered ones on the frame a harness draws.  A filtered tap would
 not, and none of these shaders has one.
+
+xBRZ is the first port that is not exact at 1:1: on a frame whose texels have
+nothing to do with each other the corner blend fires and mixes a neighbour in,
+2/255 of it, and the translated shader does the very same thing - so the check
+that means anything there is the 3x one, and both levels came out at 0/255.
+Its `scale` comes from the constants block rather than from
+`OutputSize * SourceSize.zw` as upstream writes it: the renderer's `scale.xy`
+is that product, and at 1x and 3x the two are the same number.
 
 ## Colour space: the one that got shipped broken
 

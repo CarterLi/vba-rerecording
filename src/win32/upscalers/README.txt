@@ -73,6 +73,7 @@ from at its head.
 
 libretro/XBRZ_Freescale.glsl        -> XBRZ_GLSL_FREESCALE       xbrz/shaders
 libretro/XBRZ_Freescale.hlsl        -> XBRZ_SHADER_FREESCALE
+libretro/XbrzFreescale.wgsl         -> XBRZ_FREESCALE_WGSL
 libretro/xbrz-freescale.glsl        the upstream file both of them came from,
                                     kept for comparison; nothing compiles it
 libretro/xbr-lv2.glsl               -> XBR_LV2_GLSL              xbr/shaders
@@ -97,10 +98,13 @@ libretro/xbr-mlv4-pass1..4.glsl     -> XBR_MLV4_PASS1..4_GLSL    xbr/shaders
 libretro/XBR_Mlv4_Pass1..4.hlsl     -> XBR_MLV4_PASS1..4_SHADER
 libretro/super-xbr-pass0.glsl       -> SUPER_XBR_PASS0_GLSL      super-xbr/shaders
 libretro/SuperXBR_Pass0.hlsl        -> SUPER_XBR_PASS0_SHADER
+libretro/SuperXbrPass0.wgsl         -> SUPER_XBR_PASS0_WGSL
 libretro/super-xbr-pass1.glsl       -> SUPER_XBR_PASS1_GLSL      super-xbr/shaders
 libretro/SuperXBR_Pass1.hlsl        -> SUPER_XBR_PASS1_SHADER
+libretro/SuperXbrPass1.wgsl         -> SUPER_XBR_PASS1_WGSL
 libretro/custom-jinc2-sharper.glsl  -> CUSTOM_JINC2_SHARPER_GLSL super-xbr/shaders
 libretro/SuperXBR_Jinc2.hlsl        -> SUPER_XBR_JINC2_SHADER
+libretro/SuperXbrJinc2.wgsl         -> SUPER_XBR_JINC2_WGSL
 libretro/scalefx-pass0..4.glsl      -> SCALEFX_PASS0..4_GLSL     scalefx/shaders
 libretro/ScaleFX_Pass0..4.hlsl      -> SCALEFX_PASS0..4_SHADER
 libretro/PT_SkyWalker541.glsl       -> PT_SKYWALKER541_GLSL      handheld/shaders
@@ -134,12 +138,13 @@ OrigTextureSize and PassPrev<N>TextureSize.  The OpenGL backend resolves the
 same names from the uniforms the pass declares.
 
 The WebGPU renderer runs the chains from WGSL, and only the ones that have a
-WGSL port: wgpu compiles neither GLSL nor HLSL, so Lanczos3.wgsl, XbrLv2.wgsl,
-XbrLv2NoBlend.wgsl, XbrLv3.wgsl, Xbr2xPass0/1.wgsl, XbrLv3Multipass0/1.wgsl
-and PT_SkyWalker541.wgsl are ports written against the same upstream files
-rather than translations of the two above, and the upscaling menu leaves the
-rest out while that renderer runs.  The chains still without one - xBR-mlv4,
-super-xBR, ScaleFX - read a second texture the same way 2xBR and xBR lv3
+WGSL port: wgpu compiles neither GLSL nor HLSL, so XbrzFreescale.wgsl,
+Lanczos3.wgsl, XbrLv2.wgsl, XbrLv2NoBlend.wgsl, XbrLv3.wgsl,
+Xbr2xPass0/1.wgsl, XbrLv3Multipass0/1.wgsl, SuperXbrPass0/1.wgsl,
+SuperXbrJinc2.wgsl and PT_SkyWalker541.wgsl are ports written against the same
+upstream files rather than translations of the two above, and the upscaling
+menu leaves the rest out while that renderer runs.  The chains still without
+one - xBR-mlv4, ScaleFX - read a second texture the same way 2xBR and xBR lv3
 multipass do, so the chain there carries a second binding: a row of
 g_wgpuUpscalers lists, per pass, the output it reads besides the one the pass
 before it made, 0 being the frame.

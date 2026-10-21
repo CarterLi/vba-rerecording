@@ -91,6 +91,7 @@ NIS_GLSL_MAIN           RCDATA                  "upscalers\\NIS_Main.glsl"
 // xBRZ, which both backends have had for longer than the rest
 XBRZ_GLSL_FREESCALE     RCDATA                  "upscalers\\libretro\\XBRZ_Freescale.glsl"
 XBRZ_SHADER_FREESCALE   RCDATA                  "upscalers\\libretro\\XBRZ_Freescale.hlsl"
+XBRZ_FREESCALE_WGSL     RCDATA                  "upscalers\\libretro\\XbrzFreescale.wgsl"
 
 // Hyllian's xBR
 XBR_LV2_GLSL            RCDATA                  "upscalers\\libretro\\xbr-lv2.glsl"
@@ -123,10 +124,13 @@ XBR_MLV4_PASS4_SHADER   RCDATA                  "upscalers\\libretro\\XBR_Mlv4_P
 // super-xBR
 SUPER_XBR_PASS0_GLSL    RCDATA                  "upscalers\\libretro\\super-xbr-pass0.glsl"
 SUPER_XBR_PASS0_SHADER  RCDATA                  "upscalers\\libretro\\SuperXBR_Pass0.hlsl"
+SUPER_XBR_PASS0_WGSL    RCDATA                  "upscalers\\libretro\\SuperXbrPass0.wgsl"
 SUPER_XBR_PASS1_GLSL    RCDATA                  "upscalers\\libretro\\super-xbr-pass1.glsl"
 SUPER_XBR_PASS1_SHADER  RCDATA                  "upscalers\\libretro\\SuperXBR_Pass1.hlsl"
+SUPER_XBR_PASS1_WGSL    RCDATA                  "upscalers\\libretro\\SuperXbrPass1.wgsl"
 CUSTOM_JINC2_SHARPER_GLSL RCDATA                "upscalers\\libretro\\custom-jinc2-sharper.glsl"
 SUPER_XBR_JINC2_SHADER  RCDATA                  "upscalers\\libretro\\SuperXBR_Jinc2.hlsl"
+SUPER_XBR_JINC2_WGSL    RCDATA                  "upscalers\\libretro\\SuperXbrJinc2.wgsl"
 
 // ScaleFX
 SCALEFX_PASS0_GLSL      RCDATA                  "upscalers\\libretro\\scalefx-pass0.glsl"

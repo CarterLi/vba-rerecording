@@ -671,6 +671,7 @@ struct WgpuUpscalerSource
 // Only the upscalers with a WGSL port are here, and the menu greys out the
 // rest while this renderer runs: the shaders of the other two are GLSL and
 // HLSL, and wgpu compiles neither.
+static const char *const g_xbrzResources[] = { "XBRZ_FREESCALE_WGSL" };
 static const char *const g_lanczos3Resources[] = { "LANCZOS3_WGSL" };
 static const char *const g_xbrLv2Resources[]   = { "XBR_LV2_WGSL" };
 static const char *const g_xbrLv2NoBlendResources[] = { "XBR_LV2_NOBLEND_WGSL" };
@@ -685,6 +686,11 @@ static const char *const g_xbr2xResources[] = { "XBR_2X_PASS0_WGSL", "XBR_2X_PAS
 // the interpolation that reads it and the frame together.
 static const char *const g_xbrLv3MultipassResources[] = { "XBR_LV3_PASS0_WGSL", "XBR_LV3_PASS1_WGSL" };
 
+// super-xBR: the edge data, the picture doubled and blended with the frame,
+// then the jinc filter over it.
+static const char *const g_superXbrResources[] = { "SUPER_XBR_PASS0_WGSL", "SUPER_XBR_PASS1_WGSL", "SUPER_XBR_JINC2_WGSL" };
+
+static const int g_xbrzScales[] = { 0 };
 static const int g_lanczos3Scales[] = { 0 };
 static const int g_xbrLv2Scales[]   = { 0 };
 static const int g_xbrLv2NoBlendScales[] = { 0 };
@@ -692,7 +698,9 @@ static const int g_xbrLv3Scales[]   = { 0 };
 static const int g_ptSkyWalkerScales[] = { 0 };
 static const int g_xbr2xScales[]    = { 1, 0 };
 static const int g_xbrLv3MultipassScales[] = { 1, 0 };
+static const int g_superXbrScales[] = { 1, 2, 0 };
 
+static const int g_xbrzSeconds[] = { -1 };
 static const int g_lanczos3Seconds[] = { -1 };
 static const int g_xbrLv2Seconds[]   = { -1 };
 static const int g_xbrLv2NoBlendSeconds[] = { -1 };
@@ -700,14 +708,17 @@ static const int g_xbrLv3Seconds[]   = { -1 };
 static const int g_ptSkyWalkerSeconds[] = { -1 };
 static const int g_xbr2xSeconds[]    = { -1, 0 };
 static const int g_xbrLv3MultipassSeconds[] = { -1, 0 };
+static const int g_superXbrSeconds[] = { -1, 0, -1 };
 
 static const WgpuUpscalerSource g_wgpuUpscalers[] =
 {
+	{ UPSCALER_XBRZ,              "xBRZ",              g_xbrzResources,            g_xbrzScales,           g_xbrzSeconds,           1 },
 	{ UPSCALER_LANCZOS3,          "Lanczos",           g_lanczos3Resources,        g_lanczos3Scales,       g_lanczos3Seconds,       1 },
 	{ UPSCALER_XBR_LV2,           "xBR lv2",           g_xbrLv2Resources,          g_xbrLv2Scales,         g_xbrLv2Seconds,         1 },
 	{ UPSCALER_XBR_LV2_NOBLEND,   "xBR lv2 no-blend",  g_xbrLv2NoBlendResources,   g_xbrLv2NoBlendScales,  g_xbrLv2NoBlendSeconds,  1 },
 	{ UPSCALER_XBR_LV3,           "xBR lv3",           g_xbrLv3Resources,          g_xbrLv3Scales,         g_xbrLv3Seconds,         1 },
 	{ UPSCALER_XBR_LV3_MULTIPASS,  "xBR lv3 multipass", g_xbrLv3MultipassResources,  g_xbrLv3MultipassScales, g_xbrLv3MultipassSeconds, 2 },
+	{ UPSCALER_SUPER_XBR,         "super-xBR",         g_superXbrResources,        g_superXbrScales,       g_superXbrSeconds,       3 },
 	{ UPSCALER_XBR_2X,            "2xBR",              g_xbr2xResources,           g_xbr2xScales,          g_xbr2xSeconds,          2 },
 	{ UPSCALER_PT_SKYWALKER,      "PT SkyWalker541",   g_ptSkyWalkerResources,     g_ptSkyWalkerScales,    g_ptSkyWalkerSeconds,    1 },
 };
