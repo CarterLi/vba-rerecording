@@ -1,8 +1,9 @@
 # Upscaler ports: what was learned adding them to the WebGPU renderer
 
 This is the working knowledge behind the upscaling menu and the three
-renderers that fill it, written down after the WebGPU backend got its first
-four shaders.  It is meant for whoever adds the next one.
+renderers that fill it, written down after the WebGPU backend went from its
+first four shaders to the two-texture chains.  It is meant for whoever adds
+the next one.
 
 ## The shape of the thing
 
@@ -14,6 +15,12 @@ keeps a table of them:
 | Direct3D 11 | HLSL, ours | `g_upscalers` in `Direct3D11.cpp` |
 | OpenGL 3.3 | GLSL, upstream verbatim | `g_libretroShaders` in `OpenGL3.cpp` |
 | WebGPU | WGSL, ours | `g_wgpuUpscalers` in `Wgpu.cpp` |
+
+The first two tables share their shape - a list of passes, each naming a
+resource, a scale and the output it reads as its second texture.  The WebGPU
+one carries the same three things per pass, except that its resource list is
+one entry per pass rather than one for the whole chain, because the passes of
+a chain are separate WGSL files and not entry points of one module.
 
 A pass reads the texture the pass before it made - the frame for the first
 one - and writes its own.  The last pass writes the back buffer directly
@@ -71,6 +78,15 @@ Three rewrites, all of them things Vulkan GLSL or naga demand:
   GLSL has no three argument `texture(texture, sampler, uv)`; that spelling
   is HLSL and glslang says "no matching overloaded function".
 
+A file with two samplers - PT SkyWalker reads the frame and the raw frame -
+takes two slots: 0 and 1 for the first texture and its sampler, 3 and 4 for
+the second, with 2 kept for the sizes so that a file with one sampler lands
+on the bindings it always had.  The `COMPAT_TEXTURE` macro has to pair each
+call with the sampler of the texture it names, and the paste needs the two
+step form a C preprocessor always needs: 2xBR reaches its taps through
+`#define Source Texture`, and `a##Sampler` pastes the name before it is
+expanded, which asks for a `SourceSampler` that does not exist.
+
 ### The traps, in the order they bit
 
 * **naga flips Y by default**, because it assumes Vulkan's clip space.  Pass
@@ -90,6 +106,24 @@ Three rewrites, all of them things Vulkan GLSL or naga demand:
   shader.
 * **The texcoord is a `vec2` in most files and a `vec4` in the xbr ones**,
   which matters the moment you synthesise one.
+* **The sizes block is in the order of the upstream file**, not in the order
+  the renderer uses.  xbr-lv2 starts with two ints and then the three sizes;
+  PT SkyWalker starts with `OutputSize` and carries four of them.  A harness
+  that fills the block at fixed offsets silently feeds a shader the wrong
+  numbers - `OrigTextureSize` left at zero turns the shadow coordinate into a
+  division by zero and samples nowhere.  `refcheck.py` reads the struct the
+  translated module declares, works out where each member lands, and hands
+  the 64 bytes to `rendertest -c`.
+* **`modf()` is the one builtin glslang lowers into a struct return**, which
+  naga's SPIR-V front end refuses ("Special type is not registered within the
+  module").  2xBR's unpack is written with it; the translator rewrites the
+  call into a function of its own with an `inout` parameter, which both
+  compilers accept and which means the same for the positive values these
+  shaders pass it.
+* **A pass whose two stages do not declare the same uniforms** leaves the
+  merged module reading a member the vertex stage's block does not have.
+  2xBR's second pass takes `OrigTextureSize` only in its pixel stage; the
+  patch adds what is missing to the block rather than dropping it.
 
 ### The port itself
 
@@ -122,9 +156,33 @@ Two levels, both cheap once set up:
   cancel there); at 3x it is compared against the translated version, and
   against a CPU reference where one exists.
 
-The four ports so far all came out at **0/255 in every colour channel**
-against the translated shader.  Alpha is not compared: upstream writes
-`.rgb` only, and the renderer draws with blending off.
+The nine files of the seven chains ported so far all came out at **0/255 in
+every colour channel** against the translated shaders.  Alpha is not
+compared: upstream writes `.rgb` only, and the renderer draws with blending
+off.
+
+PT SkyWalker is the first that reads two textures, and both of them are the
+frame: upstream's second one is the raw frame, before RetroArch's palette
+stages, which this emulator does not have.  Direct3D 11 binds the frame to
+`t1` for it, and the WGSL port reads binding 0 twice rather than carrying a
+binding that is always the same texture.
+
+2xBR is the first chain of two.  `refcheck2.py` runs it whole: the translated
+first pass makes the flags, both second passes read the flags their own
+chain made - the port's reads the port's - and the frames at the end are
+compared, so a mistake in either pass shows up.  `rendertest -w` writes the
+1:1 frame for that, and `-0` / `-3` take the two textures of the second pass
+from files.  Each pass needs its own sizes block - the flags pass runs at the
+frame size and the blend pass at the target - so `refcheck2.py` hands
+`rendertest -c` one file per pass.
+
+xBR lv3 multipass has the same shape, and its second pass reads the frame at
+binding 3 exactly the way 2xBR's does - with `textureLoad`, the filtering
+sampler of the layout staying unused.  That the comparison holds anyway is
+worth knowing: `rendertest` samples nearest, as the renderer binds
+`samplerPoint`, so the port's nearest reads come out equal to the translated
+shader's filtered ones on the frame a harness draws.  A filtered tap would
+not, and none of these shaders has one.
 
 ## Colour space: the one that got shipped broken
 

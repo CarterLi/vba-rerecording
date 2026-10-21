@@ -9,9 +9,11 @@
 //
 // The on screen display is rendered by the TextOverlay the D3D11 backend uses
 // into a second texture and blended on top, so the two renderers show the same
-// thing.  The upscaling shaders are not ported yet: upscalerAvailable()
-// answers false for everything but Off, which greys the upscaling menu out
-// while this renderer runs, see the upscaling sections in Direct3D11.cpp.
+// thing.  The upscalers are WGSL ports of the libretro shaders and of the
+// Lanczos resampler, kept in a table of their own below; upscalerAvailable()
+// answers true for those and Off only, which greys the rest of the upscaling
+// menu out while this renderer runs, see the upscaling sections in
+// Direct3D11.cpp.
 //
 // wgpu_native.dll is resolved at run time rather than linked, see
 // loadWgpuLibrary() below, and nothing else about this backend leans on one
@@ -654,25 +656,60 @@ struct WgpuUpscalerSource
 {
 	int         value;    // the UPSCALER_* value it implements
 	const char *name;     // for the trace log and the screen message
-	const char *resource; // the RCDATA resource holding its WGSL
+	const char *const *resources; // per pass: the RCDATA resource holding its WGSL
 	const int  *scales;   // per pass: 0 is the target size, n is n times the frame
+	const int  *seconds;  // per pass: the texture it reads besides the one the
+	                      // pass before it made, as an index of the outputs:
+	                      // 0 is the frame, n the target of pass n - 1, and -1
+	                      // that it reads one texture only.  That is how a
+	                      // libretro shader names OrigTexture and the
+	                      // PassPrev<N> that reaches past the start of the
+	                      // chain.
 	int         passCount;
 };
 
 // Only the upscalers with a WGSL port are here, and the menu greys out the
 // rest while this renderer runs: the shaders of the other two are GLSL and
 // HLSL, and wgpu compiles neither.
+static const char *const g_lanczos3Resources[] = { "LANCZOS3_WGSL" };
+static const char *const g_xbrLv2Resources[]   = { "XBR_LV2_WGSL" };
+static const char *const g_xbrLv2NoBlendResources[] = { "XBR_LV2_NOBLEND_WGSL" };
+static const char *const g_xbrLv3Resources[]   = { "XBR_LV3_WGSL" };
+static const char *const g_ptSkyWalkerResources[] = { "PT_SKYWALKER541_WGSL" };
+
+// The flags of every pixel at the frame size, then the blend that reads them
+// and the frame together.
+static const char *const g_xbr2xResources[] = { "XBR_2X_PASS0_WGSL", "XBR_2X_PASS1_WGSL" };
+
+// xBR lv3 in the two passes of its preset: the edge data of every pixel, then
+// the interpolation that reads it and the frame together.
+static const char *const g_xbrLv3MultipassResources[] = { "XBR_LV3_PASS0_WGSL", "XBR_LV3_PASS1_WGSL" };
+
 static const int g_lanczos3Scales[] = { 0 };
 static const int g_xbrLv2Scales[]   = { 0 };
 static const int g_xbrLv2NoBlendScales[] = { 0 };
 static const int g_xbrLv3Scales[]   = { 0 };
+static const int g_ptSkyWalkerScales[] = { 0 };
+static const int g_xbr2xScales[]    = { 1, 0 };
+static const int g_xbrLv3MultipassScales[] = { 1, 0 };
+
+static const int g_lanczos3Seconds[] = { -1 };
+static const int g_xbrLv2Seconds[]   = { -1 };
+static const int g_xbrLv2NoBlendSeconds[] = { -1 };
+static const int g_xbrLv3Seconds[]   = { -1 };
+static const int g_ptSkyWalkerSeconds[] = { -1 };
+static const int g_xbr2xSeconds[]    = { -1, 0 };
+static const int g_xbrLv3MultipassSeconds[] = { -1, 0 };
 
 static const WgpuUpscalerSource g_wgpuUpscalers[] =
 {
-	{ UPSCALER_LANCZOS3,          "Lanczos",           "LANCZOS3_WGSL",         g_lanczos3Scales,       1 },
-	{ UPSCALER_XBR_LV2,           "xBR lv2",           "XBR_LV2_WGSL",          g_xbrLv2Scales,         1 },
-	{ UPSCALER_XBR_LV2_NOBLEND,   "xBR lv2 no-blend",  "XBR_LV2_NOBLEND_WGSL",  g_xbrLv2NoBlendScales,  1 },
-	{ UPSCALER_XBR_LV3,           "xBR lv3",           "XBR_LV3_WGSL",          g_xbrLv3Scales,         1 },
+	{ UPSCALER_LANCZOS3,          "Lanczos",           g_lanczos3Resources,        g_lanczos3Scales,       g_lanczos3Seconds,       1 },
+	{ UPSCALER_XBR_LV2,           "xBR lv2",           g_xbrLv2Resources,          g_xbrLv2Scales,         g_xbrLv2Seconds,         1 },
+	{ UPSCALER_XBR_LV2_NOBLEND,   "xBR lv2 no-blend",  g_xbrLv2NoBlendResources,   g_xbrLv2NoBlendScales,  g_xbrLv2NoBlendSeconds,  1 },
+	{ UPSCALER_XBR_LV3,           "xBR lv3",           g_xbrLv3Resources,          g_xbrLv3Scales,         g_xbrLv3Seconds,         1 },
+	{ UPSCALER_XBR_LV3_MULTIPASS,  "xBR lv3 multipass", g_xbrLv3MultipassResources,  g_xbrLv3MultipassScales, g_xbrLv3MultipassSeconds, 2 },
+	{ UPSCALER_XBR_2X,            "2xBR",              g_xbr2xResources,           g_xbr2xScales,          g_xbr2xSeconds,          2 },
+	{ UPSCALER_PT_SKYWALKER,      "PT SkyWalker541",   g_ptSkyWalkerResources,     g_ptSkyWalkerScales,    g_ptSkyWalkerSeconds,    1 },
 };
 
 #define WGPU_UPSCALER_COUNT (sizeof(g_wgpuUpscalers) / sizeof(g_wgpuUpscalers[0]))
@@ -794,11 +831,11 @@ private:
 	// The upscaling chain the menu selected, when this renderer has a WGSL
 	// port of it: one bind group layout and one pipeline layout of their own,
 	// because a pass is handed a uniform buffer as well as the texture it
-	// reads, and one pipeline per pass - plus the variant of the last pass
-	// that writes the back buffer, which is a different format.
+	// reads, and one module and one pipeline per pass - plus the variant of
+	// the last pass that writes the back buffer, which is a different format.
 	WGPUBindGroupLayout upscalerGroupLayout;
 	WGPUPipelineLayout  upscalerPipelineLayout;
-	WGPUShaderModule    upscalerModule;
+	WGPUShaderModule    upscalerModules[WGPU_MAX_PASSES];
 	WGPURenderPipeline  upscalerSurfacePipeline;
 	WGPUBindGroup       upscalerBlitGroup; // the last target, for the capped path
 	WgpuUpscalerPass    upscalerPasses[WGPU_MAX_PASSES];
@@ -885,7 +922,7 @@ WgpuDisplay::WgpuDisplay()
 	overlayGroup     = NULL;
 	upscalerGroupLayout     = NULL;
 	upscalerPipelineLayout  = NULL;
-	upscalerModule          = NULL;
+	ZeroMemory(upscalerModules, sizeof(upscalerModules));
 	upscalerSurfacePipeline = NULL;
 	upscalerBlitGroup       = NULL;
 	upscalerPassCount       = 0;
@@ -1524,7 +1561,12 @@ bool WgpuDisplay::createPipeline()
 	// binding.  The sampler is declared although the taps of the shaders that
 	// land on texel centres read them with textureLoad: a layout entry the
 	// shader does not use costs nothing, and the ones that do need it.
-	WGPUBindGroupLayoutEntry upscalerEntries[3];
+	//
+	// The fourth and fifth are the second texture of a pass of a longer chain -
+	// the frame for 2xBR's blend, which reads the flags the pass before it
+	// made and the frame itself - and its sampler.  A shader of one texture
+	// leaves them unread.
+	WGPUBindGroupLayoutEntry upscalerEntries[5];
 
 	upscalerEntries[0] = WGPU_BIND_GROUP_LAYOUT_ENTRY_INIT;
 	upscalerEntries[0].binding    = 0;
@@ -1545,9 +1587,21 @@ bool WgpuDisplay::createPipeline()
 	upscalerEntries[2].buffer.hasDynamicOffset = false;
 	upscalerEntries[2].buffer.minBindingSize  = sizeof(WgpuUpscalerConstants);
 
+	upscalerEntries[3] = WGPU_BIND_GROUP_LAYOUT_ENTRY_INIT;
+	upscalerEntries[3].binding    = 3;
+	upscalerEntries[3].visibility = WGPUShaderStage_Fragment;
+	upscalerEntries[3].texture.sampleType    = WGPUTextureSampleType_Float;
+	upscalerEntries[3].texture.viewDimension = WGPUTextureViewDimension_2D;
+	upscalerEntries[3].texture.multisampled  = false;
+
+	upscalerEntries[4] = WGPU_BIND_GROUP_LAYOUT_ENTRY_INIT;
+	upscalerEntries[4].binding    = 4;
+	upscalerEntries[4].visibility = WGPUShaderStage_Fragment;
+	upscalerEntries[4].sampler.type = WGPUSamplerBindingType_Filtering;
+
 	WGPUBindGroupLayoutDescriptor upscalerLayoutDescriptor;
 	upscalerLayoutDescriptor = WGPU_BIND_GROUP_LAYOUT_DESCRIPTOR_INIT;
-	upscalerLayoutDescriptor.entryCount = 3;
+	upscalerLayoutDescriptor.entryCount = 5;
 	upscalerLayoutDescriptor.entries    = upscalerEntries;
 	upscalerLayoutDescriptor.label      = textInWgpu("upscaler layout");
 
@@ -2206,7 +2260,15 @@ void WgpuDisplay::releaseUpscaler()
 	}
 
 	if (upscalerSurfacePipeline) { wgpuRenderPipelineRelease_fn(upscalerSurfacePipeline); upscalerSurfacePipeline = NULL; }
-	if (upscalerModule)          { wgpuShaderModuleRelease_fn(upscalerModule);           upscalerModule = NULL; }
+
+	for (int pass = 0; pass < WGPU_MAX_PASSES; pass++)
+	{
+		if (upscalerModules[pass])
+		{
+			wgpuShaderModuleRelease_fn(upscalerModules[pass]);
+			upscalerModules[pass] = NULL;
+		}
+	}
 
 	upscalerValue  = -1;
 	upscalerFailed = false;
@@ -2235,29 +2297,39 @@ bool WgpuDisplay::prepareUpscaler()
 
 		upscalerValue = source.value;
 
-		WGPUShaderSourceWGSL code;
-		code = WGPU_SHADER_SOURCE_WGSL_INIT;
-		code.code = resourceInWgpu(source.resource);
-
-		WGPUShaderModuleDescriptor moduleDescriptor;
-		moduleDescriptor = WGPU_SHADER_MODULE_DESCRIPTOR_INIT;
-		moduleDescriptor.nextInChain = &code.chain;
-		moduleDescriptor.label       = textInWgpu(source.name);
-
-		if (code.code.data != NULL)
-			upscalerModule = wgpuDeviceCreateShaderModule_fn(device, &moduleDescriptor);
-
-		bool built = upscalerModule != NULL;
+		// One module per pass: the passes of a chain longer than one are files
+		// of their own, not entry points of one.
+		bool built = true;
 
 		for (int pass = 0; pass < source.passCount && built; pass++)
-			built = createUpscalerPipeline(device, upscalerPipelineLayout, upscalerModule,
-			                               WGPUTextureFormat_RGBA8Unorm, source.name,
-			                               &upscalerPasses[pass].pipeline);
+		{
+			WGPUShaderSourceWGSL code;
+			code = WGPU_SHADER_SOURCE_WGSL_INIT;
+			code.code = resourceInWgpu(source.resources[pass]);
+
+			WGPUShaderModuleDescriptor moduleDescriptor;
+			moduleDescriptor = WGPU_SHADER_MODULE_DESCRIPTOR_INIT;
+			moduleDescriptor.nextInChain = &code.chain;
+			moduleDescriptor.label       = textInWgpu(source.name);
+
+			if (code.code.data == NULL)
+				built = false;
+			else
+				upscalerModules[pass] = wgpuDeviceCreateShaderModule_fn(device, &moduleDescriptor);
+
+			if (upscalerModules[pass] != NULL)
+				built = createUpscalerPipeline(device, upscalerPipelineLayout, upscalerModules[pass],
+				                               WGPUTextureFormat_RGBA8Unorm, source.name,
+				                               &upscalerPasses[pass].pipeline);
+			else
+				built = false;
+		}
 
 		// The last pass writes the back buffer whenever it comes out at its
 		// size, and the surface format is not the one of the targets.
 		if (built)
-			built = createUpscalerPipeline(device, upscalerPipelineLayout, upscalerModule,
+			built = createUpscalerPipeline(device, upscalerPipelineLayout,
+			                               upscalerModules[source.passCount - 1],
 			                               surfaceFormat, source.name, &upscalerSurfacePipeline);
 
 		if (!built)
@@ -2295,9 +2367,33 @@ bool WgpuDisplay::prepareUpscaler()
 		int inputWidth  = width;
 		int inputHeight = height;
 
+		// What each pass made, so that a later one can be handed it as its
+		// second texture: 2xBR's blend reads the flags of the pass in front of
+		// it and the frame together.
+		WGPUTextureView passViews[WGPU_MAX_PASSES];
+		int passWidths[WGPU_MAX_PASSES];
+		int passHeights[WGPU_MAX_PASSES];
+
 		for (int pass = 0; pass < source.passCount; pass++)
 		{
 			WgpuUpscalerPass &state = upscalerPasses[pass];
+
+			int second = source.seconds[pass];
+			WGPUTextureView secondView;
+			int secondWidth, secondHeight;
+
+			if (second <= 0)
+			{
+				secondView   = frameView;
+				secondWidth  = width;
+				secondHeight = height;
+			}
+			else
+			{
+				secondView   = passViews[second - 1];
+				secondWidth  = passWidths[second - 1];
+				secondHeight = passHeights[second - 1];
+			}
 
 			// A fixed scale is a multiple of the frame rather than of the
 			// pass before it, which is what the presets ask for.
@@ -2354,14 +2450,14 @@ bool WgpuDisplay::prepareUpscaler()
 			constants.scale[1]      = (float)passHeight / (float)inputHeight;
 			constants.scale[2]      = 0.0f;
 			constants.scale[3]      = 0.0f;
-			constants.secondSize[0] = (float)inputWidth;
-			constants.secondSize[1] = (float)inputHeight;
-			constants.secondSize[2] = 1.0f / (float)inputWidth;
-			constants.secondSize[3] = 1.0f / (float)inputHeight;
+			constants.secondSize[0] = (float)secondWidth;
+			constants.secondSize[1] = (float)secondHeight;
+			constants.secondSize[2] = 1.0f / (float)secondWidth;
+			constants.secondSize[3] = 1.0f / (float)secondHeight;
 
 			wgpuQueueWriteBuffer_fn(queue, state.constants, 0, &constants, sizeof(constants));
 
-			WGPUBindGroupEntry entries[3];
+			WGPUBindGroupEntry entries[5];
 			entries[0] = WGPU_BIND_GROUP_ENTRY_INIT;
 			entries[0].binding     = 0;
 			entries[0].textureView = input;
@@ -2376,10 +2472,18 @@ bool WgpuDisplay::prepareUpscaler()
 			entries[2].offset  = 0;
 			entries[2].size    = sizeof(WgpuUpscalerConstants);
 
+			entries[3] = WGPU_BIND_GROUP_ENTRY_INIT;
+			entries[3].binding     = 3;
+			entries[3].textureView = secondView;
+
+			entries[4] = WGPU_BIND_GROUP_ENTRY_INIT;
+			entries[4].binding = 4;
+			entries[4].sampler = samplerPoint;
+
 			WGPUBindGroupDescriptor groupDescriptor;
 			groupDescriptor = WGPU_BIND_GROUP_DESCRIPTOR_INIT;
 			groupDescriptor.layout     = upscalerGroupLayout;
-			groupDescriptor.entryCount = 3;
+			groupDescriptor.entryCount = 5;
 			groupDescriptor.entries    = entries;
 
 			state.group = wgpuDeviceCreateBindGroup_fn(device, &groupDescriptor);
@@ -2394,6 +2498,10 @@ bool WgpuDisplay::prepareUpscaler()
 			input       = state.view;
 			inputWidth  = passWidth;
 			inputHeight = passHeight;
+
+			passViews[pass]   = state.view;
+			passWidths[pass]  = passWidth;
+			passHeights[pass] = passHeight;
 		}
 
 		// The capped path draws the last target over the back buffer with the

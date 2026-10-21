@@ -85,10 +85,14 @@ libretro/xbr-lv3-pass0.glsl         -> XBR_LV3_PASS0_GLSL        xbr/shaders
 libretro/XBR_Lv3_Pass0.hlsl         -> XBR_LV3_PASS0_SHADER
 libretro/xbr-lv3-pass1.glsl         -> XBR_LV3_PASS1_GLSL        xbr/shaders
 libretro/XBR_Lv3_Pass1.hlsl         -> XBR_LV3_PASS1_SHADER
+libretro/XbrLv3Multipass0.wgsl      -> XBR_LV3_PASS0_WGSL
+libretro/XbrLv3Multipass1.wgsl      -> XBR_LV3_PASS1_WGSL
 libretro/2xbr-lv1-c-pass0.glsl      -> XBR_2X_PASS0_GLSL         xbr/shaders
 libretro/XBR_2x_Pass0.hlsl          -> XBR_2X_PASS0_SHADER
+libretro/Xbr2xPass0.wgsl            -> XBR_2X_PASS0_WGSL
 libretro/2xbr-lv1-c-pass1.glsl      -> XBR_2X_PASS1_GLSL         xbr/shaders
 libretro/XBR_2x_Pass1.hlsl          -> XBR_2X_PASS1_SHADER
+libretro/Xbr2xPass1.wgsl            -> XBR_2X_PASS1_WGSL
 libretro/xbr-mlv4-pass1..4.glsl     -> XBR_MLV4_PASS1..4_GLSL    xbr/shaders
 libretro/XBR_Mlv4_Pass1..4.hlsl     -> XBR_MLV4_PASS1..4_SHADER
 libretro/super-xbr-pass0.glsl       -> SUPER_XBR_PASS0_GLSL      super-xbr/shaders
@@ -101,6 +105,7 @@ libretro/scalefx-pass0..4.glsl      -> SCALEFX_PASS0..4_GLSL     scalefx/shaders
 libretro/ScaleFX_Pass0..4.hlsl      -> SCALEFX_PASS0..4_SHADER
 libretro/PT_SkyWalker541.glsl       -> PT_SKYWALKER541_GLSL      handheld/shaders
 libretro/PT_SkyWalker541.hlsl       -> PT_SKYWALKER541_SHADER
+libretro/PT_SkyWalker541.wgsl       -> PT_SKYWALKER541_WGSL
 libretro/lanczos3.glsl              -> LANCZOS3_GLSL             windowed/shaders
 libretro/Lanczos3.hlsl              -> LANCZOS3_SHADER
 libretro/Lanczos3.wgsl              -> LANCZOS3_WGSL
@@ -129,14 +134,24 @@ OrigTextureSize and PassPrev<N>TextureSize.  The OpenGL backend resolves the
 same names from the uniforms the pass declares.
 
 The WebGPU renderer runs the chains from WGSL, and only the ones that have a
-WGSL port: wgpu compiles neither GLSL nor HLSL, so Lanczos3.wgsl and
-XbrLv2.wgsl are ports written against the same upstream files rather than
-translations of the two above, and the upscaling menu leaves the rest out
-while that renderer runs.  Their taps are read with textureLoad and integer
-coordinates instead of through a sampler, which is exact where a tap lands on
-a texel centre and cheaper than a filtered fetch.  The chain there draws its
-last pass straight into the back buffer when it comes out at its size, so it
-pays no blit of its own.
+WGSL port: wgpu compiles neither GLSL nor HLSL, so Lanczos3.wgsl, XbrLv2.wgsl,
+XbrLv2NoBlend.wgsl, XbrLv3.wgsl, Xbr2xPass0/1.wgsl, XbrLv3Multipass0/1.wgsl
+and PT_SkyWalker541.wgsl are ports written against the same upstream files
+rather than translations of the two above, and the upscaling menu leaves the
+rest out while that renderer runs.  The chains still without one - xBR-mlv4,
+super-xBR, ScaleFX - read a second texture the same way 2xBR and xBR lv3
+multipass do, so the chain there carries a second binding: a row of
+g_wgpuUpscalers lists, per pass, the output it reads besides the one the pass
+before it made, 0 being the frame.
+Their taps are read with textureLoad and integer coordinates instead of
+through a sampler, which is exact where a tap lands on a texel centre and
+cheaper than a filtered fetch.  The chain there draws its last pass straight
+into the back buffer when it comes out at its size, so it pays no blit of its
+own.
+
+PT_SkyWalker541.wgsl reads the frame through both of the textures upstream
+samples, because the second one - the raw frame, before the palette - is the
+frame itself here: a single pass chain binds it once, at binding 0.
 
 The ports are written the way the upstream files are rather than transcribed by
 a translator, so that they stay diffable against them: same names, same

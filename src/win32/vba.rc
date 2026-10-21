@@ -107,6 +107,10 @@ XBR_2X_PASS0_GLSL       RCDATA                  "upscalers\\libretro\\2xbr-lv1-c
 XBR_2X_PASS0_SHADER     RCDATA                  "upscalers\\libretro\\XBR_2x_Pass0.hlsl"
 XBR_2X_PASS1_GLSL       RCDATA                  "upscalers\\libretro\\2xbr-lv1-c-pass1.glsl"
 XBR_2X_PASS1_SHADER     RCDATA                  "upscalers\\libretro\\XBR_2x_Pass1.hlsl"
+XBR_2X_PASS0_WGSL       RCDATA                  "upscalers\\libretro\\Xbr2xPass0.wgsl"
+XBR_2X_PASS1_WGSL       RCDATA                  "upscalers\\libretro\\Xbr2xPass1.wgsl"
+XBR_LV3_PASS0_WGSL      RCDATA                  "upscalers\\libretro\\XbrLv3Multipass0.wgsl"
+XBR_LV3_PASS1_WGSL      RCDATA                  "upscalers\\libretro\\XbrLv3Multipass1.wgsl"
 XBR_MLV4_PASS1_GLSL     RCDATA                  "upscalers\\libretro\\xbr-mlv4-pass1.glsl"
 XBR_MLV4_PASS1_SHADER   RCDATA                  "upscalers\\libretro\\XBR_Mlv4_Pass1.hlsl"
 XBR_MLV4_PASS2_GLSL     RCDATA                  "upscalers\\libretro\\xbr-mlv4-pass2.glsl"
@@ -139,6 +143,7 @@ SCALEFX_PASS4_SHADER    RCDATA                  "upscalers\\libretro\\ScaleFX_Pa
 // PT SkyWalker541
 PT_SKYWALKER541_GLSL    RCDATA                  "upscalers\\libretro\\PT_SkyWalker541.glsl"
 PT_SKYWALKER541_SHADER  RCDATA                  "upscalers\\libretro\\PT_SkyWalker541.hlsl"
+PT_SKYWALKER541_WGSL    RCDATA                  "upscalers\\libretro\\PT_SkyWalker541.wgsl"
 
 // Lanczos, the resampler of the windowed folder
 LANCZOS3_GLSL           RCDATA                  "upscalers\\libretro\\lanczos3.glsl"
