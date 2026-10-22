@@ -5,6 +5,7 @@
 // MainWnd.h : header file
 //
 
+#include "OpenGLConfig.h"
 #include "WgpuConfig.h"
 
 /////////////////////////////////////////////////////////////////////////////
@@ -207,10 +208,12 @@ protected:
 	afx_msg void OnUpdateOptionsVideoRendermethodDirectdraw(CCmdUI*pCmdUI);
 	afx_msg void OnOptionsVideoRendermethodDirect3d();
 	afx_msg void OnUpdateOptionsVideoRendermethodDirect3d(CCmdUI*pCmdUI);
+#if VBA_ENABLE_OPENGL
 	afx_msg void OnOptionsVideoRendermethodOpengl();
 	afx_msg void OnUpdateOptionsVideoRendermethodOpengl(CCmdUI*pCmdUI);
 	afx_msg void OnOptionsVideoRendermethodOpengl33();
 	afx_msg void OnUpdateOptionsVideoRendermethodOpengl33(CCmdUI*pCmdUI);
+#endif
 	afx_msg void OnOptionsVideoRendermethodDirect3d11();
 	afx_msg void OnUpdateOptionsVideoRendermethodDirect3d11(CCmdUI*pCmdUI);
 #if VBA_ENABLE_WGPU
@@ -227,10 +230,12 @@ protected:
 	afx_msg void OnUpdateOptionsVideoDdrawusevideomemory(CCmdUI*pCmdUI);
 	afx_msg void OnOptionsVideoTexturefilter(UINT nID);
 	afx_msg void OnUpdateOptionsVideoTexturefilter(CCmdUI*pCmdUI);
+#if VBA_ENABLE_OPENGL
 	afx_msg void OnOptionsVideoRenderoptionsGltriangle();
 	afx_msg void OnUpdateOptionsVideoRenderoptionsGltriangle(CCmdUI*pCmdUI);
 	afx_msg void OnOptionsVideoRenderoptionsGlquads();
 	afx_msg void OnUpdateOptionsVideoRenderoptionsGlquads(CCmdUI*pCmdUI);
+#endif
 	afx_msg void OnOptionsVideoRenderoptionsSelectskin();
 	afx_msg void OnUpdateOptionsVideoRenderoptionsSelectskin(CCmdUI*pCmdUI);
 	afx_msg void OnOptionsVideoRenderoptionsSkin();

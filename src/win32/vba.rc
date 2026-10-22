@@ -1,6 +1,7 @@
 ﻿// Microsoft Visual C++ generated resource script.
 //
 #include "resource.h"
+#include "OpenGLConfig.h"
 #include "WgpuConfig.h"
 #define APSTUDIO_READONLY_SYMBOLS
 /////////////////////////////////////////////////////////////////////////////
@@ -71,77 +72,50 @@ FSR_SHADER_A            RCDATA                  "upscalers\\ffx_a.h"
 FSR_SHADER_FSR1         RCDATA                  "upscalers\\ffx_fsr1.h"
 
 // The OpenGL 3.3 backend compiles the same upscalers from GLSL, so the two
-// renderers reconstruct a frame the same way.  It splices #include itself, so
-// the FidelityFX headers above are the ones it gets as well.
-FSR_GLSL_BODY           RCDATA                  "upscalers\\FSR_Body.glsl"
-FSR_GLSL_EASU           RCDATA                  "upscalers\\FSR_Easu.glsl"
-FSR_GLSL_RCAS           RCDATA                  "upscalers\\FSR_Rcas.glsl"
-
-// NIS is a compute shader.  The file below is the HLSL above put through
-// glslang's HLSL front end and spirv-cross, not a second implementation, see
-// .workbuddy-ai/tools/transpile-nis.py.
-NIS_GLSL_MAIN           RCDATA                  "upscalers\\NIS_Main.glsl"
+// renderers reconstruct a frame the same way.  Those sources are in the GLSL
+// block at the end of this section, where the switch that keeps them out of
+// a build without that backend is.
 
 // The libretro shaders, and the ports of them the Direct3D 11 backend runs.
 // Everything here is in upscalers/libretro, side by side: the .glsl files are
 // verbatim from https://github.com/libretro/glsl-shaders (master ce9a412) and
 // the OpenGL 3.3 backend compiles them as they are, the .hlsl files are ours
-// and each one names the file it came from.
+// and each one names the file it came from.  The GLSL files are in the block
+// at the end of this section, where the switch that keeps them out of a build
+// without that backend is.
 //
 // xBRZ, which both backends have had for longer than the rest
-XBRZ_GLSL_FREESCALE     RCDATA                  "upscalers\\libretro\\XBRZ_Freescale.glsl"
 XBRZ_SHADER_FREESCALE   RCDATA                  "upscalers\\libretro\\XBRZ_Freescale.hlsl"
 
 // Hyllian's xBR
-XBR_LV2_GLSL            RCDATA                  "upscalers\\libretro\\xbr-lv2.glsl"
 XBR_LV2_SHADER          RCDATA                  "upscalers\\libretro\\XBR_Lv2.hlsl"
-XBR_LV2_NOBLEND_GLSL    RCDATA                  "upscalers\\libretro\\xbr-lv2-noblend.glsl"
 XBR_LV2_NOBLEND_SHADER  RCDATA                  "upscalers\\libretro\\XBR_Lv2NoBlend.hlsl"
-XBR_LV3_GLSL            RCDATA                  "upscalers\\libretro\\xbr-lv3.glsl"
 XBR_LV3_SHADER          RCDATA                  "upscalers\\libretro\\XBR_Lv3.hlsl"
-XBR_LV3_PASS0_GLSL      RCDATA                  "upscalers\\libretro\\xbr-lv3-pass0.glsl"
 XBR_LV3_PASS0_SHADER    RCDATA                  "upscalers\\libretro\\XBR_Lv3_Pass0.hlsl"
-XBR_LV3_PASS1_GLSL      RCDATA                  "upscalers\\libretro\\xbr-lv3-pass1.glsl"
 XBR_LV3_PASS1_SHADER    RCDATA                  "upscalers\\libretro\\XBR_Lv3_Pass1.hlsl"
-XBR_2X_PASS0_GLSL       RCDATA                  "upscalers\\libretro\\2xbr-lv1-c-pass0.glsl"
 XBR_2X_PASS0_SHADER     RCDATA                  "upscalers\\libretro\\XBR_2x_Pass0.hlsl"
-XBR_2X_PASS1_GLSL       RCDATA                  "upscalers\\libretro\\2xbr-lv1-c-pass1.glsl"
 XBR_2X_PASS1_SHADER     RCDATA                  "upscalers\\libretro\\XBR_2x_Pass1.hlsl"
-XBR_MLV4_PASS1_GLSL     RCDATA                  "upscalers\\libretro\\xbr-mlv4-pass1.glsl"
 XBR_MLV4_PASS1_SHADER   RCDATA                  "upscalers\\libretro\\XBR_Mlv4_Pass1.hlsl"
-XBR_MLV4_PASS2_GLSL     RCDATA                  "upscalers\\libretro\\xbr-mlv4-pass2.glsl"
 XBR_MLV4_PASS2_SHADER   RCDATA                  "upscalers\\libretro\\XBR_Mlv4_Pass2.hlsl"
-XBR_MLV4_PASS3_GLSL     RCDATA                  "upscalers\\libretro\\xbr-mlv4-pass3.glsl"
 XBR_MLV4_PASS3_SHADER   RCDATA                  "upscalers\\libretro\\XBR_Mlv4_Pass3.hlsl"
-XBR_MLV4_PASS4_GLSL     RCDATA                  "upscalers\\libretro\\xbr-mlv4-pass4.glsl"
 XBR_MLV4_PASS4_SHADER   RCDATA                  "upscalers\\libretro\\XBR_Mlv4_Pass4.hlsl"
 
 // super-xBR
-SUPER_XBR_PASS0_GLSL    RCDATA                  "upscalers\\libretro\\super-xbr-pass0.glsl"
 SUPER_XBR_PASS0_SHADER  RCDATA                  "upscalers\\libretro\\SuperXBR_Pass0.hlsl"
-SUPER_XBR_PASS1_GLSL    RCDATA                  "upscalers\\libretro\\super-xbr-pass1.glsl"
 SUPER_XBR_PASS1_SHADER  RCDATA                  "upscalers\\libretro\\SuperXBR_Pass1.hlsl"
-CUSTOM_JINC2_SHARPER_GLSL RCDATA                "upscalers\\libretro\\custom-jinc2-sharper.glsl"
 SUPER_XBR_JINC2_SHADER  RCDATA                  "upscalers\\libretro\\SuperXBR_Jinc2.hlsl"
 
 // ScaleFX
-SCALEFX_PASS0_GLSL      RCDATA                  "upscalers\\libretro\\scalefx-pass0.glsl"
 SCALEFX_PASS0_SHADER    RCDATA                  "upscalers\\libretro\\ScaleFX_Pass0.hlsl"
-SCALEFX_PASS1_GLSL      RCDATA                  "upscalers\\libretro\\scalefx-pass1.glsl"
 SCALEFX_PASS1_SHADER    RCDATA                  "upscalers\\libretro\\ScaleFX_Pass1.hlsl"
-SCALEFX_PASS2_GLSL      RCDATA                  "upscalers\\libretro\\scalefx-pass2.glsl"
 SCALEFX_PASS2_SHADER    RCDATA                  "upscalers\\libretro\\ScaleFX_Pass2.hlsl"
-SCALEFX_PASS3_GLSL      RCDATA                  "upscalers\\libretro\\scalefx-pass3.glsl"
 SCALEFX_PASS3_SHADER    RCDATA                  "upscalers\\libretro\\ScaleFX_Pass3.hlsl"
-SCALEFX_PASS4_GLSL      RCDATA                  "upscalers\\libretro\\scalefx-pass4.glsl"
 SCALEFX_PASS4_SHADER    RCDATA                  "upscalers\\libretro\\ScaleFX_Pass4.hlsl"
 
 // PT SkyWalker541
-PT_SKYWALKER541_GLSL    RCDATA                  "upscalers\\libretro\\PT_SkyWalker541.glsl"
 PT_SKYWALKER541_SHADER  RCDATA                  "upscalers\\libretro\\PT_SkyWalker541.hlsl"
 
 // Lanczos, the resampler of the windowed folder
-LANCZOS3_GLSL           RCDATA                  "upscalers\\libretro\\lanczos3.glsl"
 LANCZOS3_SHADER         RCDATA                  "upscalers\\libretro\\Lanczos3.hlsl"
 
 // The WGSL ports of the libretro shaders.  Only the WebGPU renderer runs
@@ -172,6 +146,45 @@ XBR_LV2_WGSL              RCDATA                  "upscalers\\libretro\\XbrLv2.w
 XBR_LV2_NOBLEND_WGSL      RCDATA                  "upscalers\\libretro\\XbrLv2NoBlend.wgsl"
 XBR_LV3_WGSL              RCDATA                  "upscalers\\libretro\\XbrLv3.wgsl"
 #endif // VBA_ENABLE_WGPU
+
+// The GLSL sources of the same upscalers.  Only the OpenGL 3.3 renderer runs
+// them, so they are only in the executable when that backend is built; the
+// switch is VBA_ENABLE_OPENGL in OpenGLConfig.h.  The Direct3D 11 backend
+// runs the HLSL ports above and the WebGPU one the WGSL ones, so a build
+// without the OpenGL backend does not need them either.
+#if VBA_ENABLE_OPENGL
+FSR_GLSL_BODY             RCDATA                  "upscalers\\FSR_Body.glsl"
+FSR_GLSL_EASU             RCDATA                  "upscalers\\FSR_Easu.glsl"
+FSR_GLSL_RCAS             RCDATA                  "upscalers\\FSR_Rcas.glsl"
+
+// NIS is a compute shader.  The file below is the HLSL above put through
+// glslang's HLSL front end and spirv-cross, not a second implementation, see
+// .workbuddy-ai/tools/transpile-nis.py.
+NIS_GLSL_MAIN             RCDATA                  "upscalers\\NIS_Main.glsl"
+
+XBRZ_GLSL_FREESCALE       RCDATA                  "upscalers\\libretro\\XBRZ_Freescale.glsl"
+XBR_LV2_GLSL              RCDATA                  "upscalers\\libretro\\xbr-lv2.glsl"
+XBR_LV2_NOBLEND_GLSL      RCDATA                  "upscalers\\libretro\\xbr-lv2-noblend.glsl"
+XBR_LV3_GLSL              RCDATA                  "upscalers\\libretro\\xbr-lv3.glsl"
+XBR_LV3_PASS0_GLSL        RCDATA                  "upscalers\\libretro\\xbr-lv3-pass0.glsl"
+XBR_LV3_PASS1_GLSL        RCDATA                  "upscalers\\libretro\\xbr-lv3-pass1.glsl"
+XBR_2X_PASS0_GLSL         RCDATA                  "upscalers\\libretro\\2xbr-lv1-c-pass0.glsl"
+XBR_2X_PASS1_GLSL         RCDATA                  "upscalers\\libretro\\2xbr-lv1-c-pass1.glsl"
+XBR_MLV4_PASS1_GLSL       RCDATA                  "upscalers\\libretro\\xbr-mlv4-pass1.glsl"
+XBR_MLV4_PASS2_GLSL       RCDATA                  "upscalers\\libretro\\xbr-mlv4-pass2.glsl"
+XBR_MLV4_PASS3_GLSL       RCDATA                  "upscalers\\libretro\\xbr-mlv4-pass3.glsl"
+XBR_MLV4_PASS4_GLSL       RCDATA                  "upscalers\\libretro\\xbr-mlv4-pass4.glsl"
+SUPER_XBR_PASS0_GLSL      RCDATA                  "upscalers\\libretro\\super-xbr-pass0.glsl"
+SUPER_XBR_PASS1_GLSL      RCDATA                  "upscalers\\libretro\\super-xbr-pass1.glsl"
+CUSTOM_JINC2_SHARPER_GLSL RCDATA                  "upscalers\\libretro\\custom-jinc2-sharper.glsl"
+SCALEFX_PASS0_GLSL        RCDATA                  "upscalers\\libretro\\scalefx-pass0.glsl"
+SCALEFX_PASS1_GLSL        RCDATA                  "upscalers\\libretro\\scalefx-pass1.glsl"
+SCALEFX_PASS2_GLSL        RCDATA                  "upscalers\\libretro\\scalefx-pass2.glsl"
+SCALEFX_PASS3_GLSL        RCDATA                  "upscalers\\libretro\\scalefx-pass3.glsl"
+SCALEFX_PASS4_GLSL        RCDATA                  "upscalers\\libretro\\scalefx-pass4.glsl"
+PT_SKYWALKER541_GLSL      RCDATA                  "upscalers\\libretro\\PT_SkyWalker541.glsl"
+LANCZOS3_GLSL             RCDATA                  "upscalers\\libretro\\lanczos3.glsl"
+#endif // VBA_ENABLE_OPENGL
 
 
 
@@ -2020,11 +2033,13 @@ BEGIN
                     MENUITEM "&OpenGL (ANGLE)",         ID_OPTIONS_VIDEO_WGPUBACKEND_OPENGL
                 END
 #endif
+#if VBA_ENABLE_OPENGL
                 MENUITEM SEPARATOR
                 MENUITEM "&OpenGL 3.3",                 ID_OPTIONS_VIDEO_RENDERMETHOD_OPENGL33
                 MENUITEM "OpenGL (&Legacy)",            ID_OPTIONS_VIDEO_RENDERMETHOD_OPENGL
                 MENUITEM "    GL T&riangle (Legacy)", ID_OPTIONS_VIDEO_RENDEROPTIONS_GLTRIANGLE
                 MENUITEM "    GL &Quads (Legacy)",    ID_OPTIONS_VIDEO_RENDEROPTIONS_GLQUADS
+#endif
             END
             POPUP "&Texture Filter"
             BEGIN
@@ -2033,10 +2048,16 @@ BEGIN
                 MENUITEM "Tri&linear",                  ID_OPTIONS_VIDEO_TEXTUREFILTER_TRILINEAR
             END
             MENUITEM SEPARATOR
-#if VBA_ENABLE_WGPU
+// The label names the renderers that honour the setting, so it follows the
+// ones this build has.
+#if VBA_ENABLE_WGPU && VBA_ENABLE_OPENGL
             MENUITEM "V&Sync (DDraw, D3D11, OpenGL 3.3, WebGPU)", ID_OPTIONS_VIDEO_VSYNC
-#else
+#elif VBA_ENABLE_WGPU
+            MENUITEM "V&Sync (DDraw, D3D11, WebGPU)", ID_OPTIONS_VIDEO_VSYNC
+#elif VBA_ENABLE_OPENGL
             MENUITEM "V&Sync (DDraw, D3D11, OpenGL 3.3)", ID_OPTIONS_VIDEO_VSYNC
+#else
+            MENUITEM "V&Sync (DDraw, D3D11)", ID_OPTIONS_VIDEO_VSYNC
 #endif
             MENUITEM SEPARATOR
             POPUP "&Window Size"

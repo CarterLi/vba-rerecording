@@ -69,8 +69,9 @@ This branch - 90 commits on top of `4526341`, the September 2019 revision -
 rebuilds all of that for a current Windows, and adds the things a modern
 emulator is expected to have.
 
-**The short version:** a Direct3D 9Ex / Direct3D 11 / OpenGL 3.3 / WebGPU
-rendering stack, GPU upscaling with NVIDIA Image Scaling, AMD FidelityFX and
+**The short version:** a Direct3D 9Ex / Direct3D 11 rendering stack, with an
+OpenGL 3.3 and a WebGPU renderer behind compile time switches, GPU upscaling
+with NVIDIA Image Scaling, AMD FidelityFX and
 the whole libretro xBR family, a Windows 10 era shell with dark mode and
 per-monitor DPI, XAudio2 as a lower latency sound backend, screenshots in
 whatever format the machine can actually write and AVI recordings with the
@@ -128,6 +129,10 @@ something they would rather keep using.
   double buffered frame textures so the upload no longer waits on the last
   draw, and `WGL_EXT_swap_control_tear` so a frame that misses the blanking
   interval is shown at once instead of being held back a whole interval.
+  Both OpenGL renderers sit behind a compile time switch
+  (`VBA_ENABLE_OPENGL` in `OpenGLConfig.h`), so a build without them leaves
+  their entries out of the Video menu and keeps the GLSL upscaler shaders out
+  of the executable.  Disabled by default.
 * **WebGPU** - a renderer through `wgpu-native`, which lets the same build run
   on Direct3D 12, Vulkan, Metal or OpenGL.  The backend can be picked from the
   Video menu, the entry names the one that is really in use, and the library
@@ -138,6 +143,24 @@ something they would rather keep using.
   model it is actually using ("Direct3D 11 (Flip)", "Direct3D 11 (Bitblt)")
   and, where it runs, the WebGPU backend behind it.  No more guessing from
   the trace log.
+
+The two renderers that are not built by default sit behind compile time
+switches, so a build can leave them out or put them back:
+
+* `VBA_ENABLE_OPENGL` in `src/win32/OpenGLConfig.h` builds the two OpenGL
+  renderers - the fixed function one and the OpenGL 3.3 one.  With it off,
+  the "OpenGL 3.3" and "OpenGL (Legacy)" entries and the two legacy GL
+  rendering options leave the Video menu, and the GLSL sources of the
+  upscalers - which only that renderer compiles - are not put into the
+  executable.
+* `VBA_ENABLE_WGPU` in `src/win32/WgpuConfig.h` builds the WebGPU renderer.
+  With it off, the "WebGPU" entry and its backend submenu leave the Video
+  menu, and the WGSL ports of the upscalers are not put into the executable.
+
+A build that leaves a renderer out still reads the settings of an earlier
+build: a stored render method that names a renderer the build does not have
+falls back to DirectDraw rather than failing, and the render method that
+finally starts is the one that is saved.
 
 ### GPU upscaling that does not cost the emulation thread
 

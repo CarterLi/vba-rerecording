@@ -23,6 +23,9 @@
 // uses adaptive synchronisation where the driver has it.
 
 #include "stdafx.h"
+#include "OpenGLConfig.h"
+
+#if VBA_ENABLE_OPENGL
 
 #include <stddef.h>
 #include <gl/GL.h>
@@ -3155,3 +3158,22 @@ const char *openGL33Version()
 {
 	return g_openGL33Version;
 }
+
+#else // ndef VBA_ENABLE_OPENGL
+
+#include "Display.h"
+
+// The renderer is not built, so there is nothing to create and no core
+// version to name.  The menu does not offer it either, see the switch in
+// OpenGLConfig.h.
+IDisplay *newOpenGL33Display()
+{
+	return NULL;
+}
+
+const char *openGL33Version()
+{
+	return NULL;
+}
+
+#endif // !VBA_ENABLE_OPENGL

@@ -46,11 +46,13 @@ extern const char *wgpuBackendModel();
 // has an adapter for, so the ones it has not are greyed out.
 extern bool wgpuBackendAvailable(int backend);
 #endif
+#if VBA_ENABLE_OPENGL
 // Defined in OpenGL3.cpp: the core profile version the OpenGL 3.3 renderer
 // created, empty while it is not the render method that is presenting.  The
 // renderer asks for the newest core version the driver has and descends from
 // there, so this is what was actually created, see OpenGL3.cpp.
 extern const char *openGL33Version();
+#endif
 // Defined in Direct3D11.cpp: the presentation model the Direct3D 11 backend is
 // running with ("Flip", "Flip sequential", "Bitblt"), NULL while it is not the
 // render method that is presenting.
@@ -138,6 +140,7 @@ static void setRenderMethodModel(CCmdUI *pCmdUI, const char *model, const char *
 	theApp.winAccelMgr.UpdateMenu(pCmdUI->m_pMenu->GetSafeHmenu());
 }
 
+#if VBA_ENABLE_OPENGL
 // Names the core profile version the OpenGL 3.3 renderer is running with, so
 // that "OpenGL 3.3" reads "OpenGL 3.3 (4.6 core)".  The request descends from
 // the newest core version the driver has, so what is printed is what was
@@ -167,6 +170,7 @@ static void setRenderMethodGlVersion(CCmdUI *pCmdUI, const char *version)
 	pCmdUI->SetText(text);
 	theApp.winAccelMgr.UpdateMenu(pCmdUI->m_pMenu->GetSafeHmenu());
 }
+#endif // VBA_ENABLE_OPENGL
 
 // Names the buffering the backend this entry stands for is running with, so
 // that "XAudio2 (2.9)" reads "XAudio2 (2.9) - 4 blocks, 67 ms" and the
@@ -736,6 +740,7 @@ void MainWnd::OnUpdateOptionsVideoRendermethodDirect3d(CCmdUI*pCmdUI)
 	pCmdUI->SetCheck(active);
 }
 
+#if VBA_ENABLE_OPENGL
 void MainWnd::OnOptionsVideoRendermethodOpengl()
 {
 	theApp.renderMethod = OPENGL;
@@ -765,6 +770,7 @@ void MainWnd::OnUpdateOptionsVideoRendermethodOpengl33(CCmdUI*pCmdUI)
 
 	pCmdUI->SetCheck(active);
 }
+#endif // VBA_ENABLE_OPENGL
 
 void MainWnd::OnOptionsVideoRendermethodDirect3d11()
 {
@@ -883,9 +889,11 @@ static int currentTextureFilter()
 	case DIRECT_3D:
 	case DIRECT_3D11:
 		return theApp.d3dFilter;
+#if VBA_ENABLE_OPENGL
 	case OPENGL:
 	case OPENGL33:
 		return theApp.glFilter;
+#endif
 #if VBA_ENABLE_WGPU
 	case WGPU:
 		return theApp.wgpuFilter;
@@ -907,11 +915,13 @@ static void setTextureFilter(int filter)
 		option = "d3dFilter";
 		value  = &theApp.d3dFilter;
 		break;
+#if VBA_ENABLE_OPENGL
 	case OPENGL:
 	case OPENGL33:
 		option = "glFilter";
 		value  = &theApp.glFilter;
 		break;
+#endif
 #if VBA_ENABLE_WGPU
 	case WGPU:
 		option = "wgpuFilter";
@@ -950,6 +960,7 @@ void MainWnd::OnUpdateOptionsVideoTexturefilter(CCmdUI*pCmdUI)
 	pCmdUI->SetCheck(currentTextureFilter() == filter);
 }
 
+#if VBA_ENABLE_OPENGL
 void MainWnd::OnOptionsVideoRenderoptionsGltriangle()
 {
 	theApp.glType = 0;
@@ -973,6 +984,7 @@ void MainWnd::OnUpdateOptionsVideoRenderoptionsGlquads(CCmdUI*pCmdUI)
 {
 	pCmdUI->SetCheck(theApp.glType == 1);
 }
+#endif // VBA_ENABLE_OPENGL
 
 void MainWnd::OnOptionsVideoRenderoptionsSelectskin()
 {}

@@ -43,8 +43,10 @@
 extern IDisplay *newGDIDisplay();
 extern IDisplay *newDirectDrawDisplay();
 extern IDisplay *newDirect3DDisplay();
+#if VBA_ENABLE_OPENGL
 extern IDisplay *newOpenGLDisplay();
 extern IDisplay *newOpenGL33Display();
+#endif
 extern IDisplay *newDirect3D11Display();
 #if VBA_ENABLE_WGPU
 extern IDisplay *newWgpuDisplay();
@@ -1921,12 +1923,14 @@ bool VBA::initDisplay()
 		case DIRECT_3D:
 			display = newDirect3DDisplay();
 			break;
+#if VBA_ENABLE_OPENGL
 		case OPENGL:
 			display = newOpenGLDisplay();
 			break;
 		case OPENGL33:
 			display = newOpenGL33Display();
 			break;
+#endif
 		case DIRECT_3D11:
 			display = newDirect3D11Display();
 			break;
@@ -1937,7 +1941,10 @@ bool VBA::initDisplay()
 #endif
 		}
 
-		if (display->initialize())
+		// A render method this build does not have leaves nothing to
+		// initialize, which is the same as one that does not start: the
+		// caller falls back to the renderer below it.
+		if (display != NULL && display->initialize())
 		{
 			if (input == NULL)
 			{
@@ -1983,12 +1990,23 @@ bool VBA::updateRenderMethod(bool force)
 		{
 			int failed = renderMethod;
 
+			// The renderer below the one that failed, in the order of the
+			// menu.  The OpenGL 3.3 renderer falls back to the fixed
+			// function one, which is only built when it is; a build without
+			// either of them falls back to the renderer below them in one
+			// step.  The same goes for the WebGPU renderer, so that a
+			// setting left over from a build that had it does not send the
+			// loop around again and again.
 			if (renderMethod == OPENGL33)
+			{
+#if VBA_ENABLE_OPENGL
 				renderMethod = OPENGL;
-#if VBA_ENABLE_WGPU
+#else
+				renderMethod = DIRECT_3D;
+#endif
+			}
 			else if (renderMethod == WGPU)
 				renderMethod = DIRECT_3D11;
-#endif
 			else if (renderMethod == DIRECT_3D11)
 				renderMethod = DIRECT_3D;
 			else if (renderMethod == OPENGL)
@@ -2218,6 +2236,33 @@ void VBA::winRemoveUpdateListener(IUpdateListener *l)
 	}
 }
 
+// Whether the render method named is one this build has.  The OpenGL and the
+// WebGPU renderers sit behind a compile time switch, so a build without them
+// cannot run them at all, and a setting left over from a build that had them
+// has to fall back to one it has.
+static bool renderMethodBuilt(DISPLAY_TYPE method)
+{
+	switch (method)
+	{
+	case GDI:
+	case DIRECT_DRAW:
+	case DIRECT_3D:
+	case DIRECT_3D11:
+		return true;
+#if VBA_ENABLE_OPENGL
+	case OPENGL:
+	case OPENGL33:
+		return true;
+#endif
+#if VBA_ENABLE_WGPU
+	case WGPU:
+		return true;
+#endif
+	default:
+		return false;
+	}
+}
+
 void VBA::loadSettings()
 {
 	CString	buffer;
@@ -2270,6 +2315,16 @@ void VBA::loadSettings()
 	renderMethod = (DISPLAY_TYPE)regQueryDwordValue("renderMethod", DIRECT_DRAW);
 	if (renderMethod < GDI || renderMethod > WGPU)
 		renderMethod = DIRECT_DRAW;
+
+	// A render method this build does not have cannot be used, so a setting
+	// left over from a build that had it falls back to the default one.
+	if (!renderMethodBuilt(renderMethod))
+	{
+		winlog("VBA: render method %d is not in this build, DirectDraw is used instead\n",
+		       renderMethod);
+
+		renderMethod = DIRECT_DRAW;
+	}
 
 	ddrawEmulationOnly	= regQueryDwordValue("ddrawEmulationOnly", false) ? true : false;
 	ddrawUseVideoMemory = regQueryDwordValue("ddrawUseVideoMemory", false) ? true : false;

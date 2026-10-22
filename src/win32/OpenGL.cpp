@@ -1,4 +1,8 @@
 ﻿#include "stdafx.h"
+#include "OpenGLConfig.h"
+
+#if VBA_ENABLE_OPENGL
+
 #include <gl/GL.h>
 
 #include "resource.h"
@@ -501,4 +505,17 @@ IDisplay *newOpenGLDisplay()
 {
 	return new OpenGLDisplay();
 }
+
+#else // ndef VBA_ENABLE_OPENGL
+
+#include "Display.h"
+
+// The renderer is not built, so there is nothing to create.  The menu does
+// not offer it either, see the switch in OpenGLConfig.h.
+IDisplay *newOpenGLDisplay()
+{
+	return NULL;
+}
+
+#endif // !VBA_ENABLE_OPENGL
 
