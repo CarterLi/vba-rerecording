@@ -1,0 +1,406 @@
+﻿# Simplified Chinese glossary: menus.
+#
+# Format: English<TAB>Chinese, where the English side is the literal exactly
+# as it appears in ../vba.rc.  The & marks the accelerator key and has to sit
+# on a character that the translation actually contains, which is why most
+# entries end in "(&X)" - that is how Chinese Windows writes it.
+
+&File	文件(&F)
+&Open GBA ROM...	打开 GBA ROM(&O)...
+Open &GBx ROM...	打开 GBx ROM(&G)...
+Rece&nt ROM	最近的 ROM(&N)
+&Clear	清除(&C)
+&Lock	锁定(&L)
+Open Recent ROM #&1	打开最近的 ROM #&1
+Open Recent ROM #&2	打开最近的 ROM #&2
+Open Recent ROM #&3	打开最近的 ROM #&3
+Open Recent ROM #&4	打开最近的 ROM #&4
+Open Recent ROM #&5	打开最近的 ROM #&5
+Open Recent ROM #&6	打开最近的 ROM #&6
+Open Recent ROM #&7	打开最近的 ROM #&7
+Open Recent ROM #&8	打开最近的 ROM #&8
+Open Recent ROM #&9	打开最近的 ROM #&9
+Open Recent ROM #1&0	打开最近的 ROM #1&0
+&Load Game	读取游戏(&L)
+&Current Slot	当前存档位(&C)
+Most &Recent Slot	最近的存档位(&R)
+Load From &File...	从文件读取(&F)...
+Import &Battery File...	导入电池存档(&B)...
+Import &Gameshark Snapshot...	导入 GameShark 快照(&G)...
+Slot #&1	存档位 #&1
+Slot #&2	存档位 #&2
+Slot #&3	存档位 #&3
+Slot #&4	存档位 #&4
+Slot #&5	存档位 #&5
+Slot #&6	存档位 #&6
+Slot #&7	存档位 #&7
+Slot #&8	存档位 #&8
+Slot #&9	存档位 #&9
+Slot #1&0	存档位 #1&0
+&Make 'Current' On Load	读取后设为“当前”存档位(&M)
+Make 'Recent' On &Load	读取后设为“最近”存档位(&L)
+&Auto Load Most Recent On Start	启动时自动读取最近的存档位(&A)
+&Save Game	保存游戏(&S)
+&Oldest Slot	最早的存档位(&O)
+Save To &File...	保存到文件(&F)...
+Export &Battery File...	导出电池存档(&B)...
+Export &Gameshark Snapshot...	导出 GameShark 快照(&G)...
+&Make 'Current' On Save	保存后设为“当前”存档位(&M)
+C&urrent Slot	当前存档位(&U)
+&Increase Current Slot	切换到下一个存档位(&I)
+&Decrease Current Slot	切换到上一个存档位(&D)
+Show &Timestamps	显示时间戳(&T)
+&Pause	暂停(&P)
+&Frame Advance	单帧前进(&F)
+    &Account For Lag	    计入延迟(&A)
+Re&wind	回退(&W)
+Rewind Se&ttings...	回退设置(&T)...
+&Reset	重置(&R)
+&Close	关闭(&C)
+Rom &Information...	ROM 信息(&I)...
+E&xit	退出(&X)
+&Options	选项(&O)
+&Input	输入(&I)
+&Configure Controllers	配置控制器(&C)
+Controller &1...	控制器 1(&1)...
+Controller &2...	控制器 2(&2)...
+Controller &3...	控制器 3(&3)...
+Controller &4...	控制器 4(&4)...
+&Motion Sensor...	动作感应器(&M)...
+&Use Controller	使用控制器(&U)
+Controller &1	控制器 1(&1)
+Controller &2	控制器 2(&2)
+Controller &3	控制器 3(&3)
+Controller &4	控制器 4(&4)
+&Allow Left+Right / Up+Down	允许 左+右 / 上+下(&A)
+Auto-&Fire	连发(&F)
+&Start	开始(&S)
+Selec&t	选择(&T)
+&Up	上(&U)
+&Down	下(&D)
+L&eft	左(&E)
+R&ight	右(&I)
+&Clear All	全部清除(&C)
+Account &For Lag	计入延迟(&F)
+Auto-&Hold	连按(&H)
+Customi&ze All Commands...	自定义所有命令(&Z)...
+&Speed	速度(&S)
+Set &Speed	设置速度(&S)
+6% (Very Slow)	6%（很慢）
+15%	15%
+25%	25%
+50% (Half Speed)	50%（半速）
+75%	75%
+100% (Normal Speed)	100%（正常速度）
+150%	150%
+200% (Double Speed)	200%（双倍速度）
+300%	300%
+400%	400%
+600% (Very Fast)	600%（很快）
+&Other...	其他(&O)...
+&Increase	加速(&I)
+&Decrease	减速(&D)
+&Frame Skip	跳帧(&F)
+Skip &0 (Don't Skip Any Frames)	跳过 &0 帧（不跳帧）
+Skip &1 (Skip Every Other Frame)	跳过 &1 帧（每隔一帧）
+Skip &2 (Skip 2 Out Of Every 3 Frames)	跳过 &2 帧（每 3 帧丢 2 帧）
+Skip &3	跳过 &3 帧
+Skip &4	跳过 &4 帧
+Skip &5	跳过 &5 帧
+Skip &6	跳过 &6 帧
+Skip &7	跳过 &7 帧
+Skip &8	跳过 &8 帧
+Skip &9 (Skip 9 Out Of Every 10 Frames)	跳过 &9 帧（每 10 帧丢 9 帧）
+&Turbo Mode	加速模式(&T)
+S&ynchronize Emulation Speed	同步模拟速度(&Y)
+    Accurate Sound &Pitch	    精确声音音调(&P)
+    Accurate &Emulation Speed	    精确模拟速度(&E)
+&Video	视频(&V)
+&Render Method	渲染方式(&R)
+&GDI	GDI(&G)
+&DirectDraw	DirectDraw(&D)
+    DDraw &Emulation Only	    仅用于模拟(&E)
+    DDraw &Use Video Memory	    使用显存(&U)
+    DDraw &Triple Buffering	    三重缓冲(&T)
+Direct3D &11	Direct3D 11(&1)
+Direct&3D 9Ex	Direct3D 9Ex(&3)
+&WebGPU	WebGPU(&W)
+    WebGPU &Backend	    WebGPU 后端(&B)
+&Automatic	自动(&A)
+Direct3D &12	Direct3D 12(&1)
+&Vulkan	Vulkan(&V)
+&Metal	Metal(&M)
+&OpenGL (ANGLE)	OpenGL (ANGLE)(&O)
+&OpenGL 3.3	OpenGL 3.3(&O)
+OpenGL (&Legacy)	OpenGL（旧版）(&L)
+    GL T&riangle (Legacy)	    GL 三角形（旧版）(&R)
+    GL &Quads (Legacy)	    GL 四边形（旧版）(&Q)
+&Texture Filter	纹理过滤(&T)
+&Nearest	最近邻(&N)
+&Bilinear	双线性(&B)
+Tri&linear	三线性(&L)
+V&Sync (DDraw, D3D11, OpenGL 3.3, WebGPU)	垂直同步(&S)（DDraw、D3D11、OpenGL 3.3、WebGPU）
+V&Sync (DDraw, D3D11, OpenGL 3.3)	垂直同步(&S)（DDraw、D3D11、OpenGL 3.3）
+V&Sync (DDraw, D3D11, WebGPU)	垂直同步(&S)（DDraw、D3D11、WebGPU）
+V&Sync (DDraw, D3D11)	垂直同步(&S)（DDraw、D3D11）
+V&Sync (D3D11, OpenGL 3.3, WebGPU)	垂直同步(&S)（D3D11、OpenGL 3.3、WebGPU）
+V&Sync (D3D11, OpenGL 3.3)	垂直同步(&S)（D3D11、OpenGL 3.3）
+V&Sync (D3D11, WebGPU)	垂直同步(&S)（D3D11、WebGPU）
+V&Sync (D3D11)	垂直同步(&S)（D3D11）
+&Window Size	窗口尺寸(&W)
+&1x	&1 倍
+&2x	&2 倍
+&3x	&3 倍
+&4x	&4 倍
+&5x	&5 倍
+&6x	&6 倍
+&7x	&7 倍
+&8x	&8 倍
+&9x	&9 倍
+1&0x	1&0 倍
+1&1x	1&1 倍
+1&2x	1&2 倍
+Full Screen (320x240)	全屏 (320x240)
+Full Screen (640x480)	全屏 (640x480)
+Full Screen (800x600)	全屏 (800x600)
+&Other Full Screen...	其他全屏尺寸(&O)...
+Full Screen &Max Scale...	全屏最大缩放(&M)...
+Full Screen &Ignore Ratio	全屏忽略宽高比(&I)
+Full Screen &Hide Menu	全屏隐藏菜单(&H)
+Full Screen &Auto Hide Menu	全屏自动隐藏菜单(&A)
+&Disable GBA Special Effects (blending, fades, windows)	禁用 GBA 特效（混合、淡变、窗口）(&D)
+Graphics &Layers	图形图层(&L)
+Pixel &Filter	像素滤镜(&F)
+&Interframe Blending	帧间混合(&I)
+&None	无(&N)
+&Motion Blur	动态模糊(&M)
+&Smart	智能(&S)
+&Miscellaneous 2x	其他 2 倍滤镜(&M)
+&TV Mode	TV 模式(&T)
+Scan&lines	扫描线(&L)
+Bilinear Pl&us	双线性增强(&U)
+&2x Magnification	2 倍放大(&2)
+Simple 2&x	简单 2 倍(&X)
+&Pixelate 2x	像素化 2 倍(&P)
+&3x Magnification	3 倍放大(&3)
+Simple 3&x	简单 3 倍(&X)
+&Pixelate 3x	像素化 3 倍(&P)
+&4x Magnification	4 倍放大(&4)
+Simple 4&x	简单 4 倍(&X)
+&Pixelate 4x	像素化 4 倍(&P)
+&5x Magnification	5 倍放大(&5)
+LCD Color &Filter	LCD 色彩滤镜(&L)
+&GBA	GBA(&G)
+G&BA	GBA(&B)
+GBA &SP (Backlit)	GBA SP（背光）(&S)
+Game Boy &Micro	Game Boy Micro(&M)
+Nintendo &DS	Nintendo DS(&D)
+Nintendo DS &Lite	Nintendo DS Lite(&L)
+&NSO GBA	NSO GBA(&N)
+&GB/GBC	GB/GBC(&G)
+&Game Boy Color	Game Boy Color(&G)
+&NSO GBC	NSO GBC(&N)
+&Upscaling	超分辨率(&U)
+&Off	关闭(&O)
+NVIDIA &NIS (Direct3D 11)	NVIDIA NIS（Direct3D 11）(&N)
+AMD &FSR 1.0	AMD FSR 1.0(&F)
+&xBRZ (Freescale)	xBRZ（Freescale）(&X)
+xBR &lv2	xBR lv2(&L)
+xBR lv2 &No-Blend	xBR lv2 无混合(&N)
+xBR l&v3	xBR lv3(&V)
+xBR lv3 &Multipass	xBR lv3 多遍(&M)
+&2xBR	2xBR(&2)
+xBR-&mlv4	xBR-mlv4(&M)
+&Super xBR	Super xBR(&S)
+Scale&FX	ScaleFX(&F)
+&PT SkyWalker541 (LCD)	PT SkyWalker541（LCD）(&P)
+Lanc&zos	Lanczos(&Z)
+&Sharpening	锐化(&S)
+&0%	0%(&0)
+&25%	25%(&2)
+&50%	50%(&5)
+&75%	75%(&7)
+1&00%	100%(&0)
+&Max Scale	最大缩放(&M)
+&Unlimited	不限制(&U)
+&Audio	音频(&A)
+&Disable	禁用(&D)
+&Mute All Channels	静音所有声道(&M)
+Mute Frame &Advance	单帧前进时静音(&A)
+Mute When &Inactive	非活动时静音(&I)
+&Use Old Synchronization	使用旧版同步(&U)
+&Reverse Stereo	交换左右声道(&R)
+&Echo	回声(&E)
+&Low Pass Filter	低通滤波(&L)
+&Volume	音量(&V)
+&.25x	0.25 倍(&0)
+.&5x	.&5 倍
+&Channels	声道(&C)
+&Enable All Channels	启用所有声道(&E)
+&Disable All Channels	禁用所有声道(&D)
+Channel &1	声道 1(&1)
+Channel &2	声道 2(&2)
+Channel &3	声道 3(&3)
+Channel &4	声道 4(&4)
+Direct Sound &A	Direct Sound A(&A)
+Direct Sound &B	Direct Sound B(&B)
+Sound &API	声音 API(&A)
+&DirectSound	DirectSound(&D)
+&XAudio2 (2.9)	XAudio2 (2.9)(&X)
+&11 Khz	11 KHz(&1)
+&22 Khz	22 KHz(&2)
+&44 Khz	44 KHz(&4)
+&Emulation	模拟(&E)
+&Real Time Clock	实时时钟(&R)
+Save &Type	存档类型(&T)
+&EEPROM	EEPROM(&E)
+&SRAM	SRAM(&S)
+&Flash	Flash(&F)
+EE&PROM+Sensor	EEPROM+传感器(&P)
+Flash &64K	Flash 64K(&6)
+Flash &128K	Flash 128K(&1)
+Enhanced &Detection	增强检测(&D)
+GBA &Lag Reduction	GBA 延迟降低(&L)
+Use &Old Frame Timing	使用旧版帧时序(&O)
+    Use v20 &GB Frame Kludge	    使用 v20 GB 帧兼容处理(&G)
+Use &GB Null Input Kludge	使用 GB 空输入兼容处理(&G)
+&Use BIOS File	使用 BIOS 文件(&U)
+Skip BIOS &Intro	跳过 BIOS 开机画面(&I)
+Select &BIOS File...	选择 BIOS 文件(&B)...
+Automatic IPS &Patching	自动 IPS 补丁(&P)
+Gameboy &Mode	Game Boy 模式(&M)
+Automatic &Detection	自动检测(&D)
+Game Boy &Advance (GBA/AGB)	Game Boy Advance (GBA/AGB)(&A)
+Game Boy &Color (GBC/CGB)	Game Boy Color (GBC/CGB)(&C)
+Game Boy Color + SGB b&orders	Game Boy Color + SGB 边框(&O)
+&Super Game Boy (SGB)	Super Game Boy (SGB)(&S)
+Game &Boy (GB)	Game Boy (GB)(&B)
+Border A&utomatic	自动边框(&U)
+Border Al&ways	始终显示边框(&W)
+GB &Printer	GB 打印机(&P)
+&Real Colors	真实色彩(&R)
+Ga&meboy Colors	Game Boy 色彩(&M)
+Customi&ze Colors...	自定义色彩(&Z)...
+&Head-Up Display	抬头显示(&H)
+&Frame Counter	帧计数器(&F)
+    &Lag Counter	    延迟计数器(&L)
+    &Extra Counter	    扩展计数器(&E)
+    Extra Counter &Reset	    扩展计数器重置(&R)
+    &Next-Frame Input	    下一帧输入(&N)
+&Text Display Options...	文字显示选项(&T)...
+Disable Status &Messages	禁用状态消息(&M)
+Show &Speed	显示速度(&S)
+None	无
+Percentage	百分比
+Detailed	详细
+Transparent	透明
+&Preferences	首选项(&P)
+Always On &Top	总在最前(&T)
+Use &Modern UI Font	使用现代界面字体(&M)
+Enable &Background Input	允许后台输入(&B)
+Pause When &Inactive	非活动时暂停(&I)
+Process &Priority	进程优先级(&P)
+&Highest	最高(&H)
+&Above Normal	高于正常(&A)
+&Normal	正常(&N)
+&Below Normal	低于正常(&B)
+Generated File &Names	生成的文件名(&N)
+Use &Archive Name (on disk)	使用压缩包名（磁盘上）(&A)
+Use &ROM Name (in archive)	使用 ROM 名（压缩包内）(&R)
+&Directories...	目录(&D)...
+&Associate...	文件关联(&A)...
+UI &Language	界面语言(&L)
+&System	跟随系统(&S)
+&English	英语(&E)
+&Cheats	金手指(&C)
+&RAM Search...	RAM 搜索(&R)...
+RAM &Watch...	RAM 监视(&W)...
+Old &Cheat Search...	旧版金手指搜索(&C)...
+&Pause During Cheat Search	金手指搜索时暂停(&P)
+&View Cheat List...	查看金手指列表(&V)...
+&Load Cheat List...	读取金手指列表(&L)...
+&Save Cheat List...	保存金手指列表(&S)...
+&Auto Save/Load Cheat List	自动保存/读取金手指列表(&A)
+Import &Gameshark Code File...	导入 GameShark 代码文件(&G)...
+&Disable All Cheats	禁用所有金手指(&D)
+&Tools	工具(&T)
+&Debug	调试(&D)
+&Disassemble...	反汇编(&D)...
+&Logging...	日志(&L)...
+&IO Viewer...	I/O 查看器(&I)...
+&Map Viewer...	地图查看器(&M)...
+Memory &Viewer...	内存查看器(&V)...
+&OAM Viewer...	OAM 查看器(&O)...
+&Palette Viewer...	调色板查看器(&P)...
+&Tile Viewer...	图块查看器(&T)...
+&AGB Print	AGB 打印(&A)
+&GDB	GDB(&G)
+&Wait For Connection...	等待连接(&W)...
+&Load And Wait...	载入并等待(&L)...
+&Break Into GDB	中断到 GDB(&B)
+&Disconnect	断开连接(&D)
+Frame &Search	帧搜索(&S)
+Frame Search Pre&v	帧搜索上一帧(&V)
+Frame Search &End	帧搜索结束(&E)
+&Lua Scripting	Lua 脚本(&L)
+&New Lua Script Window...	新建 Lua 脚本窗口(&N)...
+Close &All Script Windows	关闭所有脚本窗口(&A)
+&Movie	录像(&M)
+&Play Movie...	播放录像(&P)...
+&Watch From Beginning	从头观看(&W)
+Record &New Movie...	录制新录像(&N)...
+&Resume/Exit Recording	继续/退出录制(&R)
+Read-&Only Mode	只读模式(&O)
+Edit &Mode	编辑模式(&M)
+Select &Next Mode	切换到下一模式(&N)
+&Discard Mode	丢弃模式(&D)
+&Overwrite Mode [W]	覆盖模式 [W](&O)
+&Insert Mode [I]	插入模式 [I](&I)
+&XOR-Input Mode [X]	XOR 输入模式 [X](&X)
+When Movie &Ends	录像结束时(&E)
+&Pause Emulator	暂停模拟器(&P)
+&Close Movie	关闭录像(&C)
+&Append If Modified	如已修改则追加(&A)
+&Leave Open	保持打开(&L)
+&Stop Movie	停止录像(&S)
+Advanced &Tools	高级工具(&T)
+&Convert From VBM 1.0	从 VBM 1.0 转换(&C)
+&Auto Convert Opened Movie	自动转换打开的录像(&A)
+Fix &Header	修复文件头(&H)
+&Insert 1 Frame	插入 1 帧(&I)
+&Delete 1 Frame	删除 1 帧(&D)
+I&nsert Frames...	插入多帧(&N)...
+D&elete Frames...	删除多帧(&E)...
+&Truncate At Current Frame	截断到当前帧(&T)
+&Associate With Savestates	与即时存档关联(&A)
+Pause/Resume AVI &Recording	暂停/继续 AVI 录制(&R)
+Start/Stop &AVI Recording...	开始/停止 AVI 录制(&A)...
+Record AVI/Screenshot at &Window Size and Filter	按窗口尺寸和滤镜录制 AVI/截图(&W)
+Start/Stop &WAV Recording...	开始/停止 WAV 录制(&W)...
+Screenshot &Capture...	屏幕截图(&C)...
+Screenshot &Format	截图格式(&F)
+&PNG	PNG(&P)
+&Help	帮助(&H)
+&FAQ (Website)...	常见问题（网站）(&F)...
+&Bug Report...	问题报告(&B)...
+&About...	关于(&A)...
+&New List\tCtrl+N	新建列表(&N)\tCtrl+N
+&Open...\tCtrl+O	打开(&O)...\tCtrl+O
+&Save\tCtrl+S	保存(&S)\tCtrl+S
+Sa&ve As...\tCtrl+Shift+S	另存为(&V)...\tCtrl+Shift+S
+&Append File...	追加文件(&A)...
+&Recent	最近(&R)
+Auto-&Load	自动读取(&L)
+Save &Window Position	保存窗口位置(&W)
+&Close\tAlt+F4	关闭(&C)\tAlt+F4
+&Watches	监视项(&W)
+&New Watch\tN	新建监视项(&N)\tN
+&Edit Watch\tE	编辑监视项(&E)\tE
+&Remove Watch\tR	删除监视项(&R)\tR
+Duplic&ate Watch\tA	复制监视项(&A)\tA
+Move &Up\tU	上移(&U)\tU
+Move &Down\tD	下移(&D)\tD
+Console	控制台
+&Font...	字体(&F)...
+Clear	清除
+&About	关于(&A)

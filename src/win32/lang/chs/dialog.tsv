@@ -1,0 +1,356 @@
+﻿# Simplified Chinese glossary: dialog templates.
+#
+# Format: English<TAB>Chinese.  The English side is the literal exactly as it
+# appears in ../vba.rc, so it carries the same leading spaces and the same
+# "..." - the file dialog filters keep their '_' separators too.
+
+OK	确定
+Cancel	取消
+&OK	确定(&O)
+&Cancel	取消(&C)
+Open	打开
+File &name:	文件名(&N)：
+&Folders:	文件夹(&F)：
+List files of &type:	文件类型(&T)：
+Dri&ves:	驱动器(&V)：
+About VBA rerecording	关于 VBA rerecording
+VisualBoyAdvance Emulator	VisualBoyAdvance 模拟器
+Copyright (c) 2004 Forgotten and the VBA team	版权所有 (c) 2004 Forgotten 及 VBA 团队
+Contribution by Costis	Costis 亦有贡献
+Version	版本
+Modernized Edition	现代化版本
+Rebuilt and maintained by Carter Li	由 Carter Li 重构并维护
+Re-recording additions by VBA-rr team	重录制功能由 VBA-rr 团队添加
+Directories	目录
+GBA ROM:	GBA ROM：
+Reset	重置
+GBx ROM:	GBx ROM：
+Battery:	电池存档：
+Save Game:	即时存档：
+Movies:	录像：
+Cheats:	金手指：
+IPS:	IPS：
+Lua:	Lua：
+AVI:	AVI：
+WAV:	WAV：
+Capture:	截图：
+Watch:	监视：
+Joypad setup	手柄设置
+Clear	清除
+Up:	上：
+Down:	下：
+Left:	左：
+Right:	右：
+Button A:	A 键：
+Button B:	B 键：
+Button L:	L 键：
+Button R:	R 键：
+Select:	选择键：
+Start:	开始键：
+Speed:	加速键：
+GameShark:	GameShark：
+Dead zone:	死区：
+Search for cheats	搜索金手指
+Ol&d value	旧值(&D)
+Specifi&c value	指定值(&C)
+&8 bits	8 位(&8)
+&16 bits	16 位(&1)
+&32 bits	32 位(&3)
+&Equal	等于(&E)
+&Not equal	不等于(&N)
+&Less than	小于(&L)
+Le&ss or equal	小于等于(&S)
+&Greater than	大于(&G)
+G&reater or equal	大于等于(&R)
+S&igned	有符号(&I)
+&Unsigned	无符号(&U)
+&Hexadecimal	十六进制(&H)
+search u&pdates vals	搜索时更新值(&P)
+&Start	开始(&S)
+S&earch	搜索(&E)
+&Add cheat	添加金手指(&A)
+&Search type	搜索类型(&S)
+&Data size	数据大小(&D)
+Compare type	比较类型
+Signed/Unsigned	有符号/无符号
+Enter &value:	输入值(&V)：
+Refresh New &Values	刷新新值(&V)
+Add cheat	添加金手指
+8-bit	8 位
+16-bit	16 位
+32-bit	32 位
+&Enabled	启用(&E)
+&Value:	值(&V)：
+Number format	数字格式
+&Address:	地址(&A)：
+Size	大小
+&Description:	描述(&D)：
+Cheat list	金手指列表
+Restore &previous values	恢复原值(&P)
+&Group cheats	合并金手指(&G)
+&Code...	代码(&C)...
+C&heat...	金手指(&H)...
+&Gameshark...	GameShark(&G)...
+CodeBreaker...	CodeBreaker...
+&Edit	编辑(&E)
+&Remove	删除(&R)
+&Enable/Dis.	启用/禁用(&E)
+Status legend:	状态图例：
+-: Mixed	-：混合
+E: Enabled	E：启用
+D: Disabled	D：禁用
+Add	添加
+Associations	文件关联
+GBA Types	GBA 类型
+GB Types	GB 类型
+Rom information	ROM 信息
+Game title:	游戏标题：
+Game code:	游戏编号：
+Maker code:	厂商编号：
+Main unit code:	主机编号：
+Device type:	设备类型：
+ROM version:	ROM 版本：
+CRC:	CRC：
+Maker name:	厂商名称：
+Unit code:	单元编号：
+Cartridge type:	卡带类型：
+Color:	颜色：
+ROM size:	ROM 大小：
+RAM size:	RAM 大小：
+Dest. code:	目标代码：
+License code:	授权代码：
+Checksum:	校验和：
+Gameboy Cheat List	Game Boy 金手指列表
+Add &GameGenie...	添加 GameGenie(&G)...
+&Add GameShark...	添加 GameShark(&A)...
+Remove A&ll	全部删除(&L)
+Title	标题
+&Code:	代码(&C)：
+GB Printer	GB 打印机
+&Print...	打印(&P)...
+&Save...	保存(&S)...
+&Close	关闭(&C)
+Print Size	打印尺寸
+Motion Sensor	动作感应器
+Language selection	语言选择
+Current system language is:	当前系统语言为：
+Enter language name (3 letter):	输入语言名称（3 个字母）：
+Select codes to import	选择要导入的代码
+Map view	地图查看器
+Frame 0	帧 0
+Frame 1	帧 1
+Stretch to fit	拉伸适应
+Auto update	自动更新
+&Refresh	刷新(&R)
+Frame	帧
+Background	背景
+Mode:	模式：
+Map Base:	地图基址：
+Char Base:	字符基址：
+Size:	大小：
+Colors:	颜色数：
+Priority:	优先级：
+Mosaic:	马赛克：
+Overflow:	溢出：
+Address:	地址：
+Tile:	图块：
+Flip:	翻转：
+Palette:	调色板：
+Palette View	调色板查看器
+Save BG...	保存背景...
+Save OBJ...	保存精灵...
+Sprite	精灵
+R:	R：
+G:	G：
+B:	B：
+Value:	值：
+Click on a color for more information	点击颜色以查看详细信息
+Automatic update	自动更新
+Memory viewer	内存查看器
+&Go	跳转(&G)
+&Load...	载入(&L)...
+Current address:	当前地址：
+Decimal Display	十进制显示
+Align to 16-byte	对齐到 16 字节
+Oam Viewer	OAM 查看器
+Pos:	位置：
+Pal:	调色板：
+Prio:	优先级：
+Rot.:	旋转：
+Flags:	标志：
+Accelerator Editor	快捷键编辑器
+Commands:	命令：
+Current Keys:	当前按键：
+Enter new accelerator:	输入新的快捷键：
+Already assigned to:	已分配给：
+(0 to disable, millisec)	（0 表示禁用，单位毫秒）
+Kill focus on timeout:	超时后取消焦点：
+&Apply	应用(&A)
+&Insert	插入(&I)
+&Delete	删除(&D)
+&Replace	替换(&R)
+Tile Viewer	图块查看器
+Gameboy Mono Colors	Game Boy 单色配色
+Default	默认
+User 1	用户 1
+User 2	用户 2
+Disassemble	反汇编
+Automatic	自动
+Go	跳转
+Next	下一条
+Goto R15	跳转到 R15
+GDB connection	GDB 连接
+Port to wait for connection:	等待连接的端口：
+Waiting...	正在等待...
+Waiting for connection on port:	正在等待端口上的连接：
+Logging	日志
+Unaligned memory	未对齐内存访问
+Illegal write	非法写入
+Illegal read	非法读取
+Undefined instruction	未定义指令
+Verbose	详细输出
+Export Gameshark Snapshot	导出 GameShark 快照
+Description:	描述：
+Notes:	备注：
+Enter address and size	输入地址和大小
+Select video mode	选择视频模式
+Available video modes:	可用的视频模式：
+Select video driver	选择视频驱动
+Available drivers:	可用的驱动：
+Throttle	速度限制
+Enter desired throttle (1%...1000%):	输入目标速度（1%...1000%）：
+GB Disassemble	GB 反汇编
+Goto PC	跳转到 PC
+GB Oam Viewer	GB OAM 查看器
+Bank:	存储体：
+OAP:	OAP：
+GB Tile Viewer	GB 图块查看器
+VRAM Bank	VRAM 存储体
+GB Map Viewer	GB 地图查看器
+GB Palette Viewer	GB 调色板查看器
+BG	背景
+Index:	索引：
+Confirm mode	确认模式
+Do you want to keep the current mode?	要保留当前模式吗？
+Rewind Settings	回退设置
+Enter the rewind interval (0.2 ... 600) in seconds:	输入回退间隔（0.2 ... 600），单位为秒：
+Or enter 0 to disable rewind.	输入 0 可禁用回退。
+Enter number of rewind slots (1...256)	输入回退存档位数量（1...256）：
+If enabled, File->Rewind will rewind the state by <interval> seconds, as many as <slots> intervals back.	启用后，“文件 -> 回退”会把状态回退 <间隔> 秒，最多可回退 <存档位> 个间隔。
+I/O Viewer	I/O 查看器
+Fullscreen scale	全屏缩放
+Enter the maxium fullscreen scale:	输入最大全屏缩放倍数：
+Enter 0 to use maximum scale.	输入 0 表示使用最大缩放。
+Bug Report	问题报告
+Bug report data:	问题报告数据：
+&Copy	复制(&C)
+Record Movie	录制新录像
+Movie File	录像文件
+&Browse...	浏览(&B)...
+Author:	作者：
+Game System	游戏机种
+Game Boy Advance	Game Boy Advance
+Game Boy Color	Game Boy Color
+Super Game Boy	Super Game Boy
+Game Boy	Game Boy
+Bios Settings	BIOS 设置
+Record Options	录制选项
+From now (snapshot)	从现在开始（快照）
+From reset (SRAM)	从复位开始（SRAM）
+From start (power-on)	从开机开始（冷启动）
+No BIOS	不使用 BIOS
+Emulator's BIOS	模拟器自带 BIOS
+GBA BIOS	GBA BIOS
+GBA BIOS with intro	GBA BIOS 含开机画面
+Play Movie	播放录像
+Recording Date:	录制日期：
+Length:	长度：
+Frames:	帧数：
+Re-record Count:	重录制次数：
+Core Version:	核心版本：
+Open Read-Only	以只读方式打开
+Press OK to start playing the movie.\nNote that this will erase or overwrite your game's SRAM,\nand may change other emulator settings.	按“确定”开始播放录像。\n注意：这会擦除或覆盖游戏的 SRAM，\n并可能更改其他模拟器设置。
+From snapshot	从快照开始
+From reset/SRAM	从复位/SRAM 开始
+From power-on	从开机开始
+Pause at frame:	暂停于第几帧：
+Hide SGB Border	隐藏 SGB 边框
+Text Options	文字选项
+Color	颜色
+White	白色
+Red	红色
+Yellow	黄色
+Green	绿色
+Cyan	青色
+Blue	蓝色
+Magenta	品红
+Black	黑色
+Outlined	描边
+Transparent	透明
+Mode	模式
+Display	显示
+In Game	游戏内
+On Game	游戏上
+On Screen	屏幕上
+Lua Script	Lua 脚本
+Browse...	浏览...
+Run	运行
+Stop	停止
+Output Console	输出控制台
+Script File	脚本文件
+Edit	编辑
+ RAM Search	 RAM 搜索
+&Watch	监视(&W)
+&Eliminate	排除(&E)
+Comparison Operator	比较运算符
+Less Than	小于
+Greater Than	大于
+Less Than or Equal To	小于等于
+Greater Than or Equal To	大于等于
+Equal To	等于
+Not Equal To	不等于
+Different By:	相差：
+Modulo	取模
+Compare To / By	比较对象／方式
+Previous Value	上一个值
+Specific Value:	指定值：
+Specific Address:	指定地址：
+Number of Changes:	变更次数：
+Data Type / Display	数据类型／显示
+Signed	有符号
+Unsigned	无符号
+Hexadecimal	十六进制
+Autosearch	自动搜索
+Data Size	数据大小
+1 byte	1 字节
+2 bytes	2 字节
+4 bytes	4 字节
+Check Misaligned	检查未对齐
+&Clear Change Counts	清除变更计数(&C)
+&Undo	撤销(&U)
+Is	是
+ Edit Watch	 ​编辑监视项
+Data Type	数据类型
+&1 byte	1 字节(&1)
+&2 bytes	2 字节(&2)
+&4 bytes	4 字节(&4)
+ RAM Watch	 RAM 监视
+&New	新建(&N)
+Duplic&ate	复制(&A)
+Add &Cheat	添加(&C)
+Watches	监视
+Separator	分隔符
+Input Prompt	输入提示
+Choose File	选择文件
+&Add Cheat	添加(&A)
+&Search	搜索(&S)
+&Signed	有符号(&S)
+Close	关闭
+Refresh	刷新
+Save...	保存...
+Colors	颜色数
+Char Base	字符基址
+Map Base	地图基址
+Sprite:	精灵：
+Title:	标题：
+

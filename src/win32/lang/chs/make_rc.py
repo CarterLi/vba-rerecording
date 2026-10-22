@@ -1,0 +1,316 @@
+#!/usr/bin/env python3
+"""Generate vba_chs.rc, the Simplified Chinese resource script.
+
+The output is a resource-only script with the same block structure as
+../vba.rc: the three menus, every dialog, and every string table.  Only
+the text of the literals changes, so control ids, coordinates, styles and
+the #if blocks that follow the build switches stay exactly as the English
+original has them - there is no way for the two to drift apart.
+
+The translations live in the *.tsv glossaries next to this file, one
+"English<TAB>Chinese" pair per line.  A '#' starts a comment.  The English
+side is the literal exactly as it appears in vba.rc, including the doubled
+quotes, the '\\t' of an accelerator and any leading spaces that indent a
+menu entry.
+
+Usage:
+    python make_rc.py            # rewrite vba_chs.rc
+    python make_rc.py --check    # report only, exit 1 if anything is left
+
+Nothing in the build runs this; vba_chs.rc is checked in.
+"""
+
+import os
+import re
+import sys
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+SOURCE = os.path.normpath(os.path.join(HERE, "..", "..", "vba.rc"))
+TARGET = os.path.join(HERE, "vba_chs.rc")
+
+# A resource block starts with "<name> MENU|DIALOG|DIALOGEX" or with a bare
+# STRINGTABLE, and ends at the first END that sits in column 0.
+BLOCK_START = re.compile(r"^(?:[A-Za-z_][A-Za-z0-9_]*\s+)?(MENU|DIALOGEX|DIALOG|STRINGTABLE)\b")
+LITERAL = re.compile(r'"((?:[^"]|"")*)"')
+
+HEADER = """\
+// Simplified Chinese resources for vba-rerecording.
+//
+// GENERATED FILE - do not edit.  The text comes from the *.tsv glossaries
+// next to this one, and the block structure from ../vba.rc; run
+//
+//     python make_rc.py
+//
+// in this directory after changing either of them.
+//
+// The file is UTF-8 with a byte order mark and says so below, which is what
+// makes the compiler store every string as UTF-16 no matter what code page
+// the build machine runs on.  A translation for another language is a copy
+// of this directory with its own LANGUAGE line, its own code page and its
+// own vba_<lang>.dll name.
+
+#pragma code_page(65001)
+
+// afxres.h and not winresrc.h: the menu names the standard MFC commands
+// (ID_FILE_OPEN and friends), which are defined there and nowhere else.  It
+// is a header of the resource compiler's include path, so the module does not
+// link against MFC, it only borrows the id list.
+#include <afxres.h>
+
+#ifndef IDC_STATIC
+#define IDC_STATIC -1
+#endif
+
+#include "../../resource.h"
+#include "../../DDrawConfig.h"
+#include "../../GdiConfig.h"
+#include "../../OpenGLConfig.h"
+#include "../../WgpuConfig.h"
+
+LANGUAGE LANG_CHINESE, SUBLANG_CHINESE_SIMPLIFIED
+
+// The About box shows the application icon; its dialog template lives here,
+// so the icon has to be here too or the control comes up empty.
+IDI_ICON                ICON                    "../../gbadvance.ico"
+
+"""
+
+# Literals that are deliberately left as they are: window classes, resource
+# names used as placeholder text for a custom control, the placeholders a
+# dialog fills in at run time, the GBA registers and layers, the scalers that
+# are named after their algorithms, and the single letters of the pad buttons.
+KEEP = set(line.strip() for line in """
+    ...
+    %
+    0
+    BG0
+    BG1
+    BG2
+    BG3
+    1
+    16
+    256
+    .agb
+    .bin
+    .cgb
+    .gb
+    .gba
+    .gbc
+    .sgb
+    MS Sans Serif
+    MS Shell Dlg
+    Button
+    Static
+    SysListView32
+    SysTabControl32
+    SysTreeView32
+    VbaBitmapControl
+    VbaColorControl
+    VbaMemoryViewer
+    VbaPaletteViewControl
+    VbaZoomControl
+    msctls_progress32
+    msctls_trackbar32
+    msctls_updown32
+    Custom1
+    MapView
+    PaletteViewBG
+    Slider1
+    Viewer
+    Zoom
+    Movie ROM: ...
+    Your ROM: ...
+    CORE
+    DATE
+    LENGTH
+    FRAMES
+    RERECORD
+    https://github.com/TASEmulators/vba-rerecording/
+    AGBPrint
+    SWI
+    &2xSaI
+    &Super 2xSaI
+    Super &Eagle
+    &AdvanceMAME Scale2x
+    LQ2x
+    HQ2x
+    HQ2xS
+    HQ3x
+    HQ3xS
+    HQ4x
+    xBRZ 2x
+    xBRZ 3x
+    xBRZ 4x
+    xBRZ 5x
+    ScaleFX 3x
+    BG 0
+    BG 1
+    BG 2
+    BG 3
+    OBJ
+    OBJ WIN
+    WIN 0
+    WIN 1
+    &A
+    &B
+    &L
+    &R
+    DMA 0
+    DMA 1
+    DMA 2
+    DMA 3
+    ARM
+    THUMB
+    0x6000000
+    0x6004000
+    0x6008000
+    0x600C000
+    0x6010000
+    0x8000
+    0x8800
+    0x9800
+    0x9C00
+    AF:
+    BC:
+    DE:
+    HL:
+    SP:
+    PC:
+    IFF:
+    R0:
+    R1:
+    R2:
+    R3:
+    R4:
+    R5:
+    R6:
+    R7:
+    R8:
+    R9:
+    R10:
+    R11:
+    R12:
+    R13:
+    R14:
+    R15:
+    R16:
+    N
+    Z
+    C
+    V
+    F
+    I
+    T
+    H
+""".splitlines() if line.strip())
+
+
+
+def load_glossary():
+    table = {}
+    duplicates = []
+    for name in sorted(os.listdir(HERE)):
+        if not name.endswith(".tsv"):
+            continue
+        path = os.path.join(HERE, name)
+        with open(path, encoding="utf-8-sig") as handle:
+            for number, line in enumerate(handle, 1):
+                line = line.rstrip("\n").rstrip("\r")
+                if not line.strip() or line.lstrip().startswith("#"):
+                    continue
+                parts = line.split("\t")
+                if len(parts) != 2:
+                    sys.exit("%s:%d: expected two tab separated columns" % (name, number))
+                source, translated = parts
+                if source in table and table[source] != translated:
+                    duplicates.append((source, table[source], translated, name))
+                    continue
+                table[source] = translated
+    for source, first, second, name in duplicates:
+        sys.exit("%s: %r is translated twice, as %r and %r"
+                 % (name, source, first, second))
+    return table
+
+
+def read_blocks():
+    with open(SOURCE, encoding="utf-8-sig") as handle:
+        lines = handle.read().splitlines()
+
+    blocks = []
+    index = 0
+    while index < len(lines):
+        line = lines[index]
+        if not line.lstrip().startswith("//") and BLOCK_START.match(line):
+            block = [line]
+            index += 1
+            while index < len(lines):
+                block.append(lines[index])
+                # Only the END in column 0 closes a block; the ones that close
+                # a nested POPUP are indented.
+                done = lines[index].rstrip() == "END"
+                index += 1
+                if done:
+                    break
+            blocks.append(block)
+        else:
+            index += 1
+    return blocks
+
+
+def main():
+    check_only = "--check" in sys.argv[1:]
+    glossary = load_glossary()
+    blocks = read_blocks()
+
+    missing = {}
+    output = [HEADER]
+
+    for block in blocks:
+        for line in block:
+            if line.lstrip().startswith("//"):
+                output.append(line)
+                continue
+
+            def replace(match):
+                text = match.group(1)
+                if text in glossary:
+                    return '"%s"' % glossary[text]
+                if text and text not in KEEP:
+                    missing.setdefault(text, 0)
+                    missing[text] += 1
+                return match.group(0)
+
+            output.append(LITERAL.sub(replace, line))
+        output.append("")
+
+    if missing:
+        print("not translated (%d distinct):" % len(missing))
+        for text, count in sorted(missing.items()):
+            print("  %3d  %s" % (count, text))
+        if check_only:
+            return 1
+
+    text = "\r\n".join(output).rstrip() + "\r\n"
+
+    if check_only:
+        try:
+            with open(TARGET, encoding="utf-8-sig", newline="") as handle:
+                current = handle.read()
+        except FileNotFoundError:
+            current = None
+        if current != text:
+            print("vba_chs.rc is out of date, run make_rc.py")
+            return 1
+        print("vba_chs.rc is up to date, %d blocks, %d strings"
+              % (len(blocks), len(glossary)))
+        return 0
+
+    with open(TARGET, "w", encoding="utf-8-sig", newline="") as handle:
+        handle.write(text)
+
+    print("wrote %s: %d blocks, %d strings" % (TARGET, len(blocks), len(glossary)))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -1,0 +1,213 @@
+﻿# Simplified Chinese glossary: string table.
+#
+# Format: English<TAB>Chinese.  The English side is the literal exactly as it
+# appears in ../vba.rc.  Format specifiers (%s %d %02x %08x), the \n escapes
+# and the '_' separators of the file dialog filters have to survive unchanged.
+
+Select Save Directory:	选择即时存档目录：
+Select Capture directory:	选择截图目录：
+Select AVI recording directory:	选择 AVI 录制目录：
+Select Sound recording directory:	选择声音录制目录：
+Select Cheat list directory:	选择金手指列表目录：
+Select Memory watch file directory:	选择内存监视文件目录：
+Select IPS directory:	选择 IPS 目录：
+Select Plugin directory:	选择插件目录：
+Lua Script (.lua)_*.lua_All Files_*.*__	Lua 脚本 (.lua)_*.lua_所有文件_*.*__
+Select Lua script file name	选择 Lua 脚本文件名
+Select Lua script file directory:	选择 Lua 脚本文件目录：
+Start &AVI Recording...	开始 AVI 录制(&A)...
+Stop &AVI Recording	停止 AVI 录制(&A)
+Pause AVI &Recording	暂停 AVI 录制(&R)
+Resume AVI &Recording	继续 AVI 录制(&R)
+Start &WAV Recording...	开始 WAV 录制(&W)...
+Stop &WAV Recording	停止 WAV 录制(&W)
+Image encoder for %s is not installed.\n\nWindows could not start the codec for this format. Install the matching Windows image codec (the HEIF and JPEG XL ones are Microsoft Store extensions), then try again.\n\nSee vba-trace.log for details.	没有安装 %s 的图像编码器。\n\nWindows 无法启动该格式的编解码器。请安装对应的 Windows 图像编解码器（HEIF 与 JPEG XL 属于 Microsoft Store 扩展），然后重试。\n\n详情见 vba-trace.log。
+Image export needs the Windows Imaging Component, which this version of Windows does not have.\n\nWindows XP has no WIC, so screenshots cannot be saved there. They work on Windows Vista and later.	导出图片需要 Windows 映像组件（WIC），当前版本的 Windows 没有该组件。\n\nWindows XP 不提供 WIC，因此无法在该系统上保存截图。Windows Vista 及更高版本可以正常工作。
+Unsupported cheat list type %d	不支持的金手指列表类型 %d
+Invalid GSA code. Format is XXXXXXXXYYYYYYYY.	无效的 GSA 代码。格式为 XXXXXXXXYYYYYYYY。
+Cannot import snapshot for %s. Current game is %s	无法导入 %s 的快照。当前游戏为 %s
+Unsupported snapshot file %s	不支持的快照文件 %s
+Unsupported ARM mode %02x	不支持的 ARM 模式 %02x
+Unsupported code file %s	不支持的代码文件 %s
+Warning: cheats are for game %s. Current game is %s.\nCodes may not work correctly.	警告：这些金手指属于游戏 %s，当前游戏为 %s。\n代码可能无法正常工作。
+Invalid CBA code. Format is XXXXXXXX YYYY.	无效的 CBA 代码。格式为 XXXXXXXX YYYY。
+Warning: Codes seem to be for a different game.\nCodes may not work correctly.	警告：这些代码似乎属于其他游戏。\n代码可能无法正常工作。
+Failed to allocate memory for %s	无法为 %s 分配内存
+Unsupported VisualBoyAdvance save game version %d	不支持的 VisualBoyAdvance 即时存档版本 %d
+DirectX 7.0 or greater is required to run.\nDownload at http://www.microsoft.com/directx.\n\nError found at: %s	运行需要 DirectX 7.0 或更高版本。\n下载地址：http://www.microsoft.com/directx。\n\n出错位置：%s
+Disabling Use Video Memory setting	正在禁用“使用显存”设置
+Setting will be effective the next time you start the emulator	该设置将在下次启动模拟器时生效
+Disabling Emulation Only setting	正在禁用“仅用于模拟”设置
+Cannot load save game for %s	无法为 %s 读取即时存档
+Save game is not using the BIOS file	即时存档未使用 BIOS 文件
+Save game is using the BIOS file	即时存档使用了 BIOS 文件
+Unsupported save type %d	不支持的存档类型 %d
+Cannot open file %s	无法打开文件 %s
+Bad ZIP file %s	ZIP 文件损坏 %s
+No image found on ZIP file %s	在 ZIP 文件 %s 中未找到镜像
+Error opening image %s	打开镜像时出错 %s
+Error reading image %s	读取镜像时出错 %s
+Unsupported BIOS function %02x called from %08x. A BIOS file is needed in order to get correct behaviour.	不支持的 BIOS 功能 %02x，调用自 %08x。要获得正确行为，需要提供 BIOS 文件。
+Invalid BIOS file size	BIOS 文件大小无效
+Invalid cheat code '%s'. Supported formats are:\nXXXXXXXX:YY, XXXXXXXX:YYYY, XXXXXXXX:YYYYYYYY.	无效的金手指代码“%s”。支持的格式为：\nXXXXXXXX:YY、XXXXXXXX:YYYY、XXXXXXXX:YYYYYYYY。
+Unimplemented opcode %08x from %08x	未实现的操作码 %08x，来自 %08x
+Unknown opcode %04x from %08x	未知的操作码 %04x，来自 %08x
+Error creating file %s	创建文件时出错 %s
+Failed to read complete save game %s (%d)	未能完整读取即时存档 %s (%d)
+Failed to read RTC from save game %s (continuing)	未能从即时存档 %s 读取 RTC（继续运行）
+Unsupported VisualBoy save game version %d	不支持的 VisualBoy 即时存档版本 %d
+Cannot load save game for '%s'\nPlaying '%s'	无法为“%s”读取即时存档\n正在运行“%s”
+Error opening image %s from zip file %s	从 ZIP 文件 %s 中打开镜像 %s 时出错
+Error reading image %s from zip file %s	从 ZIP 文件 %s 中读取镜像 %s 时出错
+Unsupported rom size %02x	不支持的 ROM 大小 %02x
+Unsupported ram size %02x	不支持的 RAM 大小 %02x
+Unknown cartridge type %02x	未知的卡带类型 %02x
+Maximum number of cheats reached.	已达到金手指数量上限。
+Invalid GameShark code: %s	无效的 GameShark 代码：%s
+Invalid GameGenie code: %s	无效的 GameGenie 代码：%s
+Invalid cheat to remove %d	要删除的金手指无效 %d
+Invalid cheat code address: %08x	无效的金手指代码地址：%08x
+Unsupported cheat list version %d	不支持的金手指列表版本 %d
+Failed to open file %s	无法打开文件 %s
+Failed to read zip directory for file %s	无法读取文件 %s 的 ZIP 目录
+The file ""%s"" is an unsupported type.	文件“%s”的类型不受支持。
+Cannot create DirectSound %08x	无法创建 DirectSound %08x
+Cannot SetCooperativeLevel %08x	无法调用 SetCooperativeLevel %08x
+Cannot CreateSoundBuffer %08x	无法调用 CreateSoundBuffer %08x
+Cannot SetFormat for primary %08x	无法为主缓冲区调用 SetFormat %08x
+Cannot CreateSoundBuffer secondary %08x	无法创建次级 CreateSoundBuffer %08x
+Cannot Play primary %08x	无法播放主缓冲区 %08x
+Search produced %d results.\nThey have been remembered, but are too many to display.\nPlease refine it better by performing additional searches.	搜索得到 %d 个结果。\n这些结果已被记住，但数量太多，无法显示。\n请再做几次搜索以进一步缩小范围。
+Number cannot be empty	数值不能为空
+Invalid address: %08x	无效的地址：%08x
+Misaligned half-word address: %08x	未对齐的半字地址：%08x
+Misaligned word address: %08x	未对齐的字地址：%08x
+Value cannot be empty	数值不能为空
+Error on StartDoc	StartDoc 出错
+Error on StartPage	StartPage 出错
+Error printing on StretchDIBits	StretchDIBits 打印出错
+Error on EndPage	EndPage 出错
+Error on EndDoc	EndDoc 出错
+Error	错误
+Joy %d Left	手柄 %d 左
+Joy %d Right	手柄 %d 右
+Joy %d Up	手柄 %d 上
+Joy %d Down	手柄 %d 下
+Joy %d %s	手柄 %d %s
+Select BIOS file	选择 BIOS 文件
+turbo A off	A 连发关闭
+turbo A on	A 连发开启
+turbo B off	B 连发关闭
+turbo B on	B 连发开启
+turbo L off	L 连发关闭
+turbo L on	L 连发开启
+turbo R off	R 连发关闭
+turbo R on	R 连发开启
+Select ROM	选择 ROM
+Select save game name	选择即时存档名称
+Loaded state	已读取即时存档
+Loaded %d	已读取 %d
+Saved state	已保存即时存档
+Saved %d	已保存 %d
+Loaded battery	已读取电池存档
+Select screen capture name	选择截图文件名
+Screen capture	屏幕截图
+Address	地址
+Old Value	旧值
+New Value	新值
+Add cheat code	添加金手指代码
+Code	代码
+Description	描述
+Status	状态
+Enabled	启用
+Type	类型
+Edit cheat code	编辑金手指代码
+Edit GamesharkAdvance code	编辑 GameShark Advance 代码
+Edit CodeBreakerAdvance code	编辑 CodeBreaker Advance 代码
+Invalid cheat code(s):\n%s	无效的金手指代码：\n%s
+Edit cheat	编辑金手指
+Delete %d cheat(s)?	要删除 %d 个金手指吗？
+Confirm delete	确认删除
+Merge adjacent entries with the same description and type into groups	把描述和类型相同且相邻的条目合并成一组
+When deleting a cheat, write its original value back to memory to undo the cheat's effect	删除金手指时把原值写回内存，以撤销该金手指的效果
+Failed to load library %s	无法加载库 %s
+Failed to get locale information	无法获取区域设置信息
+Select cheat list name	选择金手指列表名称
+Gameboy Advance_*.bin;*.agb;*.gba;*.bios;*.zip;*.z;*.gz;*.tar_All Files_*.*__	Game Boy Advance_*.bin;*.agb;*.gba;*.bios;*.zip;*.z;*.gz;*.tar_所有文件_*.*__
+All Gameboy / Gameboy Advance_*.bin;*.agb;*.gba;*.mb;*.elf;*.gb;*.sgb;*.cgb;*.gbc;*.zip;*.z;*.gz;*.7z;*.rar;*.lzma;*.bz2;*.bzip2;*.tar_All GB / GBA (uncompressed only)_*.bin;*.agb;*.gba;*.mb;*.elf;*.gb;*.sgb;*.cgb;*.gbc_Gameboy Advance (uncompressed only)_*.bin;*.agb;*.gba_Gameboy (uncompressed only)_*.gb;*.sgb;*.cgb;*.gbc_Archive Files_*.zip;*.z;*.gz;*.7z;*.rar;*.lzma;*.bz2;*.bzip2;*.tar_All Files_*.*__	所有 Game Boy / Game Boy Advance_*.bin;*.agb;*.gba;*.mb;*.elf;*.gb;*.sgb;*.cgb;*.gbc;*.zip;*.z;*.gz;*.7z;*.rar;*.lzma;*.bz2;*.bzip2;*.tar_所有 GB / GBA（仅未压缩）_*.bin;*.agb;*.gba;*.mb;*.elf;*.gb;*.sgb;*.cgb;*.gbc_Game Boy Advance（仅未压缩）_*.bin;*.agb;*.gba_Game Boy（仅未压缩）_*.gb;*.sgb;*.cgb;*.gbc_压缩包文件_*.zip;*.z;*.gz;*.7z;*.rar;*.lzma;*.bz2;*.bzip2;*.tar_所有文件_*.*__
+VisualBoyAdvance Save Game_*.sgm_All Files_*.*__	VisualBoyAdvance 即时存档_*.sgm_所有文件_*.*__
+VisualBoyAdvance Cheat List_*.clt_All Files_*.*__	VisualBoyAdvance 金手指列表_*.clt_所有文件_*.*__
+Error saving image %s\n\nSee vba-trace.log for details.	保存图片 %s 时出错\n\n详情见 vba-trace.log。
+Gameshark Snapshot_*.sps_All Files_*.*__	GameShark 快照_*.sps_所有文件_*.*__
+Select snapshot file	选择快照文件
+Battery file_*.sav_Flash save_*.dat_All Files_*.*__	电池存档_*.sav_Flash 存档_*.dat_所有文件_*.*__
+Select battery file	选择电池存档文件
+turbo Right off	右连发关闭
+turbo Right on	右连发开启
+Re-record from Slot %d	从存档位 %d 重录制
+Rewind to Slot %d	回退到存档位 %d
+Loaded cheats	已读取金手指
+Add GameGenie code	添加 GameGenie 代码
+Add GameShark code	添加 GameShark 代码
+Add GamesharkAdvance code	添加 GameShark Advance 代码
+Pocket Printer	便携打印机
+Unknown	未知
+None	无
+Unsupported display setting for color depth: %d bits. \nWindows desktop must be in either 16-bit, 24-bit or 32-bit mode for this program to work in window mode.	不支持该色深的显示设置：%d 位。\n要在窗口模式下运行本程序，Windows 桌面必须处于 16 位、24 位或 32 位模式。
+Select movie directory:	选择录像目录：
+Select GBA ROM directory:	选择 GBA ROM 目录：
+Select GBx ROM directory:	选择 GBx ROM 目录：
+Select Battery directory:	选择电池存档目录：
+Gameboy Snapshot_*.gbs_All Files_*.*__	Game Boy 快照_*.gbs_所有文件_*.*__
+Gameshark Code File_*.gcf_All Files_*.*__	GameShark 代码文件_*.gcf_所有文件_*.*__
+Select code file	选择代码文件
+Importing a snapshot file will erase any saved games and reset the emulator. Do you want to continue?	导入快照文件会擦除所有即时存档并重置模拟器。要继续吗？
+Please confirm action	请确认操作
+Importing a code file will erase any entered codes. Do you want to continue?	导入代码文件会擦除已输入的所有代码。要继续吗？
+Gameshark Code File_*.spc;*.xpc_All Files_*.*__	GameShark 代码文件_*.spc;*.xpc_所有文件_*.*__
+Add CodeBreakerAdvance code	添加 CodeBreaker Advance 代码
+Wave file_*.wav_All Files_*.*__	波形文件_*.wav_所有文件_*.*__
+Select wave file name	选择波形文件名
+All Gameboy_*.gb;*.sgb;*.cgb;*.gbc;*.zip;*.z;*.gz;*.7z;*.rar;*.lzma;*.bz2;*.bzip2;*.tar_Gameboy_*.gb_Super Gameboy_*.sgb_Color Gameboy_*.cgb;*.gbc_All Files_*.*__	所有 Game Boy_*.gb;*.sgb;*.cgb;*.gbc;*.zip;*.z;*.gz;*.7z;*.rar;*.lzma;*.bz2;*.bzip2;*.tar_Game Boy_*.gb_Super Game Boy_*.sgb_Color Game Boy_*.cgb;*.gbc_所有文件_*.*__
+Windows Palette (*.PAL)_*.pal_PaintShop Palette (*.PAL)_*.pal_Adobe Color Table (*.ACT)_*.act_All Files_*.*__	Windows 调色板 (*.PAL)_*.pal_PaintShop 调色板 (*.PAL)_*.pal_Adobe 颜色表 (*.ACT)_*.act_所有文件_*.*__
+Select palette name:	选择调色板名称：
+Search produced no results.	搜索没有结果。
+Error binding socket. Port probably in use.	绑定套接字出错。端口可能已被占用。
+Error listening on socket.	监听套接字出错。
+Error creating socket.	创建套接字出错。
+ACK not received from GDB.	未收到 GDB 的 ACK。
+Error: not a GBA image.	错误：不是 GBA 镜像。
+EEPROM saves cannot be exported.	无法导出 EEPROM 存档。
+Memory Dump_*.dmp_All Files_*.*__	内存转储_*.dmp_所有文件_*.*__
+Select dump file name	选择转储文件名
+AVI File_*.avi_All Files_*.*__	AVI 文件_*.avi_所有文件_*.*__
+Select AVI file name	选择 AVI 文件名
+Invalid throttle value. Please enter a number between 5 and 1000.	速度值无效。请输入 5 到 1000 之间的数字。
+Skin INI File_*.ini_All Files_*.*__	皮肤 INI 文件_*.ini_所有文件_*.*__
+Select the skin file name	选择皮肤文件名
+VisualBoyAdvance Movie (.vbm)_*.vbm;*.zip;*.z;*.gz;*.7z;*.rar;*.lzma;*.bz2;*.bzip2;*.tar_VisualBoyAdvance Movie (uncompressed only)_*.vbm_Archive Files_*.zip;*.z;*.gz;*.7z;*.rar;*.lzma;*.bz2;*.bzip2;*.tar_All Files_*.*__	VisualBoyAdvance 录像 (.vbm)_*.vbm;*.zip;*.z;*.gz;*.7z;*.rar;*.lzma;*.bz2;*.bzip2;*.tar_VisualBoyAdvance 录像（仅未压缩）_*.vbm_压缩包文件_*.zip;*.z;*.gz;*.7z;*.rar;*.lzma;*.bz2;*.bzip2;*.tar_所有文件_*.*__
+Select movie name	选择录像名称
+The bug report information is now available on the Windows Clipboard. Please paste it into any bug report made by email or on forums to help solve problems more easily.	问题报告信息已复制到 Windows 剪贴板。请把它粘贴到通过电子邮件或论坛提交的问题报告中，以便更快地解决问题。
+Unsupported movie version %d.	不支持的录像版本 %d。
+end of movie	录像结束
+Invalid rewind interval value. Please enter a number between 0 and 600 seconds.	回退间隔值无效。请输入 0 到 600 秒之间的数字。
+VisualBoyAdvance no longer uses the registry to store its settings. Your previous settings have been exported into the file: %s	VisualBoyAdvance 不再使用注册表保存设置。原有设置已导出到文件：%s
+Playing a movie will load a save state which may erase your previous battery saves. Please be sure to have a saved state if you don't want to loose any previous data.	播放录像会读取即时存档，这可能会擦除原有的电池存档。如不希望丢失之前的数据，请先确认已有即时存档。
+autofire off	连发关闭
+autofire already off	连发已经关闭
+turbo Start off	开始连发关闭
+turbo Start on	开始连发开启
+turbo Select off	选择连发关闭
+turbo Select on	选择连发开启
+turbo Up off	上连发关闭
+turbo Up on	上连发开启
+turbo Down off	下连发关闭
+turbo Down on	下连发开启
+turbo Left off	左连发关闭
+turbo Left on	左连发开启
+Joypad connected: %s	手柄已连接：%s
+Joypad disconnected: %s	手柄已断开：%s
+Value	值
+Previous	上一个
+Changes	变更
+Notes	备注

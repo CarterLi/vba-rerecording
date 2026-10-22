@@ -59,3 +59,4 @@ win32/userconfig/gitrev.h
 .vscode
 .VS_Latest
 *.log
+*.recipe
