@@ -9,7 +9,9 @@
 // executable: the build does not link against the library, it is resolved at
 // run time the way D3D11.DLL is, and each platform looks for its own build
 // of it (win32\lib\x86, win32\lib\x64 and win32\lib\arm64).  Without the
-// DLL the renderer cannot start and the menu entry is greyed out.
+// DLL the renderer cannot start and the menu entry is greyed out.  The
+// post-build step reads this switch as well, so a build that leaves the
+// backend out does not copy the DLL next to the executable either.
 //
 // The backend itself builds on every platform the project has, x86, x64 and
 // ARM64, and nothing else in the tree refers to the switch.

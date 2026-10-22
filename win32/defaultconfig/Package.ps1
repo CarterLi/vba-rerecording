@@ -3,9 +3,10 @@
 
     The project builds two cores, the V8 core and the V7 core, and each of
     them goes into its own output directory.  The post build step has already
-    put lua51.dll, 7z.dll and wgpu_native.dll next to each executable.  This
-    script takes the two of them, renames the executables to names a user can
-    tell apart, writes a short readme next to them and zips the lot.
+    put lua51.dll and 7z.dll next to each executable, and wgpu_native.dll when
+    the WebGPU renderer is part of the build.  This script takes the two of
+    them, renames the executables to names a user can tell apart, writes a
+    short readme next to them and zips the lot.
 
     It is what the CI workflow (.github/workflows/build.yml) uses, and it can
     be run by hand after a build:

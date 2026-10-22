@@ -309,7 +309,7 @@
     <PostBuildEvent>
       <Command>if not exist "$(OutDir)lua51.dll" copy /y "$(ProjectDir)lib\x86\lua51.dll" "$(OutDir)"
 copy /y "$(ProjectDir)lib\x86\7z.dll" "$(OutDir)"
-if exist "$(ProjectDir)lib\x86\wgpu_native.dll" copy /y "$(ProjectDir)lib\x86\wgpu_native.dll" "$(OutDir)"</Command>
+call "$(ProjectDir)defaultconfig\CopyWgpu.bat" "$(Platform)" "$(OutDir)"</Command>
       <Message>Copying the Lua engine and the 7-Zip library next to the emulator</Message>
     </PostBuildEvent>
     <ResourceCompile>
@@ -361,7 +361,7 @@ if exist "$(ProjectDir)lib\x86\wgpu_native.dll" copy /y "$(ProjectDir)lib\x86\wg
     <PostBuildEvent>
       <Command>if not exist "$(OutDir)lua51.dll" copy /y "$(ProjectDir)lib\x64\lua51.dll" "$(OutDir)"
 copy /y "$(ProjectDir)lib\x64\7z.dll" "$(OutDir)"
-if exist "$(ProjectDir)lib\x64\wgpu_native.dll" copy /y "$(ProjectDir)lib\x64\wgpu_native.dll" "$(OutDir)"</Command>
+call "$(ProjectDir)defaultconfig\CopyWgpu.bat" "$(Platform)" "$(OutDir)"</Command>
       <Message>Copying the Lua engine and the 7-Zip library next to the emulator</Message>
     </PostBuildEvent>
     <ResourceCompile>
@@ -414,7 +414,7 @@ if exist "$(ProjectDir)lib\x64\wgpu_native.dll" copy /y "$(ProjectDir)lib\x64\wg
     <PostBuildEvent>
       <Command>if not exist "$(OutDir)lua51.dll" copy /y "$(ProjectDir)lib\x86\lua51.dll" "$(OutDir)"
 copy /y "$(ProjectDir)lib\x86\7z.dll" "$(OutDir)"
-if exist "$(ProjectDir)lib\x86\wgpu_native.dll" copy /y "$(ProjectDir)lib\x86\wgpu_native.dll" "$(OutDir)"</Command>
+call "$(ProjectDir)defaultconfig\CopyWgpu.bat" "$(Platform)" "$(OutDir)"</Command>
       <Message>Copying the Lua engine and the 7-Zip library next to the emulator</Message>
     </PostBuildEvent>
     <ResourceCompile>
@@ -465,7 +465,7 @@ if exist "$(ProjectDir)lib\x86\wgpu_native.dll" copy /y "$(ProjectDir)lib\x86\wg
     <PostBuildEvent>
       <Command>if not exist "$(OutDir)lua51.dll" copy /y "$(ProjectDir)lib\x64\lua51.dll" "$(OutDir)"
 copy /y "$(ProjectDir)lib\x64\7z.dll" "$(OutDir)"
-if exist "$(ProjectDir)lib\x64\wgpu_native.dll" copy /y "$(ProjectDir)lib\x64\wgpu_native.dll" "$(OutDir)"</Command>
+call "$(ProjectDir)defaultconfig\CopyWgpu.bat" "$(Platform)" "$(OutDir)"</Command>
       <Message>Copying the Lua engine and the 7-Zip library next to the emulator</Message>
     </PostBuildEvent>
     <ResourceCompile>
@@ -517,7 +517,7 @@ if exist "$(ProjectDir)lib\x64\wgpu_native.dll" copy /y "$(ProjectDir)lib\x64\wg
     <PostBuildEvent>
       <Command>if not exist "$(OutDir)lua51.dll" copy /y "$(ProjectDir)lib\x86\lua51.dll" "$(OutDir)"
 copy /y "$(ProjectDir)lib\x86\7z.dll" "$(OutDir)"
-if exist "$(ProjectDir)lib\x86\wgpu_native.dll" copy /y "$(ProjectDir)lib\x86\wgpu_native.dll" "$(OutDir)"</Command>
+call "$(ProjectDir)defaultconfig\CopyWgpu.bat" "$(Platform)" "$(OutDir)"</Command>
       <Message>Copying the Lua engine and the 7-Zip library next to the emulator</Message>
     </PostBuildEvent>
   </ItemDefinitionGroup>
@@ -564,7 +564,7 @@ if exist "$(ProjectDir)lib\x86\wgpu_native.dll" copy /y "$(ProjectDir)lib\x86\wg
     <PostBuildEvent>
       <Command>if not exist "$(OutDir)lua51.dll" copy /y "$(ProjectDir)lib\x64\lua51.dll" "$(OutDir)"
 copy /y "$(ProjectDir)lib\x64\7z.dll" "$(OutDir)"
-if exist "$(ProjectDir)lib\x64\wgpu_native.dll" copy /y "$(ProjectDir)lib\x64\wgpu_native.dll" "$(OutDir)"</Command>
+call "$(ProjectDir)defaultconfig\CopyWgpu.bat" "$(Platform)" "$(OutDir)"</Command>
       <Message>Copying the Lua engine and the 7-Zip library next to the emulator</Message>
     </PostBuildEvent>
   </ItemDefinitionGroup>
@@ -610,7 +610,7 @@ if exist "$(ProjectDir)lib\x64\wgpu_native.dll" copy /y "$(ProjectDir)lib\x64\wg
     <PostBuildEvent>
       <Command>if not exist "$(OutDir)lua51.dll" copy /y "$(ProjectDir)lib\x86\lua51.dll" "$(OutDir)"
 copy /y "$(ProjectDir)lib\x86\7z.dll" "$(OutDir)"
-if exist "$(ProjectDir)lib\x86\wgpu_native.dll" copy /y "$(ProjectDir)lib\x86\wgpu_native.dll" "$(OutDir)"</Command>
+call "$(ProjectDir)defaultconfig\CopyWgpu.bat" "$(Platform)" "$(OutDir)"</Command>
       <Message>Copying the Lua engine and the 7-Zip library next to the emulator</Message>
     </PostBuildEvent>
   </ItemDefinitionGroup>
@@ -655,7 +655,7 @@ if exist "$(ProjectDir)lib\x86\wgpu_native.dll" copy /y "$(ProjectDir)lib\x86\wg
     <PostBuildEvent>
       <Command>if not exist "$(OutDir)lua51.dll" copy /y "$(ProjectDir)lib\x64\lua51.dll" "$(OutDir)"
 copy /y "$(ProjectDir)lib\x64\7z.dll" "$(OutDir)"
-if exist "$(ProjectDir)lib\x64\wgpu_native.dll" copy /y "$(ProjectDir)lib\x64\wgpu_native.dll" "$(OutDir)"</Command>
+call "$(ProjectDir)defaultconfig\CopyWgpu.bat" "$(Platform)" "$(OutDir)"</Command>
       <Message>Copying the Lua engine and the 7-Zip library next to the emulator</Message>
     </PostBuildEvent>
   </ItemDefinitionGroup>
@@ -697,7 +697,7 @@ if exist "$(ProjectDir)lib\x64\wgpu_native.dll" copy /y "$(ProjectDir)lib\x64\wg
     <PostBuildEvent>
       <Command>if not exist "$(OutDir)lua51.dll" copy /y "$(ProjectDir)lib\x86\lua51.dll" "$(OutDir)"
 copy /y "$(ProjectDir)lib\x86\7z.dll" "$(OutDir)"
-if exist "$(ProjectDir)lib\x86\wgpu_native.dll" copy /y "$(ProjectDir)lib\x86\wgpu_native.dll" "$(OutDir)"</Command>
+call "$(ProjectDir)defaultconfig\CopyWgpu.bat" "$(Platform)" "$(OutDir)"</Command>
       <Message>Copying the Lua engine and the 7-Zip library next to the emulator</Message>
     </PostBuildEvent>
   </ItemDefinitionGroup>
@@ -739,7 +739,7 @@ if exist "$(ProjectDir)lib\x86\wgpu_native.dll" copy /y "$(ProjectDir)lib\x86\wg
     <PostBuildEvent>
       <Command>if not exist "$(OutDir)lua51.dll" copy /y "$(ProjectDir)lib\x64\lua51.dll" "$(OutDir)"
 copy /y "$(ProjectDir)lib\x64\7z.dll" "$(OutDir)"
-if exist "$(ProjectDir)lib\x64\wgpu_native.dll" copy /y "$(ProjectDir)lib\x64\wgpu_native.dll" "$(OutDir)"</Command>
+call "$(ProjectDir)defaultconfig\CopyWgpu.bat" "$(Platform)" "$(OutDir)"</Command>
       <Message>Copying the Lua engine and the 7-Zip library next to the emulator</Message>
     </PostBuildEvent>
   </ItemDefinitionGroup>
@@ -789,7 +789,7 @@ if exist "$(ProjectDir)lib\x64\wgpu_native.dll" copy /y "$(ProjectDir)lib\x64\wg
     <PostBuildEvent>
       <Command>if not exist "$(OutDir)lua51.dll" copy /y "$(ProjectDir)lib\arm64\lua51.dll" "$(OutDir)"
 copy /y "$(ProjectDir)lib\arm64\7z.dll" "$(OutDir)"
-if exist "$(ProjectDir)lib\arm64\wgpu_native.dll" copy /y "$(ProjectDir)lib\arm64\wgpu_native.dll" "$(OutDir)"</Command>
+call "$(ProjectDir)defaultconfig\CopyWgpu.bat" "$(Platform)" "$(OutDir)"</Command>
       <Message>Copying the Lua engine and the 7-Zip library next to the emulator</Message>
     </PostBuildEvent>
     <ResourceCompile>
@@ -840,7 +840,7 @@ if exist "$(ProjectDir)lib\arm64\wgpu_native.dll" copy /y "$(ProjectDir)lib\arm6
     <PostBuildEvent>
       <Command>if not exist "$(OutDir)lua51.dll" copy /y "$(ProjectDir)lib\arm64\lua51.dll" "$(OutDir)"
 copy /y "$(ProjectDir)lib\arm64\7z.dll" "$(OutDir)"
-if exist "$(ProjectDir)lib\arm64\wgpu_native.dll" copy /y "$(ProjectDir)lib\arm64\wgpu_native.dll" "$(OutDir)"</Command>
+call "$(ProjectDir)defaultconfig\CopyWgpu.bat" "$(Platform)" "$(OutDir)"</Command>
       <Message>Copying the Lua engine and the 7-Zip library next to the emulator</Message>
     </PostBuildEvent>
   </ItemDefinitionGroup>
@@ -884,7 +884,7 @@ if exist "$(ProjectDir)lib\arm64\wgpu_native.dll" copy /y "$(ProjectDir)lib\arm6
     <PostBuildEvent>
       <Command>if not exist "$(OutDir)lua51.dll" copy /y "$(ProjectDir)lib\arm64\lua51.dll" "$(OutDir)"
 copy /y "$(ProjectDir)lib\arm64\7z.dll" "$(OutDir)"
-if exist "$(ProjectDir)lib\arm64\wgpu_native.dll" copy /y "$(ProjectDir)lib\arm64\wgpu_native.dll" "$(OutDir)"</Command>
+call "$(ProjectDir)defaultconfig\CopyWgpu.bat" "$(Platform)" "$(OutDir)"</Command>
       <Message>Copying the Lua engine and the 7-Zip library next to the emulator</Message>
     </PostBuildEvent>
   </ItemDefinitionGroup>
@@ -926,7 +926,7 @@ if exist "$(ProjectDir)lib\arm64\wgpu_native.dll" copy /y "$(ProjectDir)lib\arm6
     <PostBuildEvent>
       <Command>if not exist "$(OutDir)lua51.dll" copy /y "$(ProjectDir)lib\arm64\lua51.dll" "$(OutDir)"
 copy /y "$(ProjectDir)lib\arm64\7z.dll" "$(OutDir)"
-if exist "$(ProjectDir)lib\arm64\wgpu_native.dll" copy /y "$(ProjectDir)lib\arm64\wgpu_native.dll" "$(OutDir)"</Command>
+call "$(ProjectDir)defaultconfig\CopyWgpu.bat" "$(Platform)" "$(OutDir)"</Command>
       <Message>Copying the Lua engine and the 7-Zip library next to the emulator</Message>
     </PostBuildEvent>
   </ItemDefinitionGroup>
