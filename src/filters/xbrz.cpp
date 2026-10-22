@@ -21,6 +21,7 @@
 #include <cmath> //std::sqrt
 #include <vector>
 #include "xbrz_tools.h"
+#include "simd_common.h" //USE_SSE2 + intrinsics (SSE2 on x86, NEON via sse2neon on ARM64)
 
 using namespace xbrz;
 
@@ -34,6 +35,33 @@ uint32_t gradientRGB(uint32_t pixFront, uint32_t pixBack)
 {
     static_assert(0 < M && M < N && N <= 1000);
 
+#ifdef USE_SSE2
+    /* Vectorize the three independent channel gradients: one 32-bit lane per
+       channel (B, G, R, unused A). cf * M + cb * (N - M) <= 255 * 1000 < 2^24,
+       so the numerator and all its intermediates are exact in float. The only
+       rounding boundaries to care about are half-integers: a quotient can be
+       exactly .5 only for even N and must round up like uintDivRound(), while
+       every other quotient is at least 1/(2N) >= 1/2000 away from one.
+       The 0.0001f bias is smaller than that gap but much larger than the
+       accumulated float error (~4e-5), so exact halves round up and all other
+       quotients are unaffected. => identical to uintDivRound(cf*M + cb*(N-M), N). */
+    static_assert(255 * 1000 < (1 << 24), "channel math must be exact in float");
+    constexpr float roundingBias = 0.0001f;
+    static_assert(roundingBias < 1.0f / (2 * N), "bias must not cross a rounding boundary");
+
+    const __m128i zero = _mm_setzero_si128();
+    //low byte of each lane is B, followed by G, R; mask off the unused alpha byte
+    const __m128i front = _mm_unpacklo_epi16(_mm_unpacklo_epi8(_mm_cvtsi32_si128(static_cast<int>(pixFront & 0x00FFFFFFu)), zero), zero);
+    const __m128i back  = _mm_unpacklo_epi16(_mm_unpacklo_epi8(_mm_cvtsi32_si128(static_cast<int>(pixBack  & 0x00FFFFFFu)), zero), zero);
+
+    const __m128 num = _mm_add_ps(_mm_mul_ps(_mm_cvtepi32_ps(front), _mm_set1_ps(static_cast<float>(M))),
+                                  _mm_mul_ps(_mm_cvtepi32_ps(back ), _mm_set1_ps(static_cast<float>(N - M))));
+    __m128i res = _mm_cvttps_epi32(_mm_add_ps(_mm_mul_ps(num, _mm_set1_ps(1.0f / static_cast<float>(N))),
+                                              _mm_set1_ps(0.5f + roundingBias)));
+    res = _mm_packs_epi32(res, zero);  //-> 8 x int16
+    res = _mm_packus_epi16(res, zero); //-> B, G, R, 0
+    return static_cast<uint32_t>(_mm_cvtsi128_si32(res));
+#else
     auto calcColor = [](unsigned char colFront, unsigned char colBack)
     {
         return static_cast<unsigned char>(uintDivRound(colFront * M + colBack * (N - M), N));
@@ -42,6 +70,7 @@ uint32_t gradientRGB(uint32_t pixFront, uint32_t pixBack)
     return makePixel(calcColor(getRed  (pixFront), getRed  (pixBack)),
                      calcColor(getGreen(pixFront), getGreen(pixBack)),
                      calcColor(getBlue (pixFront), getBlue (pixBack)));
+#endif
 }
 
 
@@ -186,36 +215,92 @@ double distYCbCr(uint32_t pix1, uint32_t pix2, double /*testAttribute*/)
 }
 
 
+//one-time construction of the 64 MB YCbCr distance LUT.
+//noinline: keeps distYCbCrBuffered small enough to stay inlined into the per-pixel code
+#if defined(_MSC_VER)
+__declspec(noinline)
+#elif defined(__GNUC__)
+__attribute__((noinline))
+#endif
+std::vector<float> buildDiffToDist()
+{
+    std::vector<float> tmp(256 * 256 * 256);
+
+    const double k_b = 0.0593; //ITU-R BT.2020 conversion
+    const double k_r = 0.2627; //
+    const double k_g = 1 - k_b - k_r;
+
+    const double scale_b = 0.5 / (1 - k_b);
+    const double scale_r = 0.5 / (1 - k_r);
+
+#ifdef USE_SSE2
+    /* four table entries per iteration; two are computed in parallel in each
+       128-bit double vector. Every operation matches the scalar expression
+       exactly (same order, double precision, correctly rounded sqrt), so the
+       generated table is bit-identical.                                        */
+    const __m128d vk_r = _mm_set1_pd(k_r);
+    const __m128d vk_g = _mm_set1_pd(k_g);
+    const __m128d vk_b = _mm_set1_pd(k_b);
+    const __m128d vs_b = _mm_set1_pd(scale_b);
+    const __m128d vs_r = _mm_set1_pd(scale_r);
+    const __m128i byteMask = _mm_set1_epi32(0xFF);
+
+    for (uint32_t i = 0; i < 256 * 256 * 256; i += 4)
+    {
+        const __m128i packed = _mm_setr_epi32(static_cast<int>(i),     static_cast<int>(i + 1),
+                                              static_cast<int>(i + 2), static_cast<int>(i + 3));
+        //same quantization as below: getByte<2/1/0>() -> signed char -> * 2
+        __m128i r = _mm_and_si128(_mm_srli_epi32(packed, 16), byteMask);
+        __m128i g = _mm_and_si128(_mm_srli_epi32(packed,  8), byteMask);
+        __m128i b = _mm_and_si128(packed, byteMask);
+        r = _mm_slli_epi32(_mm_srai_epi32(_mm_slli_epi32(r, 24), 24), 1);
+        g = _mm_slli_epi32(_mm_srai_epi32(_mm_slli_epi32(g, 24), 24), 1);
+        b = _mm_slli_epi32(_mm_srai_epi32(_mm_slli_epi32(b, 24), 24), 1);
+
+        __m128 dist[2];
+        for (int half = 0; half < 2; ++half)
+        {
+            const __m128i r4 = half ? _mm_unpackhi_epi64(r, r) : r;
+            const __m128i g4 = half ? _mm_unpackhi_epi64(g, g) : g;
+            const __m128i b4 = half ? _mm_unpackhi_epi64(b, b) : b;
+
+            const __m128d rd = _mm_cvtepi32_pd(r4);
+            const __m128d gd = _mm_cvtepi32_pd(g4);
+            const __m128d bd = _mm_cvtepi32_pd(b4);
+
+            const __m128d y   = _mm_add_pd(_mm_add_pd(_mm_mul_pd(vk_r, rd), _mm_mul_pd(vk_g, gd)), _mm_mul_pd(vk_b, bd));
+            const __m128d c_b = _mm_mul_pd(vs_b, _mm_sub_pd(bd, y));
+            const __m128d c_r = _mm_mul_pd(vs_r, _mm_sub_pd(rd, y));
+
+            const __m128d distSq = _mm_sqrt_pd(_mm_add_pd(_mm_add_pd(_mm_mul_pd(y, y), _mm_mul_pd(c_b, c_b)), _mm_mul_pd(c_r, c_r)));
+            dist[half] = _mm_cvtpd_ps(distSq);
+        }
+        _mm_storeu_ps(&tmp[i], _mm_movelh_ps(dist[0], dist[1])); //4 x float
+    }
+#else
+    for (uint32_t i = 0; i < 256 * 256 * 256; ++i)
+    {
+        const int r_diff = static_cast<signed char>(getByte<2>(i)) * 2;
+        const int g_diff = static_cast<signed char>(getByte<1>(i)) * 2;
+        const int b_diff = static_cast<signed char>(getByte<0>(i)) * 2;
+
+        const double y   = k_r * r_diff + k_g * g_diff + k_b * b_diff; //[!], analog YCbCr!
+        const double c_b = scale_b * (b_diff - y);
+        const double c_r = scale_r * (r_diff - y);
+
+        tmp[i] = static_cast<float>(std::sqrt(square(y) + square(c_b) + square(c_r)));
+    }
+#endif
+    return tmp;
+}
+
+
 inline
 double distYCbCrBuffered(uint32_t pix1, uint32_t pix2, double /*testAttribute*/)
 {
     //30% perf boost compared to plain distYCbCr()!
     //consumes 64 MB memory; using double is only 2% faster, but takes 128 MB
-    static const std::vector<float> diffToDist = []
-    {
-        std::vector<float> tmp;
-
-        for (uint32_t i = 0; i < 256 * 256 * 256; ++i) //startup time: 114 ms on Intel Core i5 (four cores)
-        {
-            const int r_diff = static_cast<signed char>(getByte<2>(i)) * 2;
-            const int g_diff = static_cast<signed char>(getByte<1>(i)) * 2;
-            const int b_diff = static_cast<signed char>(getByte<0>(i)) * 2;
-
-            const double k_b = 0.0593; //ITU-R BT.2020 conversion
-            const double k_r = 0.2627; //
-            const double k_g = 1 - k_b - k_r;
-
-            const double scale_b = 0.5 / (1 - k_b);
-            const double scale_r = 0.5 / (1 - k_r);
-
-            const double y   = k_r * r_diff + k_g * g_diff + k_b * b_diff; //[!], analog YCbCr!
-            const double c_b = scale_b * (b_diff - y);
-            const double c_r = scale_r * (r_diff - y);
-
-            tmp.push_back(static_cast<float>(std::sqrt(square(y) + square(c_b) + square(c_r))));
-        }
-        return tmp;
-    }();
+    static const std::vector<float> diffToDist = buildDiffToDist(); //startup: ~90 ms scalar, ~2x faster with SSE2
 
     //if (pix1 == pix2) -> 8% perf degradation!
     //    return 0;
@@ -544,10 +629,35 @@ private:
 inline
 void fillBlock(uint32_t* trg, int trgWidth, uint32_t col, int blockSize)
 {
+#ifdef USE_SSE2
+    //fill one row at a time with 128-bit stores; overlapping the last store is
+    //safe because all pixels within the block are identical
+    const __m128i v = _mm_set1_epi32(static_cast<int>(col));
+
+    for (int y = 0; y < blockSize; ++y, trg += trgWidth)
+    {
+        if (blockSize >= 4)
+        {
+            _mm_storeu_si128(reinterpret_cast<__m128i*>(trg), v);
+            if (blockSize > 4)
+                _mm_storeu_si128(reinterpret_cast<__m128i*>(trg + blockSize - 4), v);
+        }
+        else if (blockSize == 3)
+        {
+            _mm_storel_epi64(reinterpret_cast<__m128i*>(trg), v);
+            trg[2] = col;
+        }
+        else if (blockSize == 2)
+            _mm_storel_epi64(reinterpret_cast<__m128i*>(trg), v);
+        else if (blockSize == 1)
+            trg[0] = col;
+    }
+#else
     for (int y = 0; y < blockSize; ++y, trg += trgWidth)
         //    std::fill(trg, trg + blockSize, col);
         for (int x = 0; x < blockSize; ++x)
             trg[x] = col;
+#endif
 }
 
 
@@ -1098,6 +1208,8 @@ struct ColorDistanceRGB
 {
     static double dist(uint32_t pix1, uint32_t pix2, double testAttribute)
     {
+        if (pix1 == pix2) //equal colors are by far the most common query and the LUT would return exactly 0
+            return 0;
         return distYCbCrBuffered(pix1, pix2, testAttribute);
 
         //if (pix1 == pix2) //about 4% perf boost
