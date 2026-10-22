@@ -129,15 +129,15 @@ something they would rather keep using.
   draw, and `WGL_EXT_swap_control_tear` so a frame that misses the blanking
   interval is shown at once instead of being held back a whole interval.
 * **WebGPU** - a renderer through `wgpu-native`, which lets the same build run
-  on Direct3D 12, Vulkan, Metal or OpenGL.  It sits behind a compile time
-  switch (`VBA_ENABLE_WGPU` in `WgpuConfig.h`), the backend can be picked from
-  the Video menu, the entry names the one that is really in use, and the
-  library is loaded at run time, so a build without it simply leaves the entry
-  out.
+  on Direct3D 12, Vulkan, Metal or OpenGL.  The backend can be picked from the
+  Video menu, the entry names the one that is really in use, and the library
+  is loaded at run time, so a build without it simply leaves the entry out.
+  Disabled by default.
 * **The render method menu now tells the truth.**  It names the device the
   renderer actually got ("Direct3D 9Ex", "Direct3D 9.0c"), the presentation
   model it is actually using ("Direct3D 11 (Flip)", "Direct3D 11 (Bitblt)")
-  and the WebGPU backend behind it.  No more guessing from the trace log.
+  and, where it runs, the WebGPU backend behind it.  No more guessing from
+  the trace log.
 
 ### GPU upscaling that does not cost the emulation thread
 

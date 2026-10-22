@@ -38,6 +38,7 @@
 
 #include "stdafx.h"
 #include "WgpuConfig.h"
+#include "Display.h"
 
 #if VBA_ENABLE_WGPU
 
