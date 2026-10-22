@@ -39,11 +39,11 @@ BOOL MovieOpen::OnInitDialog()
 	SetArchiveParentHWND(GetSafeHwnd());
 
 	GetDlgItem(IDC_CHECK_HIDEBORDER)->ShowWindow(FALSE);
-	GetDlgItem(IDC_LABEL_WARNING1)->SetWindowText("");
-	GetDlgItem(IDC_LABEL_WARNING2)->SetWindowText("");
-	GetDlgItem(IDC_LABEL_CORE_VERSION)->SetWindowText("");
+	GetDlgItem(IDC_LABEL_WARNING1)->SetWindowText(_T(""));
+	GetDlgItem(IDC_LABEL_WARNING2)->SetWindowText(_T(""));
+	GetDlgItem(IDC_LABEL_CORE_VERSION)->SetWindowText(_T(""));
 	coreMismatch = false;
-	GetDlgItem(IDC_EDIT_PAUSEFRAME)->SetWindowText("");
+	GetDlgItem(IDC_EDIT_PAUSEFRAME)->SetWindowText(_T(""));
 	GetDlgItem(IDC_EDIT_PAUSEFRAME)->EnableWindow(FALSE);
 	GetDlgItem(IDC_CHECK_PAUSEFRAME)->EnableWindow(FALSE);
 
@@ -103,7 +103,7 @@ void MovieOpen::OnBnClickedBrowse()
 {
 	theApp.winCheckFullscreen();    // FIXME: necessary or not?
 
-	LPCTSTR exts[] = { ".vbm", NULL };
+	LPCTSTR exts[] = { _T(".vbm"), NULL };
 
 	CString filter = winResLoadFilter(IDS_FILTER_MOVIE);
 	CString title  = winResLoadString(IDS_SELECT_MOVIE_NAME);
@@ -111,7 +111,7 @@ void MovieOpen::OnBnClickedBrowse()
 	CString movieName = winGetDestFilename(theApp.gameFilename, IDS_MOVIE_DIR, exts[0]);
 	CString movieDir  = winGetDestDir(IDS_MOVIE_DIR);
 
-	FileDlg dlg(this, movieName, filter, 1, "VBM", exts, movieDir, title, false, true);
+	FileDlg dlg(this, movieName, filter, 1, _T("VBM"), exts, movieDir, title, false, true);
 
 	do
 	{
@@ -163,14 +163,14 @@ void MovieOpen::OnBnClickedMovieRefresh()
 	if (movieLogicalName.GetLength() > 2048) movieLogicalName.Truncate(2048);
 
 	char LogicalName[2048], PhysicalName[2048];
-	if (ObtainFile(tempName, LogicalName, PhysicalName, "mov", s_movieIgnoreExtensions,
+	if (ObtainFile(winAnsiFromWide(tempName), LogicalName, PhysicalName, "mov", s_movieIgnoreExtensions,
 	               sizeof(s_movieIgnoreExtensions) / sizeof(*s_movieIgnoreExtensions)))
 	{
-		if (tempName != LogicalName)
+		if (tempName != winWideFromAnsi(LogicalName))
 		{
 			int selStart = 0, selEnd = 0;
 			m_editFilename.GetSel(selStart, selEnd);
-			m_editFilename.SetWindowText(LogicalName);
+			m_editFilename.SetWindowText(winWideFromAnsi(LogicalName));
 			m_editFilename.SetSel(selStart, selEnd, FALSE);
 		}
 		moviePhysicalName = PhysicalName;
@@ -188,17 +188,17 @@ void MovieOpen::OnBnClickedMovieRefresh()
 	movieLogicalName  = tempName;
 #endif
 
-	if (VBAMovieGetInfo(moviePhysicalName, &movieInfo) == MOVIE_SUCCESS)
+	if (VBAMovieGetInfo(winAnsiFromWide(moviePhysicalName), &movieInfo) == MOVIE_SUCCESS)
 	{
 		int movieCore   = VBAMovieGetCoreVersion(movieInfo);
 		int currentCore = VBAGetCurrentCoreVersion();
 		coreMismatch    = (movieCore != currentCore);
 
-		char coreText[128];
+		TCHAR coreText[128];
 		if (coreMismatch)
-			sprintf(coreText, "V%d (current: V%d - desync expected)", movieCore, currentCore);
+			_stprintf(coreText, _T("V%d (current: V%d - desync expected)"), movieCore, currentCore);
 		else
-			sprintf(coreText, "V%d", movieCore);
+			_stprintf(coreText, _T("V%d"), movieCore);
 
 		SetDlgItemText(IDC_LABEL_CORE_VERSION, coreText);
 		GetDlgItem(IDC_LABEL_CORE_VERSION)->Invalidate();
@@ -209,15 +209,16 @@ void MovieOpen::OnBnClickedMovieRefresh()
 			m_editDescription.SetReadOnly(TRUE);
 		}
 
-		char buffer[MOVIE_METADATA_SIZE];
+		TCHAR buffer[MOVIE_METADATA_SIZE];
 
-		strncpy(buffer, movieInfo.authorInfo, MOVIE_METADATA_AUTHOR_SIZE);
-		buffer[MOVIE_METADATA_AUTHOR_SIZE - 1] = '\0';
-		m_editAuthor.SetWindowText(buffer);
+		char meta[MOVIE_METADATA_SIZE];
+		strncpy(meta, movieInfo.authorInfo, MOVIE_METADATA_AUTHOR_SIZE);
+		meta[MOVIE_METADATA_AUTHOR_SIZE - 1] = '\0';
+		m_editAuthor.SetWindowText(winWideFromAnsi(meta));
 
-		strncpy(buffer, movieInfo.authorInfo + MOVIE_METADATA_AUTHOR_SIZE, MOVIE_METADATA_SIZE - MOVIE_METADATA_AUTHOR_SIZE);
-		buffer[MOVIE_METADATA_SIZE - MOVIE_METADATA_AUTHOR_SIZE - 1] = '\0';
-		m_editDescription.SetWindowText(buffer);
+		strncpy(meta, movieInfo.authorInfo + MOVIE_METADATA_AUTHOR_SIZE, MOVIE_METADATA_SIZE - MOVIE_METADATA_AUTHOR_SIZE);
+		meta[MOVIE_METADATA_SIZE - MOVIE_METADATA_AUTHOR_SIZE - 1] = '\0';
+		m_editDescription.SetWindowText(winWideFromAnsi(meta));
 
 		int option = 2;
 		if (movieInfo.header.startFlags & MOVIE_START_FROM_SRAM)
@@ -256,12 +257,14 @@ void MovieOpen::OnBnClickedMovieRefresh()
 
 		{
 			time_t ttime = (time_t)movieInfo.header.uid;
-			strncpy(buffer, ctime(&ttime), 127);
-			buffer[127] = '\0';
-			char *p = strrchr(buffer, '\n');
-			if (p)
-				*p = '\0';
-			GetDlgItem(IDC_LABEL_DATE)->SetWindowText(buffer);
+			char dateText[128];
+			strncpy(dateText, ctime(&ttime), 127);
+			dateText[127] = '\0';
+			CString dateWide = winWideFromAnsi(dateText);
+			const int newline = dateWide.Find(_T('\n'));
+			if (newline >= 0)
+				dateWide = dateWide.Left(newline);
+			GetDlgItem(IDC_LABEL_DATE)->SetWindowText(dateWide);
 
 			double div	   = systemGetFrameRate();
 			double l;
@@ -271,18 +274,19 @@ void MovieOpen::OnBnClickedMovieRefresh()
 			uint32 minutes = uint32(fmod(l, 60));
 			l /= 60.0;
 			uint32 hours   = uint32(fmod(l, 60));
-			sprintf(buffer, "%02u:%02u:%02u.%02u", hours, minutes, seconds, frac);
+			_stprintf(buffer, _T("%02u:%02u:%02u.%02u"), hours, minutes, seconds, frac);
 			GetDlgItem(IDC_LABEL_LENGTH)->SetWindowText(buffer);
-			sprintf(buffer, "%ld", movieInfo.header.length_frames);
+			_stprintf(buffer, _T("%ld"), movieInfo.header.length_frames);
 			GetDlgItem(IDC_LABEL_FRAMES)->SetWindowText(buffer);
-			sprintf(buffer, "%ld", movieInfo.header.rerecord_count);
+			_stprintf(buffer, _T("%ld"), movieInfo.header.rerecord_count);
 			GetDlgItem(IDC_LABEL_RERECORD)->SetWindowText(buffer);
 		}
 
 		{
 			// rather than treat these as warnings, might as well always show the info in the dialog
 			// (it's probably more informative and reassuring)
-			char warning1[1024], warning2[1024], buffer[1024];
+			char warning1[1024], warning2[1024];
+			TCHAR buffer[1024];
 			char *p1 = warning1, *p2 = warning2;
 
 			char   romTitle[12];
@@ -344,28 +348,31 @@ void MovieOpen::OnBnClickedMovieRefresh()
 				        checksum);
 			}
 
-			sprintf(buffer, "Movie ROM: %s", warning1);
+			// The explicit cast matters: variadic arguments go through no
+			// user-defined conversion, so a CString passed to %s would hand the
+			// callee the object instead of its characters.
+			_stprintf(buffer, _T("Movie ROM: %s"), (LPCTSTR)winWideFromAnsi(warning1));
 			m_warning1.SetWindowText(buffer);
 
-			sprintf(buffer, "Your ROM: %s", warning2);
+			_stprintf(buffer, _T("Your ROM: %s"), (LPCTSTR)winWideFromAnsi(warning2));
 			m_warning2.SetWindowText(buffer);
 		}
 		GetDlgItem(IDC_CHECK_PAUSEFRAME)->EnableWindow(TRUE);
 	}
 	else
 	{
-		GetDlgItem(IDC_LABEL_DATE)->SetWindowText(" ");
-		GetDlgItem(IDC_LABEL_LENGTH)->SetWindowText(" ");
-		GetDlgItem(IDC_LABEL_FRAMES)->SetWindowText(" ");
-		GetDlgItem(IDC_LABEL_RERECORD)->SetWindowText(" ");
-		GetDlgItem(IDC_LABEL_CORE_VERSION)->SetWindowText(" ");
+		GetDlgItem(IDC_LABEL_DATE)->SetWindowText(_T(" "));
+		GetDlgItem(IDC_LABEL_LENGTH)->SetWindowText(_T(" "));
+		GetDlgItem(IDC_LABEL_FRAMES)->SetWindowText(_T(" "));
+		GetDlgItem(IDC_LABEL_RERECORD)->SetWindowText(_T(" "));
+		GetDlgItem(IDC_LABEL_CORE_VERSION)->SetWindowText(_T(" "));
 		coreMismatch = false;
-		m_editAuthor.SetWindowText(" ");
-		m_editDescription.SetWindowText(" ");
-		m_warning1.SetWindowText(" ");
-		m_warning2.SetWindowText(" ");
+		m_editAuthor.SetWindowText(_T(" "));
+		m_editDescription.SetWindowText(_T(" "));
+		m_warning1.SetWindowText(_T(" "));
+		m_warning2.SetWindowText(_T(" "));
 
-		GetDlgItem(IDC_EDIT_PAUSEFRAME)->SetWindowText("");
+		GetDlgItem(IDC_EDIT_PAUSEFRAME)->SetWindowText(_T(""));
 		GetDlgItem(IDC_EDIT_PAUSEFRAME)->EnableWindow(FALSE);
 		GetDlgItem(IDC_CHECK_PAUSEFRAME)->EnableWindow(FALSE);
 		CheckDlgButton(IDC_CHECK_PAUSEFRAME, FALSE);
@@ -419,13 +426,13 @@ void MovieOpen::OnBnClickedOk()
 	{
 		bool useBiosFile = (movieInfo.header.optionFlags & MOVIE_SETTING_USEBIOSFILE) != 0;
 		extern bool systemLoadBIOS(const char *biosFileName, bool useBiosFile);
-		if (!systemLoadBIOS(theApp.biosFileName, useBiosFile))
+		if (!systemLoadBIOS(winAnsiFromWide(theApp.biosFileName), useBiosFile))
 		{
 			if (useBiosFile)
 			{
 				systemMessage(0, "This movie requires a valid GBA BIOS file to play.\nPlease locate a BIOS file.");
 				((MainWnd *)theApp.m_pMainWnd)->OnOptionsEmulatorSelectbiosfile();
-				if (!systemLoadBIOS(theApp.biosFileName, useBiosFile))
+				if (!systemLoadBIOS(winAnsiFromWide(theApp.biosFileName), useBiosFile))
 				{
 					systemMessage(0, "\"%s\" is not a valid BIOS file; cannot play movie without one.", theApp.biosFileName);
 					return;
@@ -437,31 +444,32 @@ void MovieOpen::OnBnClickedOk()
 		theApp.skipBiosIntro = (movieInfo.header.optionFlags & MOVIE_SETTING_SKIPBIOSINTRO) != 0;
 	}
 
-	int code = VBAMovieOpen(moviePhysicalName, IsDlgButtonChecked(IDC_READONLY) != FALSE);
+	int code = VBAMovieOpen(winAnsiFromWide(moviePhysicalName), IsDlgButtonChecked(IDC_READONLY) != FALSE);
 
 	if (code != MOVIE_SUCCESS)
 	{
 		if (code == MOVIE_FILE_NOT_FOUND)
-			systemMessage(0, "Could not find movie file \"%s\".", (const char *)movieLogicalName);
+			systemMessage(0, _T("Could not find movie file \"%s\"."), (LPCTSTR)movieLogicalName);
 		else if (code == MOVIE_WRONG_FORMAT)
-			systemMessage(0, "Movie file \"%s\" is not in proper VBM format.", (const char *)movieLogicalName);
+			systemMessage(0, _T("Movie file \"%s\" is not in proper VBM format."), (LPCTSTR)movieLogicalName);
 		else if (code == MOVIE_WRONG_VERSION)
-			systemMessage(0, "Movie file \"%s\" is not a supported version.", (const char *)movieLogicalName);
+			systemMessage(0, _T("Movie file \"%s\" is not a supported version."), (LPCTSTR)movieLogicalName);
 		else
-			systemMessage(0, "Failed to open movie \"%s\".", (const char *)movieLogicalName);
+			systemMessage(0, _T("Failed to open movie \"%s\"."), (LPCTSTR)movieLogicalName);
 		return;
 	}
 	else
 	{
 		// get author and movie info from the edit fields (the description might change):
-		char info[MOVIE_METADATA_SIZE], buffer[MOVIE_METADATA_SIZE];
+		char info[MOVIE_METADATA_SIZE];
+		TCHAR buffer[MOVIE_METADATA_SIZE];
 
 		m_editAuthor.GetWindowText(buffer, MOVIE_METADATA_AUTHOR_SIZE);
-		strncpy(info, buffer, MOVIE_METADATA_AUTHOR_SIZE);
+		strncpy(info, winAnsiFromWide(buffer), MOVIE_METADATA_AUTHOR_SIZE);
 		info[MOVIE_METADATA_AUTHOR_SIZE - 1] = '\0';
 
 		m_editDescription.GetWindowText(buffer, MOVIE_METADATA_SIZE - MOVIE_METADATA_AUTHOR_SIZE);
-		strncpy(info + MOVIE_METADATA_AUTHOR_SIZE, buffer, MOVIE_METADATA_SIZE - MOVIE_METADATA_AUTHOR_SIZE);
+		strncpy(info + MOVIE_METADATA_AUTHOR_SIZE, winAnsiFromWide(buffer), MOVIE_METADATA_SIZE - MOVIE_METADATA_AUTHOR_SIZE);
 		info[MOVIE_METADATA_SIZE - 1] = '\0';
 
 		VBAMovieSetMetadata(info);
@@ -469,11 +477,11 @@ void MovieOpen::OnBnClickedOk()
 
 	if (IsDlgButtonChecked(IDC_CHECK_PAUSEFRAME))
 	{
-		char buffer [9];
+		TCHAR buffer[9];
 		GetDlgItem(IDC_EDIT_PAUSEFRAME)->GetWindowText(buffer, 8);
 		buffer[8] = '\0';
 
-		int pauseFrame = atoi(buffer);
+		int pauseFrame = _ttoi(buffer);
 		if (pauseFrame >= 0)
 			VBAMovieSetPauseAt(pauseFrame);
 	}
@@ -497,14 +505,14 @@ void MovieOpen::OnBnClickedCheckPauseframe()
 {
 	if (IsDlgButtonChecked(IDC_CHECK_PAUSEFRAME))
 	{
-		char buffer [8];
-		_itoa(movieInfo.header.length_frames, buffer, 10);
+		TCHAR buffer[8];
+		_itot(movieInfo.header.length_frames, buffer, 10);
 		GetDlgItem(IDC_EDIT_PAUSEFRAME)->SetWindowText(buffer);
 		GetDlgItem(IDC_EDIT_PAUSEFRAME)->EnableWindow(TRUE);
 	}
 	else
 	{
-		GetDlgItem(IDC_EDIT_PAUSEFRAME)->SetWindowText("");
+		GetDlgItem(IDC_EDIT_PAUSEFRAME)->SetWindowText(_T(""));
 		GetDlgItem(IDC_EDIT_PAUSEFRAME)->EnableWindow(FALSE);
 	}
 }

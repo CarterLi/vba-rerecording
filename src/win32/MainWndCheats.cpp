@@ -109,14 +109,14 @@ void MainWnd::OnCheatsLoadcheatlist()
 {
 	theApp.winCheckFullscreen();
 
-	LPCTSTR exts[] = { ".clt", NULL };
+	LPCTSTR exts[] = { _T(".clt"), NULL };
 	CString filter = winResLoadFilter(IDS_FILTER_CHEAT_LIST);
 	CString title  = winResLoadString(IDS_SELECT_CHEAT_LIST_NAME);
 
 	CString cheatName = winGetDestFilename(theApp.gameFilename, IDS_CHEAT_DIR, exts[0]);
 	CString cheatDir = winGetDestDir(IDS_CHEAT_DIR);
 
-	FileDlg dlg(this, cheatName, filter, 0, "CLT", exts, cheatDir, title, false);
+	FileDlg dlg(this, cheatName, filter, 0, _T("CLT"), exts, cheatDir, title, false);
 
 	if (dlg.DoModal() == IDOK)
 	{
@@ -133,14 +133,14 @@ void MainWnd::OnCheatsSavecheatlist()
 {
 	theApp.winCheckFullscreen();
 
-	LPCTSTR exts[] = { ".clt", NULL };
+	LPCTSTR exts[] = { _T(".clt"), NULL };
 	CString filter = winResLoadFilter(IDS_FILTER_CHEAT_LIST);
 	CString title  = winResLoadString(IDS_SELECT_CHEAT_LIST_NAME);
 
 	CString cheatName = winGetDestFilename(theApp.gameFilename, IDS_CHEAT_DIR, exts[0]);
 	CString cheatDir = winGetDestDir(IDS_CHEAT_DIR);
 
-	FileDlg dlg(this, cheatName, filter, 0, "CLT", exts, cheatDir, title, true);
+	FileDlg dlg(this, cheatName, filter, 0, _T("CLT"), exts, cheatDir, title, true);
 
 	if (dlg.DoModal() == IDOK)
 	{

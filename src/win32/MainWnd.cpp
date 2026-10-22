@@ -659,8 +659,8 @@ void MainWnd::OnMove(int x, int y)
 				theApp.windowPositionX = r.left;
 				theApp.windowPositionY = r.top;
 				theApp.adjustDestRect();
-				regSetDwordValue("windowX", theApp.windowPositionX);
-				regSetDwordValue("windowY", theApp.windowPositionY);
+				regSetDwordValue(_T("windowX"), theApp.windowPositionX);
+				regSetDwordValue(_T("windowY"), theApp.windowPositionY);
 			}
 		}
 	}
@@ -976,14 +976,14 @@ static bool winUpdateCaptureFormatMenu(CMenu *pMenu)
 	if (formatCount == 0)
 	{
 		pMenu->AppendMenu(MF_STRING | MF_GRAYED, ID_OPTIONS_EMULATOR_FORMAT_FIRST,
-		                  imageWriteAvailable() ? "Unavailable" : "Not available on this Windows");
+		                  imageWriteAvailable() ? _T("Unavailable") : _T("Not available on this Windows"));
 		return true;
 	}
 
 	for (int i = 0; i < formatCount; ++i)
 	{
 		CString label = formats[i].name;
-		label.Replace(" Encoder", "");
+		label.Replace(_T(" Encoder"), _T(""));
 		label.Trim();
 
 		pMenu->AppendMenu(MF_STRING | (i == current ? MF_CHECKED : 0),
@@ -1146,15 +1146,15 @@ void MainWnd::OnDropFiles(HDROP hDropInfo)
 
 	systemSoundClearBuffer();
 
-	char szFile[1024];
-	char ext[1024];
+	TCHAR szFile[1024];
+	TCHAR ext[1024];
 
 	if (DragQueryFile(hDropInfo, 0, szFile, 1024))
 	{
 		DragFinish(hDropInfo);
 
-		_splitpath(szFile, NULL, NULL, NULL, ext);
-		if (strcasecmp(ext, ".lua") == 0)
+		_tsplitpath(szFile, NULL, NULL, NULL, ext);
+		if (_tcsicmp(ext, _T(".lua")) == 0)
 		{
 			if (!emulating)
 			{
@@ -1171,7 +1171,7 @@ void MainWnd::OnDropFiles(HDROP hDropInfo)
 					return;
 			}
 
-			if (VBALoadLuaCode(szFile))
+			if (VBALoadLuaCode(winAnsiFromWide(szFile)))
 			{
 				// success, there is nothing to do
 			}
@@ -1180,10 +1180,10 @@ void MainWnd::OnDropFiles(HDROP hDropInfo)
 				// Errors are displayed by the Lua code.
 			}
 		}
-		else if (strcasecmp(ext, ".vbm") == 0)
+		else if (_tcsicmp(ext, _T(".vbm")) == 0)
 		{
 			SMovie movieInfo;
-			char * movieName = szFile;
+			const char *movieName = winAnsiFromWide(szFile);
 			char   romTitle [12];
 			uint32 romGameCode;
 			uint16 checksum;
@@ -1287,7 +1287,7 @@ void MainWnd::OnDropFiles(HDROP hDropInfo)
 				strcat(msg, buffer);
 				strcat(msg, "still want to play the movie?");
 
-				int sel = MessageBox(msg, TEXT("ROM Mismatch"), MB_ABORTRETRYIGNORE | MB_ICONQUESTION);
+				int sel = MessageBox(winWideFromAnsi(msg), _T("ROM Mismatch"), MB_ABORTRETRYIGNORE | MB_ICONQUESTION);
 				switch (sel)
 				{
 				case IDABORT:
@@ -1314,11 +1314,11 @@ romcheck_exit:
 			bool useBiosFile = (movieInfo.header.optionFlags & MOVIE_SETTING_USEBIOSFILE) != 0;
 			if (useBiosFile)
 			{
-				if (!systemLoadBIOS(theApp.biosFileName, useBiosFile))
+				if (!systemLoadBIOS(winAnsiFromWide(theApp.biosFileName), useBiosFile))
 				{
 					systemMessage(0, "This movie requires a valid GBA BIOS file to play.\nPlease locate a BIOS file.");
 					((MainWnd *)theApp.m_pMainWnd)->OnOptionsEmulatorSelectbiosfile();
-					if (!systemLoadBIOS(theApp.biosFileName, useBiosFile))
+					if (!systemLoadBIOS(winAnsiFromWide(theApp.biosFileName), useBiosFile))
 					{
 						systemMessage(0, "\"%s\" is not a valid BIOS file; cannot play movie without one.", theApp.biosFileName);
 						return;
@@ -1341,12 +1341,12 @@ romcheck_exit:
 				return;
 			}
 		}
-		else if (strcasecmp(ext, ".wch") == 0)
+		else if (_tcsicmp(ext, _T(".wch")) == 0)
 		{
 			if (emulating)
 			{
 				MainWnd::OnFileRamWatch();
-				Load_Watches(true, szFile);
+				Load_Watches(true, winAnsiFromWide(szFile));
 			}
 		}
 		else
@@ -1391,7 +1391,7 @@ void MainWnd::winConfirmMode()
 
 bool MainWnd::winFileOpenSelect(int cartridgeType)
 {
-	int selectedFilter = regQueryDwordValue("selectedFilter", 0);
+	int selectedFilter = regQueryDwordValue(_T("selectedFilter"), 0);
 	if (selectedFilter < 0 || selectedFilter > 2)
 		selectedFilter = 0;
 
@@ -1408,11 +1408,11 @@ bool MainWnd::winFileOpenSelect(int cartridgeType)
 		initialDir = altDir.IsEmpty() ? theApp.exeDir : altDir;
 	}
 
-	FileDlg dlg(this, "", filter, selectedFilter, "ROM", exts, initialDir, title, false, true);
+	FileDlg dlg(this, _T(""), filter, selectedFilter, _T("ROM"), exts, initialDir, title, false, true);
 
 	if (dlg.DoModal() == IDOK)
 	{
-		regSetDwordValue("selectedFilter", dlg.getFilterIndex());
+		regSetDwordValue(_T("selectedFilter"), dlg.getFilterIndex());
 		theApp.romFilename = dlg.GetPathName();
 		initialDir		   = winGetDirFromFilename(theApp.romFilename);
 
@@ -1486,7 +1486,7 @@ void MainWnd::winFileClose(bool reopening)
 
 	if (this)
 		RedrawWindow(NULL, NULL, RDW_INVALIDATE | RDW_ERASE | RDW_ALLCHILDREN);
-	systemSetTitle(VBA_NAME_AND_VERSION);
+	systemSetTitle(_T(VBA_NAME_AND_VERSION));
 }
 
 bool MainWnd::winFileRun(bool reopening)
@@ -1502,7 +1502,7 @@ bool MainWnd::winFileRun(bool reopening)
 	char logicalName[2048], physicalName[2048];
 
 	// FIXME: assertion failure in fopen.c if canceled
-	if (ObtainFile(theApp.romFilename, logicalName, physicalName, "rom", s_romIgnoreExtensions,
+	if (ObtainFile(winAnsiFromWide(theApp.romFilename), logicalName, physicalName, "rom", s_romIgnoreExtensions,
 	               sizeof(s_romIgnoreExtensions) / sizeof(*s_romIgnoreExtensions)))
 	{
 		// theApp.romFilename is exactly the filename used for opening, while theApp.gameFilename is always the logical name
@@ -1536,7 +1536,7 @@ bool MainWnd::winFileRun(bool reopening)
 		{
 			CString ipsname = winGetDestFilename(logicalName, IDS_IPS_DIR, ".ips");
 			int		size	= gbRomSize;
-			utilApplyIPS(ipsname, &gbRom, &size);
+			utilApplyIPS(winAnsiFromWide(ipsname), &gbRom, &size);
 			if (size != gbRomSize)
 			{
 				extern bool gbUpdateSizes();
@@ -1567,29 +1567,31 @@ bool MainWnd::winFileRun(bool reopening)
 		//      utilGBAFindSave(rom, size);
 		//    }
 
-		char buffer[5];
-		strncpy(buffer, (const char *)&rom[0xac], 4);
-		buffer[4] = 0;
+		char gameCode[5];
+		strncpy(gameCode, (const char *)&rom[0xac], 4);
+		gameCode[4] = 0;
+		TCHAR buffer[5];
+		_tcscpy(buffer, winWideFromAnsi(gameCode));
 
 		// vba-over.ini
 		CString vbaOverINI = theApp.exeDir;
 		vbaOverINI += "\\vba-over.ini";
 
-		UINT i = GetPrivateProfileInt(buffer, "rtcEnabled", -1, vbaOverINI);
+		UINT i = GetPrivateProfileInt(buffer, _T("rtcEnabled"), -1, vbaOverINI);
 		if (i != (UINT)-1)
 			rtcEnable(i == 0 ? false : true);
 
-		i = GetPrivateProfileInt(buffer, "flashSize", -1, vbaOverINI);
+		i = GetPrivateProfileInt(buffer, _T("flashSize"), -1, vbaOverINI);
 		if (i != (UINT)-1)
 			if (i == 0x10000 || i == 0x20000)
 				flashSetSize((int32)i);
 
-		i = GetPrivateProfileInt(buffer, "saveType", -1, vbaOverINI);
+		i = GetPrivateProfileInt(buffer, _T("saveType"), -1, vbaOverINI);
 		if (i != (UINT)-1 && (i <= 5))
 			cpuSaveType = (int32)i;
 
 #ifndef USE_GBA_CORE_V7
-		i = GetPrivateProfileInt(buffer, "mirroringEnabled", -1, vbaOverINI);
+		i = GetPrivateProfileInt(buffer, _T("mirroringEnabled"), -1, vbaOverINI);
 		if (i != (UINT)-1)
 			CPUDoMirroring(i != 0);
 #endif
@@ -1605,12 +1607,12 @@ bool MainWnd::winFileRun(bool reopening)
 		{
 			CString ipsname = winGetDestFilename(logicalName, IDS_IPS_DIR, ".ips");
 			int		size	= 0x2000000;
-			utilApplyIPS(ipsname, &rom, &size);
+			utilApplyIPS(winAnsiFromWide(ipsname), &rom, &size);
 		}
 
 		skipBios = theApp.skipBiosIntro ? true : false;
 		CPUInit();
-		systemLoadBIOS(theApp.biosFileName, theApp.useBiosFile ? true : false);
+		systemLoadBIOS(winAnsiFromWide(theApp.biosFileName), theApp.useBiosFile ? true : false);
 		CPUReset();
 
 		if (reopening)
@@ -1653,12 +1655,12 @@ bool MainWnd::winFileRun(bool reopening)
 
 	{
 		extern bool playMovieFile, playMovieFileReadOnly, outputWavFile, outputAVIFile, flagHideMenu; // from VBA.cpp
-		extern char movieFileToPlay[1024], wavFileToOutput[1024]; // from VBA.cpp
+		extern CString movieFileToPlay, wavFileToOutput; // from VBA.cpp
 		extern int	pauseAfterTime; // from VBA.cpp
 		if (playMovieFile)
 		{
 			playMovieFile = false;
-			VBAMovieOpen(movieFileToPlay, playMovieFileReadOnly);
+			VBAMovieOpen(winAnsiFromWide(movieFileToPlay), playMovieFileReadOnly);
 		}
 		if (outputWavFile)
 		{

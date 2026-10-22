@@ -106,7 +106,7 @@ void MovieCreate::OnBnClickedBrowse()
 {
 	theApp.winCheckFullscreen();
 
-	LPCTSTR exts[] = { ".vbm", NULL };
+	LPCTSTR exts[] = { _T(".vbm"), NULL };
 
 	CString filter = winResLoadFilter(IDS_FILTER_MOVIE);
 	CString title  = winResLoadString(IDS_SELECT_MOVIE_NAME);
@@ -114,7 +114,7 @@ void MovieCreate::OnBnClickedBrowse()
 	CString movieName = winGetDestFilename(theApp.gameFilename, IDS_MOVIE_DIR, exts[0]);
 	CString movieDir  = winGetDestDir(IDS_MOVIE_DIR);
 
-	FileDlg dlg(this, movieName, filter, 1, "VBM", exts, movieDir, title, true);
+	FileDlg dlg(this, movieName, filter, 1, _T("VBM"), exts, movieDir, title, true);
 
 	if (dlg.DoModal() == IDCANCEL)
 	{
@@ -151,7 +151,7 @@ void MovieCreate::OnBnClickedOk()
 	}
 
 	extern bool systemLoadBIOS(const char *biosFileName, bool useBiosFile);
-	if (!systemLoadBIOS(theApp.biosFileName, useBiosFile))
+	if (!systemLoadBIOS(winAnsiFromWide(theApp.biosFileName), useBiosFile))
 	{
 		if (useBiosFile)
 		{
@@ -200,14 +200,15 @@ void MovieCreate::OnBnClickedOk()
 	}
 
 	// get author and movie info from the edit fields:
-	char info [MOVIE_METADATA_SIZE], buffer [MOVIE_METADATA_SIZE];
+	char info[MOVIE_METADATA_SIZE];
+	TCHAR buffer[MOVIE_METADATA_SIZE];
 
 	GetDlgItem(IDC_EDIT_AUTHOR)->GetWindowText(buffer, MOVIE_METADATA_AUTHOR_SIZE);
-	strncpy(info, buffer, MOVIE_METADATA_AUTHOR_SIZE);
+	strncpy(info, winAnsiFromWide(buffer), MOVIE_METADATA_AUTHOR_SIZE);
 	info[MOVIE_METADATA_AUTHOR_SIZE - 1] = '\0';
 
 	GetDlgItem(IDC_EDIT_DESCRIPTION)->GetWindowText(buffer, MOVIE_METADATA_SIZE - MOVIE_METADATA_AUTHOR_SIZE);
-	strncpy(info + MOVIE_METADATA_AUTHOR_SIZE, buffer, MOVIE_METADATA_SIZE - MOVIE_METADATA_AUTHOR_SIZE);
+	strncpy(info + MOVIE_METADATA_AUTHOR_SIZE, winAnsiFromWide(buffer), MOVIE_METADATA_SIZE - MOVIE_METADATA_AUTHOR_SIZE);
 	info[MOVIE_METADATA_SIZE - 1] = '\0';
 
 	CString movieName;
@@ -217,11 +218,11 @@ void MovieCreate::OnBnClickedOk()
 	theApp.skipBiosIntro = skipBiosIntro;
 
 	// actually make the movie file:
-	int code = VBAMovieCreate(movieName, info, startFlags, controllerFlags, typeFlags);
+	int code = VBAMovieCreate(winAnsiFromWide(movieName), info, startFlags, controllerFlags, typeFlags);
 
 	if (code != MOVIE_SUCCESS)
 	{
-		systemMessage(0, "Failed to create movie %s", (const char *)movieName);
+		systemMessage(0, _T("Failed to create movie %s"), (LPCTSTR)movieName);
 		return;
 	}
 
@@ -335,12 +336,12 @@ void MovieCreate::OnBnClickedRecEmubios()
 
 void MovieCreate::OnBnClickedRecGbabios()
 {
-	if (utilCheckBIOS(theApp.biosFileName, 4))
+	if (utilCheckBIOS(winAnsiFromWide(theApp.biosFileName), 4))
 		m_biosOption = 2;
 	else
 	{
 		((MainWnd *)theApp.m_pMainWnd)->OnOptionsEmulatorSelectbiosfile();
-		if (utilCheckBIOS(theApp.biosFileName, 4))
+		if (utilCheckBIOS(winAnsiFromWide(theApp.biosFileName), 4))
 			m_biosOption = 2;
 		else
 		{
@@ -352,12 +353,12 @@ void MovieCreate::OnBnClickedRecGbabios()
 
 void MovieCreate::OnBnClickedRecGbabiosintro()
 {
-	if (utilCheckBIOS(theApp.biosFileName, 4))
+	if (utilCheckBIOS(winAnsiFromWide(theApp.biosFileName), 4))
 		m_biosOption = 3;
 	else
 	{
 		((MainWnd *)theApp.m_pMainWnd)->OnOptionsEmulatorSelectbiosfile();
-		if (utilCheckBIOS(theApp.biosFileName, 4))
+		if (utilCheckBIOS(winAnsiFromWide(theApp.biosFileName), 4))
 			m_biosOption = 3;
 		else
 		{

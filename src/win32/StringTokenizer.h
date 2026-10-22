@@ -10,7 +10,7 @@
 class StringTokenizer
 {
 public:
-	const char *next();
+	LPCTSTR next();
 	StringTokenizer(CString str, CString token);
 	virtual ~StringTokenizer();
 private:

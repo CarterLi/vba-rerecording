@@ -95,14 +95,14 @@ BOOL IOViewer::OnInitDialog()
 	SetData(sz,
 	        TRUE,
 	        HKEY_CURRENT_USER,
-	        "Software\\Emulators\\VisualBoyAdvance\\Viewer\\IOView",
+	        _T("Software\\Emulators\\VisualBoyAdvance\\Viewer\\IOView"),
 	        NULL);
 
 	CFont *font = CFont::FromHandle(uiFont::mono());
 	int    i;
 	for (i = 0; i < sizeof(ioViewRegisters)/sizeof(IOData); i++)
 	{
-		m_address.AddString(ioViewRegisters[i].name);
+		m_address.AddString(winWideFromAnsi(ioViewRegisters[i].name));
 	}
 	m_address.SetFont(font);
 	for (i = 0; i < 16; i++)
@@ -156,12 +156,12 @@ void IOViewer::update()
 			else
 				pWnd->EnableWindow(TRUE);
 			pWnd->SetCheck(((data & (1 << i)) >> i));
-			buffer.Format("%2d %s", i, sel->bits[i]);
+			buffer.Format(_T("%2d %hs"), i, sel->bits[i]);
 			pWnd->SetWindowText(buffer);
 		}
 	}
 
-	buffer.Format("%04X", data);
+	buffer.Format(_T("%04X"), data);
 	m_value.SetWindowText(buffer);
 }
 

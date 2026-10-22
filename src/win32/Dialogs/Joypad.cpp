@@ -185,7 +185,7 @@ void JoypadConfig::OnClearKey()
 		return;
 
 	SetWindowLongPtr(wnd->m_hWnd, GWLP_USERDATA, 0);
-	wnd->SetWindowText("");
+	wnd->SetWindowText(_T(""));
 	wnd->SetFocus();
 }
 
@@ -251,7 +251,7 @@ BOOL JoypadConfig::OnInitDialog()
 		tab.InsertItem(2, _T("Gamepads"));
 
 		CString deadzone;
-		deadzone.Format("%d", theApp.input->getDeadzone());
+		deadzone.Format(_T("%d"), theApp.input->getDeadzone());
 		SetDlgItemText(IDC_EDIT_DEADZONE, deadzone);
 
 		fillGamepadList();
@@ -321,7 +321,7 @@ void JoypadConfig::OnDeadzoneChanged()
 	if (text.IsEmpty())
 		return;
 
-	int percent = atoi(text);
+	int percent = _ttoi(text);
 
 	if (percent < 0)
 		percent = 0;
@@ -372,7 +372,7 @@ void JoypadConfig::fillGamepadList()
 
 		// the number is the one the captured key shows as "Joy <n>"
 		CString number;
-		number.Format("%d", device);
+		number.Format(_T("%d"), device);
 
 		int item = gamepadList.InsertItem(row++, number);
 		gamepadList.SetItemText(item, 1, name);

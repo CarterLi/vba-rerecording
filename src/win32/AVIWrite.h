@@ -10,7 +10,7 @@ class AVIWrite {
   AVIWrite();
   virtual ~AVIWrite();
 
-  bool Open(const char *filename);
+  bool Open(LPCTSTR filename);
   virtual bool AddFrame(const u8 *bmp);
   void SetVideoFormat(BITMAPINFOHEADER *);
   bool IsSoundAdded();
@@ -42,9 +42,9 @@ class AVIWrite {
   int m_segmentNumber;
   bool m_usePrevOptions;
   bool m_pauseRecording;
-  char m_aviFileName[MAX_PATH];
-  char m_aviBaseName[MAX_PATH];
-  char m_aviExtension[MAX_PATH];
+  TCHAR m_aviFileName[MAX_PATH];
+  TCHAR m_aviBaseName[MAX_PATH];
+  TCHAR m_aviExtension[MAX_PATH];
   void CleanUp();
   bool NextSegment();
 };

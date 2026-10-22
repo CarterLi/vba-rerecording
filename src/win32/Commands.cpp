@@ -4,7 +4,7 @@
 #include "AcceleratorManager.h"
 
 #ifndef CMapStringToWord
-typedef CMap< CString, LPCSTR, WORD, WORD & > CMapStringToWord;
+typedef CMap< CString, LPCTSTR, WORD, WORD & > CMapStringToWord;
 #endif
 
 static CMapStringToWord winAccelStrings;
@@ -25,8 +25,8 @@ void winAccelAddCommandsFromTable(CAcceleratorManager &mgr)
 
 	for (int i = 0; i < count; i++)
 	{
-		if (!mgr.AddCommandAccel(winAccelCommands[i].id, winAccelCommands[i].command, false))
-			mgr.CreateEntry(winAccelCommands[i].id, winAccelCommands[i].command);
+		if (!mgr.AddCommandAccel(winAccelCommands[i].id, winWideFromAnsi(winAccelCommands[i].command), false))
+			mgr.CreateEntry(winAccelCommands[i].id, winWideFromAnsi(winAccelCommands[i].command));
 	}
 }
 

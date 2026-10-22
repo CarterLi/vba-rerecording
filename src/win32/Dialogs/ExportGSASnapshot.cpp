@@ -22,8 +22,8 @@ ExportGSASnapshot::ExportGSASnapshot(CString filename, CString title, CWnd*pPare
 	//}}AFX_DATA_INIT
 	m_title    = title;
 	m_filename = filename;
-	char date[100];
-	char time[100];
+	TCHAR date[100];
+	TCHAR time[100];
 
 	GetDateFormat(LOCALE_USER_DEFAULT,
 	              DATE_SHORTDATE,
@@ -37,7 +37,7 @@ ExportGSASnapshot::ExportGSASnapshot(CString filename, CString title, CWnd*pPare
 	              NULL,
 	              time,
 	              100);
-	m_desc.Format("%s %s", date, time);
+	m_desc.Format(_T("%s %s"), date, time);
 }
 
 void ExportGSASnapshot::DoDataExchange(CDataExchange*pDX)
@@ -81,11 +81,12 @@ void ExportGSASnapshot::OnOk()
 {
 	UpdateData(TRUE);
 
-	bool result = CPUWriteGSASnapshot(m_filename, m_title, m_desc, m_notes);
+	bool result = CPUWriteGSASnapshot(winAnsiFromWide(m_filename), winAnsiFromWide(m_title),
+	                                  winAnsiFromWide(m_desc), winAnsiFromWide(m_notes));
 
 	if (!result)
-		systemMessage(MSG_ERROR_CREATING_FILE, "Error creating file %s",
-		              m_filename);
+		systemMessage(MSG_ERROR_CREATING_FILE, _T("Error creating file %s"),
+		              (LPCTSTR)m_filename);
 
 	EndDialog(TRUE);
 }

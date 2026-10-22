@@ -147,7 +147,7 @@ BOOL GBColorDlg::OnInitDialog()
 
 	for (int j = 0; j < 8; j++)
 	{
-		int index = m_predefined.AddString(names[j]);
+		int index = m_predefined.AddString(winWideFromAnsi(names[j]));
 		m_predefined.SetItemData(index, j);
 	}
 

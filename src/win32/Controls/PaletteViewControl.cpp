@@ -377,7 +377,7 @@ void PaletteViewControl::registerClass()
     wc.hCursor = LoadCursor(NULL, IDC_ARROW);
     wc.hbrBackground = (HBRUSH )GetStockObject(BLACK_BRUSH);
     wc.lpszMenuName = NULL;
-    wc.lpszClassName = "VbaPaletteViewControl";
+    wc.lpszClassName = _T("VbaPaletteViewControl");
     AfxRegisterClass(&wc);
     isRegistered = true;
   }

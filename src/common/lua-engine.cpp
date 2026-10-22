@@ -54,7 +54,7 @@ using std::map;
 bool DemandLua()
 {
 #ifdef _WIN32
-	HMODULE mod = LoadLibrary("lua51.dll");
+	HMODULE mod = LoadLibraryA("lua51.dll");
 	if(!mod)
 	{
 		lua_host::messageBox("lua51.dll was not found. Please get it into your PATH or in the same directory as VBA.exe", "VBA", lua_host::MsgBoxType::Ok, true);
@@ -5367,9 +5367,9 @@ char *VBAGetLuaScriptName()
 #if (defined(WIN32) && !defined(SDL))
 static HMODULE luaEngineModule()
 {
-	HMODULE module = GetModuleHandle("lua51.dll");
+	HMODULE module = GetModuleHandleA("lua51.dll");
 	if (module == NULL)
-		module = LoadLibrary("lua51.dll");
+		module = LoadLibraryA("lua51.dll");
 
 	return module;
 }
@@ -5440,7 +5440,7 @@ char *VBALuaEnginePath()
 
 	HMODULE module = luaEngineModule();
 	if (module != NULL)
-		GetModuleFileName(module, path, sizeof(path));
+		GetModuleFileNameA(module, path, sizeof(path));
 
 	return path;
 }
@@ -5460,11 +5460,11 @@ static void luaEngineFileVersion(char *out, size_t size)
 		return;
 
 	char path[MAX_PATH];
-	if (GetModuleFileName(module, path, sizeof(path)) == 0)
+	if (GetModuleFileNameA(module, path, sizeof(path)) == 0)
 		return;
 
 	DWORD ignored = 0;
-	DWORD length = GetFileVersionInfoSize(path, &ignored);
+	DWORD length = GetFileVersionInfoSizeA(path, &ignored);
 	if (length == 0)
 		return;
 
@@ -5472,7 +5472,7 @@ static void luaEngineFileVersion(char *out, size_t size)
 	if (data == NULL)
 		return;
 
-	if (!GetFileVersionInfo(path, 0, length, data))
+	if (!GetFileVersionInfoA(path, 0, length, data))
 	{
 		delete [] data;
 		return;
@@ -5482,7 +5482,7 @@ static void luaEngineFileVersion(char *out, size_t size)
 	// reads better than the numeric form, so try it first.
 	WORD *translation = NULL;
 	UINT translationLength = 0;
-	if (VerQueryValue(data, "\\VarFileInfo\\Translation", (LPVOID *)&translation, &translationLength) &&
+	if (VerQueryValueA(data, "\\VarFileInfo\\Translation", (LPVOID *)&translation, &translationLength) &&
 	    translationLength >= sizeof(WORD) * 2)
 	{
 		char key[64];
@@ -5490,7 +5490,7 @@ static void luaEngineFileVersion(char *out, size_t size)
 
 		char *value = NULL;
 		UINT valueLength = 0;
-		if (VerQueryValue(data, key, (LPVOID *)&value, &valueLength) && valueLength > 1)
+		if (VerQueryValueA(data, key, (LPVOID *)&value, &valueLength) && valueLength > 1)
 			strncpy(out, value, size - 1);
 	}
 
@@ -5498,7 +5498,7 @@ static void luaEngineFileVersion(char *out, size_t size)
 	{
 		VS_FIXEDFILEINFO *info = NULL;
 		UINT infoLength = 0;
-		if (VerQueryValue(data, "\\", (LPVOID *)&info, &infoLength) &&
+		if (VerQueryValueA(data, "\\", (LPVOID *)&info, &infoLength) &&
 		    infoLength >= sizeof(VS_FIXEDFILEINFO) && info->dwSignature == VS_FFI_SIGNATURE)
 		{
 			unsigned major	 = HIWORD(info->dwFileVersionMS);

@@ -82,19 +82,19 @@ class CPerfTimerT : public CPerfTimer
 public:
 	CPerfTimerT(BOOL bStart = FALSE)
 	{
-		m_hMutex = CreateMutex(NULL,FALSE,"");
+		m_hMutex = CreateMutex(NULL,FALSE,_T(""));
 		Init(bStart);
 	}
 
 	CPerfTimerT(const CPerfTimerT& Src) 
 	{ 
-		m_hMutex = CreateMutex(NULL,FALSE,"");
+		m_hMutex = CreateMutex(NULL,FALSE,_T(""));
 		Copy(Src); 
 	}
 
 	CPerfTimerT(const CPerfTimer& Src) 
 	{ 
-		m_hMutex = CreateMutex(NULL,FALSE,"");
+		m_hMutex = CreateMutex(NULL,FALSE,_T(""));
 		Copy(Src); 
 	}
 

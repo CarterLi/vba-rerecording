@@ -17,7 +17,6 @@
 
 extern int Init_2xSaI(u32);
 extern void directXMessage(const char *);
-extern void winlog(const char *, ...);
 
 typedef struct _D3DTLVERTEX
 {
@@ -235,7 +234,7 @@ bool Direct3DDisplay::initialize()
 {
 	CWnd *pWnd = theApp.m_pMainWnd;
 
-	d3dDLL = LoadLibrary("D3D9.DLL");
+	d3dDLL = LoadLibrary(_T("D3D9.DLL"));
 	if (d3dDLL == NULL)
 	{
 		directXMessage("D3D9.DLL");
@@ -251,7 +250,7 @@ bool Direct3DDisplay::initialize()
 	if (pD3DEx != NULL)
 	{
 		pD3D = pD3DEx;
-		winlog("Direct3D 9Ex device selected\n");
+		winlog(_T("Direct3D 9Ex device selected\n"));
 	}
 	else
 	{
@@ -259,13 +258,13 @@ bool Direct3DDisplay::initialize()
 		    (PFN_Direct3DCreate9)GetProcAddress(d3dDLL, "Direct3DCreate9");
 		if (create9 == NULL)
 		{
-			winlog("Error creating Direct3D object\n");
+			winlog(_T("Error creating Direct3D object\n"));
 			return FALSE;
 		}
 		pD3D = create9(D3D_SDK_VERSION);
 		if (pD3D == NULL)
 		{
-			winlog("Error creating Direct3D object\n");
+			winlog(_T("Error creating Direct3D object\n"));
 			return FALSE;
 		}
 	}
@@ -371,7 +370,7 @@ bool Direct3DDisplay::initialize()
 	}
 	if (!SUCCEEDED(hret) || pDevice == NULL)
 	{
-		winlog("Error creating Direct3DDevice %08x\n", hret);
+		winlog(_T("Error creating Direct3DDevice %08x\n"), hret);
 		return false;
 	}
 
@@ -382,12 +381,12 @@ bool Direct3DDisplay::initialize()
 	currentSwapEffect = (int)dpp.SwapEffect;
 	currentDeviceIs9Ex = (pDeviceEx != NULL);
 	if (flipRefused != S_OK)
-		winlog("Direct3D 9Ex: no flip model swap chain (%08x), using swap effect %d (bitblt), %d back buffer(s)\n",
+		winlog(_T("Direct3D 9Ex: no flip model swap chain (%08x), using swap effect %d (bitblt), %d back buffer(s)\n"),
 		       (unsigned int)flipRefused,
 		       (int)dpp.SwapEffect,
 		       (int)dpp.BackBufferCount);
 	else
-		winlog("Direct3D 9%s: swap effect %d (%s), %d back buffer(s)\n",
+		winlog(_T("Direct3D 9%hs: swap effect %d (%hs), %d back buffer(s)\n"),
 		       pDeviceEx != NULL ? "Ex" : ".0c",
 		       (int)dpp.SwapEffect,
 		       dpp.SwapEffect == D3DSWAPEFFECT_FLIPEX ? "flip" : "bitblt",
@@ -498,7 +497,7 @@ bool Direct3DDisplay::initializeOffscreen(int w, int h)
 		                                     &pMipStaging,
 		                                     NULL)))
 		{
-			winlog("Direct3D 9: trilinear filtering through %d levels of automatic mipmaps\n",
+			winlog(_T("Direct3D 9: trilinear filtering through %d levels of automatic mipmaps\n"),
 			       (int)pMipTexture->GetLevelCount());
 		}
 		else
@@ -513,7 +512,7 @@ bool Direct3DDisplay::initializeOffscreen(int w, int h)
 				pMipTexture->Release();
 				pMipTexture = NULL;
 			}
-			winlog("Direct3D 9: no automatic mipmaps, trilinear filtering is not available\n");
+			winlog(_T("Direct3D 9: no automatic mipmaps, trilinear filtering is not available\n"));
 		}
 
 		width  = w;
@@ -569,7 +568,7 @@ void Direct3DDisplay::restoreDeviceObjects()
 	pDevice->SetTextureStageState(0, D3DTSS_COLORARG1, D3DTA_TEXTURE);
 	pDevice->SetTextureStageState(0, D3DTSS_COLORARG2, D3DTA_DIFFUSE);
 
-	int filter = regQueryDwordValue("d3dFilter", 0);
+	int filter = regQueryDwordValue(_T("d3dFilter"), 0);
 	if (filter < 0 || filter > 2)
 		filter = 0;
 	updateFiltering(filter);
@@ -697,7 +696,7 @@ void Direct3DDisplay::drawTextOverlay()
 
 	pDevice->SetRenderState(D3DRS_ALPHABLENDENABLE, FALSE);
 
-	int filter = regQueryDwordValue("d3dFilter", 0);
+	int filter = regQueryDwordValue(_T("d3dFilter"), 0);
 	if (filter < 0 || filter > 2)
 		filter = 0;
 	updateFiltering(filter);
@@ -910,7 +909,7 @@ void Direct3DDisplay::resize(int w, int h)
 			// bitblt model takes over for the rest of the session.
 			if (FAILED(hr) && dpp.SwapEffect == D3DSWAPEFFECT_FLIPEX)
 			{
-				winlog("Direct3D 9Ex: reset refused the flip model (%08x), using the bitblt model\n", hr);
+				winlog(_T("Direct3D 9Ex: reset refused the flip model (%08x), using the bitblt model\n"), hr);
 				dpp.SwapEffect      = D3DSWAPEFFECT_DISCARD;
 				dpp.BackBufferCount = 1;
 

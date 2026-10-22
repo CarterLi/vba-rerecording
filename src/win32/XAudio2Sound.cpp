@@ -232,7 +232,7 @@ bool XAudio2Sound::init()
 	wfx.nBlockAlign		= (wfx.wBitsPerSample / 8) * wfx.nChannels;
 	wfx.nAvgBytesPerSec = wfx.nSamplesPerSec * wfx.nBlockAlign;
 
-	hXAudio2 = LoadLibrary("XAudio2_9.dll");
+	hXAudio2 = LoadLibrary(_T("XAudio2_9.dll"));
 	if (hXAudio2 == NULL)
 	{
 		directXMessage("XAudio2_9.dll");
@@ -366,7 +366,7 @@ void XAudio2Sound::write()
 			{
 				theApp.soundRecorder = new WavWriter;
 
-				if (theApp.soundRecorder->Open(theApp.soundRecordName))
+				if (theApp.soundRecorder->Open(winAnsiFromWide(theApp.soundRecordName)))
 					theApp.soundRecorder->SetFormat(&wfx);
 			}
 

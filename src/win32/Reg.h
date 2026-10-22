@@ -1,18 +1,24 @@
 #ifndef VBA_REG_H
 #define VBA_REG_H
 
+// Settings storage.
+//
+// The names and values are TCHAR, because the Win32 layer is Unicode.  What is
+// stored stays in the ANSI code page, so a settings key written by an older
+// build still reads back: see the note in Reg.cpp.
 extern bool regEnabled;
 
-const char *regQueryStringValue(const char *key, const char *def);
-DWORD regQueryDwordValue(const char *key, DWORD def, bool force = false);
-BOOL regQueryBinaryValue(const char *key, char *value, int count, int *pActualCount = NULL);
-void regSetStringValue(const char *key, const char *value);
-void regSetDwordValue(const char *key, DWORD value, bool force = false);
-void regSetBinaryValue(const char *key, char *value, int count);
-void regDeleteValue(const char *key);
-void regInit(const char *);
+CString regQueryStringValue(LPCTSTR key, LPCTSTR def);
+DWORD regQueryDwordValue(LPCTSTR key, DWORD def, bool force = false);
+BOOL regQueryBinaryValue(LPCTSTR key, char *value, int count, int *pActualCount = NULL);
+void regSetStringValue(LPCTSTR key, LPCTSTR value);
+void regSetDwordValue(LPCTSTR key, DWORD value, bool force = false);
+void regSetBinaryValue(LPCTSTR key, char *value, int count);
+void regDeleteValue(LPCTSTR key);
+void regInit(const CString &path);
 void regShutdown();
-bool regCreateFileType(const char *ext, const char *type);
-bool regAssociateType(const char *type, const char *desc, const char *application);
+LPCTSTR regGetINIPath();
+bool regCreateFileType(LPCTSTR ext, LPCTSTR type);
+bool regAssociateType(LPCTSTR type, LPCTSTR desc, LPCTSTR application);
 void regExportSettingsToINI();
 #endif // VBA_REG_H

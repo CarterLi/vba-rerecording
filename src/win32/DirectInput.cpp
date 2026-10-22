@@ -159,7 +159,6 @@ static const struct {
 };
 
 extern void directXMessage(const char *);
-extern void winlog(const char *msg, ...);
 
 #define POV_UP    1
 #define POV_DOWN  2
@@ -206,7 +205,7 @@ struct deviceInfo
 	BOOL first;
 	BOOL attached;		// the controller is plugged in right now
 	int  failCount;		// reads that have failed in a row
-	char name[128];		// product name, for the messages
+	TCHAR name[128];		// product name, for the messages
 	struct
 	{
 		DWORD offset;
@@ -263,7 +262,7 @@ static void applyDeadzone()
 	}
 }
 
-static void rememberPad(const char *name)
+static void rememberPad(LPCTSTR name)
 {
 	if (name == NULL || name[0] == 0)
 		return;
@@ -281,11 +280,11 @@ static void announcePads()
 		return;
 
 	CString message;
-	message.Format(winResLoadString(IDS_JOYPAD_CONNECTED), (const char *)pendingPadNames);
+	message.Format(winResLoadString(IDS_JOYPAD_CONNECTED), (LPCTSTR)pendingPadNames);
 
 	// the trace log keeps the record whether or not the message reaches the
 	// screen: before a game is loaded there is no screen to put it on
-	winlog("%s\n", (const char *)message);
+	winlog(_T("%s\n"), (LPCTSTR)message);
 
 	pendingPadNames.Empty();
 	pendingPadCount = 0;
@@ -293,7 +292,7 @@ static void announcePads()
 	// a status message on the game screen, the way "state loaded" and the
 	// autofire toggles are reported - a dialog would stop a frame of the game
 	// (and would need a window of its own)
-	systemScreenMessage(message);
+	systemScreenMessage(winAnsiFromWide(message));
 }
 
 // A controller came or went while the emulator was running.  These arrive at
@@ -309,9 +308,9 @@ static void reportPad(deviceInfo &info, bool connected)
 
 	// always in the trace log, so a controller that came or went can be traced
 	// after the on-screen message is long gone
-	winlog("%s\n", (const char *)message);
+	winlog(_T("%s\n"), (LPCTSTR)message);
 
-	systemScreenMessage(message);
+	systemScreenMessage(winAnsiFromWide(message));
 }
 
 // Feeds the result of a device read into the attached/lost state machine and
@@ -371,11 +370,11 @@ USHORT motion[4] = {
 	DIK_NUMPAD4, DIK_NUMPAD6, DIK_NUMPAD8, DIK_NUMPAD2
 };
 
-static int winReadKey(char *name, int num)
+static int winReadKey(LPCTSTR name, int num)
 {
-	char buffer[80];
+	TCHAR buffer[80];
 
-	sprintf(buffer, "Joy%d_%s", num, name);
+	_stprintf(buffer, _T("Joy%d_%s"), num, name);
 
 	return regQueryDwordValue(buffer, (DWORD)-1);
 }
@@ -386,90 +385,90 @@ void winReadKeys()
 
 	for (int i = 0; i < 4; i++)
 	{
-		key = winReadKey("Left", i);
+		key = winReadKey(_T("Left"), i);
 		if (key != -1)
 			joypad[i][KEY_LEFT] = key;
-		key = winReadKey("Right", i);
+		key = winReadKey(_T("Right"), i);
 		if (key != -1)
 			joypad[i][KEY_RIGHT] = key;
-		key = winReadKey("Up", i);
+		key = winReadKey(_T("Up"), i);
 		if (key != -1)
 			joypad[i][KEY_UP] = key;
-		key = winReadKey("Down", i);
+		key = winReadKey(_T("Down"), i);
 		if (key != -1)
 			joypad[i][KEY_DOWN] = key;
-		key = winReadKey("A", i);
+		key = winReadKey(_T("A"), i);
 		if (key != -1)
 			joypad[i][KEY_BUTTON_A] = key;
-		key = winReadKey("B", i);
+		key = winReadKey(_T("B"), i);
 		if (key != -1)
 			joypad[i][KEY_BUTTON_B] = key;
-		key = winReadKey("L", i);
+		key = winReadKey(_T("L"), i);
 		if (key != -1)
 			joypad[i][KEY_BUTTON_L] = key;
-		key = winReadKey("R", i);
+		key = winReadKey(_T("R"), i);
 		if (key != -1)
 			joypad[i][KEY_BUTTON_R] = key;
-		key = winReadKey("Start", i);
+		key = winReadKey(_T("Start"), i);
 		if (key != -1)
 			joypad[i][KEY_BUTTON_START] = key;
-		key = winReadKey("Select", i);
+		key = winReadKey(_T("Select"), i);
 		if (key != -1)
 			joypad[i][KEY_BUTTON_SELECT] = key;
-		key = winReadKey("Speed", i);
+		key = winReadKey(_T("Speed"), i);
 		if (key != -1)
 			joypad[i][KEY_BUTTON_SPEED] = key;
-		key = winReadKey("Capture", i);
+		key = winReadKey(_T("Capture"), i);
 		if (key != -1)
 			joypad[i][KEY_BUTTON_CAPTURE] = key;
-		key = winReadKey("GS", i);
+		key = winReadKey(_T("GS"), i);
 		if (key != -1)
 			joypad[i][KEY_BUTTON_GS] = key;
-		key = winReadKey("AF_Up", i);
+		key = winReadKey(_T("AF_Up"), i);
 		if (key != -1)
 			autoFireKeys[i][KEY_UP] = key;
-		key = winReadKey("AF_Down", i);
+		key = winReadKey(_T("AF_Down"), i);
 		if (key != -1)
 			autoFireKeys[i][KEY_DOWN] = key;
-		key = winReadKey("AF_Left", i);
+		key = winReadKey(_T("AF_Left"), i);
 		if (key != -1)
 			autoFireKeys[i][KEY_LEFT] = key;
-		key = winReadKey("AF_Right", i);
+		key = winReadKey(_T("AF_Right"), i);
 		if (key != -1)
 			autoFireKeys[i][KEY_RIGHT] = key;
-		key = winReadKey("AF_A", i);
+		key = winReadKey(_T("AF_A"), i);
 		if (key != -1)
 			autoFireKeys[i][KEY_BUTTON_A] = key;
-		key = winReadKey("AF_B", i);
+		key = winReadKey(_T("AF_B"), i);
 		if (key != -1)
 			autoFireKeys[i][KEY_BUTTON_B] = key;
-		key = winReadKey("AF_L", i);
+		key = winReadKey(_T("AF_L"), i);
 		if (key != -1)
 			autoFireKeys[i][KEY_BUTTON_L] = key;
-		key = winReadKey("AF_R", i);
+		key = winReadKey(_T("AF_R"), i);
 		if (key != -1)
 			autoFireKeys[i][KEY_BUTTON_R] = key;
-		key = winReadKey("AF_Select", i);
+		key = winReadKey(_T("AF_Select"), i);
 		if (key != -1)
 			autoFireKeys[i][KEY_BUTTON_SELECT] = key;
-		key = winReadKey("AF_Start", i);
+		key = winReadKey(_T("AF_Start"), i);
 		if (key != -1)
 			autoFireKeys[i][KEY_BUTTON_START] = key;
 	}
-	key = regQueryDwordValue("Motion_Left", (DWORD)-1);
+	key = regQueryDwordValue(_T("Motion_Left"), (DWORD)-1);
 	if (key != -1)
 		motion[KEY_LEFT] = key;
-	key = regQueryDwordValue("Motion_Right", (DWORD)-1);
+	key = regQueryDwordValue(_T("Motion_Right"), (DWORD)-1);
 	if (key != -1)
 		motion[KEY_RIGHT] = key;
-	key = regQueryDwordValue("Motion_Up", (DWORD)-1);
+	key = regQueryDwordValue(_T("Motion_Up"), (DWORD)-1);
 	if (key != -1)
 		motion[KEY_UP] = key;
-	key = regQueryDwordValue("Motion_Down", (DWORD)-1);
+	key = regQueryDwordValue(_T("Motion_Down"), (DWORD)-1);
 	if (key != -1)
 		motion[KEY_DOWN] = key;
 
-	joypadDeadzone = (int)regQueryDwordValue("Joy_Deadzone", joypadDeadzone);
+	joypadDeadzone = (int)regQueryDwordValue(_T("Joy_Deadzone"), joypadDeadzone);
 	if (joypadDeadzone < 0)
 		joypadDeadzone = 0;
 	if (joypadDeadzone > 100)
@@ -478,11 +477,11 @@ void winReadKeys()
 	applyDeadzone();
 }
 
-static void winSaveKey(char *name, int num, USHORT value)
+static void winSaveKey(LPCTSTR name, int num, USHORT value)
 {
-	char buffer[80];
+	TCHAR buffer[80];
 
-	sprintf(buffer, "Joy%d_%s", num, name);
+	_stprintf(buffer, _T("Joy%d_%s"), num, name);
 
 	regSetDwordValue(buffer, value);
 }
@@ -491,42 +490,42 @@ void winSaveKeys()
 {
 	for (int i = 0; i < 4; i++)
 	{
-		winSaveKey("Left", i, joypad[i][KEY_LEFT]);
-		winSaveKey("Right", i, joypad[i][KEY_RIGHT]);
-		winSaveKey("Up", i, joypad[i][KEY_UP]);
-		winSaveKey("Speed", i, joypad[i][KEY_BUTTON_SPEED]);
-		winSaveKey("Capture", i, joypad[i][KEY_BUTTON_CAPTURE]);
-		winSaveKey("GS", i, joypad[i][KEY_BUTTON_GS]);
-		winSaveKey("Down", i, joypad[i][KEY_DOWN]);
-		winSaveKey("A", i, joypad[i][KEY_BUTTON_A]);
-		winSaveKey("B", i, joypad[i][KEY_BUTTON_B]);
-		winSaveKey("L", i, joypad[i][KEY_BUTTON_L]);
-		winSaveKey("R", i, joypad[i][KEY_BUTTON_R]);
-		winSaveKey("Start", i, joypad[i][KEY_BUTTON_START]);
-		winSaveKey("Select", i, joypad[i][KEY_BUTTON_SELECT]);
-		winSaveKey("AF_Up", i, autoFireKeys[i][KEY_UP]);
-		winSaveKey("AF_Down", i, autoFireKeys[i][KEY_DOWN]);
-		winSaveKey("AF_Left", i, autoFireKeys[i][KEY_LEFT]);
-		winSaveKey("AF_Right", i, autoFireKeys[i][KEY_RIGHT]);
-		winSaveKey("AF_A", i, autoFireKeys[i][KEY_BUTTON_A]);
-		winSaveKey("AF_B", i, autoFireKeys[i][KEY_BUTTON_B]);
-		winSaveKey("AF_L", i, autoFireKeys[i][KEY_BUTTON_L]);
-		winSaveKey("AF_R", i, autoFireKeys[i][KEY_BUTTON_R]);
-		winSaveKey("AF_Select", i, autoFireKeys[i][KEY_BUTTON_SELECT]);
-		winSaveKey("AF_Start", i, autoFireKeys[i][KEY_BUTTON_START]);
+		winSaveKey(_T("Left"), i, joypad[i][KEY_LEFT]);
+		winSaveKey(_T("Right"), i, joypad[i][KEY_RIGHT]);
+		winSaveKey(_T("Up"), i, joypad[i][KEY_UP]);
+		winSaveKey(_T("Speed"), i, joypad[i][KEY_BUTTON_SPEED]);
+		winSaveKey(_T("Capture"), i, joypad[i][KEY_BUTTON_CAPTURE]);
+		winSaveKey(_T("GS"), i, joypad[i][KEY_BUTTON_GS]);
+		winSaveKey(_T("Down"), i, joypad[i][KEY_DOWN]);
+		winSaveKey(_T("A"), i, joypad[i][KEY_BUTTON_A]);
+		winSaveKey(_T("B"), i, joypad[i][KEY_BUTTON_B]);
+		winSaveKey(_T("L"), i, joypad[i][KEY_BUTTON_L]);
+		winSaveKey(_T("R"), i, joypad[i][KEY_BUTTON_R]);
+		winSaveKey(_T("Start"), i, joypad[i][KEY_BUTTON_START]);
+		winSaveKey(_T("Select"), i, joypad[i][KEY_BUTTON_SELECT]);
+		winSaveKey(_T("AF_Up"), i, autoFireKeys[i][KEY_UP]);
+		winSaveKey(_T("AF_Down"), i, autoFireKeys[i][KEY_DOWN]);
+		winSaveKey(_T("AF_Left"), i, autoFireKeys[i][KEY_LEFT]);
+		winSaveKey(_T("AF_Right"), i, autoFireKeys[i][KEY_RIGHT]);
+		winSaveKey(_T("AF_A"), i, autoFireKeys[i][KEY_BUTTON_A]);
+		winSaveKey(_T("AF_B"), i, autoFireKeys[i][KEY_BUTTON_B]);
+		winSaveKey(_T("AF_L"), i, autoFireKeys[i][KEY_BUTTON_L]);
+		winSaveKey(_T("AF_R"), i, autoFireKeys[i][KEY_BUTTON_R]);
+		winSaveKey(_T("AF_Select"), i, autoFireKeys[i][KEY_BUTTON_SELECT]);
+		winSaveKey(_T("AF_Start"), i, autoFireKeys[i][KEY_BUTTON_START]);
 	}
-	regSetDwordValue("joyVersion", 1);
+	regSetDwordValue(_T("joyVersion"), 1);
 
-	regSetDwordValue("Motion_Left",
+	regSetDwordValue(_T("Motion_Left"),
 	                 motion[KEY_LEFT]);
-	regSetDwordValue("Motion_Right",
+	regSetDwordValue(_T("Motion_Right"),
 	                 motion[KEY_RIGHT]);
-	regSetDwordValue("Motion_Up",
+	regSetDwordValue(_T("Motion_Up"),
 	                 motion[KEY_UP]);
-	regSetDwordValue("Motion_Down",
+	regSetDwordValue(_T("Motion_Down"),
 	                 motion[KEY_DOWN]);
 
-	regSetDwordValue("Joy_Deadzone", joypadDeadzone);
+	regSetDwordValue(_T("Joy_Deadzone"), joypadDeadzone);
 }
 
 static BOOL CALLBACK EnumAxesCallback(const DIDEVICEOBJECTINSTANCE*pdidoi,
@@ -619,7 +618,7 @@ static void setupJoystick(int index)
 		pDevices[index].nPovs    = caps.dwPOVs;
 	}
 	else if (joyDebug)
-		winlog("Failed to get device capabilities %08x\n", hRet);
+		winlog(_T("Failed to get device capabilities %08x\n"), hRet);
 
 	// Thresholds the axis callback has not reported yet.  All eight, because
 	// checkKey() indexes the same array.
@@ -651,16 +650,16 @@ static void setupJoystick(int index)
 
 	if (joyDebug)
 	{
-		winlog("Joystick %2d polled  : %d\n",    index, currentDevice->isPolled);
-		winlog("Joystick %2d buttons : %d\n",    index, currentDevice->nButtons);
-		winlog("Joystick %2d povs    : %d\n",    index, currentDevice->nPovs);
-		winlog("Joystick %2d axes    : %d\n",    index, currentDevice->nAxes);
+		winlog(_T("Joystick %2d polled  : %d\n"),    index, currentDevice->isPolled);
+		winlog(_T("Joystick %2d buttons : %d\n"),    index, currentDevice->nButtons);
+		winlog(_T("Joystick %2d povs    : %d\n"),    index, currentDevice->nPovs);
+		winlog(_T("Joystick %2d axes    : %d\n"),    index, currentDevice->nAxes);
 		for (int j = 0; j < currentDevice->nAxes && j < 8; j++)
 		{
-			winlog("Axis %2d offset      : %08lx\n", j, currentDevice->axis[j].offset);
-			winlog("Axis %2d center      : %08lx\n", j, currentDevice->axis[j].center);
-			winlog("Axis %2d negative    : %08lx\n", j, currentDevice->axis[j].negative);
-			winlog("Axis %2d positive    : %08lx\n", j, currentDevice->axis[j].positive);
+			winlog(_T("Axis %2d offset      : %08lx\n"), j, currentDevice->axis[j].offset);
+			winlog(_T("Axis %2d center      : %08lx\n"), j, currentDevice->axis[j].center);
+			winlog(_T("Axis %2d negative    : %08lx\n"), j, currentDevice->axis[j].negative);
+			winlog(_T("Axis %2d positive    : %08lx\n"), j, currentDevice->axis[j].positive);
 		}
 	}
 
@@ -759,7 +758,7 @@ static void requestSimpleHidReports()
 						free(packet);
 
 						if (joyDebug)
-							winlog("Nintendo pad: asked for simple HID reports\n");
+							winlog(_T("Nintendo pad: asked for simple HID reports\n"));
 					}
 				}
 
@@ -791,13 +790,13 @@ static BOOL CALLBACK DIEnumDevicesCallback(LPCDIDEVICEINSTANCE pInst,
 	if (joyDebug)
 	{
 		// don't translate. debug only
-		winlog("******************************\n");
-		winlog("Joystick %2d name    : %s\n", numDevices, pInst->tszProductName);
+		winlog(_T("******************************\n"));
+		winlog(_T("Joystick %2d name    : %s\n"), numDevices, pInst->tszProductName);
 	}
 
 	rememberPad(pInst->tszProductName);
 
-	lstrcpynA(pDevices[numDevices].name, pInst->tszProductName,
+	lstrcpyn(pDevices[numDevices].name, pInst->tszProductName,
 	          sizeof(pDevices[numDevices].name));
 	pDevices[numDevices].attached = TRUE;
 
@@ -1115,7 +1114,7 @@ static void checkJoypads()
 				// a pad whose events never reach the field look the same from
 				// the outside, so say which one it is.
 				if (joyDebug)
-					winlog("Joystick %2d button %d -> key %d\n", i, j, (i << 8) | (j + 128));
+					winlog(_T("Joystick %2d button %d -> key %d\n"), i, j, (i << 8) | (j + 128));
 
 				SendMessage(focus, JOYCONFIG_MESSAGE, i, j+128);
 			}
@@ -1313,20 +1312,20 @@ DirectInput::~DirectInput()
 // working directory to the profile API - it means the Windows directory - so
 // the debug switch below could never be turned on from where the emulator
 // actually lives.
-static const char *settingsPath()
+static LPCTSTR settingsPath()
 {
-	static char path[MAX_PATH] = "";
+	static TCHAR path[MAX_PATH] = _T("");
 
 	if (path[0] == 0)
 	{
-		if (GetModuleFileNameA(NULL, path, MAX_PATH) == 0)
-			lstrcpyA(path, "VBA.ini");
+		if (GetModuleFileName(NULL, path, MAX_PATH) == 0)
+			lstrcpy(path, _T("VBA.ini"));
 		else
 		{
-			char *slash = strrchr(path, '\\');
+			TCHAR *slash = _tcsrchr(path, _T('\\'));
 
 			if (slash != NULL)
-				lstrcpyA(slash + 1, "VBA.ini");
+				lstrcpy(slash + 1, _T("VBA.ini"));
 		}
 	}
 
@@ -1335,14 +1334,14 @@ static const char *settingsPath()
 
 bool DirectInput::initialize()
 {
-	joyDebug = GetPrivateProfileInt("config",
-	                                "joyDebug",
+	joyDebug = GetPrivateProfileInt(_T("config"),
+	                                _T("joyDebug"),
 	                                0,
 	                                settingsPath());
 	// DirectInput 8 rather than the DirectInput 5 in DINPUT.DLL: same
 	// interfaces, but the HID side is the one every program written since
 	// 2000 uses, and it is the one that gets the bug fixes.
-	dinputDLL = /**/ ::LoadLibrary("dinput8.dll");
+	dinputDLL = /**/ ::LoadLibrary(_T("dinput8.dll"));
 
 	HRESULT (WINAPI *DInputCreate)(HINSTANCE, DWORD, REFIID, LPVOID *, LPUNKNOWN);
 
@@ -1562,7 +1561,7 @@ void DirectInput::refreshDevices()
 		pDevices[numDevices].device = device;
 
 		if (joyDebug)
-			winlog("Joystick %2d added   : (attached after startup)\n", numDevices);
+			winlog(_T("Joystick %2d added   : (attached after startup)\n"), numDevices);
 
 		DIDEVICEINSTANCE instance;
 		ZeroMemory(&instance, sizeof(instance));
@@ -1571,7 +1570,7 @@ void DirectInput::refreshDevices()
 		if (SUCCEEDED(device->GetDeviceInfo(&instance)))
 		{
 			rememberPad(instance.tszProductName);
-			lstrcpynA(pDevices[numDevices].name, instance.tszProductName,
+			lstrcpyn(pDevices[numDevices].name, instance.tszProductName,
 			          sizeof(pDevices[numDevices].name));
 		}
 
@@ -1835,9 +1834,9 @@ CString DirectInput::getKeyName(LONG_PTR key)
 				                                  pDevices[d].axis[k>>1].offset,
 				                                  DIPH_BYOFFSET);
 				if (k & 1)
-					winBuffer.Format("Joy %d %s +", d, di.tszName);
+					winBuffer.Format(_T("Joy %d %s +"), d, di.tszName);
 				else
-					winBuffer.Format("Joy %d %s -", d, di.tszName);
+					winBuffer.Format(_T("Joy %d %s -"), d, di.tszName);
 			}
 		}
 		else if (k < 48)
@@ -1846,15 +1845,15 @@ CString DirectInput::getKeyName(LONG_PTR key)
 			pDevices[d].device->GetObjectInfo(&di,
 			                                  (DWORD)DIJOFS_POV(hat),
 			                                  DIPH_BYOFFSET);
-			char *   dir = "up";
+			const TCHAR *dir = _T("up");
 			LONG_PTR dd  = k & 3;
 			if (dd == 1)
-				dir = "down";
+				dir = _T("down");
 			else if (dd == 2)
-				dir = "right";
+				dir = _T("right");
 			else if (dd == 3)
-				dir = "left";
-			winBuffer.Format("Joy %d %s %s", d, di.tszName, dir);
+				dir = _T("left");
+			winBuffer.Format(_T("Joy %d %s %s"), d, di.tszName, dir);
 		}
 		else
 		{
@@ -1867,7 +1866,7 @@ CString DirectInput::getKeyName(LONG_PTR key)
 	else
 	{
 		// Joystick isn't plugged in.  We can't decipher k, so just show its value.
-		winBuffer.Format("Joy %d (%d)", d, k);
+		winBuffer.Format(_T("Joy %d (%d)"), d, k);
 	}
 
 	return winBuffer;

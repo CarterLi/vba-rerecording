@@ -52,7 +52,6 @@
 
 extern int systemSpeed;
 extern int Init_2xSaI(u32);
-extern void winlog(const char *, ...);
 
 // ---------------------------------------------------------------------------
 // The OpenGL entry points the renderer calls.
@@ -207,7 +206,7 @@ static bool loadGL3Functions()
 		name = (type)GetProcAddress(module, #name); \
 	if (name == NULL) \
 	{ \
-		winlog("OpenGL 3.3: %s is not available\n", #name); \
+		winlog(_T("OpenGL 3.3: %hs is not available\n"), #name); \
 		complete = false; \
 	}
 
@@ -311,17 +310,17 @@ static const char *g_quadFragmentShader =
 
 static const char *upscalerShaderSource(LPCSTR name, DWORD *size)
 {
-	HRSRC resource = FindResource(NULL, name, RT_RCDATA);
+	HRSRC resource = FindResource(NULL, winWideFromAnsi(name), RT_RCDATA);
 	if (resource == NULL)
 	{
-		winlog("upscaler: %s is missing from the executable\n", name);
+		winlog(_T("upscaler: %hs is missing from the executable\n"), name);
 		return NULL;
 	}
 
 	HGLOBAL handle = LoadResource(NULL, resource);
 	if (handle == NULL)
 	{
-		winlog("upscaler: cannot load %s\n", name);
+		winlog(_T("upscaler: cannot load %hs\n"), name);
 		return NULL;
 	}
 
@@ -351,7 +350,7 @@ static const UpscalerInclude g_upscalerIncludes[] =
 // Copies a shader source into `source`, replacing every #include directive with
 // the text of the resource it names.  A newline is kept where a line ends, so
 // that the line numbers of each file stay what the file itself says.
-static bool spliceShaderSource(const char *text, DWORD size, CString &source, int depth, const char *name)
+static bool spliceShaderSource(const char *text, DWORD size, CStringA &source, int depth, const char *name)
 {
 	const char *p = text;
 	const char *end = text + size;
@@ -403,11 +402,11 @@ static bool spliceShaderSource(const char *text, DWORD size, CString &source, in
 
 			if (close == lineEnd)
 			{
-				winlog("%s: unterminated #include\n", name);
+				winlog(_T("%hs: unterminated #include\n"), name);
 				return false;
 			}
 
-			CString includeName(open, (int)(close - open));
+			CStringA includeName(open, (int)(close - open));
 
 			const char *includeText = NULL;
 			DWORD includeSize = 0;
@@ -421,13 +420,13 @@ static bool spliceShaderSource(const char *text, DWORD size, CString &source, in
 
 			if (includeText == NULL)
 			{
-				winlog("%s: %s is not available\n", name, (const char *)includeName);
+				winlog(_T("%hs: %hs is not available\n"), name, (const char *)includeName);
 				return false;
 			}
 
 			if (depth > 4)
 			{
-				winlog("%s: #include nested too deeply\n", name);
+				winlog(_T("%hs: #include nested too deeply\n"), name);
 				return false;
 			}
 
@@ -463,7 +462,7 @@ static GLuint compileShader(GLenum stage, const char *source, const char *name)
 	GLuint shader = glCreateShader(stage);
 	if (shader == 0)
 	{
-		winlog("%s: cannot create the %s shader\n", name, stageName);
+		winlog(_T("%hs: cannot create the %hs shader\n"), name, stageName);
 		return 0;
 	}
 
@@ -479,7 +478,7 @@ static GLuint compileShader(GLenum stage, const char *source, const char *name)
 		GLsizei length = 0;
 		glGetShaderInfoLog(shader, sizeof(log) - 1, &length, log);
 		log[length] = 0;
-		winlog("%s: %s shader does not compile: %s\n", name, stageName, log);
+		winlog(_T("%hs: %hs shader does not compile: %hs\n"), name, stageName, log);
 		glDeleteShader(shader);
 		return 0;
 	}
@@ -492,7 +491,7 @@ static GLuint linkProgram(GLuint vertex, GLuint fragment, const char *name)
 	GLuint program = glCreateProgram();
 	if (program == 0)
 	{
-		winlog("%s: cannot create the program\n", name);
+		winlog(_T("%hs: cannot create the program\n"), name);
 		glDeleteShader(vertex);
 		glDeleteShader(fragment);
 		return 0;
@@ -513,7 +512,7 @@ static GLuint linkProgram(GLuint vertex, GLuint fragment, const char *name)
 		GLsizei length = 0;
 		glGetProgramInfoLog(program, sizeof(log) - 1, &length, log);
 		log[length] = 0;
-		winlog("%s: does not link: %s\n", name, log);
+		winlog(_T("%hs: does not link: %hs\n"), name, log);
 		glDeleteProgram(program);
 		return 0;
 	}
@@ -548,7 +547,7 @@ static GLuint createUpscalerProgram(LPCSTR resource, const char *name)
 	if (text == NULL)
 		return 0;
 
-	CString source;
+	CStringA source;
 	if (!spliceShaderSource(text, size, source, 0, name))
 		return 0;
 
@@ -630,7 +629,7 @@ static bool updateUpscaleTarget(UpscaleTarget &target, int width, int height, co
 
 	if (status != GL_FRAMEBUFFER_COMPLETE)
 	{
-		winlog("%s: cannot create the %dx%d target\n", name, width, height);
+		winlog(_T("%hs: cannot create the %dx%d target\n"), name, width, height);
 		releaseUpscaleTarget(target);
 		return false;
 	}
@@ -975,7 +974,7 @@ static int libretroSizeBack(const char *name)
 // kept: those files are written for a compatibility context, the renderer
 // makes a core one, and every construct they use - texture(), textureOffset(),
 // the in and out variables, mat4x3 and transpose - is in 3.30 as well.
-static bool libretroStageSource(LPCSTR resource, const char *stage, CString &source)
+static bool libretroStageSource(LPCSTR resource, const char *stage, CStringA &source)
 {
 	DWORD size = 0;
 	const char *text = upscalerShaderSource(resource, &size);
@@ -1001,8 +1000,8 @@ static bool libretroStageSource(LPCSTR resource, const char *stage, CString &sou
 // the libretro API at the places the quad of the renderer keeps them.
 static GLuint createLibretroProgram(LPCSTR resource, const char *name)
 {
-	CString vertexSource;
-	CString fragmentSource;
+	CStringA vertexSource;
+	CStringA fragmentSource;
 
 	if (!libretroStageSource(resource, "VERTEX", vertexSource) ||
 	    !libretroStageSource(resource, "FRAGMENT", fragmentSource))
@@ -1022,7 +1021,7 @@ static GLuint createLibretroProgram(LPCSTR resource, const char *name)
 	GLuint program = glCreateProgram();
 	if (program == 0)
 	{
-		winlog("%s: cannot create the program\n", name);
+		winlog(_T("%hs: cannot create the program\n"), name);
 		glDeleteShader(vertex);
 		glDeleteShader(fragment);
 		return 0;
@@ -1050,7 +1049,7 @@ static GLuint createLibretroProgram(LPCSTR resource, const char *name)
 		GLsizei length = 0;
 		glGetProgramInfoLog(program, sizeof(log) - 1, &length, log);
 		log[length] = 0;
-		winlog("%s: does not link: %s\n", name, log);
+		winlog(_T("%hs: does not link: %hs\n"), name, log);
 		glDeleteProgram(program);
 		return 0;
 	}
@@ -1080,7 +1079,7 @@ static void initLibretroShader(int index)
 		pass.program = createLibretroProgram(shader.passes[i].resource, shader.name);
 		if (pass.program == 0)
 		{
-			winlog("OpenGL 3.3: the %s upscaler is not available\n", shader.name);
+			winlog(_T("OpenGL 3.3: the %hs upscaler is not available\n"), shader.name);
 			releaseLibretroShader(index);
 			return;
 		}
@@ -1125,7 +1124,7 @@ static void initLibretroShader(int index)
 
 			if (pass.samplerCount >= LIBRETRO_MAX_SAMPLERS)
 			{
-				winlog("OpenGL 3.3: %s pass %d has more than %d samplers, %s is ignored\n",
+				winlog(_T("OpenGL 3.3: %hs pass %d has more than %d samplers, %hs is ignored\n"),
 				       shader.name, i, LIBRETRO_MAX_SAMPLERS, name);
 				continue;
 			}
@@ -1141,19 +1140,19 @@ static void initLibretroShader(int index)
 		// What the pass ended up reading and being handed.  A chain that draws
 		// nothing is almost always a uniform of this list that is missing, or
 		// one that is there with the wrong size, so both are spelled out.
-		winlog("OpenGL 3.3: %s pass %d of %d: %s, %s\n",
+		winlog(_T("OpenGL 3.3: %hs pass %d of %d: %hs, %hs\n"),
 		       shader.name, i + 1, shader.passCount, shader.passes[i].resource,
 		       shader.passes[i].scale > 0 ? "a multiple of the frame" : "the target size");
 
 		if (pass.samplerCount > 0 || pass.sizeCount > 0)
 		{
-			CString reads;
+			CStringA reads;
 
 			for (int s = 0; s < pass.samplerCount; s++)
 			{
 				const LibretroSampler &sampler = pass.samplers[s];
 
-				CString one;
+				CStringA one;
 				if (sampler.back < 0)
 					one.Format("%s from the frame", sampler.name);
 				else
@@ -1168,7 +1167,7 @@ static void initLibretroShader(int index)
 			{
 				const LibretroSize &size = pass.sizes[s];
 
-				CString one;
+				CStringA one;
 				if (size.back < 0)
 					one.Format("%s of the frame", size.name);
 				else
@@ -1179,7 +1178,7 @@ static void initLibretroShader(int index)
 				reads += one;
 			}
 
-			winlog("OpenGL 3.3: %s pass %d of %d reads %s\n",
+			winlog(_T("OpenGL 3.3: %hs pass %d of %d reads %hs\n"),
 			       shader.name, i + 1, shader.passCount, (const char *)reads);
 		}
 	}
@@ -1423,7 +1422,7 @@ static GLuint createNisCoefficients(const float *coefficients, const char *name)
 
 	if (error != GL_NO_ERROR)
 	{
-		winlog("NIS: cannot create %s\n", name);
+		winlog(_T("NIS: cannot create %hs\n"), name);
 		glDeleteTextures(1, &texture);
 		return 0;
 	}
@@ -1467,7 +1466,7 @@ static void initNis()
 
 	if (major * 10 + minor < 43 || !loadNisFunctions())
 	{
-		winlog("NIS: compute shaders need OpenGL 4.3, this context is %d.%d\n",
+		winlog(_T("NIS: compute shaders need OpenGL 4.3, this context is %d.%d\n"),
 		       (int)major, (int)minor);
 		return;
 	}
@@ -1476,7 +1475,7 @@ static void initNis()
 	const char *source = upscalerShaderSource("NIS_GLSL_MAIN", &size);
 	if (source == NULL)
 	{
-		winlog("NIS: the GLSL resource is not in the executable\n");
+		winlog(_T("NIS: the GLSL resource is not in the executable\n"));
 		return;
 	}
 
@@ -1489,7 +1488,7 @@ static void initNis()
 	GLuint program = glCreateProgram();
 	if (program == 0)
 	{
-		winlog("NIS: cannot create the program\n");
+		winlog(_T("NIS: cannot create the program\n"));
 		glDeleteShader(shader);
 		return;
 	}
@@ -1506,7 +1505,7 @@ static void initNis()
 		GLsizei length = 0;
 		glGetProgramInfoLog(program, sizeof(log) - 1, &length, log);
 		log[length] = 0;
-		winlog("NIS: does not link: %s\n", log);
+		winlog(_T("NIS: does not link: %hs\n"), log);
 		glDeleteProgram(program);
 		return;
 	}
@@ -1536,7 +1535,7 @@ static void initNis()
 
 	g_nis.available = true;
 
-	winlog("NIS: compute shader ready, %dx%d blocks of %d threads, %d phases\n",
+	winlog(_T("NIS: compute shader ready, %dx%d blocks of %d threads, %d phases\n"),
 	       NIS_BLOCK_WIDTH, NIS_BLOCK_HEIGHT, NIS_BLOCK_WIDTH * NIS_BLOCK_HEIGHT, (int)kPhaseCount);
 }
 
@@ -1612,7 +1611,7 @@ static bool updateNisChain(int srcWidth, int srcHeight, int dstWidth, int dstHei
 
 		if (texture == 0)
 		{
-			winlog("NIS: cannot create the %dx%d pass target\n", w, h);
+			winlog(_T("NIS: cannot create the %dx%d pass target\n"), w, h);
 			releaseNisTargets();
 			return false;
 		}
@@ -1772,7 +1771,7 @@ bool OpenGL33Display::createContext()
 	HWND setupWindow = createSetupWindow();
 	if (setupWindow == NULL)
 	{
-		winlog("OpenGL 3.3: cannot create the setup window\n");
+		winlog(_T("OpenGL 3.3: cannot create the setup window\n"));
 		return false;
 	}
 
@@ -1811,14 +1810,14 @@ bool OpenGL33Display::createContext()
 
 	if (!ok || wglChoosePixelFormatARB == NULL || wglCreateContextAttribsARB == NULL)
 	{
-		winlog("OpenGL 3.3: the driver has no WGL_ARB_pixel_format or WGL_ARB_create_context\n");
+		winlog(_T("OpenGL 3.3: the driver has no WGL_ARB_pixel_format or WGL_ARB_create_context\n"));
 		return false;
 	}
 
 	hDC = GetDC(hwnd);
 	if (hDC == NULL)
 	{
-		winlog("OpenGL 3.3: cannot get the device context\n");
+		winlog(_T("OpenGL 3.3: cannot get the device context\n"));
 		return false;
 	}
 
@@ -1840,7 +1839,7 @@ bool OpenGL33Display::createContext()
 	if (!wglChoosePixelFormatARB(hDC, attributes, floatAttributes, 1, &pixelFormat, &formats) ||
 	    formats == 0 || pixelFormat == 0)
 	{
-		winlog("OpenGL 3.3: the driver has no accelerated 32 bit pixel format\n");
+		winlog(_T("OpenGL 3.3: the driver has no accelerated 32 bit pixel format\n"));
 		return false;
 	}
 
@@ -1849,7 +1848,7 @@ bool OpenGL33Display::createContext()
 	if (DescribePixelFormat(hDC, pixelFormat, sizeof(chosen), &chosen) == 0 ||
 	    !SetPixelFormat(hDC, pixelFormat, &chosen))
 	{
-		winlog("OpenGL 3.3: cannot set the pixel format\n");
+		winlog(_T("OpenGL 3.3: cannot set the pixel format\n"));
 		return false;
 	}
 
@@ -1878,19 +1877,19 @@ bool OpenGL33Display::createContext()
 
 	if (hglrc == NULL)
 	{
-		winlog("OpenGL 3.3: the driver has no 3.3 core profile context\n");
+		winlog(_T("OpenGL 3.3: the driver has no 3.3 core profile context\n"));
 		return false;
 	}
 
 	if (!wglMakeCurrent(hDC, hglrc))
 	{
-		winlog("OpenGL 3.3: cannot make the context current\n");
+		winlog(_T("OpenGL 3.3: cannot make the context current\n"));
 		return false;
 	}
 
 	if (!loadGL3Functions())
 	{
-		winlog("OpenGL 3.3: the driver is missing entry points the renderer needs\n");
+		winlog(_T("OpenGL 3.3: the driver is missing entry points the renderer needs\n"));
 		return false;
 	}
 
@@ -1899,7 +1898,7 @@ bool OpenGL33Display::createContext()
 	glGetIntegerv(GL_MINOR_VERSION, &minor);
 	sprintf(g_openGL33Version, "%d.%d core", (int)major, (int)minor);
 
-	winlog("OpenGL 3.3: %s, %s, %s\n",
+	winlog(_T("OpenGL 3.3: %hs, %hs, %hs\n"),
 	       (const char *)glGetString(GL_VERSION),
 	       (const char *)glGetString(GL_RENDERER),
 	       (const char *)glGetString(GL_VENDOR));
@@ -1915,7 +1914,7 @@ bool OpenGL33Display::createContext()
 		swapTear = extensions != NULL && strstr(extensions, "WGL_EXT_swap_control_tear") != NULL;
 	}
 
-	winlog("OpenGL 3.3: swap control%s\n", swapTear ? " with adaptive vsync" : "");
+	winlog(_T("OpenGL 3.3: swap control%hs\n"), swapTear ? " with adaptive vsync" : "");
 
 	// One texture unit is enough; the shaders all sample from unit 0.
 	glActiveTexture(GL_TEXTURE0);
@@ -1986,7 +1985,7 @@ bool OpenGL33Display::createQuad()
 	// The setting the renderer starts with, once, and whether it can run it:
 	// the menu greys out what it cannot, and the caller turns a greyed out
 	// selection into Off.
-	winlog("OpenGL 3.3: upscaler %s (%d), sharpening %d, max scale %d%s\n",
+	winlog(_T("OpenGL 3.3: upscaler %hs (%d), sharpening %d, max scale %d%hs\n"),
 	       openGL33UpscalerName(theApp.upscaler), theApp.upscaler,
 	       theApp.upscalerSharpness, theApp.upscalerMaxScale,
 	       upscalerAvailable(theApp.upscaler) ? "" : " - this renderer does not run it");
@@ -2025,9 +2024,9 @@ bool OpenGL33Display::initialize()
 	Init_2xSaI(32);
 	if (theApp.ddrawDebug)
 	{
-		winlog("R shift: %d\n", systemRedShift);
-		winlog("G shift: %d\n", systemGreenShift);
-		winlog("B shift: %d\n", systemBlueShift);
+		winlog(_T("R shift: %d\n"), systemRedShift);
+		winlog(_T("G shift: %d\n"), systemGreenShift);
+		winlog(_T("B shift: %d\n"), systemBlueShift);
 	}
 
 	systemUpdateColorMaps();
@@ -2218,7 +2217,7 @@ void OpenGL33Display::createOverlayTexture(int w, int h)
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, NULL);
 
-	winlog("OpenGL 3.3: on screen display %dx%d\n", w, h);
+	winlog(_T("OpenGL 3.3: on screen display %dx%d\n"), w, h);
 }
 
 void OpenGL33Display::updateFiltering()
@@ -2466,7 +2465,7 @@ GLuint OpenGL33Display::scaleFrameWithLibretro(int upscaler, bool *flipped)
 	if (index < 0)
 	{
 		if (lastReason != 1)
-			winlog("OpenGL 3.3: upscaler %d has no chain here, the frame is drawn as it is\n", upscaler);
+			winlog(_T("OpenGL 3.3: upscaler %d has no chain here, the frame is drawn as it is\n"), upscaler);
 		lastReason = 1;
 		return 0;
 	}
@@ -2477,7 +2476,7 @@ GLuint OpenGL33Display::scaleFrameWithLibretro(int upscaler, bool *flipped)
 	if (shader.passCount <= 0 || state.passes[0].program == 0 || frameTexture == 0)
 	{
 		if (lastReason != 2)
-			winlog("OpenGL 3.3: %s is not built, the frame is drawn as it is\n", shader.name);
+			winlog(_T("OpenGL 3.3: %hs is not built, the frame is drawn as it is\n"), shader.name);
 		lastReason = 2;
 		return 0;
 	}
@@ -2485,7 +2484,7 @@ GLuint OpenGL33Display::scaleFrameWithLibretro(int upscaler, bool *flipped)
 	if (theApp.rect.right != frameWidth || theApp.rect.bottom != frameHeight)
 	{
 		if (lastReason != 3)
-			winlog("OpenGL 3.3: %s: the frame is %dx%d at %d,%d of a %dx%d texture, which it cannot scale\n",
+			winlog(_T("OpenGL 3.3: %hs: the frame is %dx%d at %d,%d of a %dx%d texture, which it cannot scale\n"),
 			       shader.name, theApp.rect.right - theApp.rect.left, theApp.rect.bottom - theApp.rect.top,
 			       theApp.rect.left, theApp.rect.top, frameWidth, frameHeight);
 		lastReason = 3;
@@ -2537,11 +2536,11 @@ GLuint OpenGL33Display::scaleFrameWithLibretro(int upscaler, bool *flipped)
 
 		if (changed)
 		{
-			CString passes;
+			CStringA passes;
 
 			for (int i = 0; i < shader.passCount; i++)
 			{
-				CString one;
+				CStringA one;
 				one.Format("%dx%d", outputWidths[i], outputHeights[i]);
 
 				if (!passes.IsEmpty())
@@ -2551,7 +2550,7 @@ GLuint OpenGL33Display::scaleFrameWithLibretro(int upscaler, bool *flipped)
 
 			memcpy(last, now, sizeof(now));
 
-			winlog("OpenGL 3.3: %s: %dx%d frame over %dx%d, pass(es) at %s\n",
+			winlog(_T("OpenGL 3.3: %hs: %dx%d frame over %dx%d, pass(es) at %hs\n"),
 			       shader.name, frameWidth, frameHeight, viewWidth, viewHeight,
 			       (const char *)passes);
 		}
@@ -3098,7 +3097,7 @@ void OpenGL33Display::setOption(const char *option, int value)
 		// renderer starts, so that an upscaler nobody picked is never compiled.
 		initUpscaler(value);
 
-		winlog("OpenGL 3.3: upscaler %s (%d), sharpening %d, max scale %d%s\n",
+		winlog(_T("OpenGL 3.3: upscaler %hs (%d), sharpening %d, max scale %d%hs\n"),
 		       openGL33UpscalerName(value), value, theApp.upscalerSharpness,
 		       theApp.upscalerMaxScale,
 		       upscalerAvailable(value) ? "" : " - this renderer does not run it");

@@ -67,7 +67,7 @@ BOOL GBPaletteView::OnInitDialog()
     SetData(sz,
             FALSE,
             HKEY_CURRENT_USER,
-            "Software\\Emulators\\VisualBoyAdvance\\Viewer\\GBPaletteView",
+            _T("Software\\Emulators\\VisualBoyAdvance\\Viewer\\GBPaletteView"),
             NULL);
 
 	paletteView.init(32, 64, 128);
@@ -92,7 +92,7 @@ void GBPaletteView::save(int which)
 	else
 		captureBuffer = "obj.pal";
 
-	LPCTSTR exts[] = {".pal", ".pal", ".act", NULL };
+	LPCTSTR exts[] = {_T(".pal"), _T(".pal"), _T(".act"), NULL };
 
 	CString filter = winResLoadFilter(IDS_FILTER_PAL);
 	CString title  = winResLoadString(IDS_SELECT_PALETTE_NAME);
@@ -100,9 +100,9 @@ void GBPaletteView::save(int which)
 	            captureBuffer,
 	            filter,
 	            1,
-	            "PAL",
+	            _T("PAL"),
 	            exts,
-	            "",
+	            _T(""),
 	            title,
 	            true);
 
@@ -122,13 +122,13 @@ void GBPaletteView::save(int which)
 	{
 	case 0:
 	case 1:
-		p->saveMSPAL(captureBuffer);
+		p->saveMSPAL(winAnsiFromWide(captureBuffer));
 		break;
 	case 2:
-		p->saveJASCPAL(captureBuffer);
+		p->saveJASCPAL(winAnsiFromWide(captureBuffer));
 		break;
 	case 3:
-		p->saveAdobe(captureBuffer);
+		p->saveAdobe(winAnsiFromWide(captureBuffer));
 		break;
 	}
 }
@@ -183,23 +183,23 @@ LRESULT GBPaletteView::OnPalInfo(WPARAM wParam, LPARAM lParam)
 	bool isOBJ = address >= 32;
 	address &= 31;
 
-	buffer.Format("%d", address);
+	buffer.Format(_T("%d"), address);
 	GetDlgItem(IDC_ADDRESS)->SetWindowText(buffer);
 
 	int r = (color & 0x1f);
 	int g = (color & 0x3e0) >> 5;
 	int b = (color & 0x7c00) >> 10;
 
-	buffer.Format("%d", r);
+	buffer.Format(_T("%d"), r);
 	GetDlgItem(IDC_R)->SetWindowText(buffer);
 
-	buffer.Format("%d", g);
+	buffer.Format(_T("%d"), g);
 	GetDlgItem(IDC_G)->SetWindowText(buffer);
 
-	buffer.Format("%d", b);
+	buffer.Format(_T("%d"), b);
 	GetDlgItem(IDC_B)->SetWindowText(buffer);
 
-	buffer.Format("0x%04X", color);
+	buffer.Format(_T("0x%04X"), color);
 	GetDlgItem(IDC_VALUE)->SetWindowText(buffer);
 
 	colorControl.setColor(color);

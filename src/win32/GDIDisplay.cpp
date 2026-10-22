@@ -18,7 +18,6 @@
 
 extern u32 RGB_LOW_BITS_MASK;
 extern int systemSpeed;
-extern void winlog(const char *, ...);
 extern int Init_2xSaI(u32);
 
 class GDIDisplay : public IDisplay
@@ -159,7 +158,7 @@ bool GDIDisplay::initialize()
 
 	pWnd->DragAcceptFiles(TRUE);
 
-	winlog("GDI: initialized, colour depth %d, shifts %d/%d/%d, filter %s, frame %dx%d, visible rect %dx%d",
+	winlog(_T("GDI: initialized, colour depth %d, shifts %d/%d/%d, filter %hs, frame %dx%d, visible rect %dx%d"),
 	       systemColorDepth, systemRedShift, systemGreenShift, systemBlueShift,
 	       theApp.filterFunction ? "on" : "off",
 	       theApp.filterWidth, theApp.filterHeight,
@@ -286,8 +285,8 @@ void GDIDisplay::render()
 	renderCount++;
 
 	if (renderCount <= 3 || (renderCount % 600) == 0)
-		winlog("GDI: frame %d, textMethod %d, source %s (%dx%d, dib width %d, pitch %d, %d/256 non-black samples), "
-		       "dest (%d,%d)-(%d,%d), dc %p, StretchDIBits -> %d",
+		winlog(_T("GDI: frame %d, textMethod %d, source %hs (%dx%d, dib width %d, pitch %d, %d/256 non-black samples), "
+		       "dest (%d,%d)-(%d,%d), dc %p, StretchDIBits -> %d"),
 		       renderCount, textMethod,
 		       filterFunction ? "filterData" : "pix",
 		       theApp.rect.right, theApp.rect.bottom, sourceDibWidth, sourcePitch,
@@ -295,7 +294,7 @@ void GDIDisplay::render()
 		       p.x, p.y, p2.x, p2.y, (void *)(HDC)*dc, copied);
 
 	if (copied <= 0)
-		winlog("GDI: StretchDIBits failed with %d, GetLastError %lu", copied, GetLastError());
+		winlog(_T("GDI: StretchDIBits failed with %d, GetLastError %lu"), copied, GetLastError());
 
 	if (textMethod == 2)
 		for (int slot = 0; slot < SCREEN_MESSAGE_SLOTS; slot++)

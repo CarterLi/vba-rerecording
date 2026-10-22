@@ -84,14 +84,13 @@ extern void remoteStubMain();
 extern void remoteSetProtocol(int);
 extern void remoteCleanUp();
 
-extern void winlog(const char *msg, ...);
 
 bool debugger = false;
 
-char movieFileToPlay[1024];
+CString movieFileToPlay;
 bool playMovieFile		   = false;
 bool playMovieFileReadOnly = false;
-char wavFileToOutput [1024];
+CString wavFileToOutput;
 bool outputWavFile	= false;
 bool outputAVIFile	= false;
 bool flagHideMenu	= false;
@@ -110,12 +109,15 @@ void DrawTextMessages(u8 *dest, int pitch, int left, int bottom)
 			     (int)(GetTickCount() - theApp.screenMessageTime[slot]) < theApp.screenMessageDuration[slot]) &&
 			    (!theApp.disableStatusMessage || slot == 1 || slot == 2))
 			{
+				// The on screen font is the core's own 8x8 bitmap, so this
+				// text is ASCII by design: characters outside the code page
+				// show as '?', which is what the font can draw.
 				drawText(dest,
 				         pitch,
 				         left,
 				         bottom - 10 * (slot + 1),
-				         theApp.screenMessageBuffer[slot],
-				         theApp.screenMessageColorBuffer[slot]);
+				         winAnsiFromWide(theApp.screenMessageBuffer[slot]),
+				         winAnsiFromWide(theApp.screenMessageColorBuffer[slot]));
 			}
 			else
 			{
@@ -137,14 +139,14 @@ void directXMessage(const char *msg)
 // session, and what matters in it is the order of the steps around a change and
 // how far apart they were; milliseconds, because a renderer switch writes
 // several lines inside one second.
-static const char *winlogStamp()
+static CString winlogStamp()
 {
 	SYSTEMTIME now;
 	GetLocalTime(&now);
 
-	static char stamp[32];
-	sprintf(stamp, "[%02d:%02d:%02d.%03d] ", (int)now.wHour, (int)now.wMinute,
-	        (int)now.wSecond, (int)now.wMilliseconds);
+	CString stamp;
+	stamp.Format(_T("[%02d:%02d:%02d.%03d] "), (int)now.wHour, (int)now.wMinute,
+	             (int)now.wSecond, (int)now.wMilliseconds);
 	return stamp;
 }
 
@@ -205,18 +207,10 @@ void winlogClose()
 	winlogOff = true;
 }
 
-void winlog(const char *msg, ...)
+// Writes one trace line, stamped and in UTF-8.  The text arrives as TCHAR
+// because every caller is in this layer; the core does not write the trace.
+static void winlogWrite(const CString &text)
 {
-	if (winlogOff)
-		return;
-
-	CString buffer;
-	va_list valist;
-
-	va_start(valist, msg);
-	buffer.FormatV(msg, valist);
-	va_end(valist);
-
 	if (winlogFile == NULL && !winlogOpen())
 		return;
 
@@ -224,73 +218,40 @@ void winlog(const char *msg, ...)
 	// already end with "\n", and a driver log can end with two, so a message is
 	// split on its own line breaks and rebuilt instead of being written as it
 	// came: that is what used to leave a blank line after every entry.
+	CString stamped;
+
+	const int length = text.GetLength();
+	int       line   = 0;
+
+	while (line < length)
 	{
-		CString stamped;
+		int lineEnd = line;
+		while (lineEnd < length && text[lineEnd] != L'\n' && text[lineEnd] != L'\r')
+			lineEnd++;
 
-		const char *line = buffer;
-		const char *end  = line + buffer.GetLength();
+		stamped += winlogStamp();
+		stamped.Append(text.Mid(line, lineEnd - line));
+		stamped += L"\n";
 
-		while (line < end)
-		{
-			const char *lineEnd = line;
-			while (lineEnd < end && *lineEnd != '\n' && *lineEnd != '\r')
-				lineEnd++;
-
-			stamped += winlogStamp();
-			stamped.Append(line, (int)(lineEnd - line));
-			stamped += "\n";
-
-			line = lineEnd;
-			while (line < end && (*line == '\n' || *line == '\r'))
-				line++;
-		}
-
-		buffer = stamped;
+		line = lineEnd;
+		while (line < length && (text[line] == L'\n' || text[line] == L'\r'))
+			line++;
 	}
 
-	// Most lines are plain ASCII and can be written as they are.
-	bool ascii = true;
-	for (const char *p = buffer; *p != '\0' && ascii; ++p)
-		ascii = ((unsigned char)*p) < 0x80;
-
-	bool written = false;
-	if (!ascii)
+	// The trace is UTF-8, so a localized name from a driver, or a path with a
+	// character outside the ANSI code page in it, reads back as it was written.
+	const int utf8Length = WideCharToMultiByte(CP_UTF8, 0, stamped, stamped.GetLength(),
+	                                           NULL, 0, NULL, NULL);
+	if (utf8Length > 0)
 	{
-		const int length     = buffer.GetLength();
-		const int wideLength = MultiByteToWideChar(CP_ACP, 0, buffer, length, NULL, 0);
+		char *utf8 = new char[utf8Length];
 
-		if (wideLength > 0)
-		{
-			wchar_t *wide = new wchar_t[wideLength];
+		if (WideCharToMultiByte(CP_UTF8, 0, stamped, stamped.GetLength(),
+		                        utf8, utf8Length, NULL, NULL) == utf8Length)
+			fwrite(utf8, 1, (size_t)utf8Length, winlogFile);
 
-			if (MultiByteToWideChar(CP_ACP, 0, buffer, length, wide, wideLength) == wideLength)
-			{
-				const int utf8Length = WideCharToMultiByte(CP_UTF8, 0, wide, wideLength,
-				                                           NULL, 0, NULL, NULL);
-
-				if (utf8Length > 0)
-				{
-					char *utf8 = new char[utf8Length];
-
-					if (WideCharToMultiByte(CP_UTF8, 0, wide, wideLength,
-					                        utf8, utf8Length, NULL, NULL) == utf8Length)
-					{
-						fwrite(utf8, 1, (size_t)utf8Length, winlogFile);
-						written = true;
-					}
-
-					delete[] utf8;
-				}
-			}
-
-			delete[] wide;
-		}
+		delete[] utf8;
 	}
-
-	// ASCII already, or the conversion failed: keep the bytes rather than drop
-	// the line.  Every line already ends with its break, so none is added here.
-	if (!written)
-		fputs(buffer, winlogFile);
 
 	// The handle stays open, but the line is pushed out now: a trace that is
 	// followed while the program runs, or read after it crashed, is worth more
@@ -298,27 +259,43 @@ void winlog(const char *msg, ...)
 	fflush(winlogFile);
 }
 
+void winlog(LPCTSTR msg, ...)
+{
+	if (winlogOff)
+		return;
+
+	va_list valist;
+	va_start(valist, msg);
+	CString text;
+	text.FormatV(msg, valist);
+	va_end(valist);
+
+	winlogWrite(text);
+}
+
 // The image writers live in src/common and only know a one argument callback,
 // so wrap the variadic trace logger for them.  The "%s" keeps a file name with
 // a percent sign in it from being read as a format.
 static void winImageWriteLog(const char *message)
 {
-	winlog("%s", message);
+	winlog(_T("%hs"), message);
 }
 
 // code from SDL_main.c for Windows
 /* Parse a command line buffer into arguments */
 
-static int parseCommandLine(char *cmdline, char * *argv)
+// The command line is TCHAR: a ROM dropped on the executable arrives here, and
+// its path is not limited to what the ANSI code page can hold.
+static int parseCommandLine(TCHAR *cmdline, TCHAR * *argv)
 {
-	char *bufp;
-	int	  argc;
+	TCHAR *bufp;
+	int	   argc;
 
 	argc = 0;
 	for (bufp = cmdline; *bufp; )
 	{
 		/* Skip leading whitespace */
-		while (isspace(*bufp))
+		while (_istspace(*bufp))
 		{
 			++bufp;
 		}
@@ -351,7 +328,7 @@ static int parseCommandLine(char *cmdline, char * *argv)
 				++argc;
 			}
 			/* Skip over word */
-			while (*bufp && !isspace(*bufp))
+			while (*bufp && !_istspace(*bufp))
 			{
 				++bufp;
 			}
@@ -386,7 +363,7 @@ typedef BOOL (WINAPI * GETMENUBARINFO)(HWND, LONG, LONG, PMENUBARINFO);
 
 static int winGetMenuBarHeight()
 {
-	HINSTANCE hinstDll = /**/ ::LoadLibrary("USER32.DLL");
+	HINSTANCE hinstDll = /**/ ::LoadLibrary(_T("USER32.DLL"));
 
 	if (hinstDll)
 	{
@@ -684,8 +661,8 @@ BOOL VBA::InitInstance()
 
 	// The trace begins with what build it is: a report that only carries the
 	// log then still says which revision, build type and core produced it.
-	winlog("%s\n", VBA_NAME_AND_VERSION);
-	winlog("%s build, %s core, %s\n", VBA_BUILDTYPE_STRING, winlogCoreVersion(),
+	winlog(_T("%s\n"), _T(VBA_NAME_AND_VERSION));
+	winlog(_T("%hs build, %hs core, %hs\n"), VBA_BUILDTYPE_STRING, winlogCoreVersion(),
 	       sizeof(void *) == 8 ? "64-bit" : "32-bit");
 
 	// Standard initialization
@@ -703,15 +680,15 @@ BOOL VBA::InitInstance()
 
 	remoteSetProtocol(0);
 
-	systemVerbose = GetPrivateProfileInt("config", "verbose", 0, "VBA.ini");
-	systemDebug = GetPrivateProfileInt("config", "debug", 0, "VBA.ini");
-	ddrawDebug = GetPrivateProfileInt("config", "ddrawDebug", 0, "VBA.ini") ? true : false;
+	systemVerbose = GetPrivateProfileInt(_T("config"), _T("verbose"), 0, _T("VBA.ini"));
+	systemDebug = GetPrivateProfileInt(_T("config"), _T("debug"), 0, _T("VBA.ini"));
+	ddrawDebug = GetPrivateProfileInt(_T("config"), _T("ddrawDebug"), 0, _T("VBA.ini")) ? true : false;
 
 	wndClass = AfxRegisterWndClass(0, LoadCursor(IDC_ARROW), (HBRUSH)GetStockObject(BLACK_BRUSH), LoadIcon(IDI_ICON));
 
-	char winBuffer[2048];
+	TCHAR winBuffer[2048];
 	GetModuleFileName(NULL, winBuffer, 2048);
-	char *p = strrchr(winBuffer, '\\');
+	TCHAR *p = _tcsrchr(winBuffer, _T('\\'));
 	if (p)
 		*p = 0;
 	exeDir = winBuffer;
@@ -740,9 +717,9 @@ BOOL VBA::InitInstance()
 	{
 		if (isFullscreenOption(videoOption))
 		{
-			regSetDwordValue("video", VIDEO_1X);
+			regSetDwordValue(_T("video"), VIDEO_1X);
 			if (pVideoDriverGUID)
-				regSetDwordValue("defaultVideoDriver", TRUE);
+				regSetDwordValue(_T("defaultVideoDriver"), TRUE);
 		}
 		return FALSE;
 	}
@@ -765,7 +742,7 @@ BOOL VBA::InitInstance()
 	if (m_lpCmdLine[0])
 	{
 		int		argc = parseCommandLine(m_lpCmdLine, NULL);
-		char * *argv = (char * *)malloc((argc + 1) * sizeof(char *));
+		TCHAR * *argv = (TCHAR * *)malloc((argc + 1) * sizeof(TCHAR *));
 		parseCommandLine(m_lpCmdLine, argv);
 
 		bool gotFlag = false, enoughArgs = false;
@@ -776,7 +753,7 @@ BOOL VBA::InitInstance()
 				if (!gotFlag)
 					loadSettings();
 				gotFlag = true;
-				if (_stricmp(argv[i], "-rom") == 0)
+				if (_tcsicmp(argv[i], _T("-rom")) == 0)
 				{
 					if (i + 1 >= argc || argv[i + 1][0] == '-')
 						goto invalidArgument;
@@ -784,7 +761,7 @@ BOOL VBA::InitInstance()
 					winCorrectPath(romFilename);
 					gameFilename = romFilename;
 				}
-				else if (_stricmp(argv[i], "-bios") == 0)
+				else if (_tcsicmp(argv[i], _T("-bios")) == 0)
 				{
 					if (i + 1 >= argc || argv[i + 1][0] == '-')
 						goto invalidArgument;
@@ -793,109 +770,109 @@ BOOL VBA::InitInstance()
 
 					//systemLoadBIOS();
 				}
-				else if (_stricmp(argv[i], "-frameskip") == 0)
+				else if (_tcsicmp(argv[i], _T("-frameskip")) == 0)
 				{
 					if (i + 1 >= argc || argv[i + 1][0] == '-')
 						goto invalidArgument;
-					frameSkip = atoi(argv[++i]);
+					frameSkip = _ttoi(argv[++i]);
 					if (frameSkip < 0)
 						frameSkip = 0;
 					if (frameSkip > 9)
 						frameSkip = 9;
 					gbFrameSkip = frameSkip;
 				}
-				else if (_stricmp(argv[i], "-throttle") == 0)
+				else if (_tcsicmp(argv[i], _T("-throttle")) == 0)
 				{
 					if (i + 1 >= argc || argv[i + 1][0] == '-')
 						goto invalidArgument;
-					throttle = atoi(argv[++i]);
+					throttle = _ttoi(argv[++i]);
 					if (throttle < 5)
 						throttle = 5;
 					if (throttle > 1000)
 						throttle = 1000;
 				}
-				else if (_stricmp(argv[i], "-throttleKeepPitch") == 0)
+				else if (_tcsicmp(argv[i], _T("-throttleKeepPitch")) == 0)
 				{
 					if (i + 1 >= argc || argv[i + 1][0] == '-')
 						goto invalidArgument;
-					accuratePitchThrottle = atoi(argv[++i]) != 0;
+					accuratePitchThrottle = _ttoi(argv[++i]) != 0;
 				}
-				else if (_stricmp(argv[i], "-synchronize") == 0)
+				else if (_tcsicmp(argv[i], _T("-synchronize")) == 0)
 				{
 					if (i + 1 >= argc || argv[i + 1][0] == '-')
 						goto invalidArgument;
-					synchronize = atoi(argv[++i]) != 0;
+					synchronize = _ttoi(argv[++i]) != 0;
 				}
-				else if (_stricmp(argv[i], "-hideborder") == 0)
+				else if (_tcsicmp(argv[i], _T("-hideborder")) == 0)
 				{
 					if (i + 1 >= argc || argv[i + 1][0] == '-')
 						goto invalidArgument;
-					hideMovieBorder = atoi(argv[++i]) != 0;
+					hideMovieBorder = _ttoi(argv[++i]) != 0;
 				}
-				else if (_stricmp(argv[i], "-play") == 0)
+				else if (_tcsicmp(argv[i], _T("-play")) == 0)
 				{
 					playMovieFile = true;
 					if (i + 1 >= argc || argv[i + 1][0] == '-')
 						goto invalidArgument;
-					strcpy(movieFileToPlay, argv[++i]);
+					movieFileToPlay = argv[++i];
 					winCorrectPath(movieFileToPlay);
 					if (i + 1 >= argc || argv[i + 1][0] == '-') { --i; goto invalidArgument; }
-					playMovieFileReadOnly = atoi(argv[++i]) != 0;
+					playMovieFileReadOnly = _ttoi(argv[++i]) != 0;
 				}
-				else if (_stricmp(argv[i], "-hashtrace") == 0)
+				else if (_tcsicmp(argv[i], _T("-hashtrace")) == 0)
 				{
 					// Per-frame state hash written to CSV, for proving that a
 					// refactor did not change behaviour.
 					// e.g. vba.exe -rom game.gba -play movie.vbm 1 -hashtrace D:\trace.csv
 					if (i + 1 >= argc || argv[i + 1][0] == '-')
 						goto invalidArgument;
-					hashTraceEnable(argv[++i]);
+					hashTraceEnable(winAnsiFromWide(argv[++i]));
 				}
-				else if (_stricmp(argv[i], "-videoLog") == 0)
+				else if (_tcsicmp(argv[i], _T("-videoLog")) == 0)
 				{
 					nvVideoLog	   = true;
 					nvAudioLog	   = true;
 					LoggingEnabled = 2;
 					if (i + 1 >= argc || argv[i + 1][0] == '-') {}
 					else
-						NESVideoSetVideoCmd(argv[++i]);
+						NESVideoSetVideoCmd(winAnsiFromWide(argv[++i]));
 				}
-				else if (_stricmp(argv[i], "-logDebug") == 0)
+				else if (_tcsicmp(argv[i], _T("-logDebug")) == 0)
 				{
 					NESVideoEnableDebugging(debugSystemScreenMessage1, debugSystemScreenMessage2);
 				}
-				else if (_stricmp(argv[i], "-logToFile") == 0)
+				else if (_tcsicmp(argv[i], _T("-logToFile")) == 0)
 				{
 					NESVideoSetFileFuncs(fopen, fclose);
 				}
-				else if (_stricmp(argv[i], "-outputWAV") == 0)
+				else if (_tcsicmp(argv[i], _T("-outputWAV")) == 0)
 				{
 					outputWavFile = true;
 					if (i + 1 >= argc || argv[i + 1][0] == '-')
 						goto invalidArgument;
-					strcpy(wavFileToOutput, argv[++i]);
+					wavFileToOutput = argv[++i];
 				}
-				else if (_stricmp(argv[i], "-outputAVI") == 0)
+				else if (_tcsicmp(argv[i], _T("-outputAVI")) == 0)
 				{
 					outputAVIFile = true;
 				}
-				else if (_stricmp(argv[i], "-quitAfter") == 0)
+				else if (_tcsicmp(argv[i], _T("-quitAfter")) == 0)
 				{
 					if (i + 1 >= argc || argv[i + 1][0] == '-')
 						goto invalidArgument;
-					quitAfterTime = atoi(argv[++i]);
+					quitAfterTime = _ttoi(argv[++i]);
 				}
-				else if (_stricmp(argv[i], "-pauseAt") == 0)
+				else if (_tcsicmp(argv[i], _T("-pauseAt")) == 0)
 				{
 					if (i + 1 >= argc || argv[i + 1][0] == '-')
 						goto invalidArgument;
-					pauseAfterTime = atoi(argv[++i]);
+					pauseAfterTime = _ttoi(argv[++i]);
 				}
-				else if (_stricmp(argv[i], "-videoScale") == 0)
+				else if (_tcsicmp(argv[i], _T("-videoScale")) == 0)
 				{
 					if (i + 1 >= argc || argv[i + 1][0] == '-')
 						goto invalidArgument;
-					int size = atoi(argv[++i]);
+					int size = _ttoi(argv[++i]);
 					if (size < 1)
 						size = 1;
 					if (size > 12)
@@ -928,7 +905,7 @@ BOOL VBA::InitInstance()
 						videoOption = VIDEO_12X; break;
 					}
 				}
-				else if (_stricmp(argv[i], "-hideMenu") == 0)
+				else if (_tcsicmp(argv[i], _T("-hideMenu")) == 0)
 				{
 					flagHideMenu = true;
 				}
@@ -936,36 +913,36 @@ BOOL VBA::InitInstance()
 				{
 					enoughArgs = true;
 invalidArgument:
-					char str [2048];    // the string is larger than 1024 bytes
-					strcpy(str, "");
-					if (_stricmp(argv[i], "-h") != 0)
+					TCHAR str[2048];    // the string is larger than 1024 bytes
+					_tcscpy(str, _T(""));
+					if (_tcsicmp(argv[i], _T("-h")) != 0)
 						if (enoughArgs)
-							sprintf(str, "Invalid commandline argument %d: %s\n", i, argv[i]);
+							_stprintf(str, _T("Invalid commandline argument %d: %s\n"), i, argv[i]);
 						else
-							sprintf(str, "Not enough arguments for arg %d: %s\n", i, argv[i]);
-					strcat(str, "Valid commands:\n"
-					            "-h \t\t\t displays this help\n"
-					            "-rom filename \t\t opens the given ROM\n"
-					            "-bios filename \t\t use the given GBA BIOS\n"
-					            "-play filename val \t\t plays the given VBM movie (val: 1 = read-only, 0 = editable)\n"
-					            "-outputWAV filename \t outputs WAV audio to the given file\n"
-					            "-outputAVI \t\t outputs an AVI (you are prompted for location and codec)\n"
-					            "-frameskip val \t\t sets the frameskip amount to the given value\n"
-					            "-synchronize val \t\t limits running speed to sound playing speed, (0 = off, 1 = on)\n"
-					            "-throttle val \t\t sets the throttle speed to the given percentage\n"
-					            "-hideborder val \t\t hides SGB border, if any (0 = show, 1 = hide)\n"
-					            "-throttleKeepPitch val \t if throttle and synch, don't change sound freq (0 = off, 1 = on)\n"
-					            "-quitAfter val \t\t close program when frame counter == val\n"
-					            "-pauseAt val \t\t pause (movie) once when frame counter == val\n"
-					            "-videoScale val \t\t sets the video size (val = 1..8 for 1X..8X)\n"
-					            "-hideMenu \t\t hides the menu until program exit\n"
-					            "\n"
-					            "-videoLog args \t does (nesvideos) video+audio logging with the given arguments\n"
-					            "-logToFile \t tells logging to use fopen/fclose of args, if logging is enabled\n"
-					            "-logDebug  \t tells logging to output debug info to screen, if logging is enabled\n"
+							_stprintf(str, _T("Not enough arguments for arg %d: %s\n"), i, argv[i]);
+					_tcscat(str, L"Valid commands:\n"
+					            L"-h \t\t\t displays this help\n"
+					            L"-rom filename \t\t opens the given ROM\n"
+					            L"-bios filename \t\t use the given GBA BIOS\n"
+					            L"-play filename val \t\t plays the given VBM movie (val: 1 = read-only, 0 = editable)\n"
+					            L"-outputWAV filename \t outputs WAV audio to the given file\n"
+					            L"-outputAVI \t\t outputs an AVI (you are prompted for location and codec)\n"
+					            L"-frameskip val \t\t sets the frameskip amount to the given value\n"
+					            L"-synchronize val \t\t limits running speed to sound playing speed, (0 = off, 1 = on)\n"
+					            L"-throttle val \t\t sets the throttle speed to the given percentage\n"
+					            L"-hideborder val \t\t hides SGB border, if any (0 = show, 1 = hide)\n"
+					            L"-throttleKeepPitch val \t if throttle and synch, don't change sound freq (0 = off, 1 = on)\n"
+					            L"-quitAfter val \t\t close program when frame counter == val\n"
+					            L"-pauseAt val \t\t pause (movie) once when frame counter == val\n"
+					            L"-videoScale val \t\t sets the video size (val = 1..8 for 1X..8X)\n"
+					            L"-hideMenu \t\t hides the menu until program exit\n"
+					            L"\n"
+					            L"-videoLog args \t does (nesvideos) video+audio logging with the given arguments\n"
+					            L"-logToFile \t tells logging to use fopen/fclose of args, if logging is enabled\n"
+					            L"-logDebug  \t tells logging to output debug info to screen, if logging is enabled\n"
 					       );
 					theApp.winCheckFullscreen();
-					AfxGetApp()->m_pMainWnd->MessageBox(str, "Commandline Help", MB_OK | MB_ICONINFORMATION);
+					AfxGetApp()->m_pMainWnd->MessageBox(str, _T("Commandline Help"), MB_OK | MB_ICONINFORMATION);
 					exit(0);
 				}
 			}
@@ -993,7 +970,7 @@ invalidArgument:
 
 	// The window is up, the display is running and the command line has been
 	// obeyed, so the message loop takes over from here.
-	winlog("ready, handing control to the user");
+	winlog(_T("ready, handing control to the user"));
 
 	// input was set up before the window existed, so the controllers it found
 	// could not be reported to the user yet
@@ -1667,13 +1644,13 @@ void VBA::updateVideoSize(UINT id)
 
 void VBA::updateWindowSize(int value)
 {
-	regSetDwordValue("video", value);
+	regSetDwordValue(_T("video"), value);
 
 	if (value == VIDEO_OTHER)
 	{
-		regSetDwordValue("fsWidth", fsWidth);
-		regSetDwordValue("fsHeight", fsHeight);
-		regSetDwordValue("fsColorDepth", fsColorDepth);
+		regSetDwordValue(_T("fsWidth"), fsWidth);
+		regSetDwordValue(_T("fsHeight"), fsHeight);
+		regSetDwordValue(_T("fsColorDepth"), fsColorDepth);
 	}
 
 	if (display &&
@@ -1830,7 +1807,7 @@ void VBA::updateWindowSize(int value)
 		m_pMainWnd = new MainWnd;
 		m_pMainWnd->CreateEx(styleEx,
 		                     theApp.wndClass,
-		                     VBA_NAME_AND_VERSION,
+		                     _T(VBA_NAME_AND_VERSION),
 		                     style & ~WS_VISIBLE,
 		                     x, y, winSizeX, winSizeY,
 		                     NULL,
@@ -1838,7 +1815,7 @@ void VBA::updateWindowSize(int value)
 
 		if (!(HWND)*m_pMainWnd)
 		{
-			winlog("Error creating Window %08x\n", GetLastError());
+			winlog(_T("Error creating Window %08x\n"), GetLastError());
 			AfxPostQuitMessage(0);
 			return;
 		}
@@ -1992,9 +1969,9 @@ bool VBA::initDisplay()
 			    videoOption == VIDEO_800x600 ||
 			    videoOption == VIDEO_OTHER)
 			{
-				regSetDwordValue("video", VIDEO_1X);
+				regSetDwordValue(_T("video"), VIDEO_1X);
 				if (pVideoDriverGUID)
-					regSetDwordValue("defaultVideoDriver", TRUE);
+					regSetDwordValue(_T("defaultVideoDriver"), TRUE);
 			}
 			changingVideoSize = false;
 			return false;
@@ -2046,7 +2023,7 @@ bool VBA::updateRenderMethod(bool force)
 #else
 				// Neither DirectDraw nor GDI is built, so there is nothing
 				// below Direct3D to try and the chain ends here.
-				winlog("VBA: no renderer is left to try\n");
+				winlog(_T("VBA: no renderer is left to try\n"));
 				break;
 #endif
 			}
@@ -2058,12 +2035,12 @@ bool VBA::updateRenderMethod(bool force)
 				// The GDI renderer is the last one of the chain, and it is
 				// not built, so there is nothing below the DirectDraw
 				// renderer to try and the chain ends here.
-				winlog("VBA: no renderer is left to try\n");
+				winlog(_T("VBA: no renderer is left to try\n"));
 				break;
 #endif
 			}
 
-			winlog("VBA: render method %d did not start, trying %d\n", failed, renderMethod);
+			winlog(_T("VBA: render method %d did not start, trying %d\n"), failed, renderMethod);
 
 			res = initDisplay();
 		}
@@ -2076,7 +2053,7 @@ bool VBA::updateRenderMethod(bool force)
 		if (res && display != NULL && upscaler != UPSCALER_OFF &&
 		    !display->upscalerAvailable(upscaler))
 		{
-			winlog("VBA: upscaler %d is not available with render method %d, Off is selected\n",
+			winlog(_T("VBA: upscaler %d is not available with render method %d, Off is selected\n"),
 			       upscaler, renderMethod);
 
 			upscaler = UPSCALER_OFF;
@@ -2088,7 +2065,7 @@ bool VBA::updateRenderMethod(bool force)
 
 	m_pMainWnd->RedrawWindow(NULL, NULL, RDW_INVALIDATE | RDW_ERASE | RDW_ALLCHILDREN);
 
-	regSetDwordValue("renderMethod", renderMethod);
+	regSetDwordValue(_T("renderMethod"), renderMethod);
 
 	return res;
 }
@@ -2139,32 +2116,20 @@ void VBA::winSetLanguageOption(int option, bool force)
 	{
 	case 0:
 	{
-		char lbuffer[10];
+		TCHAR     lbuffer[10];
+		HINSTANCE l = NULL;
 
 		if (GetLocaleInfo(LOCALE_SYSTEM_DEFAULT, LOCALE_SABBREVLANGNAME,
 		                  lbuffer, 10))
 		{
-			HINSTANCE l = winLoadLanguage(lbuffer);
+			l = winLoadLanguage(lbuffer);
 			if (l == NULL)
 			{
 				LCID locIdBase = MAKELCID(MAKELANGID(PRIMARYLANGID(GetSystemDefaultLangID()), SUBLANG_NEUTRAL), SORT_DEFAULT);
 				if (GetLocaleInfo(locIdBase, LOCALE_SABBREVLANGNAME,
 				                  lbuffer, 10))
-				{
 					l = winLoadLanguage(lbuffer);
-					if (l == NULL)
-					{
-						systemMessage(IDS_FAILED_TO_LOAD_LIBRARY,
-						              "Failed to load library %s",
-						              lbuffer);
-						return;
-					}
-				}
 			}
-			AfxSetResourceHandle(l);
-			if (languageModule != NULL)
-				/**/ ::FreeLibrary(languageModule);
-			languageModule = l;
 		}
 		else
 		{
@@ -2172,6 +2137,16 @@ void VBA::winSetLanguageOption(int option, bool force)
 			              "Failed to get locale information");
 			return;
 		}
+
+		// No module for the system language is the ordinary state of a build
+		// that ships without translations, not an error: fall back to the
+		// resources in the executable and say nothing about it.  Complaining
+		// here would put a message on screen at every start of every such
+		// build on a non English Windows.
+		if (languageModule != NULL)
+			/**/ ::FreeLibrary(languageModule);
+		languageModule = l;
+		AfxSetResourceHandle(l != NULL ? l : AfxGetInstanceHandle());
 		break;
 	}
 	case 1:
@@ -2226,23 +2201,25 @@ void VBA::winSetLanguageOption(int option, bool force)
 	theApp.winAccelMgr.UpdateMenu(theApp.menu);
 }
 
-HINSTANCE VBA::winLoadLanguage(const char *name)
+HINSTANCE VBA::winLoadLanguage(LPCTSTR name)
 {
 	CString buffer;
 
-	buffer.Format("vba_%s.dll", name);
+	buffer.Format(_T("vba_%s.dll"), name);
 
 	HINSTANCE l = /**/ ::LoadLibrary(buffer);
 
 	if (l == NULL)
 	{
-		if (strlen(name) == 3)
+		// The locale name comes back as three letters, "CHS" for Simplified
+		// Chinese; the language module is named after the first two.
+		if (_tcslen(name) == 3)
 		{
-			char buffer2[3];
+			TCHAR buffer2[3];
 			buffer2[0] = name[0];
 			buffer2[1] = name[1];
 			buffer2[2] = 0;
-			buffer.Format("vba_%s.dll", buffer2);
+			buffer.Format(_T("vba_%s.dll"), buffer2);
 
 			return /**/ ::LoadLibrary(buffer);
 		}
@@ -2287,7 +2264,9 @@ void VBA::winRemoveUpdateListener(IUpdateListener *l)
 // GDI, OpenGL and WebGPU renderers sit behind a compile time switch, so a
 // build without them cannot run them at all, and a setting left over from a
 // build that had them has to fall back to one it has.
-static bool renderMethodBuilt(DISPLAY_TYPE method)
+// noinline: with all four switches on, the ARM64 link time code generator
+// crashes (C1001) when this is inlined into loadSettings().
+__declspec(noinline) static bool renderMethodBuilt(DISPLAY_TYPE method)
 {
 	switch (method)
 	{
@@ -2336,8 +2315,8 @@ void VBA::loadSettings()
 #endif
 
 	// video
-	bool defaultVideoDriver = regQueryDwordValue("defaultVideoDriver", true) ? true : false;
-	if (!regQueryBinaryValue("videoDriverGUID", (char *)&videoDriverGUID, sizeof(GUID)))
+	bool defaultVideoDriver = regQueryDwordValue(_T("defaultVideoDriver"), true) ? true : false;
+	if (!regQueryBinaryValue(_T("videoDriverGUID"), (char *)&videoDriverGUID, sizeof(GUID)))
 	{
 		defaultVideoDriver = TRUE;
 	}
@@ -2346,7 +2325,7 @@ void VBA::loadSettings()
 	else
 		pVideoDriverGUID = &videoDriverGUID;
 
-	videoOption = regQueryDwordValue("video", defaultVideoOption);
+	videoOption = regQueryDwordValue(_T("video"), defaultVideoOption);
 	if (videoOption < 0 || videoOption > VIDEO_12X)
 		videoOption = defaultVideoOption;
 	switch (videoOption)
@@ -2375,13 +2354,13 @@ void VBA::loadSettings()
 			videoOption = defaultVideoOption;
 	}
 
-	fsWidth = regQueryDwordValue("fsWidth", 0);
-	fsHeight = regQueryDwordValue("fsHeight", 0);
-	fsColorDepth	  = regQueryDwordValue("fsColorDepth", 0);
-	fsMaxScale		  = regQueryDwordValue("fsMaxScale", 0);
-	fullScreenStretch = regQueryDwordValue("stretch", 0) ? true : false;
+	fsWidth = regQueryDwordValue(_T("fsWidth"), 0);
+	fsHeight = regQueryDwordValue(_T("fsHeight"), 0);
+	fsColorDepth	  = regQueryDwordValue(_T("fsColorDepth"), 0);
+	fsMaxScale		  = regQueryDwordValue(_T("fsMaxScale"), 0);
+	fullScreenStretch = regQueryDwordValue(_T("stretch"), 0) ? true : false;
 
-	renderMethod = (DISPLAY_TYPE)regQueryDwordValue("renderMethod", defaultMethod);
+	renderMethod = (DISPLAY_TYPE)regQueryDwordValue(_T("renderMethod"), defaultMethod);
 	if (renderMethod < GDI || renderMethod > WGPU)
 		renderMethod = defaultMethod;
 
@@ -2389,193 +2368,196 @@ void VBA::loadSettings()
 	// left over from a build that had it falls back to the default one.
 	if (!renderMethodBuilt(renderMethod))
 	{
-		winlog("VBA: render method %d is not in this build, %d is used instead\n",
+		winlog(_T("VBA: render method %d is not in this build, %d is used instead\n"),
 		       renderMethod, defaultMethod);
 
 		renderMethod = defaultMethod;
 	}
 
-	ddrawEmulationOnly	= regQueryDwordValue("ddrawEmulationOnly", false) ? true : false;
-	ddrawUseVideoMemory = regQueryDwordValue("ddrawUseVideoMemory", false) ? true : false;
-	tripleBuffering		= regQueryDwordValue("tripleBuffering", true) ? true : false;
-	vsync = regQueryDwordValue("vsync", false) ? true : false;
+	ddrawEmulationOnly	= regQueryDwordValue(_T("ddrawEmulationOnly"), false) ? true : false;
+	ddrawUseVideoMemory = regQueryDwordValue(_T("ddrawUseVideoMemory"), false) ? true : false;
+	tripleBuffering		= regQueryDwordValue(_T("tripleBuffering"), true) ? true : false;
+	vsync = regQueryDwordValue(_T("vsync"), false) ? true : false;
 
-	d3dFilter = regQueryDwordValue("d3dFilter", 0);
+	d3dFilter = regQueryDwordValue(_T("d3dFilter"), 0);
 	if (d3dFilter < 0 || d3dFilter > 2)
 		d3dFilter = 0;
-	upscaler = regQueryDwordValue("upscaler", UPSCALER_OFF);
+	upscaler = regQueryDwordValue(_T("upscaler"), UPSCALER_OFF);
 	// Against the end of the list, or every shader added after xBRZ would be
 	// read back as Off on the next start.
 	if (upscaler < UPSCALER_OFF || upscaler > UPSCALER_LAST)
 		upscaler = UPSCALER_OFF;
-	upscalerSharpness = regQueryDwordValue("upscalerSharpness", 50);
+	upscalerSharpness = regQueryDwordValue(_T("upscalerSharpness"), 50);
 	if (upscalerSharpness < 0 || upscalerSharpness > 100)
 		upscalerSharpness = 50;
-	upscalerMaxScale = regQueryDwordValue("upscalerMaxScale", 0);
+	upscalerMaxScale = regQueryDwordValue(_T("upscalerMaxScale"), 0);
 	if (upscalerMaxScale < 0 || upscalerMaxScale > 8)
 		upscalerMaxScale = 0;
-	glFilter = regQueryDwordValue("glFilter", 0);
+	glFilter = regQueryDwordValue(_T("glFilter"), 0);
 	if (glFilter < 0 || glFilter > 2)
 		glFilter = 0;
-	glType = regQueryDwordValue("glType", 0);
+	glType = regQueryDwordValue(_T("glType"), 0);
 	if (glType < 0 || glType > 1)
 		glType = 0;
 #if VBA_ENABLE_WGPU
-	wgpuFilter = regQueryDwordValue("wgpuFilter", 0);
+	wgpuFilter = regQueryDwordValue(_T("wgpuFilter"), 0);
 	if (wgpuFilter < 0 || wgpuFilter > 2)
 		wgpuFilter = 0;
-	wgpuBackend = regQueryDwordValue("wgpuBackend", VBA_WGPU_BACKEND_AUTO);
+	wgpuBackend = regQueryDwordValue(_T("wgpuBackend"), VBA_WGPU_BACKEND_AUTO);
 	if (wgpuBackend < 0 || wgpuBackend >= VBA_WGPU_BACKEND_COUNT)
 		wgpuBackend = VBA_WGPU_BACKEND_AUTO;
 #endif
 
 	// pixel filter & ifb
-	filterType = regQueryDwordValue("filter", 0);
+	filterType = regQueryDwordValue(_T("filter"), 0);
 	if (filterType < 0 || filterType > 26)
 		filterType = 0;
-	lcdFilterGba = (int)regQueryDwordValue("lcdFilterGba", (DWORD)LCD_FILTER_OFF);
+	lcdFilterGba = (int)regQueryDwordValue(_T("lcdFilterGba"), (DWORD)LCD_FILTER_OFF);
 	if (lcdFilterGba < LCD_FILTER_OFF || lcdFilterGba >= kLcdGbaVariantCount)
 		lcdFilterGba = LCD_FILTER_OFF;
-	lcdFilterGbc = (int)regQueryDwordValue("lcdFilterGbc", (DWORD)LCD_FILTER_OFF);
+	lcdFilterGbc = (int)regQueryDwordValue(_T("lcdFilterGbc"), (DWORD)LCD_FILTER_OFF);
 	if (lcdFilterGbc < LCD_FILTER_OFF || lcdFilterGbc >= kLcdGbcVariantCount)
 		lcdFilterGbc = LCD_FILTER_OFF;
-	lcdFilterColorMode = (int)regQueryDwordValue("lcdFilterColorMode", 0);
+	lcdFilterColorMode = (int)regQueryDwordValue(_T("lcdFilterColorMode"), 0);
 	if (lcdFilterColorMode < 0 || lcdFilterColorMode > 2)
 		lcdFilterColorMode = 0;
-	ifbType	   = regQueryDwordValue("ifbType", 0);
+	ifbType	   = regQueryDwordValue(_T("ifbType"), 0);
 	if (ifbType < 0 || ifbType > 2)
 		ifbType = 0;
 
 	// frame skipping
-	frameSkip = regQueryDwordValue("frameSkip", /*2*/ 0);
+	frameSkip = regQueryDwordValue(_T("frameSkip"), /*2*/ 0);
 	if (frameSkip < 0 || frameSkip > 9)
 		frameSkip = 1;
-	gbFrameSkip = regQueryDwordValue("gbFrameSkip", 0);
+	gbFrameSkip = regQueryDwordValue(_T("gbFrameSkip"), 0);
 	if (gbFrameSkip < 0 || gbFrameSkip > 9)
 		gbFrameSkip = 0;
 ///  autoFrameSkip = regQueryDwordValue("autoFrameSkip", FALSE) ? TRUE : FALSE;
 
 	// input
-	joypadDefault = regQueryDwordValue("joypadDefault", 0);
+	joypadDefault = regQueryDwordValue(_T("joypadDefault"), 0);
 	if (joypadDefault < 0 || joypadDefault > 3)
 		joypadDefault = 0;
-	allowLeftRight		   = regQueryDwordValue("allowLeftRight", false) ? true : false;
-	autofireAccountForLag  = regQueryDwordValue("autofireAccountForLag", false) ? true : false;
-	nextframeAccountForLag = regQueryDwordValue("nextframeAccountForLag", false) ? true : false;
-	theApp.AsscWithSaveState = regQueryDwordValue("AsscWithSaveState", false) ? true : false;
+	allowLeftRight		   = regQueryDwordValue(_T("allowLeftRight"), false) ? true : false;
+	autofireAccountForLag  = regQueryDwordValue(_T("autofireAccountForLag"), false) ? true : false;
+	nextframeAccountForLag = regQueryDwordValue(_T("nextframeAccountForLag"), false) ? true : false;
+	theApp.AsscWithSaveState = regQueryDwordValue(_T("AsscWithSaveState"), false) ? true : false;
 
 	// speed
-	throttle = regQueryDwordValue("throttle", 0);
+	throttle = regQueryDwordValue(_T("throttle"), 0);
 	if (throttle < 5 || throttle > 1000)
 		throttle = 100;
 
-	synchronize = regQueryDwordValue("synchronize", 1) ? true : false;
-	accuratePitchThrottle = regQueryDwordValue("accuratePitchThrottle", FALSE) ? TRUE : FALSE;
+	synchronize = regQueryDwordValue(_T("synchronize"), 1) ? true : false;
+	accuratePitchThrottle = regQueryDwordValue(_T("accuratePitchThrottle"), FALSE) ? TRUE : FALSE;
 
 	// sound
-	int resChannels = regQueryDwordValue("soundEnable", 0x30f);
+	int resChannels = regQueryDwordValue(_T("soundEnable"), 0x30f);
 	systemSoundEnableChannels(resChannels);
 	systemSoundDisableChannels(~resChannels);
-	soundOffFlag = (regQueryDwordValue("soundOff", 0)) ? true : false;
-	soundQuality = regQueryDwordValue("soundQuality", defaultSoundQuality);
-	soundApi	 = regQueryDwordValue("soundApi", defaultSoundApi);
+	soundOffFlag = (regQueryDwordValue(_T("soundOff"), 0)) ? true : false;
+	soundQuality = regQueryDwordValue(_T("soundQuality"), defaultSoundQuality);
+	soundApi	 = regQueryDwordValue(_T("soundApi"), defaultSoundApi);
 	if (soundApi != SOUND_API_XAUDIO2)
 		soundApi = SOUND_API_DIRECTSOUND;
-	soundEcho	 = regQueryDwordValue("soundEcho", 0) ? true : false;
-	soundLowPass = regQueryDwordValue("soundLowPass", 0) ? true : false;
-	soundReverse = regQueryDwordValue("soundReverse", 0) ? true : false;
-	soundVolume	 = regQueryDwordValue("soundVolume", 0);
+	soundEcho	 = regQueryDwordValue(_T("soundEcho"), 0) ? true : false;
+	soundLowPass = regQueryDwordValue(_T("soundLowPass"), 0) ? true : false;
+	soundReverse = regQueryDwordValue(_T("soundReverse"), 0) ? true : false;
+	soundVolume	 = regQueryDwordValue(_T("soundVolume"), 0);
 	if (soundVolume < 0 || soundVolume > 5)
 		soundVolume = 0;
-	muteFrameAdvance = regQueryDwordValue("muteFrameAdvance", 0) ? TRUE : FALSE;
-	muteWhenInactive = regQueryDwordValue("muteWhenInactive", 0) ? TRUE : FALSE;
+	muteFrameAdvance = regQueryDwordValue(_T("muteFrameAdvance"), 0) ? TRUE : FALSE;
+	muteWhenInactive = regQueryDwordValue(_T("muteWhenInactive"), 0) ? TRUE : FALSE;
 
 	// emulation
 #ifdef USE_GBA_CORE_V7
-	memLagEnabled	  = regQueryDwordValue("memLagEnabled", false) ? true : false;
+	memLagEnabled	  = regQueryDwordValue(_T("memLagEnabled"), false) ? true : false;
 	memLagTempEnabled = memLagEnabled;
 #endif
 #ifdef USE_GB_CORE_V7
-	gbNullInputHackEnabled	   = regQueryDwordValue("gbNullInputHackEnabled", false) ? true : false;
+	gbNullInputHackEnabled	   = regQueryDwordValue(_T("gbNullInputHackEnabled"), false) ? true : false;
 	gbNullInputHackTempEnabled = gbNullInputHackEnabled;
 #else
-	gbV20GBFrameTimingHack	   = regQueryDwordValue("gbV20GBFrameTimingHack", false) ? true : false;
+	gbV20GBFrameTimingHack	   = regQueryDwordValue(_T("gbV20GBFrameTimingHack"), false) ? true : false;
 	gbV20GBFrameTimingHackTemp = gbV20GBFrameTimingHack;
 #endif
-	useOldSync		  = regQueryDwordValue("useOldSync", 0) ? TRUE : FALSE;
-	useOldFrameTiming = regQueryDwordValue("useOldGBTiming", false) ? true : false;
+	useOldSync		  = regQueryDwordValue(_T("useOldSync"), 0) ? TRUE : FALSE;
+	useOldFrameTiming = regQueryDwordValue(_T("useOldGBTiming"), false) ? true : false;
 
-	useBiosFile	  = regQueryDwordValue("useBios", 0) ? true : false;
-	skipBiosIntro = regQueryDwordValue("skipBios", 0) ? true : false;
-	buffer		  = regQueryStringValue("biosFile", "");
+	useBiosFile	  = regQueryDwordValue(_T("useBios"), 0) ? true : false;
+	skipBiosIntro = regQueryDwordValue(_T("skipBios"), 0) ? true : false;
+	buffer		  = regQueryStringValue(_T("biosFile"), _T(""));
 	if (!buffer.IsEmpty())
 	{
 		biosFileName = buffer;
 	}
 //	removeIntros = regQueryDwordValue("removeIntros", false) ? true : false;
 
-	autoIPS = regQueryDwordValue("autoIPS", true) ? true : false;
+	autoIPS = regQueryDwordValue(_T("autoIPS"), true) ? true : false;
 
-	agbPrintEnable(regQueryDwordValue("agbPrint", 0) ? true : false);
-	winRtcEnable = regQueryDwordValue("rtcEnabled", 0) ? true : false;
+	agbPrintEnable(regQueryDwordValue(_T("agbPrint"), 0) ? true : false);
+	winRtcEnable = regQueryDwordValue(_T("rtcEnabled"), 0) ? true : false;
 	rtcEnable(winRtcEnable);
 
-	winSaveType = regQueryDwordValue("saveType", 0);
+	winSaveType = regQueryDwordValue(_T("saveType"), 0);
 	if (winSaveType < 0 || winSaveType > 5)
 		winSaveType = 0;
-	cpuEnhancedDetection = regQueryDwordValue("enhancedDetection", 1) ? true : false;
-	winFlashSize		 = regQueryDwordValue("flashSize", 0x10000);
+	cpuEnhancedDetection = regQueryDwordValue(_T("enhancedDetection"), 1) ? true : false;
+	winFlashSize		 = regQueryDwordValue(_T("flashSize"), 0x10000);
 	if (winFlashSize != 0x10000 && winFlashSize != 0x20000)
 		winFlashSize = 0x10000;
 
-	cpuDisableSfx = regQueryDwordValue("disableSfx", 0) ? true : false;
+	cpuDisableSfx = regQueryDwordValue(_T("disableSfx"), 0) ? true : false;
 
 	// GBx
-	winGbPrinterEnabled = regQueryDwordValue("gbPrinter", false) ? true : false;
+	winGbPrinterEnabled = regQueryDwordValue(_T("gbPrinter"), false) ? true : false;
 	if (winGbPrinterEnabled)
 		gbSerialFunction = gbPrinterSend;
 	else
 		gbSerialFunction = NULL;
-	gbEmulatorType = regQueryDwordValue("emulatorType", 0);
+	gbEmulatorType = regQueryDwordValue(_T("emulatorType"), 0);
 	if (gbEmulatorType < 0 || gbEmulatorType > 5)
 		gbEmulatorType = 1;
-	winGbBorderOn	  = regQueryDwordValue("borderOn", 0);
-	gbBorderAutomatic = regQueryDwordValue("borderAutomatic", 0);
+	winGbBorderOn	  = regQueryDwordValue(_T("borderOn"), 0);
+	gbBorderAutomatic = regQueryDwordValue(_T("borderAutomatic"), 0);
 
-	gbColorOption	= regQueryDwordValue("colorOption", 0);
-	gbPaletteOption = regQueryDwordValue("gbPaletteOption", 0);
+	gbColorOption	= regQueryDwordValue(_T("colorOption"), 0);
+	gbPaletteOption = regQueryDwordValue(_T("gbPaletteOption"), 0);
 	if (gbPaletteOption < 0)
 		gbPaletteOption = 0;
 	if (gbPaletteOption > 2)
 		gbPaletteOption = 2;
-	regQueryBinaryValue("gbPalette", (char *)systemGbPalette, 24 * sizeof(u16));
+	regQueryBinaryValue(_T("gbPalette"), (char *)systemGbPalette, 24 * sizeof(u16));
 
 	// head-up display
-	showSpeed = regQueryDwordValue("showSpeed", 1);
+	showSpeed = regQueryDwordValue(_T("showSpeed"), 1);
 	if (showSpeed < 0 || showSpeed > 2)
 		showSpeed = 1;
-	showSpeedTransparent = regQueryDwordValue("showSpeedTransparent", TRUE) ? TRUE : FALSE;
-	outlinedText		 = regQueryDwordValue("outlinedText", TRUE) != 0;
-	transparentText		 = regQueryDwordValue("transparentText", FALSE) != 0;
-	textColor			 = regQueryDwordValue("textColor", 0);
-	textMethod			 = regQueryDwordValue("textMethod", 1);
-	frameCounter		 = regQueryDwordValue("frameCounter", false) ? true : false;
-	lagCounter			 = regQueryDwordValue("lagCounter", false) ? true : false;
-	extraCounter		 = regQueryDwordValue("extraCounter", false) ? true : false;
-	inputDisplay		 = regQueryDwordValue("inputDisplay", false) ? true : false;
-	nextInputDisplay	 = regQueryDwordValue("nextInputDisplay", false) ? true : false;
-	disableStatusMessage = regQueryDwordValue("disableStatus", 0) ? true : false;
+	showSpeedTransparent = regQueryDwordValue(_T("showSpeedTransparent"), TRUE) ? TRUE : FALSE;
+	outlinedText		 = regQueryDwordValue(_T("outlinedText"), TRUE) != 0;
+	transparentText		 = regQueryDwordValue(_T("transparentText"), FALSE) != 0;
+	textColor			 = regQueryDwordValue(_T("textColor"), 0);
+	textMethod			 = regQueryDwordValue(_T("textMethod"), 1);
+	frameCounter		 = regQueryDwordValue(_T("frameCounter"), false) ? true : false;
+	lagCounter			 = regQueryDwordValue(_T("lagCounter"), false) ? true : false;
+	extraCounter		 = regQueryDwordValue(_T("extraCounter"), false) ? true : false;
+	inputDisplay		 = regQueryDwordValue(_T("inputDisplay"), false) ? true : false;
+	nextInputDisplay	 = regQueryDwordValue(_T("nextInputDisplay"), false) ? true : false;
+	disableStatusMessage = regQueryDwordValue(_T("disableStatus"), 0) ? true : false;
 
 	// UI
-	windowPositionX = regQueryDwordValue("windowX", -32000);
-	windowPositionY = regQueryDwordValue("windowY", -32000);
+	windowPositionX = regQueryDwordValue(_T("windowX"), -32000);
+	windowPositionY = regQueryDwordValue(_T("windowY"), -32000);
 
-	autoHideMenu = regQueryDwordValue("autoHideMenu", 0) ? true : false;
+	autoHideMenu = regQueryDwordValue(_T("autoHideMenu"), 0) ? true : false;
 
-	languageOption = regQueryDwordValue("language", 1);
+	// Follow the system language by default: a build that ships a language
+	// module then comes up in the user's language on its own, and a build
+	// without one stays on the resources in the executable.
+	languageOption = regQueryDwordValue(_T("language"), 0);
 	if (languageOption < 0 || languageOption > 2)
-		languageOption = 1;
-	buffer = regQueryStringValue("languageName", "");
+		languageOption = 0;
+	buffer = regQueryStringValue(_T("languageName"), _T(""));
 	if (!buffer.IsEmpty())
 	{
 		languageName = buffer.Left(3);
@@ -2585,25 +2567,25 @@ void VBA::loadSettings()
 	winSetLanguageOption(languageOption, true);
 
 	// preferences
-	alwaysOnTop = regQueryDwordValue("alwaysOnTop", false) ? true : false;
+	alwaysOnTop = regQueryDwordValue(_T("alwaysOnTop"), false) ? true : false;
 	// The modern UI font is the default; the menu entry exists so that the
 	// 2004 era layout can be brought back if a dialog does not fit.
-	useModernFont = regQueryDwordValue("useModernFont", 1) ? true : false;
+	useModernFont = regQueryDwordValue(_T("useModernFont"), 1) ? true : false;
 	uiFont::setModern(useModernFont);
-	pauseWhenInactive	  = regQueryDwordValue("pauseWhenInactive", 1) ? true : false;
-	enableBackgroundInput = regQueryDwordValue("enableBackgroundInput", 0) ? true : false;
-	threadPriority		  = regQueryDwordValue("priority", 2);
+	pauseWhenInactive	  = regQueryDwordValue(_T("pauseWhenInactive"), 1) ? true : false;
+	enableBackgroundInput = regQueryDwordValue(_T("enableBackgroundInput"), 0) ? true : false;
+	threadPriority		  = regQueryDwordValue(_T("priority"), 2);
 	if (threadPriority < 0 || threadPriority > 3)
 		threadPriority = 2;
 	updatePriority();
 
-	filenamePreference = regQueryDwordValue("filenamePreference", 0);
-	altAviRecordMethod = regQueryDwordValue("altAviRecordMethod", false) ? true : false;
-	captureScaled = regQueryDwordValue("captureScaled", regQueryDwordValue("aviRecordScaled", false)) ? true : false;
-	imageCaptureSelect(regQueryStringValue("captureFormat", ".png"));
+	filenamePreference = regQueryDwordValue(_T("filenamePreference"), 0);
+	altAviRecordMethod = regQueryDwordValue(_T("altAviRecordMethod"), false) ? true : false;
+	captureScaled = regQueryDwordValue(_T("captureScaled"), regQueryDwordValue(_T("aviRecordScaled"), false)) ? true : false;
+	imageCaptureSelect(winAnsiFromWide(regQueryStringValue(_T("captureFormat"), _T(".png"))));
 
-	rewindTimer = regQueryDwordValue("rewindTimer", 0);
-	rewindSlots = regQueryDwordValue("rewindSlots", 64);
+	rewindTimer = regQueryDwordValue(_T("rewindTimer"), 0);
+	rewindSlots = regQueryDwordValue(_T("rewindSlots"), 64);
 	if (rewindTimer < 0 || rewindTimer > 600)
 		rewindTimer = 0;
 	if (rewindSlots <= 0)
@@ -2619,38 +2601,38 @@ void VBA::loadSettings()
 	if (frameSearchMemory == NULL)
 		frameSearchMemory = (char *)malloc(3 * REWIND_SIZE);
 
-	recentFreeze = regQueryDwordValue("recentFreeze", false) ? true : false;
+	recentFreeze = regQueryDwordValue(_T("recentFreeze"), false) ? true : false;
 	for (int i = 0, j = 0; i < 10; ++i)
 	{
-		buffer.Format("recent%d", i);
-		const char *s = regQueryStringValue(buffer, NULL);
-		if (s == NULL)
+		buffer.Format(_T("recent%d"), i);
+		const CString s = regQueryStringValue(buffer, NULL);
+		if (s.IsEmpty())
 			continue;
 		recentFiles[j] = s;
 		++j;
 	}
 
-	autoLoadMostRecent = regQueryDwordValue("autoLoadMostRecent", false) ? true : false;
-	loadMakesRecent	   = regQueryDwordValue("loadMakesRecent", false) ? true : false;
-	loadMakesCurrent   = regQueryDwordValue("loadMakesCurrent", false) ? true : false;
-	saveMakesCurrent   = regQueryDwordValue("saveMakesCurrent", false) ? true : false;
-	currentSlot		   = regQueryDwordValue("currentSlot", 0);
-	showSlotTime	   = regQueryDwordValue("showSlotTime", 0) ? true : false;
+	autoLoadMostRecent = regQueryDwordValue(_T("autoLoadMostRecent"), false) ? true : false;
+	loadMakesRecent	   = regQueryDwordValue(_T("loadMakesRecent"), false) ? true : false;
+	loadMakesCurrent   = regQueryDwordValue(_T("loadMakesCurrent"), false) ? true : false;
+	saveMakesCurrent   = regQueryDwordValue(_T("saveMakesCurrent"), false) ? true : false;
+	currentSlot		   = regQueryDwordValue(_T("currentSlot"), 0);
+	showSlotTime	   = regQueryDwordValue(_T("showSlotTime"), 0) ? true : false;
 
-	cheatsEnabled = regQueryDwordValue("cheatsEnabled", true) ? true : false;
-	autoSaveLoadCheatList  = regQueryDwordValue("autoSaveCheatList", 0) ? true : false;
-	pauseDuringCheatSearch = regQueryDwordValue("pauseDuringCheatSearch2", 0) ? true : false;
+	cheatsEnabled = regQueryDwordValue(_T("cheatsEnabled"), true) ? true : false;
+	autoSaveLoadCheatList  = regQueryDwordValue(_T("autoSaveCheatList"), 0) ? true : false;
+	pauseDuringCheatSearch = regQueryDwordValue(_T("pauseDuringCheatSearch2"), 0) ? true : false;
 
-	int movieEditMode  = regQueryDwordValue("movieEditMode", 0);
+	int movieEditMode  = regQueryDwordValue(_T("movieEditMode"), 0);
 	if (movieEditMode < MovieEditMode::MOVIE_EDIT_MODE_DISCARD || movieEditMode >= MovieEditMode::MOVIE_EDIT_MODE_COUNT)
 		movieEditMode = MovieEditMode::MOVIE_EDIT_MODE_DISCARD;
 	VBAMovieSetEditMode(MovieEditMode(movieEditMode));
 
-	movieOnEndBehavior = regQueryDwordValue("movieOnEndBehavior", 0);
-	movieOnEndPause	   = regQueryDwordValue("movieOnEndPause", 0) ? true : false;
+	movieOnEndBehavior = regQueryDwordValue(_T("movieOnEndBehavior"), 0);
+	movieOnEndPause	   = regQueryDwordValue(_T("movieOnEndPause"), 0) ? true : false;
 
 	extern bool autoConvertMovieWhenPlaying;    // from movie.cpp
-	autoConvertMovieWhenPlaying = regQueryDwordValue("autoConvertMovieWhenPlaying", 0) ? true : false;
+	autoConvertMovieWhenPlaying = regQueryDwordValue(_T("autoConvertMovieWhenPlaying"), 0) ? true : false;
 
 	// RamWatch Settings
 	AutoRWLoad		= regQueryDwordValue(AUTORWLOAD, false);
@@ -2661,183 +2643,183 @@ void VBA::loadSettings()
 	// this is FILO
 	for (int i = MAX_RECENT_WATCHES; i > 0; --i)
 	{
-		buffer.Format("recentWatch%d", i);
-		const char *s = regQueryStringValue(buffer, NULL);
-		if (s == NULL)
+		buffer.Format(_T("recentWatch%d"), i);
+		const CString s = regQueryStringValue(buffer, NULL);
+		if (s.IsEmpty())
 			continue;
-		RWAddRecentFile(s);
+		RWAddRecentFile(winAnsiFromWide(s));
 	}
 }
 
 void VBA::saveSettings()
 {
-	regSetDwordValue("defaultVideoDriver", pVideoDriverGUID == NULL);
+	regSetDwordValue(_T("defaultVideoDriver"), pVideoDriverGUID == NULL);
 	if (pVideoDriverGUID)
 	{
-		regSetBinaryValue("videoDriverGUID", (char *)&videoDriverGUID,
+		regSetBinaryValue(_T("videoDriverGUID"), (char *)&videoDriverGUID,
 		                  sizeof(GUID));
 	}
-	regSetDwordValue("video", videoOption);
+	regSetDwordValue(_T("video"), videoOption);
 
-	regSetDwordValue("fsWidth", fsWidth);
-	regSetDwordValue("fsHeight", fsHeight);
-	regSetDwordValue("fsColorDepth", fsColorDepth);
-	regSetDwordValue("fsMaxScale", fsMaxScale);
+	regSetDwordValue(_T("fsWidth"), fsWidth);
+	regSetDwordValue(_T("fsHeight"), fsHeight);
+	regSetDwordValue(_T("fsColorDepth"), fsColorDepth);
+	regSetDwordValue(_T("fsMaxScale"), fsMaxScale);
 
-	regSetDwordValue("stretch", fullScreenStretch);
+	regSetDwordValue(_T("stretch"), fullScreenStretch);
 
-	regSetDwordValue("renderMethod", renderMethod);
+	regSetDwordValue(_T("renderMethod"), renderMethod);
 
-	regSetDwordValue("ddrawEmulationOnly", ddrawEmulationOnly);
-	regSetDwordValue("ddrawUseVideoMemory", ddrawUseVideoMemory);
-	regSetDwordValue("tripleBuffering", tripleBuffering);
-	regSetDwordValue("vsync", vsync);
+	regSetDwordValue(_T("ddrawEmulationOnly"), ddrawEmulationOnly);
+	regSetDwordValue(_T("ddrawUseVideoMemory"), ddrawUseVideoMemory);
+	regSetDwordValue(_T("tripleBuffering"), tripleBuffering);
+	regSetDwordValue(_T("vsync"), vsync);
 
-	regSetDwordValue("d3dFilter", d3dFilter);
-	regSetDwordValue("upscaler", upscaler);
-	regSetDwordValue("upscalerSharpness", upscalerSharpness);
-	regSetDwordValue("upscalerMaxScale", upscalerMaxScale);
-	regSetDwordValue("glFilter", glFilter);
-	regSetDwordValue("glType", glType);
+	regSetDwordValue(_T("d3dFilter"), d3dFilter);
+	regSetDwordValue(_T("upscaler"), upscaler);
+	regSetDwordValue(_T("upscalerSharpness"), upscalerSharpness);
+	regSetDwordValue(_T("upscalerMaxScale"), upscalerMaxScale);
+	regSetDwordValue(_T("glFilter"), glFilter);
+	regSetDwordValue(_T("glType"), glType);
 
 	// pixel filter & ifb
-	regSetDwordValue("filter", filterType);
-	regSetDwordValue("lcdFilterGba", lcdFilterGba);
-	regSetDwordValue("lcdFilterGbc", lcdFilterGbc);
-	regSetDwordValue("lcdFilterColorMode", lcdFilterColorMode);
-	regSetDwordValue("ifbType", ifbType);
+	regSetDwordValue(_T("filter"), filterType);
+	regSetDwordValue(_T("lcdFilterGba"), lcdFilterGba);
+	regSetDwordValue(_T("lcdFilterGbc"), lcdFilterGbc);
+	regSetDwordValue(_T("lcdFilterColorMode"), lcdFilterColorMode);
+	regSetDwordValue(_T("ifbType"), ifbType);
 
 	// frame skipping
-	regSetDwordValue("frameSkip", frameSkip);
-	regSetDwordValue("gbFrameSkip", gbFrameSkip);
+	regSetDwordValue(_T("frameSkip"), frameSkip);
+	regSetDwordValue(_T("gbFrameSkip"), gbFrameSkip);
 ///  regSetDwordValue("autoFrameSkip", autoFrameSkip);
 
 	// input
-	regSetDwordValue("joypadDefault", joypadDefault);
-	regSetDwordValue("allowLeftRight", allowLeftRight);
-	regSetDwordValue("autofireAccountforLag", autofireAccountForLag);
-	regSetDwordValue("nextframeAccountforLag", nextframeAccountForLag);
-	regSetDwordValue("AsscWithSaveState", theApp.AsscWithSaveState);
+	regSetDwordValue(_T("joypadDefault"), joypadDefault);
+	regSetDwordValue(_T("allowLeftRight"), allowLeftRight);
+	regSetDwordValue(_T("autofireAccountforLag"), autofireAccountForLag);
+	regSetDwordValue(_T("nextframeAccountforLag"), nextframeAccountForLag);
+	regSetDwordValue(_T("AsscWithSaveState"), theApp.AsscWithSaveState);
 
 	// speed
-	regSetDwordValue("throttle", throttle);
-	regSetDwordValue("synchronize", synchronize);
-	regSetDwordValue("accuratePitchThrottle", accuratePitchThrottle);
+	regSetDwordValue(_T("throttle"), throttle);
+	regSetDwordValue(_T("synchronize"), synchronize);
+	regSetDwordValue(_T("accuratePitchThrottle"), accuratePitchThrottle);
 
 	// sound
-	regSetDwordValue("soundEnable", systemSoundGetEnabledChannels() & 0x030f);
-	regSetDwordValue("soundOff", soundOffFlag);
-	regSetDwordValue("soundQuality", soundQuality);
-	regSetDwordValue("soundApi", soundApi);
-	regSetDwordValue("soundEcho", soundEcho);
-	regSetDwordValue("soundLowPass", soundLowPass);
-	regSetDwordValue("soundReverse", soundReverse);
-	regSetDwordValue("soundVolume", soundVolume);
-	regSetDwordValue("muteFrameAdvance", muteFrameAdvance);
-	regSetDwordValue("muteWhenInactive", muteWhenInactive);
+	regSetDwordValue(_T("soundEnable"), systemSoundGetEnabledChannels() & 0x030f);
+	regSetDwordValue(_T("soundOff"), soundOffFlag);
+	regSetDwordValue(_T("soundQuality"), soundQuality);
+	regSetDwordValue(_T("soundApi"), soundApi);
+	regSetDwordValue(_T("soundEcho"), soundEcho);
+	regSetDwordValue(_T("soundLowPass"), soundLowPass);
+	regSetDwordValue(_T("soundReverse"), soundReverse);
+	regSetDwordValue(_T("soundVolume"), soundVolume);
+	regSetDwordValue(_T("muteFrameAdvance"), muteFrameAdvance);
+	regSetDwordValue(_T("muteWhenInactive"), muteWhenInactive);
 
 	// emulation
-	regSetDwordValue("useBios", useBiosFile);
-	regSetDwordValue("skipBios", skipBiosIntro);
+	regSetDwordValue(_T("useBios"), useBiosFile);
+	regSetDwordValue(_T("skipBios"), skipBiosIntro);
 	if (!biosFileName.IsEmpty())
-		regSetStringValue("biosFile", biosFileName);
+		regSetStringValue(_T("biosFile"), biosFileName);
 //	regSetDwordValue("removeIntros", removeIntros);
 
-	regSetDwordValue("autoIPS", autoIPS);
+	regSetDwordValue(_T("autoIPS"), autoIPS);
 
 #ifdef USE_GBA_CORE_V7
-	regSetDwordValue("memLagEnabled", memLagEnabled);
+	regSetDwordValue(_T("memLagEnabled"), memLagEnabled);
 #endif
 #ifdef USE_GB_CORE_V7
-	regSetDwordValue("gbNullInputHackEnabled", gbNullInputHackEnabled);
+	regSetDwordValue(_T("gbNullInputHackEnabled"), gbNullInputHackEnabled);
 #else
-	regSetDwordValue("gbV20GBFrameTimingHack", gbV20GBFrameTimingHack);
+	regSetDwordValue(_T("gbV20GBFrameTimingHack"), gbV20GBFrameTimingHack);
 #endif
-	regSetDwordValue("useOldGBTiming", useOldFrameTiming);
-	regSetDwordValue("useOldSync", useOldSync);
+	regSetDwordValue(_T("useOldGBTiming"), useOldFrameTiming);
+	regSetDwordValue(_T("useOldSync"), useOldSync);
 
-	regSetDwordValue("agbPrint", agbPrintIsEnabled());
-	regSetDwordValue("rtcEnabled", winRtcEnable);
+	regSetDwordValue(_T("agbPrint"), agbPrintIsEnabled());
+	regSetDwordValue(_T("rtcEnabled"), winRtcEnable);
 
-	regSetDwordValue("saveType", winSaveType);
-	regSetDwordValue("enhancedDetection", cpuEnhancedDetection);
-	regSetDwordValue("flashSize", winFlashSize);
+	regSetDwordValue(_T("saveType"), winSaveType);
+	regSetDwordValue(_T("enhancedDetection"), cpuEnhancedDetection);
+	regSetDwordValue(_T("flashSize"), winFlashSize);
 
-	regSetDwordValue("disableSfx", cpuDisableSfx);
+	regSetDwordValue(_T("disableSfx"), cpuDisableSfx);
 
 	// GBx
-	regSetDwordValue("emulatorType", gbEmulatorType);
-	regSetDwordValue("gbPrinter", winGbPrinterEnabled);
-	regSetDwordValue("borderOn", winGbBorderOn);
-	regSetDwordValue("borderAutomatic", gbBorderAutomatic);
+	regSetDwordValue(_T("emulatorType"), gbEmulatorType);
+	regSetDwordValue(_T("gbPrinter"), winGbPrinterEnabled);
+	regSetDwordValue(_T("borderOn"), winGbBorderOn);
+	regSetDwordValue(_T("borderAutomatic"), gbBorderAutomatic);
 
-	regSetDwordValue("colorOption", gbColorOption);
-	regSetDwordValue("gbPaletteOption", gbPaletteOption);
-	regSetBinaryValue("gbPalette", (char *)systemGbPalette, 24 * sizeof(u16));
+	regSetDwordValue(_T("colorOption"), gbColorOption);
+	regSetDwordValue(_T("gbPaletteOption"), gbPaletteOption);
+	regSetBinaryValue(_T("gbPalette"), (char *)systemGbPalette, 24 * sizeof(u16));
 
 	// head-up display
-	regSetDwordValue("showSpeed", showSpeed);
-	regSetDwordValue("showSpeedTransparent", showSpeedTransparent);
+	regSetDwordValue(_T("showSpeed"), showSpeed);
+	regSetDwordValue(_T("showSpeedTransparent"), showSpeedTransparent);
 
-	regSetDwordValue("outlinedText", outlinedText);
-	regSetDwordValue("transparentText", transparentText);
-	regSetDwordValue("textColor", textColor);
-	regSetDwordValue("textMethod", textMethod);
-	regSetDwordValue("frameCounter", frameCounter);
-	regSetDwordValue("lagCounter", lagCounter);
-	regSetDwordValue("extraCounter", extraCounter);
-	regSetDwordValue("inputDisplay", inputDisplay);
-	regSetDwordValue("nextInputDisplay", nextInputDisplay);
-	regSetDwordValue("disableStatus", disableStatusMessage);
+	regSetDwordValue(_T("outlinedText"), outlinedText);
+	regSetDwordValue(_T("transparentText"), transparentText);
+	regSetDwordValue(_T("textColor"), textColor);
+	regSetDwordValue(_T("textMethod"), textMethod);
+	regSetDwordValue(_T("frameCounter"), frameCounter);
+	regSetDwordValue(_T("lagCounter"), lagCounter);
+	regSetDwordValue(_T("extraCounter"), extraCounter);
+	regSetDwordValue(_T("inputDisplay"), inputDisplay);
+	regSetDwordValue(_T("nextInputDisplay"), nextInputDisplay);
+	regSetDwordValue(_T("disableStatus"), disableStatusMessage);
 
 	// UI
-	regSetDwordValue("windowX", windowPositionX);
-	regSetDwordValue("windowY", windowPositionY);
+	regSetDwordValue(_T("windowX"), windowPositionX);
+	regSetDwordValue(_T("windowY"), windowPositionY);
 
-	regSetDwordValue("autoHideMenu", autoHideMenu);
+	regSetDwordValue(_T("autoHideMenu"), autoHideMenu);
 
-	regSetDwordValue("language", languageOption);
-	regSetStringValue("languageName", languageName);
+	regSetDwordValue(_T("language"), languageOption);
+	regSetStringValue(_T("languageName"), languageName);
 
 	// preferences
-	regSetDwordValue("alwaysOnTop", alwaysOnTop);
-	regSetDwordValue("useModernFont", useModernFont);
-	regSetDwordValue("pauseWhenInactive", pauseWhenInactive);
-	regSetDwordValue("enableBackgroundInput", enableBackgroundInput);
-	regSetDwordValue("priority", threadPriority);
+	regSetDwordValue(_T("alwaysOnTop"), alwaysOnTop);
+	regSetDwordValue(_T("useModernFont"), useModernFont);
+	regSetDwordValue(_T("pauseWhenInactive"), pauseWhenInactive);
+	regSetDwordValue(_T("enableBackgroundInput"), enableBackgroundInput);
+	regSetDwordValue(_T("priority"), threadPriority);
 
-	regSetDwordValue("filenamePreference", filenamePreference);
-	regSetDwordValue("altAviRecordMethod", altAviRecordMethod);
-	regSetDwordValue("captureScaled", captureScaled);
-	regSetStringValue("captureFormat", imageCaptureExtension());
+	regSetDwordValue(_T("filenamePreference"), filenamePreference);
+	regSetDwordValue(_T("altAviRecordMethod"), altAviRecordMethod);
+	regSetDwordValue(_T("captureScaled"), captureScaled);
+	regSetStringValue(_T("captureFormat"), winWideFromAnsi(imageCaptureExtension()));
 
-	regSetDwordValue("cheatsEnabled", cheatsEnabled);
-	regSetDwordValue("autoSaveCheatList", autoSaveLoadCheatList);
-	regSetDwordValue("pauseDuringCheatSearch2", pauseDuringCheatSearch);
+	regSetDwordValue(_T("cheatsEnabled"), cheatsEnabled);
+	regSetDwordValue(_T("autoSaveCheatList"), autoSaveLoadCheatList);
+	regSetDwordValue(_T("pauseDuringCheatSearch2"), pauseDuringCheatSearch);
 
-	regSetDwordValue("rewindTimer", rewindTimer);
-	regSetDwordValue("rewindSlots", rewindSlots);
+	regSetDwordValue(_T("rewindTimer"), rewindTimer);
+	regSetDwordValue(_T("rewindSlots"), rewindSlots);
 
-	regSetDwordValue("recentFreeze", recentFreeze);
+	regSetDwordValue(_T("recentFreeze"), recentFreeze);
 	CString buffer;
 	for (int i = 0; i < 10; i++)
 	{
-		buffer.Format("recent%d", i);
+		buffer.Format(_T("recent%d"), i);
 		regSetStringValue(buffer, recentFiles[i]);
 	}
 
-	regSetDwordValue("autoLoadMostRecent", autoLoadMostRecent);
-	regSetDwordValue("loadMakesRecent", loadMakesRecent);
-	regSetDwordValue("loadMakesCurrent", loadMakesCurrent);
-	regSetDwordValue("saveMakesCurrent", saveMakesCurrent);
-	regSetDwordValue("currentSlot", currentSlot);
-	regSetDwordValue("showSlotTime", showSlotTime);
+	regSetDwordValue(_T("autoLoadMostRecent"), autoLoadMostRecent);
+	regSetDwordValue(_T("loadMakesRecent"), loadMakesRecent);
+	regSetDwordValue(_T("loadMakesCurrent"), loadMakesCurrent);
+	regSetDwordValue(_T("saveMakesCurrent"), saveMakesCurrent);
+	regSetDwordValue(_T("currentSlot"), currentSlot);
+	regSetDwordValue(_T("showSlotTime"), showSlotTime);
 
-	regSetDwordValue("movieEditMode", VBAMovieGetEditMode());
-	regSetDwordValue("movieOnEndBehavior", movieOnEndBehavior);
-	regSetDwordValue("movieOnEndPause", movieOnEndPause);
+	regSetDwordValue(_T("movieEditMode"), VBAMovieGetEditMode());
+	regSetDwordValue(_T("movieOnEndBehavior"), movieOnEndBehavior);
+	regSetDwordValue(_T("movieOnEndPause"), movieOnEndPause);
 
 	extern bool autoConvertMovieWhenPlaying;    // from movie.cpp
-	regSetDwordValue("autoConvertMovieWhenPlaying", autoConvertMovieWhenPlaying);
+	regSetDwordValue(_T("autoConvertMovieWhenPlaying"), autoConvertMovieWhenPlaying);
 }
 

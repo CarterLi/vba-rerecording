@@ -17,7 +17,21 @@
 
 /////////////////////////////////////////////////////////////////////////////
 // English (United States) resources
-
+//
+// This build is UNICODE, so every string in this file is stored in the binary
+// as UTF-16 and is displayed as written, whatever code page the machine runs
+// on.  Two things matter when translating:
+//
+//   * A translation is a separate resource script built into a language
+//     module, vba_<lang>.dll, loaded from next to the executable.  It keeps its
+//     own LANGUAGE line and sets #pragma code_page to the encoding its file is
+//     saved in (65001 for UTF-8, 936 for GBK, ...).  The value here describes
+//     this file, not the translation.
+//   * Filter strings for the file dialogs use '_' where a '|' separator is
+//     meant, because the dialog builder splits on '|'.  winResLoadFilter turns
+//     them back into '|'; every other string is shown verbatim, so an
+//     underscore anywhere else is just an underscore.
+//
 #if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_ENU)
 LANGUAGE LANG_ENGLISH, SUBLANG_ENGLISH_US
 #pragma code_page(1252)
@@ -2919,6 +2933,14 @@ BEGIN
     IDS_AUTOFIRE_LEFT       "turbo Left on"
     IDS_JOYPAD_CONNECTED    "Joypad connected: %s"
     IDS_JOYPAD_DISCONNECTED "Joypad disconnected: %s"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_VALUE               "Value"
+    IDS_PREVIOUS            "Previous"
+    IDS_CHANGES             "Changes"
+    IDS_NOTES               "Notes"
 END
 
 /////////////////////////////////////////////////////////////////////////////

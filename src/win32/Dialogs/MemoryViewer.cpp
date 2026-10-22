@@ -152,7 +152,7 @@ void MemoryViewer::OnPaint()
 
 	CFont *oldFont = memDC.SelectObject(CFont::FromHandle(font));
 
-	fontSize = memDC.GetTextExtent("0", 1);
+	fontSize = memDC.GetTextExtent(_T("0"), 1);
 
 	int lines = h / fontSize.cy;
 
@@ -178,9 +178,9 @@ void MemoryViewer::OnPaint()
 	{
 		CString buffer;
 		if (addressSize)
-			buffer.Format("%04X", addr);
+			buffer.Format(_T("%04X"), addr);
 		else
-			buffer.Format("%08X", addr);
+			buffer.Format(_T("%08X"), addr);
 		memDC.DrawText(buffer, &r, DT_TOP | DT_LEFT | DT_NOPREFIX);
 		r.left  += 10*fontSize.cx;
 		beginHex = r.left;
@@ -194,16 +194,16 @@ void MemoryViewer::OnPaint()
 			{
 				const int nextRLeft = r.left + 3*fontSize.cx;
 				if (!decimalDisplay)
-					buffer.Format("%02X", data[j]);
+					buffer.Format(_T("%02X"), data[j]);
 				else
 				{
 					const signed char num = data[j];
 					if (num < -9 || num > 99)
 						r.left -= fontSize.cx;
 					if (num >= -99 && num <= 99)
-						buffer.Format("%2d", num);
+						buffer.Format(_T("%2d"), num);
 					else
-						buffer.Format("");
+						buffer.Format(_T(""));
 				}
 				memDC.DrawText(buffer, &r, DT_TOP | DT_LEFT | DT_NOPREFIX);
 				r.left = nextRLeft;
@@ -215,16 +215,16 @@ void MemoryViewer::OnPaint()
 			{
 				const int nextRLeft = r.left + 5*fontSize.cx;
 				if (!decimalDisplay)
-					buffer.Format("%04X", data[j] | data[j+1]<<8);
+					buffer.Format(_T("%04X"), data[j] | data[j+1]<<8);
 				else
 				{
 					const signed short num = data[j] | data[j+1]<<8;
 					if (num < -999 || num > 9999)
 						r.left -= fontSize.cx;
 					if (num >= -9999 && num <= 9999)
-						buffer.Format("%4d", num);
+						buffer.Format(_T("%4d"), num);
 					else
-						buffer.Format("");
+						buffer.Format(_T(""));
 				}
 				memDC.DrawText(buffer, &r, DT_TOP | DT_LEFT | DT_NOPREFIX);
 				r.left = nextRLeft;
@@ -235,14 +235,14 @@ void MemoryViewer::OnPaint()
 			for (j = 0; j < 16; j += 4)
 			{
 				if (!decimalDisplay)
-					buffer.Format("%08X", data[j] | data[j+1]<<8 | data[j+2] << 16 | data[j+3] << 24);
+					buffer.Format(_T("%08X"), data[j] | data[j+1]<<8 | data[j+2] << 16 | data[j+3] << 24);
 				else
 				{
 					const signed long num = data[j] | data[j+1]<<8 | data[j+2] << 16 | data[j+3] << 24;
 					if (num >= -9999999 && num <= 99999999)
-						buffer.Format("%8d", num);
+						buffer.Format(_T("%8d"), num);
 					else
-						buffer.Format("");
+						buffer.Format(_T(""));
 				}
 				memDC.DrawText(buffer, &r, DT_TOP | DT_LEFT | DT_NOPREFIX);
 				r.left += 9*fontSize.cx;
@@ -666,7 +666,7 @@ void MemoryViewer::registerClass()
 		wc.hCursor       = LoadCursor(NULL, IDC_ARROW);
 		wc.hbrBackground = (HBRUSH)GetStockObject(WHITE_BRUSH);
 		wc.lpszMenuName  = NULL;
-		wc.lpszClassName = "VbaMemoryViewer";
+		wc.lpszClassName = _T("VbaMemoryViewer");
 		AfxRegisterClass(&wc);
 		isRegistered = true;
 	}

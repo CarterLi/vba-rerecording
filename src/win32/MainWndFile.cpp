@@ -71,7 +71,7 @@ void MainWnd::OnFileReset()
 		else
 		{
 			theApp.emulator.emuReset();
-			systemScreenMessage(winResLoadString(IDS_RESET));
+			systemScreenMessage(winAnsiFromWide(winResLoadString(IDS_RESET)));
 		}
 	}
 }
@@ -95,7 +95,7 @@ void MainWnd::OnFileRecentReset()
 {
 	theApp.winCheckFullscreen();
 	systemSoundClearBuffer();
-	if (MessageBox("Really clear your recent ROMs list?", //winResLoadString(IDS_REALLY_CLEAR),
+	if (MessageBox(_T("Really clear your recent ROMs list?"), //winResLoadString(IDS_REALLY_CLEAR),
 	               winResLoadString(IDS_CONFIRM_ACTION),
 	               MB_YESNO | MB_DEFBUTTON2) == IDNO)
 		return;
@@ -131,11 +131,11 @@ void MainWnd::OnUpdateFileRecentFile(CCmdUI *pCmdUI)
 			p.Delete(0, index + 1);
 		}
 
-		p.Replace("&", "&&");
+		p.Replace(_T("&"), _T("&&"));
 
 		CString number("1&0 - ");
 		if (fileID < 9)
-			number.Format("&%d - ", fileID + 1);
+			number.Format(_T("&%d - "), fileID + 1);
 
 		if (p.IsEmpty())
 		{
@@ -172,14 +172,14 @@ void MainWnd::OnFileLoad()
 {
 	theApp.winCheckFullscreen();
 
-	LPCTSTR exts[] = { ".sgm", NULL };
+	LPCTSTR exts[] = { _T(".sgm"), NULL };
 	CString filter = winResLoadFilter(IDS_FILTER_SGM);
 	CString title  = winResLoadString(IDS_SELECT_SAVE_GAME_NAME);
 
 	CString saveName = winGetDestFilename(theApp.gameFilename, IDS_SAVE_DIR, exts[0]);
 	CString saveDir	 = winGetDestDir(IDS_SAVE_DIR);
 
-	FileDlg dlg(this, saveName, filter, 0, "SGM", exts, saveDir, title, false, true);
+	FileDlg dlg(this, saveName, filter, 0, _T("SGM"), exts, saveDir, title, false, true);
 
 	if (dlg.DoModal() == IDOK)
 	{
@@ -194,7 +194,7 @@ void MainWnd::OnFileLoad()
 
 		if (res)
 		{
-			systemScreenMessage(winResLoadString(IDS_LOADED_STATE));
+			systemScreenMessage(winAnsiFromWide(winResLoadString(IDS_LOADED_STATE)));
 
 			theApp.frameSearching = false;
 			theApp.frameSearchSkipping = false;
@@ -245,7 +245,7 @@ BOOL MainWnd::OnFileLoadSlot(UINT nID)
 
 		CString buffer;
 		buffer.Format(format, nID);
-		systemScreenMessage(buffer);
+		systemScreenMessage(winAnsiFromWide(buffer));
 
 		int lastSlot = theApp.currentSlot;
 
@@ -285,14 +285,14 @@ void MainWnd::OnFileSave()
 {
 	theApp.winCheckFullscreen();
 
-	LPCTSTR exts[] = { ".sgm", NULL };
+	LPCTSTR exts[] = { _T(".sgm"), NULL };
 	CString filter = winResLoadFilter(IDS_FILTER_SGM);
 	CString title  = winResLoadString(IDS_SELECT_SAVE_GAME_NAME);
 
 	CString saveName = winGetDestFilename(theApp.gameFilename, IDS_SAVE_DIR, exts[0]);
 	CString saveDir	 = winGetDestDir(IDS_SAVE_DIR);
 
-	FileDlg dlg(this, saveName, filter, 0, "SGM", exts, saveDir, title, true);
+	FileDlg dlg(this, saveName, filter, 0, _T("SGM"), exts, saveDir, title, true);
 
 	if (dlg.DoModal() == IDOK)
 	{
@@ -301,7 +301,7 @@ void MainWnd::OnFileSave()
 		bool res = winWriteSaveGame(dlg.GetPathName());
 		if (res)
 		{
-			systemScreenMessage(winResLoadString(IDS_WROTE_STATE));
+			systemScreenMessage(winAnsiFromWide(winResLoadString(IDS_WROTE_STATE)));
 
 			CallRegisteredLuaFunctions(LUACALL_AFTERSTATESAVE);
 		}
@@ -332,7 +332,7 @@ BOOL MainWnd::OnFileSaveSlot(UINT nID)
 		CString buffer;
 		buffer.Format(format, nID);
 
-		systemScreenMessage(buffer);
+		systemScreenMessage(winAnsiFromWide(buffer));
 
 		CallRegisteredLuaFunctions(LUACALL_AFTERSTATESAVE);
 	}
@@ -346,8 +346,8 @@ BOOL MainWnd::OnSelectSlot(UINT nID)
 	theApp.currentSlot = nID;
 
 	CString buffer;
-	buffer.Format("Slot %d selected", nID + 1);
-	systemScreenMessage(buffer, 0);
+	buffer.Format(_T("Slot %d selected"), nID + 1);
+	systemScreenMessage(winAnsiFromWide(buffer), 0);
 
 	return true;
 }
@@ -356,14 +356,14 @@ void MainWnd::OnFileImportBatteryfile()
 {
 	theApp.winCheckFullscreen();
 
-	LPCTSTR exts[] = { ".sav", NULL };
+	LPCTSTR exts[] = { _T(".sav"), NULL };
 	CString filter = winResLoadFilter(IDS_FILTER_SAV);
 	CString title  = winResLoadString(IDS_SELECT_BATTERY_FILE);
 
 	CString batteryName = winGetDestFilename(theApp.gameFilename, IDS_BATTERY_DIR, exts[0]);
 	CString batteryDir	= winGetDestDir(IDS_BATTERY_DIR);
 
-	FileDlg dlg(this, batteryName, filter, 0, "SAV", exts, batteryDir, title, false, true);
+	FileDlg dlg(this, batteryName, filter, 0, _T("SAV"), exts, batteryDir, title, false, true);
 
 	if (dlg.DoModal() == IDCANCEL)
 		return;
@@ -379,7 +379,7 @@ void MainWnd::OnFileImportBatteryfile()
 
 	bool res = false;
 
-	res = theApp.emulator.emuReadBattery(dlg.GetPathName());
+	res = theApp.emulator.emuReadBattery(winAnsiFromWide(dlg.GetPathName()));
 
 	if (!res)
 	{
@@ -410,7 +410,7 @@ void MainWnd::OnFileImportGamesharkcodefile()
 	CString filter = systemCartridgeType == IMAGE_GBA ? winResLoadFilter(IDS_FILTER_SPC) : winResLoadFilter(IDS_FILTER_GCF);
 	CString title  = winResLoadString(IDS_SELECT_CODE_FILE);
 
-	FileDlg dlg(this, "", filter, 0, "", exts, "", title, false, true);
+	FileDlg dlg(this, _T(""), filter, 0, _T(""), exts, _T(""), title, false, true);
 
 	if (dlg.DoModal() == IDCANCEL)
 		return;
@@ -441,7 +441,7 @@ void MainWnd::OnFileImportGamesharksnapshot()
 	CString filter = systemCartridgeType == 1 ? winResLoadFilter(IDS_FILTER_GBS) : winResLoadFilter(IDS_FILTER_SPS);
 	CString title  = winResLoadString(IDS_SELECT_SNAPSHOT_FILE);
 
-	FileDlg dlg(this, "", filter, 0, "", exts, "", title, false, true);
+	FileDlg dlg(this, _T(""), filter, 0, _T(""), exts, _T(""), title, false, true);
 
 	if (dlg.DoModal() == IDCANCEL)
 		return;
@@ -456,9 +456,9 @@ void MainWnd::OnFileImportGamesharksnapshot()
 		return;
 
 	if (systemCartridgeType == 1)
-		gbReadGSASnapshot(dlg.GetPathName());
+		gbReadGSASnapshot(winAnsiFromWide(dlg.GetPathName()));
 	else
-		CPUReadGSASnapshot(dlg.GetPathName());
+		CPUReadGSASnapshot(winAnsiFromWide(dlg.GetPathName()));
 }
 
 void MainWnd::OnUpdateFileImportGamesharksnapshot(CCmdUI *pCmdUI)
@@ -470,14 +470,14 @@ void MainWnd::OnFileExportBatteryfile()
 {
 	theApp.winCheckFullscreen();
 
-	LPCTSTR exts[] = { ".sav", ".dat", NULL };
+	LPCTSTR exts[] = { _T(".sav"), _T(".dat"), NULL };
 	CString filter = winResLoadFilter(IDS_FILTER_SAV);
 	CString title  = winResLoadString(IDS_SELECT_BATTERY_FILE);
 
 	CString batteryName = winGetDestFilename(theApp.gameFilename, IDS_BATTERY_DIR, exts[0]);
 	CString batteryDir	= winGetDestDir(IDS_BATTERY_DIR);
 
-	FileDlg dlg(this, batteryName, filter, 1, "SAV", exts, batteryDir, title, true);
+	FileDlg dlg(this, batteryName, filter, 1, _T("SAV"), exts, batteryDir, title, true);
 
 	if (dlg.DoModal() == IDCANCEL)
 	{
@@ -488,10 +488,10 @@ void MainWnd::OnFileExportBatteryfile()
 
 	if (systemCartridgeType == 1)
 	{
-		result = gbWriteBatteryFile(dlg.GetPathName(), false);
+		result = gbWriteBatteryFile(winAnsiFromWide(dlg.GetPathName()), false);
 	}
 	else
-		result = theApp.emulator.emuWriteBattery(dlg.GetPathName());
+		result = theApp.emulator.emuWriteBattery(winAnsiFromWide(dlg.GetPathName()));
 
 	if (!result)
 		systemMessage(MSG_ERROR_CREATING_FILE, "Error creating file %s",
@@ -512,14 +512,14 @@ void MainWnd::OnFileExportGamesharksnapshot()
 		return;
 	}
 
-	LPCTSTR exts[] = { ".sps", NULL };
+	LPCTSTR exts[] = { _T(".sps"), NULL };
 
 	CString filter = winResLoadFilter(IDS_FILTER_SPS);
 	CString title  = winResLoadString(IDS_SELECT_SNAPSHOT_FILE);
 
 	CString name = winGetDestFilename(theApp.gameFilename, CString(), exts[0]);
 
-	FileDlg dlg(this, name, filter, 1, "SPS", exts, "", title, true);
+	FileDlg dlg(this, name, filter, 1, _T("SPS"), exts, _T(""), title, true);
 
 	if (dlg.DoModal() == IDCANCEL)
 		return;
@@ -561,7 +561,7 @@ void MainWnd::OnFileScreencapture()
 	if (!winWriteScreenshotFile(captureName))
 		return;
 
-	systemScreenMessage(winResLoadString(IDS_SCREEN_CAPTURE));
+	systemScreenMessage(winAnsiFromWide(winResLoadString(IDS_SCREEN_CAPTURE)));
 }
 
 void MainWnd::OnUpdateFileScreencapture(CCmdUI *pCmdUI)
@@ -678,9 +678,9 @@ void MainWnd::OnUpdateFileSavegameOldestslot(CCmdUI *pCmdUI)
 		CString str;
 		enabled = (found != -1);
 		if (enabled)
-			str.Format("&Oldest Slot (#%d)", found + 1);
+			str.Format(_T("&Oldest Slot (#%d)"), found + 1);
 		else
-			str.Format("&Oldest Slot", found + 1);
+			str.Format(_T("&Oldest Slot"), found + 1);
 
 		pCmdUI->SetText(str);
 
@@ -745,9 +745,9 @@ void MainWnd::OnUpdateFileLoadgameMostrecent(CCmdUI *pCmdUI)
 		CString str;
 		enabled = (found != -1);
 		if (enabled)
-			str.Format("Most &Recent Slot (#%d)", found + 1);
+			str.Format(_T("Most &Recent Slot (#%d)"), found + 1);
 		else
-			str.Format("Most &Recent Slot", found + 1);
+			str.Format(_T("Most &Recent Slot"), found + 1);
 
 		pCmdUI->SetText(str);
 
@@ -831,7 +831,7 @@ void MainWnd::OnUpdateFileSavegameCurrent(CCmdUI *pCmdUI)
 		int slotID = theApp.currentSlot + 1;
 
 		CString str;
-		str.Format("&Current Slot (#%d)", slotID);
+		str.Format(_T("&Current Slot (#%d)"), slotID);
 
 		pCmdUI->SetText(str);
 
@@ -853,7 +853,7 @@ void MainWnd::OnUpdateFileLoadgameCurrent(CCmdUI *pCmdUI)
 	if (pCmdUI->m_pMenu != NULL)
 	{
 		CString str;
-		str.Format("&Current Slot (#%d)", slotID);
+		str.Format(_T("&Current Slot (#%d)"), slotID);
 
 		pCmdUI->SetText(str);
 
@@ -900,7 +900,7 @@ void MainWnd::OnUpdateFileSavegameIncrementSlot(CCmdUI *pCmdUI)
 		int slotID = theApp.currentSlot + 1;
 
 		CString str;
-		str.Format("&Increase Current Slot (#%d -> #%d)", slotID, slotID % 10 + 1);
+		str.Format(_T("&Increase Current Slot (#%d -> #%d)"), slotID, slotID % 10 + 1);
 
 		pCmdUI->SetText(str);
 
@@ -924,7 +924,7 @@ void MainWnd::OnUpdateFileSavegameDecrementSlot(CCmdUI *pCmdUI)
 		int slotID = theApp.currentSlot + 1;
 
 		CString str;
-		str.Format("&Decrease Current Slot (#%d -> #%d)", slotID, (slotID + 8) % 10 + 1);
+		str.Format(_T("&Decrease Current Slot (#%d -> #%d)"), slotID, (slotID + 8) % 10 + 1);
 
 		pCmdUI->SetText(str);
 
@@ -948,7 +948,7 @@ void MainWnd::OnFileLuaOpen()
 
 	if (!LuaConsoleHWnd)
 	{
-		LuaConsoleHWnd = ::CreateDialog(AfxGetInstanceHandle(), MAKEINTRESOURCE(IDD_LUA), AfxGetMainWnd()->GetSafeHwnd(), (DLGPROC)DlgLuaScriptDialog);
+		LuaConsoleHWnd = ::CreateDialog(AfxGetResourceHandle(), MAKEINTRESOURCE(IDD_LUA), AfxGetMainWnd()->GetSafeHwnd(), (DLGPROC)DlgLuaScriptDialog);
 	}
 	else
 	{
@@ -988,7 +988,9 @@ void MainWnd::OnFileRamSearch()
 	{
 		reset_address_info();
 		LRESULT CALLBACK RamSearchProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam);
-		::CreateDialog(AfxGetInstanceHandle(), MAKEINTRESOURCE(IDD_RAMSEARCH), AfxGetMainWnd()->GetSafeHwnd(), (DLGPROC) RamSearchProc);
+		// AfxGetResourceHandle and not AfxGetInstanceHandle: the template has
+		// to come from the language module when one is loaded.
+		::CreateDialog(AfxGetResourceHandle(), MAKEINTRESOURCE(IDD_RAMSEARCH), AfxGetMainWnd()->GetSafeHwnd(), (DLGPROC) RamSearchProc);
 	}
 	else
 	{
@@ -1010,7 +1012,7 @@ void MainWnd::OnFileRamWatch()
 	if (!RamWatchHWnd)
 	{
 		LRESULT CALLBACK RamWatchProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam);
-		RamWatchHWnd = ::CreateDialog(AfxGetInstanceHandle(), MAKEINTRESOURCE(IDD_RAMWATCH), AfxGetMainWnd()->GetSafeHwnd(), (DLGPROC) RamWatchProc);
+		RamWatchHWnd = ::CreateDialog(AfxGetResourceHandle(), MAKEINTRESOURCE(IDD_RAMWATCH), AfxGetMainWnd()->GetSafeHwnd(), (DLGPROC) RamWatchProc);
 	}
 	else
 	{

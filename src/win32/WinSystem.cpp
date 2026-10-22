@@ -80,9 +80,9 @@ void winOutput(const char *s, u32 addr)
 		CString str;
 		while (char c = CPUReadByteQuick(addr++))
 		{
-			str += c;
+			str += (TCHAR)c;
 		}
-		log(str);
+		log(winAnsiFromWide(str));
 	}
 }
 
@@ -111,12 +111,13 @@ void log(const char *msg, ...)
 	va_start(valist, msg);
 
 #if 1
-	CString buffer;
+	// The log viewer takes the ANSI text these debug calls produce.
+	CStringA buffer;
 	buffer.FormatV(msg, valist);
 	extern void toolsLog(const char *);
 	toolsLog(buffer);
 #else
-	extern void winlog(const char *msg, ...);
+	extern void winlog(LPCTSTR msg, ...);
 	winlog(msg, valist);
 #endif
 
@@ -406,7 +407,7 @@ static void systemRecordScaledAviFrame()
 // Writes a screenshot rendered the way an AVI frame is: with the active pixel
 // filter and at the size the emulator is drawn, matching the "window size and
 // filter" capture option.  Returns false when no such frame could be produced.
-bool winWriteFilteredScreenshot(const char *fileName)
+bool winWriteFilteredScreenshot(const CString &fileName)
 {
 	int width  = theApp.surfaceSizeX;
 	int height = theApp.surfaceSizeY;
@@ -421,7 +422,7 @@ bool winWriteFilteredScreenshot(const char *fileName)
 	if (frame == NULL)
 		return false;
 
-	return utilWriteImageBGR(fileName, width, height, frame, width * 3);
+	return utilWriteImageBGR(winAnsiFromWide(fileName), width, height, frame, width * 3);
 }
 
 static void systemRecordAviFrame(int width, int height)
@@ -582,22 +583,52 @@ int systemScreenCapture(int captureNumber)
 	return winScreenCapture(captureNumber);
 }
 
-void systemMessage(int number, const char *defaultMsg, ...)
+static void winShowSystemMessage(const CString &text)
 {
-	CString buffer;
-	va_list valist;
-	CString msg = defaultMsg;
-	if (number)
-		msg = winResLoadString(number);
-
-	va_start(valist, defaultMsg);
-	buffer.FormatV(msg, valist);
-
 	theApp.winCheckFullscreen();
 	systemSoundClearBuffer();
-	AfxGetApp()->m_pMainWnd->MessageBox(buffer, winResLoadString(IDS_ERROR), MB_OK | MB_ICONERROR);
+	AfxGetApp()->m_pMainWnd->MessageBox(text, winResLoadString(IDS_ERROR), MB_OK | MB_ICONERROR);
+}
 
+// Wide form, used by the Win32 layer.  The format and the arguments are both
+// TCHAR, so a translated string from a language module and its arguments agree
+// in width whatever the translation contains.
+void systemMessage(int number, const wchar_t *defaultMsg, ...)
+{
+	const CString format = number ? winResLoadString(number) : CString(defaultMsg);
+
+	va_list valist;
+	va_start(valist, defaultMsg);
+	CString text;
+	text.FormatV(format, valist);
 	va_end(valist);
+
+	winShowSystemMessage(text);
+}
+
+// Narrow form, kept for the emulation core, which has no notion of TCHAR.  Its
+// format and arguments are ANSI, so the text is formatted there and then
+// widened.  A translated string replaces it only when the format takes no
+// arguments: a resource string is TCHAR and would not match ANSI arguments.
+void systemMessage(int number, const char *defaultMsg, ...)
+{
+	va_list valist;
+	va_start(valist, defaultMsg);
+	CStringA text;
+	text.FormatV(defaultMsg, valist);
+	va_end(valist);
+
+	CString message;
+	if (number)
+	{
+		const CString translated = winResLoadString(number);
+		if (translated.Find('%') < 0)
+			message = translated;
+	}
+	if (message.IsEmpty())
+		message = winWideFromAnsi(text);
+
+	winShowSystemMessage(message);
 }
 
 void systemScreenMessage(const char *msg, int slot, int duration, const char *colorList)
@@ -608,8 +639,8 @@ void systemScreenMessage(const char *msg, int slot, int duration, const char *co
 	theApp.screenMessage[slot] = true;
 	theApp.screenMessageTime[slot]		  = GetTickCount();
 	theApp.screenMessageDuration[slot]	  = duration;
-	theApp.screenMessageBuffer[slot]	  = msg;
-	theApp.screenMessageColorBuffer[slot] = colorList ? colorList : "";
+	theApp.screenMessageBuffer[slot]	  = winWideFromAnsi(msg);
+	theApp.screenMessageColorBuffer[slot] = winWideFromAnsi(colorList);
 
 	if (theApp.screenMessageBuffer[slot].GetLength() > 40)
 		theApp.screenMessageBuffer[slot] = theApp.screenMessageBuffer[slot].Left(40);
@@ -628,9 +659,9 @@ void systemShowSpeed(int speed)
 	{
 		CString buffer;
 		if (theApp.showSpeed == 1)
-			buffer.Format(VBA_NAME_AND_VERSION " %3d%%", systemSpeed);
+			buffer.Format(_T(VBA_NAME_AND_VERSION) _T(" %3d%%"), systemSpeed);
 		else
-			buffer.Format(VBA_NAME_AND_VERSION " %3d%% (%d fps | %d skipped)",
+			buffer.Format(_T(VBA_NAME_AND_VERSION) _T(" %3d%% (%d fps | %d skipped)"),
 			              systemSpeed,
 			              theApp.showRenderedFrames,
 			              systemFrameSkip);
@@ -640,6 +671,14 @@ void systemShowSpeed(int speed)
 }
 
 void systemSetTitle(const char *title)
+{
+	if (theApp.m_pMainWnd != NULL)
+	{
+		AfxGetApp()->m_pMainWnd->SetWindowText(winWideFromAnsi(title));
+	}
+}
+
+void systemSetTitle(const wchar_t *title)
 {
 	if (theApp.m_pMainWnd != NULL)
 	{

@@ -3,18 +3,18 @@
 
 #pragma once
 
-extern const char IDS_ROM_DIR[];
-extern const char IDS_GBXROM_DIR[];
-extern const char IDS_BATTERY_DIR[];
-extern const char IDS_SAVE_DIR[];
-extern const char IDS_MOVIE_DIR[];
-extern const char IDS_CHEAT_DIR[];
-extern const char IDS_LUA_DIR[];
-extern const char IDS_IPS_DIR[];
-extern const char IDS_AVI_DIR[];
-extern const char IDS_WAV_DIR[];
-extern const char IDS_CAPTURE_DIR[];
-extern const char IDS_WATCH_DIR[];
+extern const TCHAR IDS_ROM_DIR[];
+extern const TCHAR IDS_GBXROM_DIR[];
+extern const TCHAR IDS_BATTERY_DIR[];
+extern const TCHAR IDS_SAVE_DIR[];
+extern const TCHAR IDS_MOVIE_DIR[];
+extern const TCHAR IDS_CHEAT_DIR[];
+extern const TCHAR IDS_LUA_DIR[];
+extern const TCHAR IDS_IPS_DIR[];
+extern const TCHAR IDS_AVI_DIR[];
+extern const TCHAR IDS_WAV_DIR[];
+extern const TCHAR IDS_CAPTURE_DIR[];
+extern const TCHAR IDS_WATCH_DIR[];
 
 extern bool winFileExists(const CString &filename);
 extern bool winIsDriveRoot(const CString &file);
@@ -32,7 +32,7 @@ int winScreenCapture(int captureNumber = 0);
 // Writes the frame the "window size and filter" capture option renders: the
 // active pixel filter at the size the emulator is drawn.  Returns false when no
 // such frame could be produced.  Defined in WinSystem.cpp.
-bool winWriteFilteredScreenshot(const char *fileName);
+bool winWriteFilteredScreenshot(const CString &fileName);
 
 // Saves a screenshot to `fileName`, honouring that option; without it the plain
 // emulator screenshot is written.  False when nothing could be written.
@@ -44,15 +44,15 @@ bool winWriteScreenshotFile(const CString &fileName);
 void winWriteImageBGR(const CString &fileName, int width, int height,
                       const unsigned char *bgr, int stride);
 bool winImportGSACodeFile(CString& fileName);
-void winLoadCheatList(const char *name);
-void winSaveCheatList(const char *name);
+void winLoadCheatList(LPCTSTR name);
+void winSaveCheatList(LPCTSTR name);
 void winLoadCheatListDefault();
 void winSaveCheatListDefault();
 bool winReadBatteryFile();
 bool winWriteBatteryFile();
 bool winEraseBatteryFile();
-bool winReadSaveGame(const char *name);
-bool winWriteSaveGame(const char *name);
-bool winEraseSaveGame(const char *name);
+bool winReadSaveGame(LPCTSTR name);
+bool winWriteSaveGame(LPCTSTR name);
+bool winEraseSaveGame(LPCTSTR name);
 
 #endif // VBA_WIN32_WINMISCUTIL_H

@@ -84,16 +84,18 @@ struct DialogData       //      dd
 };
 
 extern bool regEnabled;
-extern const char *regGetINIPath();
+extern LPCTSTR regGetINIPath();
 
+// Called from the assert macros in WinHelper.h, which hand over __FILE__ and the
+// expression text, so the arguments stay narrow and are widened here.
 void AssertFailed(char *file, int line, char *exp)
 {
-	char buffer[1024];
+	TCHAR buffer[1024];
 
-	sprintf(buffer, "File %s\nLine %d\nExpression %s\nPress Retry to debug",
-	        file, line, exp);
+	_stprintf(buffer, _T("File %s\nLine %d\nExpression %s\nPress Retry to debug"),
+	        (LPCTSTR)winWideFromAnsi(file), line, (LPCTSTR)winWideFromAnsi(exp));
 	systemSoundClearBuffer();
-	int res = MessageBox(*theApp.m_pMainWnd, buffer, "Assertion failed!",
+	int res = MessageBox(*theApp.m_pMainWnd, buffer, _T("Assertion failed!"),
 	                     MB_ICONHAND | MB_SETFOREGROUND | MB_TASKMODAL |
 	                     MB_ABORTRETRYIGNORE);
 
@@ -116,28 +118,28 @@ void ApiFailure(char *pcszFilename, int nLine, char *pcszExpression)
 	                      MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
 	                      (LPTSTR) &lpMsgBuf, 0, NULL);
 
-	char szExeName[ MAX_PATH ];
+	TCHAR szExeName[ MAX_PATH ];
 
 	if (!GetModuleFileName(NULL, szExeName, countof(szExeName)))
-		strcpy(szExeName, "<No Program Name>");
+		_tcscpy(szExeName, _T("<No Program Name>"));
 
-	char szMessage[ 1024 ];
-	_snprintf(szMessage, countof(szMessage),
-	          "API VERIFY Failure!"
-	          "\nProgram: %s"
-	          "\n"
-	          "\nFile %s"
-	          "\nLine %d"
-	          "\n"
-	          "\nExpression %s"
-	          "\n"
-	          "\nLast Error %d"
-	          "\n           %s"
-	          "\n\nPress Retry to debug the application",
+	TCHAR szMessage[ 1024 ];
+	_sntprintf(szMessage, countof(szMessage),
+	          _T("API VERIFY Failure!")
+	          _T("\nProgram: %s")
+	          _T("\n")
+	          _T("\nFile %s")
+	          _T("\nLine %d")
+	          _T("\n")
+	          _T("\nExpression %s")
+	          _T("\n")
+	          _T("\nLast Error %d")
+	          _T("\n           %s")
+	          _T("\n\nPress Retry to debug the application"),
 	          szExeName,
-	          pcszFilename,
+	          (LPCTSTR)winWideFromAnsi(pcszFilename),
 	          nLine,
-	          pcszExpression,
+	          (LPCTSTR)winWideFromAnsi(pcszExpression),
 	          dwLastError,
 	          lpMsgBuf
 	          );
@@ -146,9 +148,9 @@ void ApiFailure(char *pcszFilename, int nLine, char *pcszExpression)
 	HWND hwndParent = ::GetActiveWindow();
 	hwndParent = ::GetLastActivePopup(hwndParent);
 	systemSoundClearBuffer();
-	int nCode = ::MessageBoxA(hwndParent,
+	int nCode = ::MessageBox(hwndParent,
 	                          szMessage,
-	                          "Debug Helper",
+	                          _T("Debug Helper"),
 	                          MB_TASKMODAL | MB_ICONHAND | MB_ABORTRETRYIGNORE |
 	                          MB_SETFOREGROUND);
 	if (nCode == IDABORT)
@@ -184,7 +186,7 @@ long FASTCALL RegQueryValueExRecursive(HKEY hKey,
 
 	if (!regEnabled)
 	{
-		if (GetPrivateProfileStruct("Viewer",
+		if (GetPrivateProfileStruct(_T("Viewer"),
 		                            lpValueName,
 		                            lpData,
 		                            *lpcbData,
@@ -243,7 +245,7 @@ long FASTCALL RegSetValueExRecursive(HKEY hKey,
 
 	if (!regEnabled)
 	{
-		if (WritePrivateProfileStruct("Viewer",
+		if (WritePrivateProfileStruct(_T("Viewer"),
 		                              lpValueName,
 		                              (LPVOID)lpData,
 		                              cbData,

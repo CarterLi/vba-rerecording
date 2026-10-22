@@ -70,7 +70,7 @@ BOOL GSACodeSelect::OnInitDialog()
 		fread(&len, 1, 4, f);
 		fread(buffer, 1, len, f);
 		buffer[len] = 0;
-		m_games.AddString(buffer);
+		m_games.AddString(winWideFromAnsi(buffer));
 		int codes = 0;
 		fread(&codes, 1, 4, f);
 

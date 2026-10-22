@@ -67,7 +67,7 @@ BOOL ModeConfirm::OnInitDialog()
   count = 10;
 
   CString buffer;
-  buffer.Format("%d", count);
+  buffer.Format(_T("%d"), count);
 
   GetDlgItem(IDC_TIMER)->SetWindowText(buffer);
 
@@ -83,7 +83,7 @@ void ModeConfirm::OnTimer(UINT_PTR nIDEvent)
   count--;
   if(count == 0)
     EndDialog(FALSE);
-  buffer.Format("%d", count);
+  buffer.Format(_T("%d"), count);
   GetDlgItem(IDC_TIMER)->SetWindowText(buffer);
   
   CDialog::OnTimer(nIDEvent);

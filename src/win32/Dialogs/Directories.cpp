@@ -139,7 +139,7 @@ void Directories::OnRomDir()
 
 void Directories::OnRomDirReset()
 {
-	m_romPath.SetWindowText("");
+	m_romPath.SetWindowText(_T(""));
 }
 
 void Directories::OnGBxRomDir()
@@ -152,7 +152,7 @@ void Directories::OnGBxRomDir()
 
 void Directories::OnGBxRomDirReset()
 {
-	m_gbxromPath.SetWindowText("");
+	m_gbxromPath.SetWindowText(_T(""));
 }
 
 void Directories::OnBatteryDir()
@@ -165,7 +165,7 @@ void Directories::OnBatteryDir()
 
 void Directories::OnBatteryDirReset()
 {
-	m_batteryPath.SetWindowText("");
+	m_batteryPath.SetWindowText(_T(""));
 }
 
 void Directories::OnSaveDir()
@@ -178,7 +178,7 @@ void Directories::OnSaveDir()
 
 void Directories::OnSaveDirReset()
 {
-	m_savePath.SetWindowText("");
+	m_savePath.SetWindowText(_T(""));
 }
 
 void Directories::OnMovieDir()
@@ -191,7 +191,7 @@ void Directories::OnMovieDir()
 
 void Directories::OnMovieDirReset()
 {
-	m_moviePath.SetWindowText("");
+	m_moviePath.SetWindowText(_T(""));
 }
 
 void Directories::OnCheatDir()
@@ -204,7 +204,7 @@ void Directories::OnCheatDir()
 
 void Directories::OnCheatDirReset()
 {
-	m_cheatPath.SetWindowText("");
+	m_cheatPath.SetWindowText(_T(""));
 }
 
 void Directories::OnLuaDir()
@@ -217,7 +217,7 @@ void Directories::OnLuaDir()
 
 void Directories::OnLuaDirReset()
 {
-	m_luaPath.SetWindowText("");
+	m_luaPath.SetWindowText(_T(""));
 }
 
 void Directories::OnAviDir()
@@ -230,7 +230,7 @@ void Directories::OnAviDir()
 
 void Directories::OnAviDirReset()
 {
-	m_aviPath.SetWindowText("");
+	m_aviPath.SetWindowText(_T(""));
 }
 
 void Directories::OnWavDir()
@@ -243,7 +243,7 @@ void Directories::OnWavDir()
 
 void Directories::OnWavDirReset()
 {
-	m_wavPath.SetWindowText("");
+	m_wavPath.SetWindowText(_T(""));
 }
 
 void Directories::OnCaptureDir()
@@ -256,7 +256,7 @@ void Directories::OnCaptureDir()
 
 void Directories::OnCaptureDirReset()
 {
-	m_capturePath.SetWindowText("");
+	m_capturePath.SetWindowText(_T(""));
 }
 
 void Directories::OnIpsDir()
@@ -269,7 +269,7 @@ void Directories::OnIpsDir()
 
 void Directories::OnIpsDirReset()
 {
-	m_ipsPath.SetWindowText("");
+	m_ipsPath.SetWindowText(_T(""));
 }
 
 void Directories::OnWatchDir()
@@ -282,7 +282,7 @@ void Directories::OnWatchDir()
 
 void Directories::OnWatchDirReset()
 {
-	m_watchPath.SetWindowText("");
+	m_watchPath.SetWindowText(_T(""));
 }
 
 void Directories::OnCancel()
@@ -373,8 +373,9 @@ CString Directories::browseForDir(CString title)
 {
 	std::string path;
 
-	if (!winBrowseForFolder(m_hWnd, title, initialFolderDir, path))
+	if (!winBrowseForFolder(m_hWnd, winAnsiFromWide(title),
+	                        winAnsiFromWide(initialFolderDir), path))
 		return CString();
 
-	return CString(path.c_str());
+	return winWideFromAnsi(path);
 }

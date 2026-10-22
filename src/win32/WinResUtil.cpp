@@ -78,23 +78,26 @@ int winResDialogBox(LPCTSTR boxName, HWND parent, DLGPROC dlgProc)
 	                       0);
 }
 
+// Text from the string table.  CString::LoadString asks AfxFindResourceHandle
+// for the module, so a language module that does not carry a string falls back
+// to the one in the executable instead of coming back empty.
+//
+// The underscore is a real character here: a translation is shown as it was
+// written.  Only the filter strings use '_' as their separator, and those are
+// read through winResLoadFilter below.
 CString winResLoadString(UINT id)
 {
-	int       stId = id / 16 + 1;
-	HINSTANCE inst = winResGetInstance(RT_STRING, MAKEINTRESOURCE(stId));
-
 	CString res;
-	if (!res.LoadString(id))
-	{
-		// TODO: handle case where string is only in the default English
-		res = "";
-	}
 
-	res.Replace('_', '|');
+	if (!res.LoadString(id))
+		res = _T("");
 
 	return res;
 }
 
+// A filter string is "Description|pattern|Description|pattern|", but '|' in a
+// string table entry is what the shell dialog builder reads as a separator, so
+// the resources write '_' instead and it is turned back into '|' here.
 CString winResLoadFilter(UINT id)
 {
 	CString res = winResLoadString(id);
@@ -110,7 +113,7 @@ CString winImageSaveDlg(CWnd *parent, const CString &initialName,
 	// possible outcome is a failed save.
 	if (!imageWriteAvailable())
 	{
-		utilReportImageSaveFailure(initialName);
+		utilReportImageSaveFailure(winAnsiFromWide(initialName));
 		return CString();
 	}
 
@@ -122,7 +125,7 @@ CString winImageSaveDlg(CWnd *parent, const CString &initialName,
 	// One entry per format WIC can write, so the user may save in any of them,
 	// plus the extensions the dialog uses to keep a typed name in sync.  Fixed
 	// arrays keep the extension pointers valid for the whole call.
-	std::string extensionStorage[17];
+	CString     extensionStorage[17];
 	LPCTSTR     extensions[17];
 	int         extensionCount = 0;
 
@@ -131,7 +134,7 @@ CString winImageSaveDlg(CWnd *parent, const CString &initialName,
 	for (int i = 0; i < count && extensionCount < 16; ++i)
 	{
 		CString label = formats[i].name;
-		label.Replace(" Encoder", "");
+		label.Replace(_T(" Encoder"), _T(""));
 		label.Trim();
 
 		CString       pattern;
@@ -149,7 +152,7 @@ CString winImageSaveDlg(CWnd *parent, const CString &initialName,
 				pattern += "*";
 				pattern += entry;
 
-				if (extensionStorage[i].empty())
+				if (extensionStorage[i].IsEmpty())
 					extensionStorage[i] = entry;
 			}
 
@@ -158,10 +161,10 @@ CString winImageSaveDlg(CWnd *parent, const CString &initialName,
 			start = comma + 1;
 		}
 
-		extensions[extensionCount++] = extensionStorage[i].c_str();
+		extensions[extensionCount++] = extensionStorage[i];
 
 		CString item;
-		item.Format("%s Image|%s|", (LPCTSTR)label, (LPCTSTR)pattern);
+		item.Format(_T("%s Image|%s|"), (LPCTSTR)label, (LPCTSTR)pattern);
 		filter += item;
 	}
 

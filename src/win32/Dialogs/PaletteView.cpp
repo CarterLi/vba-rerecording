@@ -64,7 +64,7 @@ BOOL PaletteView::OnInitDialog()
 	SetData(sz,
 	        FALSE,
 	        HKEY_CURRENT_USER,
-	        "Software\\Emulators\\VisualBoyAdvance\\Viewer\\PaletteView",
+	        _T("Software\\Emulators\\VisualBoyAdvance\\Viewer\\PaletteView"),
 	        NULL);
 
 	paletteView.setPaletteAddress(0);
@@ -86,7 +86,7 @@ void PaletteView::save(int which)
 	else
 		captureBuffer = "obj.pal";
 
-	LPCTSTR exts[] = {".pal", ".pal", ".act", NULL };
+	LPCTSTR exts[] = {_T(".pal"), _T(".pal"), _T(".act"), NULL };
 
 	CString filter = winResLoadFilter(IDS_FILTER_PAL);
 	CString title  = winResLoadString(IDS_SELECT_PALETTE_NAME);
@@ -94,9 +94,9 @@ void PaletteView::save(int which)
 	            captureBuffer,
 	            filter,
 	            1,
-	            "PAL",
+	            _T("PAL"),
 	            exts,
-	            "",
+	            _T(""),
 	            title,
 	            true);
 
@@ -116,13 +116,13 @@ void PaletteView::save(int which)
 	{
 	case 0:
 	case 1:
-		p->saveMSPAL(captureBuffer);
+		p->saveMSPAL(winAnsiFromWide(captureBuffer));
 		break;
 	case 2:
-		p->saveJASCPAL(captureBuffer);
+		p->saveJASCPAL(winAnsiFromWide(captureBuffer));
 		break;
 	case 3:
-		p->saveAdobe(captureBuffer);
+		p->saveAdobe(winAnsiFromWide(captureBuffer));
 		break;
 	}
 }
@@ -179,23 +179,23 @@ LRESULT PaletteView::OnPalInfo(WPARAM wParam, LPARAM lParam)
 	else
 		address = 0x5000000 + 2*(address & 255);
 
-	buffer.Format("0x%08X", address);
+	buffer.Format(_T("0x%08X"), address);
 	GetDlgItem(IDC_ADDRESS)->SetWindowText(buffer);
 
 	int r = (color & 0x1f);
 	int g = (color & 0x3e0) >> 5;
 	int b = (color & 0x7c00) >> 10;
 
-	buffer.Format("%d", r);
+	buffer.Format(_T("%d"), r);
 	GetDlgItem(IDC_R)->SetWindowText(buffer);
 
-	buffer.Format("%d", g);
+	buffer.Format(_T("%d"), g);
 	GetDlgItem(IDC_G)->SetWindowText(buffer);
 
-	buffer.Format("%d", b);
+	buffer.Format(_T("%d"), b);
 	GetDlgItem(IDC_B)->SetWindowText(buffer);
 
-	buffer.Format("0x%04X", color);
+	buffer.Format(_T("0x%04X"), color);
 	GetDlgItem(IDC_VALUE)->SetWindowText(buffer);
 
 	colorControl.setColor(color);

@@ -193,7 +193,7 @@ class AddGSACode : public CDialog
 {
 	// Construction
 public:
-	AddGSACode(CWnd*pParent = NULL, const char *code = NULL, const char *desc = NULL,
+	AddGSACode(CWnd*pParent = NULL, LPCTSTR code = NULL, LPCTSTR desc = NULL,
 	           int editIndex = -1, int editCount = 1, bool initialEnabled = true);
 
 	// Dialog Data
@@ -235,7 +235,7 @@ class AddCBACode : public CDialog
 {
 	// Construction
 public:
-	AddCBACode(CWnd*pParent = NULL, const char *code = NULL, const char *desc = NULL,
+	AddCBACode(CWnd*pParent = NULL, LPCTSTR code = NULL, LPCTSTR desc = NULL,
 	           int editIndex = -1, int editCount = 1, bool initialEnabled = true);
 
 	// Dialog Data
@@ -277,7 +277,7 @@ class AddCheatCode : public CDialog
 {
 	// Construction
 public:
-	AddCheatCode(CWnd*pParent = NULL, const char *code = NULL, const char *desc = NULL,
+	AddCheatCode(CWnd*pParent = NULL, LPCTSTR code = NULL, LPCTSTR desc = NULL,
 	             int editIndex = -1, int editCount = 1, bool initialEnabled = true);
 
 	// Dialog Data

@@ -424,13 +424,13 @@ int ArchiveFile::ExtractItem(int index, const char* outFilename) const
 	ArchiveItem& item = m_items[index];
 	int rv = item.size;
 
-	DWORD outAttributes = GetFileAttributes(outFilename);
+	DWORD outAttributes = GetFileAttributesA(outFilename);
 	// INVALID_FILE_ATTRIBUTES is all ones, so testing the bit alone would
 	// wrongly mark a freshly created file read-only afterwards.
 	bool restoreReadOnly = outAttributes != INVALID_FILE_ATTRIBUTES &&
 	                       (outAttributes & FILE_ATTRIBUTE_READONLY) != 0;
 	if(restoreReadOnly)
-		SetFileAttributes(outFilename, outAttributes & ~FILE_ATTRIBUTE_READONLY); // temporarily remove read-only attribute so we can decompress to there
+		SetFileAttributesA(outFilename, outAttributes & ~FILE_ATTRIBUTE_READONLY); // temporarily remove read-only attribute so we can decompress to there
 
 	if(m_zip)
 	{
@@ -457,7 +457,7 @@ int ArchiveFile::ExtractItem(int index, const char* outFilename) const
 	else if(m_typeIndex < 0)
 	{
 		// uncompressed
-		if(!CopyFile(m_filename, outFilename, false))
+		if(!CopyFileA(m_filename, outFilename, false))
 			rv = 0;
 	}
 	else
@@ -481,7 +481,7 @@ int ArchiveFile::ExtractItem(int index, const char* outFilename) const
 	}
 
 	if(restoreReadOnly)
-		SetFileAttributes(outFilename, outAttributes); // restore read-only attribute
+		SetFileAttributesA(outFilename, outAttributes); // restore read-only attribute
 
 	return rv;
 }

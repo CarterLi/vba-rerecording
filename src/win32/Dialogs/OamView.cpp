@@ -110,29 +110,29 @@ void OamView::setAttributes(u16 a0, u16 a1, u16 a2)
 	int prio     = (a2 >> 10) & 3;
 	int pal      = (a2 >> 12) & 15;
 
-	buffer.Format("%d,%d", x, y);
+	buffer.Format(_T("%d,%d"), x, y);
 	GetDlgItem(IDC_POS)->SetWindowText(buffer);
 
-	buffer.Format("%d", mode);
+	buffer.Format(_T("%d"), mode);
 	GetDlgItem(IDC_MODE)->SetWindowText(buffer);
 
-	GetDlgItem(IDC_COLORS)->SetWindowText(color ? "256" : "16");
+	GetDlgItem(IDC_COLORS)->SetWindowText(color ? _T("256") : _T("16"));
 
-	buffer.Format("%d", pal);
+	buffer.Format(_T("%d"), pal);
 	GetDlgItem(IDC_PALETTE)->SetWindowText(buffer);
 
-	buffer.Format("%d", tile);
+	buffer.Format(_T("%d"), tile);
 	GetDlgItem(IDC_TILE)->SetWindowText(buffer);
 
-	buffer.Format("%d", prio);
+	buffer.Format(_T("%d"), prio);
 	GetDlgItem(IDC_PRIO)->SetWindowText(buffer);
 
-	buffer.Format("%d,%d", w, h);
+	buffer.Format(_T("%d,%d"), w, h);
 	GetDlgItem(IDC_SIZE2)->SetWindowText(buffer);
 
 	if (rot)
 	{
-		buffer.Format("%d", rotParam);
+		buffer.Format(_T("%d"), rotParam);
 	}
 	else
 		buffer.Empty();
@@ -327,14 +327,14 @@ BOOL OamView::OnInitDialog()
 	SetData(sz,
 	        TRUE,
 	        HKEY_CURRENT_USER,
-	        "Software\\Emulators\\VisualBoyAdvance\\Viewer\\OamView",
+	        _T("Software\\Emulators\\VisualBoyAdvance\\Viewer\\OamView"),
 	        NULL);
 
-	m_sprite.SetWindowText("0");
+	m_sprite.SetWindowText(_T("0"));
 
 	updateScrollInfo();
 
-	m_stretch = regQueryDwordValue("oamViewStretch", 0);
+	m_stretch = regQueryDwordValue(_T("oamViewStretch"), 0);
 	if (m_stretch)
 		oamView.setStretch(true);
 	UpdateData(FALSE);
@@ -349,7 +349,7 @@ void OamView::OnStretch()
 {
 	oamView.setStretch(!oamView.getStretch());
 	paint();
-	regSetDwordValue("oamViewStretch", oamView.getStretch());
+	regSetDwordValue(_T("oamViewStretch"), oamView.getStretch());
 }
 
 void OamView::OnAutoUpdate()
@@ -369,10 +369,10 @@ void OamView::OnChangeSprite()
 {
 	CString buffer;
 	m_sprite.GetWindowText(buffer);
-	int n = atoi(buffer);
+	int n = _ttoi(buffer);
 	if (n < 0 || n > 127)
 	{
-		buffer.Format("%d", number);
+		buffer.Format(_T("%d"), number);
 		m_sprite.SetWindowText(buffer);
 		return;
 	}
@@ -407,13 +407,13 @@ LRESULT OamView::OnColInfo(WPARAM wParam, LPARAM lParam)
 	int b = (c & 0x7c00) >> 10;
 
 	CString buffer;
-	buffer.Format("R: %d", r);
+	buffer.Format(_T("R: %d"), r);
 	GetDlgItem(IDC_R)->SetWindowText(buffer);
 
-	buffer.Format("G: %d", g);
+	buffer.Format(_T("G: %d"), g);
 	GetDlgItem(IDC_G)->SetWindowText(buffer);
 
-	buffer.Format("B: %d", b);
+	buffer.Format(_T("B: %d"), b);
 	GetDlgItem(IDC_B)->SetWindowText(buffer);
 
 	return TRUE;
@@ -476,7 +476,7 @@ void OamView::OnHScroll(UINT nSBCode, UINT nPos, CScrollBar*pScrollBar)
 	updateScrollInfo();
 
 	CString buffer;
-	buffer.Format("%d", number);
+	buffer.Format(_T("%d"), number);
 	m_sprite.SetWindowText(buffer);
 	paint();
 }

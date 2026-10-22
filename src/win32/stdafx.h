@@ -36,6 +36,7 @@
 #include <afxdlgs.h>
 
 #include "../Port.h"
+#include "WinText.h"
 
 // TODO: reference additional headers your program requires here
 

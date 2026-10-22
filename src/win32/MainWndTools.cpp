@@ -401,7 +401,7 @@ void MainWnd::OnToolsDebugGdb()
 			theApp.emulator = GBASystem;
 
 			CPUInit();
-			systemLoadBIOS(theApp.biosFileName, theApp.useBiosFile ? true : false);
+			systemLoadBIOS(winAnsiFromWide(theApp.biosFileName), theApp.useBiosFile ? true : false);
 			CPUReset();
 		}
 	}
@@ -500,7 +500,7 @@ void MainWnd::OnToolsSoundStartrecording()
 			wavName = wavName.Left(index);
 	}
 
-	LPCTSTR exts[] = { ".wav", NULL };
+	LPCTSTR exts[] = { _T(".wav"), NULL };
 
 	CString filter = winResLoadFilter(IDS_FILTER_WAV);
 	CString title  = winResLoadString(IDS_SELECT_WAV_NAME);
@@ -508,7 +508,7 @@ void MainWnd::OnToolsSoundStartrecording()
 	wavName = winGetDestFilename(wavName, IDS_WAV_DIR, exts[0]);
 	CString wavDir = winGetDestDir(IDS_WAV_DIR);
 
-	FileDlg dlg(this, wavName, filter, 1, "WAV", exts, wavDir, title, true);
+	FileDlg dlg(this, wavName, filter, 1, _T("WAV"), exts, wavDir, title, true);
 
 	if (dlg.DoModal() == IDCANCEL)
 	{
@@ -567,7 +567,7 @@ void MainWnd::OnToolsStartAVIRecording()
 			aviName = aviName.Left(index);
 	}
 
-	LPCTSTR exts[] = { ".avi", NULL };
+	LPCTSTR exts[] = { _T(".avi"), NULL };
 
 	CString filter = winResLoadFilter(IDS_FILTER_AVI);
 	CString title  = winResLoadString(IDS_SELECT_AVI_NAME);
@@ -575,7 +575,7 @@ void MainWnd::OnToolsStartAVIRecording()
 	aviName = winGetDestFilename(aviName, IDS_AVI_DIR, exts[0]);
 	CString aviDir = winGetDestDir(IDS_AVI_DIR);
 
-	FileDlg dlg(this, aviName, filter, 1, "AVI", exts, aviDir, title, true);
+	FileDlg dlg(this, aviName, filter, 1, _T("AVI"), exts, aviDir, title, true);
 
 	if (dlg.DoModal() == IDCANCEL)
 	{
@@ -934,7 +934,7 @@ void MainWnd::OnToolsMovieConvertCurrent()
 		systemMessage(0, "Cannot convert from VBM revision %u", VBAMovieGetMinorVersion());
 	case MOVIE_SAME_VERSION:
 	{
-		int answer = MessageBox(NULL, "VBA", MB_YESNO | MB_ICONQUESTION);
+		int answer = MessageBox(NULL, _T("VBA"), MB_YESNO | MB_ICONQUESTION);
 		if (answer == IDYES)
 			VBAMovieConvertCurrent(true);
 		break;

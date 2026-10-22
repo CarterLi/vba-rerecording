@@ -239,10 +239,10 @@ BOOL GBMapView::OnInitDialog()
 	SetData(sz,
 	        TRUE,
 	        HKEY_CURRENT_USER,
-	        "Software\\Emulators\\VisualBoyAdvance\\Viewer\\GBMapView",
+	        _T("Software\\Emulators\\VisualBoyAdvance\\Viewer\\GBMapView"),
 	        NULL);
 
-	int s = regQueryDwordValue("mapViewStretch", 0);
+	int s = regQueryDwordValue(_T("mapViewStretch"), 0);
 	if (s)
 		mapView.setStretch(true);
 	((CButton *)GetDlgItem(IDC_STRETCH))->SetCheck(s);
@@ -289,7 +289,7 @@ void GBMapView::OnStretch()
 {
 	mapView.setStretch(!mapView.getStretch());
 	paint();
-	regSetDwordValue("mapViewStretch", mapView.getStretch());
+	regSetDwordValue(_T("mapViewStretch"), mapView.getStretch());
 }
 
 void GBMapView::OnAutoUpdate()
@@ -330,11 +330,11 @@ LRESULT GBMapView::OnMapInfo(WPARAM wParam, LPARAM lParam)
 	int y = (int)(wParam >> 16);
 
 	CString buffer;
-	buffer.Format("(%d,%d)", x, y);
+	buffer.Format(_T("(%d,%d)"), x, y);
 	GetDlgItem(IDC_XY)->SetWindowText(buffer);
 
 	u32 address = GetClickAddress(x, y);
-	buffer.Format("0x%08X", address);
+	buffer.Format(_T("0x%08X"), address);
 	GetDlgItem(IDC_ADDRESS)->SetWindowText(buffer);
 
 	u8 attrs = 0;
@@ -354,7 +354,7 @@ LRESULT GBMapView::OnMapInfo(WPARAM wParam, LPARAM lParam)
 			tile = (tile + 128) & 0xff;
 	}
 
-	buffer.Format("%d", tile);
+	buffer.Format(_T("%d"), tile);
 	GetDlgItem(IDC_TILE_NUM)->SetWindowText(buffer);
 
 	buffer.Empty();
@@ -364,7 +364,7 @@ LRESULT GBMapView::OnMapInfo(WPARAM wParam, LPARAM lParam)
 
 	if (gbCgbMode)
 	{
-		buffer.Format("%d", (attrs & 7));
+		buffer.Format(_T("%d"), (attrs & 7));
 	}
 	else
 		buffer = "---";
@@ -391,13 +391,13 @@ LRESULT GBMapView::OnColInfo(WPARAM wParam, LPARAM)
 	int b = (c & 0x7c00) >> 10;
 
 	CString buffer;
-	buffer.Format("R: %d", r);
+	buffer.Format(_T("R: %d"), r);
 	GetDlgItem(IDC_R)->SetWindowText(buffer);
 
-	buffer.Format("G: %d", g);
+	buffer.Format(_T("G: %d"), g);
 	GetDlgItem(IDC_G)->SetWindowText(buffer);
 
-	buffer.Format("B: %d", b);
+	buffer.Format(_T("B: %d"), b);
 	GetDlgItem(IDC_B)->SetWindowText(buffer);
 
 	return TRUE;

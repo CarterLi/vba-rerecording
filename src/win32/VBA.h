@@ -341,7 +341,7 @@ public:
 
 	// Implementation
 public:
-	HINSTANCE winLoadLanguage(const char *name);
+	HINSTANCE winLoadLanguage(LPCTSTR name);
 	void winSetLanguageOption(int option, bool force);
 	void updatePriority();
 	void shutdownDisplay();

@@ -63,9 +63,9 @@ namespace lua_host
 		int ret;
 		CWnd *wnd = mainWnd();
 		if (wnd && wnd->GetSafeHwnd())
-			ret = wnd->MessageBox(text, caption, flags);
+			ret = wnd->MessageBox(winWideFromAnsi(text), winWideFromAnsi(caption), flags);
 		else
-			ret = ::MessageBox(NULL, text, caption, flags);
+			ret = ::MessageBox(NULL, winWideFromAnsi(text), winWideFromAnsi(caption), flags);
 
 		switch (ret)
 		{
@@ -141,7 +141,7 @@ namespace lua_host
 	std::string savestateFilename(int which)
 	{
 		CString name = winGetSavestateFilename(theApp.gameFilename, which);
-		return std::string(static_cast<LPCSTR>(name));
+		return std::string(winAnsiFromWide(name).GetString());
 	}
 
 	std::intptr_t openConsole()
@@ -149,7 +149,7 @@ namespace lua_host
 		if (!LuaConsoleHWnd)
 		{
 			CWnd *wnd = mainWnd();
-			LuaConsoleHWnd = ::CreateDialog(AfxGetInstanceHandle(), MAKEINTRESOURCE(IDD_LUA),
+			LuaConsoleHWnd = ::CreateDialog(AfxGetResourceHandle(), MAKEINTRESOURCE(IDD_LUA),
 				wnd ? wnd->GetSafeHwnd() : NULL, (DLGPROC)DlgLuaScriptDialog);
 		}
 		return (std::intptr_t)LuaConsoleHWnd;

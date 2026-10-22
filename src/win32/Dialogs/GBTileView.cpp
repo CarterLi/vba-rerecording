@@ -186,7 +186,7 @@ BOOL GBTileView::OnInitDialog()
 	SetData(sz,
 	        TRUE,
 	        HKEY_CURRENT_USER,
-	        "Software\\Emulators\\VisualBoyAdvance\\Viewer\\GBTileView",
+	        _T("Software\\Emulators\\VisualBoyAdvance\\Viewer\\GBTileView"),
 	        NULL);
 
 	m_charBase = charBase;
@@ -197,7 +197,7 @@ BOOL GBTileView::OnInitDialog()
 	m_slider.SetTicFreq(1);
 	paint();
 
-	m_stretch = regQueryDwordValue("tileViewStretch", 0);
+	m_stretch = regQueryDwordValue(_T("tileViewStretch"), 0);
 	if (m_stretch)
 		tileView.setStretch(true);
 	UpdateData(FALSE);
@@ -263,7 +263,7 @@ void GBTileView::OnStretch()
 {
 	tileView.setStretch(!tileView.getStretch());
 	paint();
-	regSetDwordValue("tileViewStretch", tileView.getStretch());
+	regSetDwordValue(_T("tileViewStretch"), tileView.getStretch());
 }
 
 LRESULT GBTileView::OnMapInfo(WPARAM wParam, LPARAM lParam)
@@ -283,10 +283,10 @@ LRESULT GBTileView::OnMapInfo(WPARAM wParam, LPARAM lParam)
 	address += 16 * tile;
 
 	CString buffer;
-	buffer.Format("%d", tile);
+	buffer.Format(_T("%d"), tile);
 	GetDlgItem(IDC_TILE_NUMBER)->SetWindowText(buffer);
 
-	buffer.Format("%04x", address);
+	buffer.Format(_T("%04x"), address);
 	GetDlgItem(IDC_ADDRESS)->SetWindowText(buffer);
 
 	return TRUE;
@@ -303,13 +303,13 @@ LRESULT GBTileView::OnColInfo(WPARAM wParam, LPARAM)
 	int b = (c & 0x7c00) >> 10;
 
 	CString buffer;
-	buffer.Format("R: %d", r);
+	buffer.Format(_T("R: %d"), r);
 	GetDlgItem(IDC_R)->SetWindowText(buffer);
 
-	buffer.Format("G: %d", g);
+	buffer.Format(_T("G: %d"), g);
 	GetDlgItem(IDC_G)->SetWindowText(buffer);
 
-	buffer.Format("B: %d", b);
+	buffer.Format(_T("B: %d"), b);
 	GetDlgItem(IDC_B)->SetWindowText(buffer);
 
 	return TRUE;

@@ -437,7 +437,7 @@ void CAcceleratorManager::UpdateMenu(HMENU menu)
 			{
 				if (info.wID != (UINT)-1)
 				{
-					char         ss[128];
+					wchar_t      ss[128];
 					MENUITEMINFO info2 = {0};
 					info2.cbSize     = sizeof(info2) - sizeof(HBITMAP);	// FIXME: why?
 					info2.fMask      = MIIM_STRING;
@@ -517,15 +517,9 @@ void CAcceleratorManager::UpdateMenu(HMENU menu)
 							CString s;
 							accel->GetString(s);
 
-							wchar_t temp[128];
-							temp[0] = '\t';
-							temp[1] = 0;
-							wcscat(str, temp);
-							p = temp;
-							for (const char *sp = s; *sp; sp++)
-								*p++ = *sp;
-							*p = 0;
-							wcscat(str, temp);
+							wcscat(str, L"\t");
+							wcscat(str, s);
+							wcscat(str, L"\t");
 						}
 					}
 					if (wcscmp(str, ss))
@@ -551,7 +545,7 @@ bool CAcceleratorManager::Load()
 
 	int len = sizeof(data);
 	int actualLen = 0;
-	BOOL keyboardFound = regQueryBinaryValue("keyboard", (char *)data, len, &actualLen);
+	BOOL keyboardFound = regQueryBinaryValue(_T("keyboard"), (char *)data, len, &actualLen);
 	if (keyboardFound)
 	{
 		// Only parse the bytes that were actually read.  The rest of the
@@ -651,7 +645,7 @@ bool CAcceleratorManager::Write()
 	for (int index = 0; index < count; index++)
 		data[index] = AccelsDatasArray[index];
 
-	regSetBinaryValue("keyboard", (char *)data, count*sizeof(DWORD));
+	regSetBinaryValue(_T("keyboard"), (char *)data, count*sizeof(DWORD));
 
 	AccelsDatasArray.RemoveAll();
 	CmdDatasArray.RemoveAll();

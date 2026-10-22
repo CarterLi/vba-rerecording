@@ -1,6 +1,7 @@
 #include "stdafx.h"
 #include "WinMiscUtil.h"
 #include "WinResUtil.h"
+#include "WinText.h"
 #include "resource.h"
 #include "../NLS.h"
 #include "VBA.h"
@@ -30,39 +31,39 @@ using std::min;
 
 extern int emulating;
 
-extern const char IDS_ROM_DIR[]		= "romDir";
-extern const char IDS_GBXROM_DIR[]	= "gbromDir";
-extern const char IDS_BATTERY_DIR[]	= "batteryDir";
-extern const char IDS_SAVE_DIR[]	= "saveDir";
-extern const char IDS_MOVIE_DIR[]	= "moviesDir";
-extern const char IDS_CHEAT_DIR[]	= "cheatsDir";
-extern const char IDS_LUA_DIR[]		= "luaDir";
-extern const char IDS_IPS_DIR[]		= "ipsDir";
-extern const char IDS_AVI_DIR[]		= "aviRecordDir";
-extern const char IDS_WAV_DIR[]		= "soundRecordDir";
-extern const char IDS_CAPTURE_DIR[] = "captureDir";
-extern const char IDS_WATCH_DIR[]	= "watchDir";
+extern const TCHAR IDS_ROM_DIR[]		= _T("romDir");
+extern const TCHAR IDS_GBXROM_DIR[]	= _T("gbromDir");
+extern const TCHAR IDS_BATTERY_DIR[]	= _T("batteryDir");
+extern const TCHAR IDS_SAVE_DIR[]	= _T("saveDir");
+extern const TCHAR IDS_MOVIE_DIR[]	= _T("moviesDir");
+extern const TCHAR IDS_CHEAT_DIR[]	= _T("cheatsDir");
+extern const TCHAR IDS_LUA_DIR[]		= _T("luaDir");
+extern const TCHAR IDS_IPS_DIR[]		= _T("ipsDir");
+extern const TCHAR IDS_AVI_DIR[]		= _T("aviRecordDir");
+extern const TCHAR IDS_WAV_DIR[]		= _T("soundRecordDir");
+extern const TCHAR IDS_CAPTURE_DIR[] = _T("captureDir");
+extern const TCHAR IDS_WATCH_DIR[]	= _T("watchDir");
 
-extern const char IDS_ROM_DEFAULT_DIR[]		= "\\roms";
-extern const char IDS_GBXROM_DEFAULT_DIR[]	= "\\gbroms";
-extern const char IDS_BATTERY_DEFAULT_DIR[]	= "\\battery";
-extern const char IDS_SAVE_DEFAULT_DIR[]	= "\\save";
-extern const char IDS_MOVIE_DEFAULT_DIR[]	= "\\movies";
-extern const char IDS_CHEAT_DEFAULT_DIR[]	= "\\cheats";
-extern const char IDS_LUA_DEFAULT_DIR[]		= "\\lua";
-extern const char IDS_IPS_DEFAULT_DIR[]		= "\\ips";
-extern const char IDS_AVI_DEFAULT_DIR[]		= "\\avi";
-extern const char IDS_WAV_DEFAULT_DIR[]		= "\\wav";
-extern const char IDS_CAPTURE_DEFAULT_DIR[] = "\\screen";
-extern const char IDS_WATCH_DEFAULT_DIR[]	= "\\watches";
+extern const TCHAR IDS_ROM_DEFAULT_DIR[]		= _T("\\roms");
+extern const TCHAR IDS_GBXROM_DEFAULT_DIR[]	= _T("\\gbroms");
+extern const TCHAR IDS_BATTERY_DEFAULT_DIR[]	= _T("\\battery");
+extern const TCHAR IDS_SAVE_DEFAULT_DIR[]	= _T("\\save");
+extern const TCHAR IDS_MOVIE_DEFAULT_DIR[]	= _T("\\movies");
+extern const TCHAR IDS_CHEAT_DEFAULT_DIR[]	= _T("\\cheats");
+extern const TCHAR IDS_LUA_DEFAULT_DIR[]		= _T("\\lua");
+extern const TCHAR IDS_IPS_DEFAULT_DIR[]		= _T("\\ips");
+extern const TCHAR IDS_AVI_DEFAULT_DIR[]		= _T("\\avi");
+extern const TCHAR IDS_WAV_DEFAULT_DIR[]		= _T("\\wav");
+extern const TCHAR IDS_CAPTURE_DEFAULT_DIR[] = _T("\\screen");
+extern const TCHAR IDS_WATCH_DEFAULT_DIR[]	= _T("\\watches");
 
-extern const char *IDS_tbl[] = {
+extern const TCHAR *IDS_tbl[] = {
 	IDS_ROM_DIR,   IDS_GBXROM_DIR, IDS_BATTERY_DIR, IDS_SAVE_DIR, 
 	IDS_MOVIE_DIR, IDS_CHEAT_DIR,  IDS_LUA_DIR,     IDS_IPS_DIR, 
 	IDS_AVI_DIR,   IDS_WAV_DIR,    IDS_CAPTURE_DIR, IDS_WATCH_DIR
 };
 
-extern const char *IDS_def_tbl[] = {
+extern const TCHAR *IDS_def_tbl[] = {
 	IDS_ROM_DEFAULT_DIR,   IDS_GBXROM_DEFAULT_DIR, IDS_BATTERY_DEFAULT_DIR, IDS_SAVE_DEFAULT_DIR, 
 	IDS_MOVIE_DEFAULT_DIR, IDS_CHEAT_DEFAULT_DIR,  IDS_LUA_DEFAULT_DIR,     IDS_IPS_DEFAULT_DIR, 
 	IDS_AVI_DEFAULT_DIR,   IDS_WAV_DEFAULT_DIR,    IDS_CAPTURE_DEFAULT_DIR, IDS_WATCH_DEFAULT_DIR
@@ -73,7 +74,7 @@ extern const char *IDS_def_tbl[] = {
 
 bool winFileExists(const CString &filename)
 {
-	FILE *f = fopen(filename, "rb");
+	FILE *f = _wfopen(filename, L"rb");
 	if (f)
 	{
 		fclose(f);
@@ -174,7 +175,7 @@ CString winGetDestDir(const CString &TargetDirReg)
 		regSetStringValue(TargetDirReg, targetDir);	// Add the directory to the INI file
 	}
 
-	_mkdir(targetDir);			// make the directory
+	_wmkdir(targetDir);			// make the directory
 
 	return targetDir;
 }
@@ -198,7 +199,7 @@ CString winGetDestFilename(const CString &LogicalRomName, const CString &TargetD
 		buffer = buffer.Left(index);
 
 	CString filename;
-	filename.Format("%s%s%s", targetDir, buffer, ext);
+	filename.Format(_T("%s%s%s"), targetDir, buffer, ext);
 	bool fileExists = winFileExists(filename);
 
 	// check for old style of naming, for better backward compatibility
@@ -218,7 +219,7 @@ CString winGetDestFilename(const CString &LogicalRomName, const CString &TargetD
 				buffer = buffer.Right(buffer.GetLength() - index - 1);
 
 			CString filename2;
-			filename2.Format("%s%s%s", targetDir, buffer, ext);
+			filename2.Format(_T("%s%s%s"), targetDir, buffer, ext);
 			bool file2Exists = winFileExists(filename2);
 
 			if ((file2Exists && !fileExists) || (theApp.filenamePreference == 0 && (file2Exists || !fileExists)))
@@ -248,11 +249,14 @@ CString winGetSavestateFilename(const CString &LogicalRomName, int nID)
 		else
 			endindex = fs.length();
 		fs = fs.substr(startindex, endindex - startindex);
-		ext.Format("-%s-%d.sgm", fs.c_str(), nID);
+		// The name came from the narrow core side, so it crosses through the
+		// helper rather than pasting its bytes into a wide format: a plain %s
+		// in a wide format reads them as UTF-16 mules, see WinText.h.
+		ext.Format(_T("-%s-%d.sgm"), (LPCTSTR)winWideFromAnsi(fs), nID);
 	}
 	else
 	{
-		ext.Format("%d.sgm", nID);
+		ext.Format(_T("%d.sgm"), nID);
 	}
 	return winGetDestFilename(LogicalRomName, IDS_SAVE_DIR, ext);
 }
@@ -265,16 +269,16 @@ CString winGetSavestateMenuString(const CString &LogicalRomName, int nID)
 		CFileStatus status;
 		if (emulating && CFile::GetStatus(winGetSavestateFilename(LogicalRomName, nID), status))
 		{
-			str.Format("#&%d %s", nID, status.m_mtime.Format("%Y/%m/%d %H:%M:%S"));
+			str.Format(_T("#&%d %s"), nID, status.m_mtime.Format(_T("%Y/%m/%d %H:%M:%S")));
 		}
 		else
 		{
-			str.Format("#&%d ----/--/-- --:--:--", nID);
+			str.Format(_T("#&%d ----/--/-- --:--:--"), nID);
 		}
 	}
 	else
 	{
-		str.Format("Slot #&%d", nID);
+		str.Format(_T("Slot #&%d"), nID);
 	}
 
 	return str;
@@ -315,7 +319,7 @@ void winCorrectPath(char *path)
 {
 	CString pathCStr(path);
 	winCorrectPath(pathCStr);
-	strcpy(path, pathCStr);
+	strcpy(path, winAnsiFromWide(pathCStr));
 }
 
 // some file I/O
@@ -328,7 +332,7 @@ bool winWriteScreenshotFile(const CString &fileName)
 	if (theApp.captureScaled && winWriteFilteredScreenshot(fileName))
 		return true;
 
-	return theApp.emulator.emuWriteImage(fileName);
+	return theApp.emulator.emuWriteImage(winAnsiFromWide(fileName));
 }
 
 // Writes an image a viewer dialog built.  These used to ignore the result and
@@ -337,10 +341,10 @@ bool winWriteScreenshotFile(const CString &fileName)
 void winWriteImageBGR(const CString &fileName, int width, int height,
                       const unsigned char *bgr, int stride)
 {
-	if (utilWriteImageBGR(fileName, width, height, bgr, stride))
+	if (utilWriteImageBGR(winAnsiFromWide(fileName), width, height, bgr, stride))
 		return;
 
-	utilReportImageSaveFailure(fileName);
+	utilReportImageSaveFailure(winAnsiFromWide(fileName));
 }
 
 int winScreenCapture(int captureNumber)
@@ -350,7 +354,7 @@ int winScreenCapture(int captureNumber)
 	do
 	{
 		CString ext;
-		ext.Format("_%03d%s", captureNumber, imageCaptureExtension());
+		ext.Format(_T("_%03d%s"), captureNumber, imageCaptureExtension());
 
 		captureName = winGetDestFilename(theApp.gameFilename, IDS_CAPTURE_DIR, ext);
 		++captureNumber;
@@ -365,14 +369,14 @@ int winScreenCapture(int captureNumber)
 	if (!winWriteScreenshotFile(captureName))
 		return captureNumber;
 
-	systemScreenMessage(winResLoadString(IDS_SCREEN_CAPTURE));
+	systemScreenMessage(winAnsiFromWide(winResLoadString(IDS_SCREEN_CAPTURE)));
 
 	return captureNumber;
 }
 
 bool winImportGSACodeFile(CString &fileName)
 {
-	FILE *f = fopen(fileName, "rb");
+	FILE *f = _wfopen(fileName, L"rb");
 
 	if (f == NULL)
 	{
@@ -383,7 +387,7 @@ bool winImportGSACodeFile(CString &fileName)
 	if (systemCartridgeType == 1)
 	{
 		fclose(f);
-		return gbCheatReadGSCodeFile(fileName);
+		return gbCheatReadGSCodeFile(winAnsiFromWide(fileName));
 	}
 
 	u32 len;
@@ -421,37 +425,37 @@ bool winImportGSACodeFile(CString &fileName)
 
 	if (index != -1)
 	{
-		if (fileName.Right(3).CompareNoCase("XPC") == 0)
+		if (fileName.Right(3).CompareNoCase(_T("XPC")) == 0)
 			v3 = true;
 	}
 
 	if (game != -1)
 	{
-		return cheatsImportGSACodeFile(fileName, game, v3);
+		return cheatsImportGSACodeFile(winAnsiFromWide(fileName), game, v3);
 	}
 
 	return true;
 }
 
-void winLoadCheatList(const char *name)
+void winLoadCheatList(LPCTSTR name)
 {
 	bool res = false;
 
 	if (systemCartridgeType == IMAGE_GBA)
-		res = cheatsLoadCheatList(name);
+		res = cheatsLoadCheatList(winAnsiFromWide(name));
 	else
-		res = gbCheatsLoadCheatList(name);
+		res = gbCheatsLoadCheatList(winAnsiFromWide(name));
 
 	if (res)
-		systemScreenMessage(winResLoadString(IDS_LOADED_CHEATS));
+		systemScreenMessage(winAnsiFromWide(winResLoadString(IDS_LOADED_CHEATS)));
 }
 
-void winSaveCheatList(const char *name)
+void winSaveCheatList(LPCTSTR name)
 {
 	if (systemCartridgeType == IMAGE_GBA)
-		cheatsSaveCheatList(name);
+		cheatsSaveCheatList(winAnsiFromWide(name));
 	else
-		gbCheatsSaveCheatList(name);
+		gbCheatsSaveCheatList(winAnsiFromWide(name));
 }
 
 void winLoadCheatListDefault()
@@ -475,10 +479,10 @@ bool winReadBatteryFile()
 	bool res = false;
 
 	if (theApp.emulator.emuReadBattery)
-		res = theApp.emulator.emuReadBattery(batteryName);
+		res = theApp.emulator.emuReadBattery(winAnsiFromWide(batteryName));
 
 	if (res)
-		systemScreenMessage(winResLoadString(IDS_LOADED_BATTERY));
+		systemScreenMessage(winAnsiFromWide(winResLoadString(IDS_LOADED_BATTERY)));
 
 	return res;
 }
@@ -488,7 +492,7 @@ bool winWriteBatteryFile()
 	CString batteryName = winGetDestFilename(theApp.gameFilename, IDS_BATTERY_DIR, ".sav");
 
 	if (theApp.emulator.emuWriteBattery)
-		return theApp.emulator.emuWriteBattery(batteryName);
+		return theApp.emulator.emuWriteBattery(winAnsiFromWide(batteryName));
 
 	return false;
 }
@@ -496,24 +500,24 @@ bool winWriteBatteryFile()
 bool winEraseBatteryFile()
 {
 	CString batteryName = winGetDestFilename(theApp.gameFilename, IDS_BATTERY_DIR, ".sav");
-	return !remove(batteryName);
+	return !_wremove(batteryName);
 }
 
-bool winReadSaveGame(const char *name)
+bool winReadSaveGame(LPCTSTR name)
 {
 	if (theApp.emulator.emuReadState)
-		return theApp.emulator.emuReadState(name);
+		return theApp.emulator.emuReadState(winAnsiFromWide(name));
 	return false;
 }
 
-bool winWriteSaveGame(const char *name)
+bool winWriteSaveGame(LPCTSTR name)
 {
 	if (theApp.emulator.emuWriteState)
-		return theApp.emulator.emuWriteState(name);
+		return theApp.emulator.emuWriteState(winAnsiFromWide(name));
 	return false;
 }
 
-bool winEraseSaveGame(const char *name)
+bool winEraseSaveGame(LPCTSTR name)
 {
-	return !remove(name);
+	return !_wremove(name);
 }

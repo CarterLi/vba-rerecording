@@ -208,6 +208,12 @@
 #define IDS_RESTORE_TIP                 205
 #define IDS_JOYPAD_CONNECTED            206
 #define IDS_JOYPAD_DISCONNECTED         207
+// Columns of the RAM search and RAM watch lists.  They used to be English
+// literals in ram_search.cpp and ramwatch.cpp.
+#define IDS_VALUE                       208
+#define IDS_PREVIOUS                    209
+#define IDS_CHANGES                     210
+#define IDS_NOTES                       211
 #define IDR_MENU                        401
 #define IDR_ACCELERATOR                 405
 #define IDR_GB_PRINTER                  406

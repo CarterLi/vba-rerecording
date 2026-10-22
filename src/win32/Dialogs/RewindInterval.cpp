@@ -51,8 +51,8 @@ void RewindInterval::OnOk()
 	m_interval.GetWindowText(buffer);
 	m_slots.GetWindowText(buffer2);
 
-	float interval = (float)atof(buffer);
-	int   slots    = atoi(buffer2);
+	float interval = (float)_ttof(buffer);
+	int   slots    = _ttoi(buffer2);
 
 	if (interval >= 0 && (int)interval <= 600)
 	{
@@ -83,9 +83,9 @@ BOOL RewindInterval::OnInitDialog()
 	m_slots.LimitText(3);
 
 	CString buffer, buffer2;
-	buffer.Format("%.1f", interval);
+	buffer.Format(_T("%.1f"), interval);
 	m_interval.SetWindowText(buffer);
-	buffer2.Format("%d", slots);
+	buffer2.Format(_T("%d"), slots);
 	m_slots.SetWindowText(buffer2);
 
 	CenterWindow();

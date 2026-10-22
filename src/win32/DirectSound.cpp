@@ -126,7 +126,7 @@ bool DirectSound::init()
 {
 	HRESULT hr;
 
-	dsoundDLL = LoadLibrary("DSOUND.DLL");
+	dsoundDLL = LoadLibrary(_T("DSOUND.DLL"));
 	HRESULT (WINAPI *DSoundCreate)(LPCGUID, LPDIRECTSOUND *, IUnknown *);
 	if (dsoundDLL != NULL)
 	{
@@ -384,7 +384,7 @@ void DirectSound::write()
 						theApp.soundRecorder = new WavWriter;
 						WAVEFORMATEX format;
 						dsbSecondary->GetFormat(&format, sizeof(format), NULL);
-						if (theApp.soundRecorder->Open(theApp.soundRecordName))
+						if (theApp.soundRecorder->Open(winAnsiFromWide(theApp.soundRecordName)))
 							theApp.soundRecorder->SetFormat(&format);
 					}
 				}

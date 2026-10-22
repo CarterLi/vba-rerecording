@@ -234,7 +234,7 @@ BOOL TileView::OnInitDialog()
 	SetData(sz,
 	        TRUE,
 	        HKEY_CURRENT_USER,
-	        "Software\\Emulators\\VisualBoyAdvance\\Viewer\\TileView",
+	        _T("Software\\Emulators\\VisualBoyAdvance\\Viewer\\TileView"),
 	        NULL);
 
 	m_colors   = is256Colors;
@@ -246,7 +246,7 @@ BOOL TileView::OnInitDialog()
 
 	paint();
 
-	m_stretch = regQueryDwordValue("tileViewStretch", 0);
+	m_stretch = regQueryDwordValue(_T("tileViewStretch"), 0);
 	if (m_stretch)
 		tileView.setStretch(true);
 	UpdateData(FALSE);
@@ -330,7 +330,7 @@ void TileView::OnStretch()
 {
 	tileView.setStretch(!tileView.getStretch());
 	paint();
-	regSetDwordValue("tileViewStretch", tileView.getStretch());
+	regSetDwordValue(_T("tileViewStretch"), tileView.getStretch());
 }
 
 LRESULT TileView::OnMapInfo(WPARAM wParam, LPARAM lParam)
@@ -348,10 +348,10 @@ LRESULT TileView::OnMapInfo(WPARAM wParam, LPARAM lParam)
 	address += 32 * tile;
 
 	CString buffer;
-	buffer.Format("%d", tile);
+	buffer.Format(_T("%d"), tile);
 	GetDlgItem(IDC_TILE_NUMBER)->SetWindowText(buffer);
 
-	buffer.Format("%08x", address);
+	buffer.Format(_T("%08x"), address);
 	GetDlgItem(IDC_ADDRESS)->SetWindowText(buffer);
 
 	return TRUE;
@@ -368,13 +368,13 @@ LRESULT TileView::OnColInfo(WPARAM wParam, LPARAM)
 	int b = (c & 0x7c00) >> 10;
 
 	CString buffer;
-	buffer.Format("R: %d", r);
+	buffer.Format(_T("R: %d"), r);
 	GetDlgItem(IDC_R)->SetWindowText(buffer);
 
-	buffer.Format("G: %d", g);
+	buffer.Format(_T("G: %d"), g);
 	GetDlgItem(IDC_G)->SetWindowText(buffer);
 
-	buffer.Format("B: %d", b);
+	buffer.Format(_T("B: %d"), b);
 	GetDlgItem(IDC_B)->SetWindowText(buffer);
 
 	return TRUE;

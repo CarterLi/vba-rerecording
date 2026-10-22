@@ -89,21 +89,21 @@ BOOL AccelEditor::OnInitDialog()
 	SetData(sz,
 	        TRUE,
 	        HKEY_CURRENT_USER,
-	        "Software\\Emulators\\VisualBoyAdvance\\Viewer\\AccelEditor",
+	        _T("Software\\Emulators\\VisualBoyAdvance\\Viewer\\AccelEditor"),
 	        NULL);
 
 	if (m_pExtMgr)
 		m_result = m_mgr = *m_pExtMgr;
 
 	m_currents.SetExtendedStyle(LVS_EX_FULLROWSELECT);
-	m_currents.InsertColumn(0, "Keys");
+	m_currents.InsertColumn(0, _T("Keys"));
 	m_currents.SetColumnWidth(0, LVSCW_AUTOSIZE_USEHEADER);
 	InitCommands();
 	m_autoMode	   = AUTO_REPLACE;
 	m_modified	   = FALSE;
 	m_timeoutValue = 1000;
 	CString timeoutStr;
-	timeoutStr.Format("%d", m_timeoutValue);
+	timeoutStr.Format(_T("%d"), m_timeoutValue);
 	m_timeout.SetWindowText(timeoutStr);
 	m_progress.SetPos(0);
 
@@ -190,7 +190,7 @@ void AccelEditor::InitCommands()
 {
 	m_commands.DeleteAllItems();
 	m_hItems.RemoveAll();
-	m_alreadyAffected.SetWindowText("");
+	m_alreadyAffected.SetWindowText(_T(""));
 
 	AddCommandsFromMenu(m_pMenuSrc, TVI_ROOT);
 	AddCommandsFromTable();
@@ -449,7 +449,7 @@ void AccelEditor::OnEdit()
 
 BOOL AccelEditor::CheckAffected()
 {
-	m_alreadyAffected.SetWindowText("");
+	m_alreadyAffected.SetWindowText(_T(""));
 
 	WORD wKey;
 	bool bCtrl, bAlt, bShift;
@@ -491,7 +491,7 @@ BOOL AccelEditor::CheckJammed()
 	{
 		// these go first, or the timer would be set again
 		m_key.ResetKey();
-		m_key.SetWindowText("Interrupted");
+		m_key.SetWindowText(_T("Interrupted"));
 		if (m_currents.IsWindowEnabled())
 			m_currents.SetFocus();
 		else
@@ -624,7 +624,7 @@ void AccelEditor::OnTimeoutEditKillfocus()
 {
 	CString str;
 	m_timeout.GetWindowText(str);
-	m_timeoutValue = atoi(str);
+	m_timeoutValue = _ttoi(str);
 	m_autoMode	   = AUTO_REPLACE;
 }
 

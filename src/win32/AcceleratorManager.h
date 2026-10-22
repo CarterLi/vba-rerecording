@@ -36,7 +36,7 @@ class CCmdAccelOb;
 
 // Helper map
 #ifndef CMapStringToWord
-typedef CMap< CString, LPCSTR, WORD, WORD & > CMapStringToWord;
+typedef CMap< CString, LPCTSTR, WORD, WORD & > CMapStringToWord;
 #endif
 
 #ifndef CMapWordToCCmdAccelOb

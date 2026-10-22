@@ -128,13 +128,16 @@ static void setRenderMethodModel(CCmdUI *pCmdUI, const char *model, const char *
 	if (device != NULL)
 	{
 		// Undo the flavor an earlier update substituted before naming this one.
-		text.Replace("9.0c", "9Ex");
+		text.Replace(_T("9.0c"), _T("9Ex"));
 		if (strcmp(device, "9Ex") != 0)
-			text.Replace("9Ex", device);
+			text.Replace(_T("9Ex"), winWideFromAnsi(device));
 	}
 
+	// The model arrives as a narrow string from every renderer, so the format
+	// has to name its width the way the GL version entry below does; a plain
+	// %s in a wide format reads the bytes as UTF-16 and the entry shows mojibake.
 	if (model != NULL)
-		text.AppendFormat(" (%s)", model);
+		text.AppendFormat(_T(" (%hs)"), model);
 
 	pCmdUI->SetText(text);
 	theApp.winAccelMgr.UpdateMenu(pCmdUI->m_pMenu->GetSafeHmenu());
@@ -160,12 +163,12 @@ static void setRenderMethodGlVersion(CCmdUI *pCmdUI, const char *version)
 	if (tab >= 0)
 		text = text.Left(tab);
 
-	int paren = text.Find(" (");
+	int paren = text.Find(_T(" ("));
 	if (paren >= 0)
 		text = text.Left(paren);
 
 	if (version != NULL)
-		text.AppendFormat(" (%s)", version);
+		text.AppendFormat(_T(" (%hs)"), version);
 
 	pCmdUI->SetText(text);
 	theApp.winAccelMgr.UpdateMenu(pCmdUI->m_pMenu->GetSafeHmenu());
@@ -194,16 +197,16 @@ static void setSoundApiBuffering(CCmdUI *pCmdUI, int blocks, int ms, int dropout
 		text = text.Left(tab);
 
 	// Drop a buffering named by an earlier update before naming this one.
-	int dash = text.Find(" - ");
+	int dash = text.Find(_T(" - "));
 	if (dash >= 0)
 		text = text.Left(dash);
 
 	if (blocks > 0)
 	{
-		text.AppendFormat(" - %d blocks, %d ms", blocks, ms);
+		text.AppendFormat(_T(" - %d blocks, %d ms"), blocks, ms);
 
 		if (dropouts > 0)
-			text.AppendFormat(", %d dropouts", dropouts);
+			text.AppendFormat(_T(", %d dropouts"), dropouts);
 	}
 
 	pCmdUI->SetText(text);
@@ -632,13 +635,13 @@ void MainWnd::OnOptionsVideoFullscreen()
 			if (pGUID)
 			{
 				theApp.videoDriverGUID = *pGUID;
-				regSetDwordValue("defaultVideoDriver", FALSE);
-				regSetBinaryValue("videoDriverGUID",
+				regSetDwordValue(_T("defaultVideoDriver"), FALSE);
+				regSetBinaryValue(_T("videoDriverGUID"),
 				                  (char *)pGUID, sizeof(GUID));
 			}
 			else
 			{
-				regSetDwordValue("defaultVideoDriver", TRUE);
+				regSetDwordValue(_T("defaultVideoDriver"), TRUE);
 			}
 			theApp.updateVideoSize(ID_OPTIONS_VIDEO_FULLSCREEN);
 			theApp.m_pMainWnd->PostMessage(VBA_CONFIRM_MODE);
@@ -833,7 +836,7 @@ void MainWnd::OnOptionsVideoWgpubackend(UINT nID)
 		return;
 
 	theApp.wgpuBackend = backend;
-	regSetDwordValue("wgpuBackend", backend);
+	regSetDwordValue(_T("wgpuBackend"), backend);
 
 	theApp.renderMethod = WGPU;
 	theApp.updateRenderMethod(true);
@@ -941,7 +944,7 @@ static void setTextureFilter(int filter)
 	*value = filter;
 	// The Direct3D 9 renderer reads the filter from the registry once a frame,
 	// so the setting has to be there as well as in memory.
-	regSetDwordValue(option, filter);
+	regSetDwordValue(winWideFromAnsi(option), filter);
 	if (theApp.display)
 		theApp.display->setOption(option, filter);
 }
@@ -1215,8 +1218,8 @@ void MainWnd::OnOptionsEmulatorRewindinterval()
 		if (interval == 0 || slots == 0)
 		{
 			theApp.rewindTimer = theApp.rewindSlots = 0;
-			regSetDwordValue("rewindTimer", interval);
-			regSetDwordValue("rewindSlots", slots);
+			regSetDwordValue(_T("rewindTimer"), interval);
+			regSetDwordValue(_T("rewindSlots"), slots);
 			if (theApp.rewindMemory)
 				free(theApp.rewindMemory);
 			theApp.rewindMemory     = NULL;
@@ -1226,8 +1229,8 @@ void MainWnd::OnOptionsEmulatorRewindinterval()
 		}
 		else
 		{
-			regSetDwordValue("rewindTimer", interval);
-			regSetDwordValue("rewindSlots", slots);
+			regSetDwordValue(_T("rewindTimer"), interval);
+			regSetDwordValue(_T("rewindSlots"), slots);
 			if (slots != prevSlots)
 			{
 				if (theApp.rewindMemory)
@@ -1249,7 +1252,7 @@ BOOL MainWnd::OnOptionsEmulatorShowSpeed(UINT nID)
 	{
 	case ID_OPTIONS_EMULATOR_SHOWSPEED_NONE:
 		theApp.showSpeed = 0;
-		systemSetTitle(VBA_NAME_AND_VERSION);
+		systemSetTitle(_T(VBA_NAME_AND_VERSION));
 		break;
 	case ID_OPTIONS_EMULATOR_SHOWSPEED_PERCENTAGE:
 		theApp.showSpeed = 1;
@@ -1466,9 +1469,9 @@ void MainWnd::OnOptionsEmulatorSelectbiosfile()
 	            theApp.biosFileName,
 	            filter,
 	            0,
-	            "BIOS",
+	            _T("BIOS"),
 	            exts,
-	            "",
+	            _T(""),
 	            title,
 	            false);
 

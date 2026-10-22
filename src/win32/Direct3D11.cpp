@@ -41,7 +41,6 @@
 
 extern int Init_2xSaI(u32);
 extern void directXMessage(const char *);
-extern void winlog(const char *, ...);
 
 // d3d11.dll and d3dcompiler_47.dll are not part of Windows 7, and an executable
 // that imports them cannot start there at all, even when it never touches the
@@ -71,19 +70,19 @@ static void loadD3D11Libraries()
 
 	d3d11Probed = true;
 
-	d3d11DLL = LoadLibrary("D3D11.DLL");
+	d3d11DLL = LoadLibrary(_T("D3D11.DLL"));
 	if (d3d11DLL != NULL)
 		d3d11CreateDevice = (PFN_D3D11CreateDevice)
 		    GetProcAddress(d3d11DLL, "D3D11CreateDevice");
 
-	d3dcompilerDLL = LoadLibrary("D3DCOMPILER_47.DLL");
+	d3dcompilerDLL = LoadLibrary(_T("D3DCOMPILER_47.DLL"));
 	if (d3dcompilerDLL != NULL)
 		d3dCompile = (PFN_D3DCompile)GetProcAddress(d3dcompilerDLL, "D3DCompile");
 
 	if (d3d11CreateDevice == NULL)
-		winlog("D3D11: D3D11.DLL is not available\n");
+		winlog(_T("D3D11: D3D11.DLL is not available\n"));
 	if (d3dCompile == NULL)
-		winlog("D3D11: D3DCOMPILER_47.DLL is not available\n");
+		winlog(_T("D3D11: D3DCOMPILER_47.DLL is not available\n"));
 }
 
 bool direct3D11Available()
@@ -165,17 +164,17 @@ static const char *g_quadShader =
 
 static const char *upscalerShaderSource(LPCSTR name, DWORD *size)
 {
-	HRSRC resource = FindResource(NULL, name, RT_RCDATA);
+	HRSRC resource = FindResource(NULL, winWideFromAnsi(name), RT_RCDATA);
 	if (resource == NULL)
 	{
-		winlog("upscaler: %s is missing from the executable\n", name);
+		winlog(_T("upscaler: %hs is missing from the executable\n"), name);
 		return NULL;
 	}
 
 	HGLOBAL handle = LoadResource(NULL, resource);
 	if (handle == NULL)
 	{
-		winlog("upscaler: cannot load %s\n", name);
+		winlog(_T("upscaler: cannot load %hs\n"), name);
 		return NULL;
 	}
 
@@ -274,7 +273,7 @@ static ID3DBlob *compileUpscalerShader(LPCSTR resource, LPCSTR name, LPCSTR entr
 	if (FAILED(d3dCompile(source, sourceSize, name, defines, include, entry, profile, 0, 0,
 	                      &blob, &error)))
 	{
-		winlog("%s: %s does not compile: %s\n", name, entry,
+		winlog(_T("%hs: %hs does not compile: %hs\n"), name, entry,
 		       error ? (const char *)error->GetBufferPointer() : "?");
 		if (error)
 			error->Release();
@@ -304,7 +303,7 @@ static ID3D11PixelShader *createUpscalerPixelShader(ID3D11Device *device, LPCSTR
 
 	if (FAILED(hr))
 	{
-		winlog("%s: CreatePixelShader failed %08x\n", name, hr);
+		winlog(_T("%hs: CreatePixelShader failed %08x\n"), name, hr);
 		return NULL;
 	}
 
@@ -386,7 +385,7 @@ static bool updateUpscaleTarget(ID3D11Device *device, UpscaleTarget &target,
 	    FAILED(device->CreateShaderResourceView(target.texture, NULL, &target.srv)) ||
 	    FAILED(device->CreateRenderTargetView(target.texture, NULL, &target.rtv)))
 	{
-		winlog("%s: cannot create the %dx%d target\n", name, width, height);
+		winlog(_T("%hs: cannot create the %dx%d target\n"), name, width, height);
 		releaseUpscaleTarget(target);
 		return false;
 	}
@@ -673,7 +672,7 @@ bool Direct3D11Display::createDevice()
 	                               &pContext);
 	if (FAILED(hr))
 	{
-		winlog("D3D11CreateDevice failed %08x\n", hr);
+		winlog(_T("D3D11CreateDevice failed %08x\n"), hr);
 		return false;
 	}
 
@@ -750,7 +749,7 @@ bool Direct3D11Display::createSwapChain()
 			}
 
 			currentSwapEffect = (int)actual.SwapEffect;
-			winlog("D3D11: swap effect %d (%s), %d buffers\n",
+			winlog(_T("D3D11: swap effect %d (%hs), %d buffers\n"),
 			       (int)actual.SwapEffect,
 			       actual.SwapEffect == DXGI_SWAP_EFFECT_FLIP_DISCARD ? "flip discard" : "flip sequential",
 			       (int)actual.BufferCount);
@@ -783,17 +782,17 @@ bool Direct3D11Display::createSwapChain()
 
 		if (FAILED(factory->CreateSwapChain(pDevice, &sd, &pSwapChain)))
 		{
-			winlog("D3D11: CreateSwapChain failed\n");
+			winlog(_T("D3D11: CreateSwapChain failed\n"));
 			pSwapChain = NULL;
 		}
 		else
 		{
 			currentSwapEffect = (int)sd.SwapEffect;
 			if (flipRefused != S_OK)
-				winlog("D3D11: no flip model swap chain (%08x), using swap effect %d (bitblt), 1 buffer\n",
+				winlog(_T("D3D11: no flip model swap chain (%08x), using swap effect %d (bitblt), 1 buffer\n"),
 				       (unsigned int)flipRefused, (int)sd.SwapEffect);
 			else
-				winlog("D3D11: swap effect %d (bitblt), 1 buffer\n", (int)sd.SwapEffect);
+				winlog(_T("D3D11: swap effect %d (bitblt), 1 buffer\n"), (int)sd.SwapEffect);
 		}
 	}
 
@@ -804,7 +803,7 @@ bool Direct3D11Display::createSwapChain()
 
 	if (pSwapChain == NULL)
 	{
-		winlog("D3D11: no swap chain\n");
+		winlog(_T("D3D11: no swap chain\n"));
 		return false;
 	}
 
@@ -837,14 +836,14 @@ bool Direct3D11Display::createShaders()
 	if (FAILED(d3dCompile(g_quadShader, strlen(g_quadShader), "quadVS", NULL, NULL,
 	                      "VSMain", "vs_4_0", 0, 0, &vsBlob, &error)))
 	{
-		winlog("D3D11 vertex shader compilation failed: %s\n", error ? (const char *)error->GetBufferPointer() : "?");
+		winlog(_T("D3D11 vertex shader compilation failed: %s\n"), error ? winWideFromAnsi((const char *)error->GetBufferPointer()) : CString(_T("?")));
 		if (error) error->Release();
 		return false;
 	}
 	if (FAILED(d3dCompile(g_quadShader, strlen(g_quadShader), "quadPS", NULL, NULL,
 	                      "PSMain", "ps_4_0", 0, 0, &psBlob, &error)))
 	{
-		winlog("D3D11 pixel shader compilation failed: %s\n", error ? (const char *)error->GetBufferPointer() : "?");
+		winlog(_T("D3D11 pixel shader compilation failed: %s\n"), error ? winWideFromAnsi((const char *)error->GetBufferPointer()) : CString(_T("?")));
 		if (error) error->Release();
 		vsBlob->Release();
 		return false;
@@ -926,7 +925,7 @@ bool Direct3D11Display::initialize()
 
         if (pWnd == NULL || pWnd->GetSafeHwnd() == NULL)
         {
-                winlog("D3D11: no main window to draw into\n");
+                winlog(_T("D3D11: no main window to draw into\n"));
                 return false;
         }
 
@@ -1013,12 +1012,12 @@ bool Direct3D11Display::initialize()
 			       : theApp.upscaler == UPSCALER_OFF ? "Off"
 			       : "not one of this renderer's";
 
-		winlog("D3D11: upscaler %s (%d), sharpening %d, max scale %d%s\n",
+		winlog(_T("D3D11: upscaler %hs (%d), sharpening %d, max scale %d%hs\n"),
 		       picked, theApp.upscaler, theApp.upscalerSharpness, theApp.upscalerMaxScale,
 		       direct3D11UpscalerAvailable(theApp.upscaler) ? "" : " - this renderer does not run it");
 	}
 
-	filterMode = regQueryDwordValue("d3dFilter", 0);
+	filterMode = regQueryDwordValue(_T("d3dFilter"), 0);
 	if (filterMode < 0 || filterMode > 2)
 		filterMode = 0;
 
@@ -1053,7 +1052,7 @@ bool Direct3D11Display::initializeOffscreen(int w, int h)
 	HRESULT hr = pDevice->CreateTexture2D(&td, NULL, &pFrameTexture);
 	if (FAILED(hr))
 	{
-		winlog("D3D11 CreateTexture2D failed %08x\n", hr);
+		winlog(_T("D3D11 CreateTexture2D failed %08x\n"), hr);
 		return false;
 	}
 
@@ -1089,7 +1088,7 @@ bool Direct3D11Display::initializeOffscreen(int w, int h)
 	{
 		if (pMipSRV)     { pMipSRV->Release();     pMipSRV = NULL; }
 		if (pMipTexture) { pMipTexture->Release(); pMipTexture = NULL; }
-		winlog("D3D11: no mip chain for %dx%d, trilinear filtering is not available\n", w, h);
+		winlog(_T("D3D11: no mip chain for %dx%d, trilinear filtering is not available\n"), w, h);
 	}
 
 	if (pOverlayTexture == NULL && backWidth > 0 && backHeight > 0)
@@ -1129,7 +1128,7 @@ void Direct3D11Display::createOverlayTarget(int w, int h)
 
 	overlay.create(w, h);
 
-	winlog("D3D11: on screen display %dx%d%s\n", w, h, pOverlaySRV != NULL ? "" : ", no view");
+	winlog(_T("D3D11: on screen display %dx%d%s\n"), w, h, pOverlaySRV != NULL ? _T("") : _T(", no view"));
 }
 
 void Direct3D11Display::updateFiltering(int filter)
@@ -1149,7 +1148,7 @@ bool Direct3D11Display::initNis()
 
 	if (featureLevel < D3D_FEATURE_LEVEL_11_0)
 	{
-		winlog("NIS: needs Direct3D feature level 11.0\n");
+		winlog(_T("NIS: needs Direct3D feature level 11.0\n"));
 		return false;
 	}
 
@@ -1173,7 +1172,7 @@ bool Direct3D11Display::initNis()
 	blob->Release();
 	if (FAILED(hr))
 	{
-		winlog("NIS: CreateComputeShader failed %08x\n", hr);
+		winlog(_T("NIS: CreateComputeShader failed %08x\n"), hr);
 		return false;
 	}
 
@@ -1197,27 +1196,27 @@ bool Direct3D11Display::initNis()
 	data.pSysMem = coef_scale;
 	if (FAILED(pDevice->CreateTexture2D(&td, &data, &pNisCoefScale)))
 	{
-		winlog("NIS: cannot create the scaler coefficient texture\n");
+		winlog(_T("NIS: cannot create the scaler coefficient texture\n"));
 		return false;
 	}
 
 	data.pSysMem = coef_usm;
 	if (FAILED(pDevice->CreateTexture2D(&td, &data, &pNisCoefUsm)))
 	{
-		winlog("NIS: cannot create the sharpening coefficient texture\n");
+		winlog(_T("NIS: cannot create the sharpening coefficient texture\n"));
 		return false;
 	}
 
 	if (FAILED(pDevice->CreateShaderResourceView(pNisCoefScale, NULL, &pNisCoefScaleSRV)) ||
 	    FAILED(pDevice->CreateShaderResourceView(pNisCoefUsm, NULL, &pNisCoefUsmSRV)))
 	{
-		winlog("NIS: cannot create the coefficient views\n");
+		winlog(_T("NIS: cannot create the coefficient views\n"));
 		return false;
 	}
 
 	if (!createUpscalerConstants(pDevice, sizeof(NISConfig), &pNisCB))
 	{
-		winlog("NIS: cannot create the config buffer\n");
+		winlog(_T("NIS: cannot create the config buffer\n"));
 		return false;
 	}
 
@@ -1295,7 +1294,7 @@ bool Direct3D11Display::updateNisChain(int srcWidth, int srcHeight, int dstWidth
 		    FAILED(pDevice->CreateShaderResourceView(nisTargets[pass].texture, NULL, &nisTargets[pass].srv)) ||
 		    FAILED(pDevice->CreateUnorderedAccessView(nisTargets[pass].texture, NULL, &nisTargets[pass].uav)))
 		{
-			winlog("NIS: cannot create the %dx%d pass target\n", w, h);
+			winlog(_T("NIS: cannot create the %dx%d pass target\n"), w, h);
 			releaseNisTargets();
 			return false;
 		}
@@ -1403,7 +1402,7 @@ bool Direct3D11Display::initFsr()
 
 	if (featureLevel < D3D_FEATURE_LEVEL_11_0)
 	{
-		winlog("FSR: needs Direct3D feature level 11.0\n");
+		winlog(_T("FSR: needs Direct3D feature level 11.0\n"));
 		return false;
 	}
 
@@ -1421,7 +1420,7 @@ bool Direct3D11Display::initFsr()
 
 	if (!createUpscalerConstants(pDevice, FSR_CONSTANT_FLOATS * sizeof(float), &pFsrCB))
 	{
-		winlog("FSR: cannot create the constant buffer\n");
+		winlog(_T("FSR: cannot create the constant buffer\n"));
 		releaseFsr();
 		return false;
 	}
@@ -1784,18 +1783,18 @@ void Direct3D11Display::initUpscaler(int upscaler)
 
 		if (!createUpscalerConstants(pDevice, sizeof(SinglePassConstants), &statePass.constants))
 		{
-			winlog("%s: cannot create the constant buffer\n", source.name);
+			winlog(_T("%hs: cannot create the constant buffer\n"), source.name);
 			built = false;
 		}
 	}
 
 	if (!built)
 	{
-		winlog("D3D11: the %s upscaler is not available on this device\n", source.name);
+		winlog(_T("D3D11: the %hs upscaler is not available on this device\n"), source.name);
 		releaseUpscaler(state);
 	}
 	else
-		winlog("D3D11: the %s upscaler is ready, %d pass(es)\n", source.name, source.passCount);
+		winlog(_T("D3D11: the %hs upscaler is ready, %d pass(es)\n"), source.name, source.passCount);
 }
 
 void Direct3D11Display::releaseUpscalers()
@@ -1817,7 +1816,7 @@ ID3D11ShaderResourceView *Direct3D11Display::scaleFrameWithUpscaler(int upscaler
 	if (index < 0)
 	{
 		if (lastReason != 1)
-			winlog("D3D11: upscaler %d has no chain here, the frame is drawn as it is\n", upscaler);
+			winlog(_T("D3D11: upscaler %d has no chain here, the frame is drawn as it is\n"), upscaler);
 		lastReason = 1;
 		return NULL;
 	}
@@ -1828,7 +1827,7 @@ ID3D11ShaderResourceView *Direct3D11Display::scaleFrameWithUpscaler(int upscaler
 	if (state.passes[0].shader == NULL || pFrameSRV == NULL)
 	{
 		if (lastReason != 2)
-			winlog("D3D11: %s is not built, the frame is drawn as it is\n", source.name);
+			winlog(_T("D3D11: %hs is not built, the frame is drawn as it is\n"), source.name);
 		lastReason = 2;
 		return NULL;
 	}
@@ -1838,7 +1837,7 @@ ID3D11ShaderResourceView *Direct3D11Display::scaleFrameWithUpscaler(int upscaler
 	if (theApp.rect.right != width || theApp.rect.bottom != height)
 	{
 		if (lastReason != 3)
-			winlog("D3D11: %s: the frame is %dx%d at %d,%d of a %dx%d texture, which it cannot scale\n",
+			winlog(_T("D3D11: %hs: the frame is %dx%d at %d,%d of a %dx%d texture, which it cannot scale\n"),
 			       source.name, theApp.rect.right - theApp.rect.left, theApp.rect.bottom - theApp.rect.top,
 			       theApp.rect.left, theApp.rect.top, width, height);
 		lastReason = 3;
@@ -2243,7 +2242,7 @@ void Direct3D11Display::render()
 		if (state != tracedState)
 		{
 			static const char *const names[] = { "no target", "nothing visible", "visible" };
-			winlog("D3D11: on screen display %s\n", names[state]);
+			winlog(_T("D3D11: on screen display %hs\n"), names[state]);
 			tracedState = state;
 		}
 
@@ -2283,7 +2282,7 @@ void Direct3D11Display::render()
 								opaque += row[x * 4 + 3] != 0;
 						}
 
-						winlog("D3D11: on screen display uploaded, %dx%d, pitch %d, %d opaque pixels\n",
+						winlog(_T("D3D11: on screen display uploaded, %dx%d, pitch %d, %d opaque pixels\n"),
 						       overlay.width(), overlay.height(), (int)mapped.RowPitch, opaque);
 						tracedUploads++;
 					}
@@ -2293,7 +2292,7 @@ void Direct3D11Display::render()
 					static bool tracedFailure = false;
 					if (!tracedFailure)
 					{
-						winlog("D3D11: on screen display cannot be mapped\n");
+						winlog(_T("D3D11: on screen display cannot be mapped\n"));
 						tracedFailure = true;
 					}
 				}
@@ -2400,7 +2399,7 @@ void Direct3D11Display::setOption(const char *option, int value)
 			       : value == UPSCALER_FSR ? "FSR"
 			       : "not one of this renderer's";
 
-		winlog("D3D11: upscaler %s (%d), sharpening %d, max scale %d%s\n",
+		winlog(_T("D3D11: upscaler %hs (%d), sharpening %d, max scale %d%hs\n"),
 		       picked, value, theApp.upscalerSharpness, theApp.upscalerMaxScale,
 		       direct3D11UpscalerAvailable(value) ? "" : " - this renderer does not run it");
 

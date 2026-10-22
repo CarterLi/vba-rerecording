@@ -15,7 +15,9 @@
 #include "../resource.h"
 #endif
 
-extern void winlog(const char* msg, ...);
+
+// The driver trace, declared here rather than pulled in from the MFC side:/n// this unit is plain Win32 and has no CString.
+extern void winlog(const wchar_t *msg, ...);
 
 typedef HRESULT (WINAPI* SevenZipGetNumberOfFormats)(UINT32* numFormats);
 typedef HRESULT (WINAPI* SevenZipGetHandlerProperty2)(UInt32 formatIndex, PROPID propID, PROPVARIANT* value);
@@ -105,7 +107,10 @@ static void SevenZipLogVersion(const char* path)
 	else
 		verdict = "MISMATCH";
 
-	winlog("7-Zip: loaded %s (%s, version %s); headers %s, %s\n",
+	// All the arguments arrive narrow (the 7-Zip API and the headers speak
+	// char), so the format has to name the width: a plain %s in a wide format
+	// reads the bytes as UTF-16 and the trace shows mojibake.
+	winlog(L"7-Zip: loaded %hs (%hs, version %hs); headers %hs, %hs\n",
 	       path, SevenZipArch(), version,
 	       MY_VERSION_NUMBERS, verdict);
 }
@@ -235,7 +240,7 @@ bool SevenZipLoad()
 	if (SevenZipCachePath(path, sizeof(path)) && SevenZipTryLoad(path))
 		return true;
 
-	winlog("7-Zip: no usable 7z.dll was found; archives other than .zip stay disabled\n");
+	winlog(L"7-Zip: no usable 7z.dll was found; archives other than .zip stay disabled\n");
 	return false;
 }
 

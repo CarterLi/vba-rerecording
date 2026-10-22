@@ -101,19 +101,19 @@ void GBOamView::setAttributes(int y, int x, int tile, int flags)
 	int oap   = (flags & 0x08) >> 3;
 	int bank  = (flags & 0x10) >> 4;
 
-	buffer.Format("%d,%d", x, y);
+	buffer.Format(_T("%d,%d"), x, y);
 	GetDlgItem(IDC_POS)->SetWindowText(buffer);
 
-	buffer.Format("%d", pal);
+	buffer.Format(_T("%d"), pal);
 	GetDlgItem(IDC_PALETTE)->SetWindowText(buffer);
 
-	buffer.Format("%d", tile);
+	buffer.Format(_T("%d"), tile);
 	GetDlgItem(IDC_TILE)->SetWindowText(buffer);
 
-	buffer.Format("%d", prio);
+	buffer.Format(_T("%d"), prio);
 	GetDlgItem(IDC_PRIO)->SetWindowText(buffer);
 
-	buffer.Format("%d", bank);
+	buffer.Format(_T("%d"), bank);
 	GetDlgItem(IDC_BANK)->SetWindowText(buffer);
 
 	buffer.Empty();
@@ -127,7 +127,7 @@ void GBOamView::setAttributes(int y, int x, int tile, int flags)
 		buffer += ' ';
 	GetDlgItem(IDC_FLAGS)->SetWindowText(buffer);
 
-	buffer.Format("%d", oap);
+	buffer.Format(_T("%d"), oap);
 	GetDlgItem(IDC_OAP)->SetWindowText(buffer);
 }
 
@@ -257,14 +257,14 @@ BOOL GBOamView::OnInitDialog()
 	SetData(sz,
 	        TRUE,
 	        HKEY_CURRENT_USER,
-	        "Software\\Emulators\\VisualBoyAdvance\\Viewer\\GBOamView",
+	        _T("Software\\Emulators\\VisualBoyAdvance\\Viewer\\GBOamView"),
 	        NULL);
 
-	m_sprite.SetWindowText("0");
+	m_sprite.SetWindowText(_T("0"));
 
 	updateScrollInfo();
 
-	m_stretch = regQueryDwordValue("GBOamViewStretch", 0);
+	m_stretch = regQueryDwordValue(_T("GBOamViewStretch"), 0);
 	if (m_stretch)
 		oamView.setStretch(true);
 	UpdateData(FALSE);
@@ -279,7 +279,7 @@ void GBOamView::OnStretch()
 {
 	oamView.setStretch(!oamView.getStretch());
 	paint();
-	regSetDwordValue("GBOamViewStretch", oamView.getStretch());
+	regSetDwordValue(_T("GBOamViewStretch"), oamView.getStretch());
 }
 
 void GBOamView::OnAutoUpdate()
@@ -299,10 +299,10 @@ void GBOamView::OnChangeSprite()
 {
 	CString buffer;
 	m_sprite.GetWindowText(buffer);
-	int n = atoi(buffer);
+	int n = _ttoi(buffer);
 	if (n < 0 || n > 39)
 	{
-		buffer.Format("%d", number);
+		buffer.Format(_T("%d"), number);
 		m_sprite.SetWindowText(buffer);
 		return;
 	}
@@ -337,13 +337,13 @@ LRESULT GBOamView::OnColInfo(WPARAM wParam, LPARAM lParam)
 	int b = (c & 0x7c00) >> 10;
 
 	CString buffer;
-	buffer.Format("R: %d", r);
+	buffer.Format(_T("R: %d"), r);
 	GetDlgItem(IDC_R)->SetWindowText(buffer);
 
-	buffer.Format("G: %d", g);
+	buffer.Format(_T("G: %d"), g);
 	GetDlgItem(IDC_G)->SetWindowText(buffer);
 
-	buffer.Format("B: %d", b);
+	buffer.Format(_T("B: %d"), b);
 	GetDlgItem(IDC_B)->SetWindowText(buffer);
 
 	return TRUE;
@@ -406,7 +406,7 @@ void GBOamView::OnHScroll(UINT nSBCode, UINT nPos, CScrollBar*pScrollBar)
 	updateScrollInfo();
 
 	CString buffer;
-	buffer.Format("%d", number);
+	buffer.Format(_T("%d"), number);
 	m_sprite.SetWindowText(buffer);
 	paint();
 }

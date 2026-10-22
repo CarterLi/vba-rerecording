@@ -88,13 +88,13 @@ void AVIWrite::SetSoundFormat(WAVEFORMATEX *format)
 	}
 }
 
-bool AVIWrite::Open(const char *filename)
+bool AVIWrite::Open(LPCTSTR filename)
 {
 	// this is only here because AVIFileOpen doesn't seem to do it for us
-	FILE*fd = fopen(filename, "wb");
+	FILE*fd = _wfopen(filename, L"wb");
 	if (!fd)
 	{
-		systemMessage(0, "AVI recording failed: file is read-only or already in use.");
+		systemMessage(0, _T("AVI recording failed: file is read-only or already in use."));
 		m_failed = true;
 		return false;
 	}
@@ -164,14 +164,14 @@ bool AVIWrite::Open(const char *filename)
 		m_samplesSoundTotal = 0L;
 	}
 
-	strncpy(m_aviFileName, filename, MAX_PATH);
-	strncpy(m_aviBaseName, filename, MAX_PATH);
+	_tcsncpy(m_aviFileName, filename, MAX_PATH);
+	_tcsncpy(m_aviBaseName, filename, MAX_PATH);
 	m_aviFileName[MAX_PATH - 1] = '\0';
 	m_aviBaseName[MAX_PATH - 1] = '\0';
-	char *dot = strrchr(m_aviBaseName, '.');
-	if (dot && dot > strrchr(m_aviBaseName, '/') && dot > strrchr(m_aviBaseName, '\\'))
+	TCHAR *dot = _tcsrchr(m_aviBaseName, _T('.'));
+	if (dot && dot > _tcsrchr(m_aviBaseName, _T('/')) && dot > _tcsrchr(m_aviBaseName, _T('\\')))
 	{
-		strcpy(m_aviExtension, dot);
+		_tcscpy(m_aviExtension, dot);
 		dot[0] = '\0';
 	}
 
@@ -210,10 +210,10 @@ bool AVIWrite::AddSound(const u8 *sound, u32 len)
 
 bool AVIWrite::NextSegment()
 {
-	char avi_fname[MAX_PATH];
-	strcpy(avi_fname, m_aviBaseName);
-	char avi_fname_temp[MAX_PATH];
-	sprintf(avi_fname_temp, "%s_part%d%s", avi_fname, m_segmentNumber + 2, m_aviExtension);
+	TCHAR avi_fname[MAX_PATH];
+	_tcscpy(avi_fname, m_aviBaseName);
+	TCHAR avi_fname_temp[MAX_PATH];
+	_stprintf(avi_fname_temp, _T("%s_part%d%s"), avi_fname, m_segmentNumber + 2, m_aviExtension);
 	m_segmentNumber++;
 
 	CleanUp();
@@ -221,7 +221,7 @@ bool AVIWrite::NextSegment()
 	m_usePrevOptions = true;
 	bool ret = Open(avi_fname_temp);
 	m_usePrevOptions = false;
-	strcpy(m_aviBaseName, avi_fname);
+	_tcscpy(m_aviBaseName, avi_fname);
 
 	return ret;
 }

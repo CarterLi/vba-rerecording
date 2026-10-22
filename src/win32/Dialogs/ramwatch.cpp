@@ -2,11 +2,13 @@
 #include "../VBA.h"
 #include "../resource.h"
 #include "../WinMiscUtil.h"
+#include "../WinResUtil.h"
 #include "GBACheatsDlg.h"
 #include "GBCheatsDlg.h"
 #include "ram_search.h"
 #include "ramwatch.h"
 #include "ModernFileDialog.h"
+#include "FileDlg.h"
 #include "../reg.h"
 #include "../Sound.h"
 #include <cassert>
@@ -26,12 +28,12 @@
 static HMENU ramwatchmenu;
 static HMENU rwrecentmenu;
 /*static*/ HACCEL RamWatchAccels = NULL;
-char rw_recent_files[MAX_RECENT_WATCHES][1024];
+TCHAR rw_recent_files[MAX_RECENT_WATCHES][1024];
 //char Watch_Dir[1024]="";
 bool RWfileChanged = false; //Keeps track of whether the current watch file has been changed, if so, ramwatch will prompt to save changes
 bool AutoRWLoad = false;    //Keeps track of whether Auto-load is checked
 bool RWSaveWindowPos = false; //Keeps track of whether Save Window position is checked
-char currentWatch[1024];
+TCHAR currentWatch[1024];
 int ramw_x, ramw_y;			//Used to store ramwatch dialog window positions
 AddressWatcher rswatches[MAX_WATCH_COUNT];
 int WatchCount=0;
@@ -40,10 +42,10 @@ static int s_prevSelCount=-1;
 HWND RamWatchHWnd;
 #define gamefilename theApp.gameFilename
 #define hWnd AfxGetMainWnd()->GetSafeHwnd()
-#define hInst AfxGetInstanceHandle()
-static char Str_Tmp [1024];
+#define hInst AfxGetResourceHandle()
+static TCHAR Str_Tmp[1024];
 
-void init_list_box(HWND Box, const char* Strs[], int numColumns); //initializes the ram search and/or ram watch listbox
+void init_list_box(HWND Box, const CString Strs[], int numColumns); //initializes the ram search and/or ram watch listbox
 
 #define MESSAGEBOXPARENT (RamWatchHWnd ? RamWatchHWnd : hWnd)
 
@@ -78,7 +80,7 @@ bool VerifyWatchNotAlreadyAdded(const AddressWatcher& watch)
 }
 
 
-bool InsertWatch(const AddressWatcher& Watch, char *Comment)
+bool InsertWatch(const AddressWatcher& Watch, const char *Comment)
 {
 	if(WatchCount >= MAX_WATCH_COUNT)
 		return false;
@@ -117,9 +119,9 @@ LRESULT CALLBACK PromptWatchNameProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM
 
 			//SetWindowPos(hDlg, NULL, max(0, r.left + (dx1 - dx2)), max(0, r.top + (dy1 - dy2)), NULL, NULL, SWP_NOSIZE | SWP_NOZORDER | SWP_SHOWWINDOW);
 			SetWindowPos(hDlg, NULL, r.left, r.top, NULL, NULL, SWP_NOSIZE | SWP_NOZORDER | SWP_SHOWWINDOW);
-			strcpy(Str_Tmp,"Enter a name for this RAM address.");
+			_tcscpy(Str_Tmp,_T("Enter a name for this RAM address."));
 			SendDlgItemMessage(hDlg,IDC_PROMPT_TEXT,WM_SETTEXT,0,(LPARAM)Str_Tmp);
-			strcpy(Str_Tmp,"");
+			_tcscpy(Str_Tmp,_T(""));
 			SendDlgItemMessage(hDlg,IDC_PROMPT_TEXT2,WM_SETTEXT,0,(LPARAM)Str_Tmp);
 			return true;
 			break;
@@ -130,7 +132,7 @@ LRESULT CALLBACK PromptWatchNameProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM
 				case IDOK:
 				{
 					GetDlgItemText(hDlg,IDC_PROMPT_EDIT,Str_Tmp,80);
-					InsertWatch(rswatches[WatchCount],Str_Tmp);
+					InsertWatch(rswatches[WatchCount],winAnsiFromWide(Str_Tmp));
 					EndDialog(hDlg, true);
 					return true;
 					break;
@@ -227,7 +229,7 @@ bool AskSave()
 	if (RWfileChanged)
 	{
 		systemSoundClearBuffer();
-		int answer = MessageBox(MESSAGEBOXPARENT, "Save Changes?", "Ram Watch", MB_YESNOCANCEL);
+		int answer = MessageBox(MESSAGEBOXPARENT, _T("Save Changes?"), _T("Ram Watch"), MB_YESNOCANCEL);
 		if(answer == IDYES)
 			if(!QuickSaveWatches())
 				return false;
@@ -238,10 +240,10 @@ bool AskSave()
 
 void WriteRecentRWFiles()
 {
-	char str[2048];
+	TCHAR str[2048];
 	for (int i = 0; i < MAX_RECENT_WATCHES; i++)
 	{
-		sprintf(str, "recentWatch%d", i+1);
+		_stprintf(str, _T("recentWatch%d"), i+1);
 		regSetStringValue(str, &rw_recent_files[i][0]);
 	}
 }
@@ -256,7 +258,7 @@ void UpdateRW_RMenu(HMENU menu, unsigned int mitem, unsigned int baseid)
 
 	GetMenuItemInfo(GetSubMenu(ramwatchmenu, 0), mitem, FALSE, &moo);
 	moo.hSubMenu = menu;
-	moo.fState = strlen(rw_recent_files[0]) ? MFS_ENABLED : MFS_GRAYED;
+	moo.fState = _tcslen(rw_recent_files[0]) ? MFS_ENABLED : MFS_GRAYED;
 
 	SetMenuItemInfo(GetSubMenu(ramwatchmenu, 0), mitem, FALSE, &moo);
 
@@ -270,7 +272,7 @@ void UpdateRW_RMenu(HMENU menu, unsigned int mitem, unsigned int baseid)
 	for(x = MAX_RECENT_WATCHES - 1; x >= 0; x--)
 	{  
 		// Skip empty strings
-		if(!strlen(rw_recent_files[x]))
+		if(!_tcslen(rw_recent_files[x]))
 		{
 			continue;
 		}
@@ -283,7 +285,7 @@ void UpdateRW_RMenu(HMENU menu, unsigned int mitem, unsigned int baseid)
 		char tmp[TEMP_STRING_LENGTH];	// FIXME?
 
 		// Fill in the menu text.
-		if(strlen(rw_recent_files[x]) < 128)
+		if(_tcslen(rw_recent_files[x]) < 128)
 		{
 			sprintf(tmp, "&%d. %s", ( x + 1 ) % 10, rw_recent_files[x]);
 		}
@@ -294,11 +296,11 @@ void UpdateRW_RMenu(HMENU menu, unsigned int mitem, unsigned int baseid)
 #endif
 		// the ATL way; it is really pain to work out a MBCS-compatible string replace function in the pure c way
 		CString atltmp(rw_recent_files[x]);
-		atltmp.Replace("&", "&&");
-		char *tmp = atltmp.GetBuffer(0);
+		atltmp.Replace(_T("&"), _T("&&"));
+		TCHAR *tmp = atltmp.GetBuffer(0);
 
 		// Insert the menu item
-		moo.cch = (UINT)strlen(tmp);
+		moo.cch = (UINT)_tcslen(tmp);
 		moo.fType = 0;
 		moo.wID = baseid + x;
 		moo.dwTypeData = tmp;
@@ -311,34 +313,34 @@ void UpdateRW_RMenu(HMENU menu, unsigned int mitem, unsigned int baseid)
 //	WriteRecentRWFiles();	// write recent menu to ini
 }
 
-void UpdateRWRecentArray(const char* addString, unsigned int arrayLen, HMENU menu, unsigned int menuItem, unsigned int baseId)
+void UpdateRWRecentArray(LPCTSTR addString, unsigned int arrayLen, HMENU menu, unsigned int menuItem, unsigned int baseId)
 {
 	const size_t len = 1024; // Avoid magic numbers
 
 	// Try to find out if the filename is already in the recent files list.
 	for(unsigned int x = 0; x < arrayLen; x++)
 	{
-		if(strlen(rw_recent_files[x]))
+		if(_tcslen(rw_recent_files[x]))
 		{
-			if(!strncmp(rw_recent_files[x], addString, 1024))    // Item is already in list.
+			if(!_tcsncmp(rw_recent_files[x], addString, 1024))    // Item is already in list.
 			{
 				// If the filename is in the file list don't add it again.
 				// Move it up in the list instead.
 
 				int y;
-				char tmp[len];
+				TCHAR tmp[len];
 
 				// Save pointer.
-				strncpy(tmp, rw_recent_files[x], len - 1);	// assuming rw_recent_files[n] is 0-terminated
+				_tcsncpy(tmp, rw_recent_files[x], len - 1);	// assuming rw_recent_files[n] is 0-terminated
 				
 				for(y = x; y; y--)
 				{
 					// Move items down.
-					strncpy(rw_recent_files[y], rw_recent_files[y - 1], len);
+					_tcsncpy(rw_recent_files[y], rw_recent_files[y - 1], len);
 				}
 
 				// Put item on top.
-				strncpy(rw_recent_files[0],tmp, len);
+				_tcsncpy(rw_recent_files[0],tmp, len);
 
 				// Update the recent files menu
 				UpdateRW_RMenu(menu, menuItem, baseId);
@@ -353,11 +355,11 @@ void UpdateRWRecentArray(const char* addString, unsigned int arrayLen, HMENU men
 	// Move the other items down.
 	for(unsigned int x = arrayLen - 1; x; x--)
 	{
-		strncpy(rw_recent_files[x],rw_recent_files[x - 1], len);
+		_tcsncpy(rw_recent_files[x],rw_recent_files[x - 1], len);
 	}
 
 	// Add the new item.
-	strncpy(rw_recent_files[0], addString, len);
+	_tcsncpy(rw_recent_files[0], addString, len);
 	rw_recent_files[0][len - 1] = '\0';	// better not assume that
 
 	// Update the recent files menu
@@ -366,7 +368,7 @@ void UpdateRWRecentArray(const char* addString, unsigned int arrayLen, HMENU men
 
 void RWAddRecentFile(const char *filename)
 {
-	UpdateRWRecentArray(filename, MAX_RECENT_WATCHES, rwrecentmenu, RAMMENU_FILE_RECENT, RW_MENU_FIRST_RECENT_FILE);
+	UpdateRWRecentArray(winWideFromAnsi(filename), MAX_RECENT_WATCHES, rwrecentmenu, RAMMENU_FILE_RECENT, RW_MENU_FIRST_RECENT_FILE);
 }
 
 void OpenRWRecentFile(int memwRFileNumber)
@@ -378,7 +380,7 @@ void OpenRWRecentFile(int memwRFileNumber)
 	if ((unsigned int)rnum >= MAX_RECENT_WATCHES)
 		return; //just in case
 
-	char* x;
+	TCHAR* x;
 
 	while(true)
 	{
@@ -388,7 +390,7 @@ void OpenRWRecentFile(int memwRFileNumber)
 
 		if (rnum) //Change order of recent files if not most recent
 		{
-			RWAddRecentFile(x);
+			RWAddRecentFile(winAnsiFromWide(x));
 			rnum = 0;
 		}
 		else
@@ -397,53 +399,59 @@ void OpenRWRecentFile(int memwRFileNumber)
 		}
 	}
 
-	strcpy(currentWatch,x);
-	strcpy(Str_Tmp,currentWatch);
+	_tcscpy(currentWatch,x);
+	_tcscpy(Str_Tmp,currentWatch);
 
 	//loadwatches here
-	FILE *WatchFile = fopen(Str_Tmp,"rb");
+	FILE *WatchFile = _wfopen(Str_Tmp,L"rb");
 	if (!WatchFile)
 	{
 		systemSoundClearBuffer();
-		int answer = MessageBox(MESSAGEBOXPARENT,"Error opening file.","ERROR",MB_OKCANCEL);
+		int answer = MessageBox(MESSAGEBOXPARENT,_T("Error opening file."),_T("ERROR"),MB_OKCANCEL);
 		if (answer == IDOK)
 		{
 			rw_recent_files[rnum][0] = '\0';	//Clear file from list 
 			if (rnum)							//Update the ramwatch list
-				RWAddRecentFile(rw_recent_files[0]); 
+				RWAddRecentFile(winAnsiFromWide(rw_recent_files[0])); 
 			else
-				RWAddRecentFile(rw_recent_files[1]);
+				RWAddRecentFile(winAnsiFromWide(rw_recent_files[1]));
 		}
 		return;
 	}
-	const char DELIM = '\t';
+	const TCHAR DELIM = _T('\t');
 	AddressWatcher Temp;
 	char mode;
-	fgets(Str_Tmp,1024,WatchFile);
-	sscanf(Str_Tmp,"%c%*s",&mode);
+	char line[1024];
+	fgets(line,sizeof(line),WatchFile);
+	_tcscpy(Str_Tmp,winWideFromAnsi(line));
+	// "%hc", not "%c": _stscanf resolves to the wide function here, where a bare
+	// %c expects a wchar_t*, and 'mode' is a char.
+	_stscanf(Str_Tmp,_T("%hc%*s"),&mode);
 	//if ((mode == '1' && !(SegaCD_Started)) || (mode == '2' && !(_32X_Started)))
 	//{
 	//	char Device[8];
 	//	strcpy(Device,(mode > '1')?"32X":"SegaCD");
-	//	sprintf(Str_Tmp,"Warning: %s not started. \nWatches for %s addresses will be ignored.",Device,Device);
+	//	_stprintf(Str_Tmp,_T("Warning: %s not started. \nWatches for %s addresses will be ignored."),Device,Device);
 	//	MessageBox(MESSAGEBOXPARENT,Str_Tmp,"Possible Device Mismatch",MB_OK);
 	//}
 	int WatchAdd;
-	fgets(Str_Tmp,1024,WatchFile);
-	sscanf(Str_Tmp,"%d%*s",&WatchAdd);
+	fgets(line,sizeof(line),WatchFile);
+	_tcscpy(Str_Tmp,winWideFromAnsi(line));
+	_stscanf(Str_Tmp,_T("%d%*s"),&WatchAdd);
 	WatchAdd+=WatchCount;
 	for (int i = WatchCount; i < WatchAdd; i++)
 	{
 		while (i < 0)
 			i++;
 		do {
-			fgets(Str_Tmp,1024,WatchFile);
+			fgets(line,sizeof(line),WatchFile);
+			_tcscpy(Str_Tmp,winWideFromAnsi(line));
 		} while (Str_Tmp[0] == '\n');
-		sscanf(Str_Tmp,"%*05X%*c%08X%*c%c%*c%c%*c%d",&(Temp.Address),&(Temp.Size),&(Temp.Type),&(Temp.WrongEndian));
+		_stscanf(Str_Tmp,_T("%*05X%*c%08X%*c%hc%*c%hc%*c%d"),&(Temp.Address),&(Temp.Size),&(Temp.Type),&(Temp.WrongEndian));
 		Temp.WrongEndian = 0;
-		char *Comment = strrchr(Str_Tmp,DELIM) + 1;
-		*strrchr(Comment,'\n') = '\0';
-		InsertWatch(Temp,Comment);
+		TCHAR *Comment = _tcsrchr(Str_Tmp,DELIM) + 1;
+		*_tcsrchr(Comment,_T('\n')) = 0;
+		InsertWatch(Temp,winAnsiFromWide(Comment));
 	}
 
 	fclose(WatchFile);
@@ -455,94 +463,74 @@ void OpenRWRecentFile(int memwRFileNumber)
 	return;
 }
 
-int Change_File_L(char *Dest, const char *Dir, const char *Titre, const char *Filter, const char *Ext, HWND hwnd)
+// The two dialogs below only differ in which side they open on.  FileDlg does
+// the conversion to what the dialog layer speaks, so this stays TCHAR.
+static int Change_File(TCHAR *Dest, LPCTSTR Dir, LPCTSTR Titre, LPCTSTR Filter,
+                       LPCTSTR Ext, HWND hwnd, bool save)
 {
-	if (!strcmp(Dest, ""))
+	if (_tcscmp(Dest, _T("")) == 0)
 	{
-		strcpy(Dest, "default.");
-		strcat(Dest, Ext);
+		_tcscpy(Dest, _T("default."));
+		_tcscat(Dest, Ext);
 	}
 
 	SetCurrentDirectory(winGetDestDir(IDS_WATCH_DIR));
 
-	WinFileDialogParams params;
-	params.owner       = hwnd;
-	params.save        = false;
-	params.mustExist   = true;
-	params.title       = Titre;
-	params.initialDir  = Dir;
-	params.fileName    = Dest;
-	params.filter      = Filter;
-	params.filterIndex = 1;
-	params.defaultExt  = Ext;
+	FileDlg dlg(CWnd::FromHandle(hwnd), Dest, Filter, 1, Ext, NULL, Dir, Titre, save);
 
-	std::string path;
-
-	systemSoundClearBuffer();
-
-	if (winFileDialog(params, path) != IDOK)
+	if (dlg.DoModal() != IDOK)
 		return 0;
 
-	strncpy(Dest, path.c_str(), 1023);
-	Dest[1023] = '\0';
+	lstrcpyn(Dest, dlg.GetPathName(), 1024);
 
 	return 1;
 }
 
-int Change_File_S(char *Dest, const char *Dir, const char *Titre, const char *Filter, const char *Ext, HWND hwnd)
+int Change_File_L(TCHAR *Dest, LPCTSTR Dir, LPCTSTR Titre, LPCTSTR Filter, LPCTSTR Ext, HWND hwnd)
 {
-	if (!strcmp(Dest, ""))
+	return Change_File(Dest, Dir, Titre, Filter, Ext, hwnd, false);
+}
+
+int Change_File_S(TCHAR *Dest, LPCTSTR Dir, LPCTSTR Titre, LPCTSTR Filter, LPCTSTR Ext, HWND hwnd)
+{
+	return Change_File(Dest, Dir, Titre, Filter, Ext, hwnd, true);
+}
+
+// The watch list, written by both the "save" and the "save as" paths.  The path
+// is wide, the content stays in the ANSI code page: that is the file format.
+static void winWriteWatches(FILE *WatchFile)
+{
+	fputc('\n', WatchFile);
+	_stprintf(Str_Tmp, _T("%d\n"), WatchCount);
+	fputs(winAnsiFromWide(Str_Tmp), WatchFile);
+
+	const TCHAR DELIM = _T('\t');
+	for (int i = 0; i < WatchCount; i++)
 	{
-		strcpy(Dest, "default.");
-		strcat(Dest, Ext);
+		_stprintf(Str_Tmp, _T("%05X%c%08X%c%c%c%c%c%d%c%s\n"),
+		          i, DELIM, rswatches[i].Address, DELIM, rswatches[i].Size,
+		          DELIM, rswatches[i].Type, DELIM, rswatches[i].WrongEndian,
+		          DELIM, (LPCTSTR)winWideFromAnsi(rswatches[i].comment));
+		fputs(winAnsiFromWide(Str_Tmp), WatchFile);
 	}
-
-	SetCurrentDirectory(winGetDestDir(IDS_WATCH_DIR));
-
-	WinFileDialogParams params;
-	params.owner       = hwnd;
-	params.save        = true;
-	params.title       = Titre;
-	params.initialDir  = Dir;
-	params.fileName    = Dest;
-	params.filter      = Filter;
-	params.filterIndex = 1;
-	params.defaultExt  = Ext;
-
-	std::string path;
-
-	if (winFileDialog(params, path) != IDOK)
-		return 0;
-
-	strncpy(Dest, path.c_str(), 1023);
-	Dest[1023] = '\0';
-
-	return 1;
 }
 
 bool Save_Watches()
 {
-	const char* slash = max(strrchr(gamefilename, '|'), max(strrchr(gamefilename, '\\'), strrchr(gamefilename, '/')));
-	strcpy(Str_Tmp,slash ? slash+1 : gamefilename);
-	char* dot = strrchr(Str_Tmp, '.');
+	const TCHAR *slash = max(_tcsrchr(gamefilename, '|'), max(_tcsrchr(gamefilename, '\\'), _tcsrchr(gamefilename, '/')));
+	_tcscpy(Str_Tmp,slash ? slash+1 : gamefilename);
+	TCHAR* dot = _tcsrchr(Str_Tmp, '.');
 	if(dot) *dot = 0;
-	strcat(Str_Tmp,".wch");
-	if(Change_File_S(Str_Tmp, winGetDestDir(IDS_WATCH_DIR), "Save Watches", "Watchlist|*.wch|All Files|*.*", "wch", RamWatchHWnd))
+	_tcscat(Str_Tmp,_T(".wch"));
+	if(Change_File_S(Str_Tmp, winGetDestDir(IDS_WATCH_DIR), _T("Save Watches"), _T("Watchlist|*.wch|All Files|*.*"), _T("wch"), RamWatchHWnd))
 	{
-		FILE *WatchFile = fopen(Str_Tmp,"r+b");
-		if (!WatchFile) WatchFile = fopen(Str_Tmp,"w+b");
+		FILE *WatchFile = _wfopen(Str_Tmp,L"r+b");
+		if (!WatchFile) WatchFile = _wfopen(Str_Tmp,L"w+b");
 		fputc('\n',WatchFile);
-		strcpy(currentWatch,Str_Tmp);
-		RWAddRecentFile(currentWatch);
-		sprintf(Str_Tmp,"%d\n",WatchCount);
-		fputs(Str_Tmp,WatchFile);
-		const char DELIM = '\t';
-		for (int i = 0; i < WatchCount; i++)
-		{
-			sprintf(Str_Tmp,"%05X%c%08X%c%c%c%c%c%d%c%s\n",i,DELIM,rswatches[i].Address,DELIM,rswatches[i].Size,DELIM,rswatches[i].Type,DELIM,rswatches[i].WrongEndian,DELIM,rswatches[i].comment);
-			fputs(Str_Tmp,WatchFile);
-		}
-		
+		_tcscpy(currentWatch,Str_Tmp);
+		RWAddRecentFile(winAnsiFromWide(currentWatch));
+		winWriteWatches(WatchFile);
+
 		fclose(WatchFile);
 		RWfileChanged=false;
 		//TODO: Add to recent list function call here
@@ -558,19 +546,10 @@ if (currentWatch[0] == NULL) //If there is no currently loaded file, run to Save
 	{
 		return Save_Watches();
 	}
-		
-		strcpy(Str_Tmp,currentWatch);
-		FILE *WatchFile = fopen(Str_Tmp,"r+b");
-		if (!WatchFile) WatchFile = fopen(Str_Tmp,"w+b");
-		fputc('\n',WatchFile);
-		sprintf(Str_Tmp,"%d\n",WatchCount);
-		fputs(Str_Tmp,WatchFile);
-		const char DELIM = '\t';
-		for (int i = 0; i < WatchCount; i++)
-		{
-			sprintf(Str_Tmp,"%05X%c%08X%c%c%c%c%c%d%c%s\n",i,DELIM,rswatches[i].Address,DELIM,rswatches[i].Size,DELIM,rswatches[i].Type,DELIM,rswatches[i].WrongEndian,DELIM,rswatches[i].comment);
-			fputs(Str_Tmp,WatchFile);
-		}
+
+		FILE *WatchFile = _wfopen(currentWatch,L"r+b");
+		if (!WatchFile) WatchFile = _wfopen(currentWatch,L"w+b");
+		winWriteWatches(WatchFile);
 		fclose(WatchFile);
 		RWfileChanged=false;
 		return true;
@@ -578,12 +557,12 @@ if (currentWatch[0] == NULL) //If there is no currently loaded file, run to Save
 
 bool Load_Watches(bool clear, const char* filename)
 {
-	const char DELIM = '\t';
-	FILE* WatchFile = fopen(filename,"rb");
+	const TCHAR DELIM = _T('\t');
+	FILE* WatchFile = _wfopen(winWideFromAnsi(filename),L"rb");
 	if (!WatchFile)
 	{
 		systemSoundClearBuffer();
-		MessageBox(MESSAGEBOXPARENT,"Error opening file.","ERROR",MB_OK);
+		MessageBox(MESSAGEBOXPARENT,_T("Error opening file."),_T("ERROR"),MB_OK);
 		return false;
 	}
 	if(clear)
@@ -594,30 +573,37 @@ bool Load_Watches(bool clear, const char* filename)
 			return false;
 		}
 	}
-	strcpy(currentWatch,filename);
-	RWAddRecentFile(currentWatch);
+	_tcscpy(currentWatch,winWideFromAnsi(filename));
+	RWAddRecentFile(filename);
 	AddressWatcher Temp;
 	char mode;
-	fgets(Str_Tmp,1024,WatchFile);
-	sscanf(Str_Tmp,"%c%*s",&mode);
+	// Lines are read as bytes and widened here, which is how they were written.
+	char line[1024];
+	fgets(line,sizeof(line),WatchFile);
+	_tcscpy(Str_Tmp,winWideFromAnsi(line));
+	// "%hc", not "%c": _stscanf resolves to the wide function here, where a bare
+	// %c expects a wchar_t*, and 'mode' is a char.
+	_stscanf(Str_Tmp,_T("%hc%*s"),&mode);
 	int WatchAdd;
-	fgets(Str_Tmp,1024,WatchFile);
-	sscanf(Str_Tmp,"%d%*s",&WatchAdd);
+	fgets(line,sizeof(line),WatchFile);
+	_tcscpy(Str_Tmp,winWideFromAnsi(line));
+	_stscanf(Str_Tmp,_T("%d%*s"),&WatchAdd);
 	WatchAdd+=WatchCount;
 	for (int i = WatchCount; i < WatchAdd; i++)
 	{
 		while (i < 0)
 			i++;
 		do {
-			fgets(Str_Tmp,1024,WatchFile);
+			fgets(line,sizeof(line),WatchFile);
+			_tcscpy(Str_Tmp,winWideFromAnsi(line));
 		} while (Str_Tmp[0] == '\n');
-		sscanf(Str_Tmp,"%*05X%*c%08X%*c%c%*c%c%*c%d",&(Temp.Address),&(Temp.Size),&(Temp.Type),&(Temp.WrongEndian));
+		_stscanf(Str_Tmp,_T("%*05X%*c%08X%*c%hc%*c%hc%*c%d"),&(Temp.Address),&(Temp.Size),&(Temp.Type),&(Temp.WrongEndian));
 		Temp.WrongEndian = 0;
-		char *Comment = strrchr(Str_Tmp,DELIM) + 1;
-		*strrchr(Comment,'\n') = '\0';
-		InsertWatch(Temp,Comment);
+		TCHAR *Comment = _tcsrchr(Str_Tmp,DELIM) + 1;
+		*_tcsrchr(Comment,'\n') = '\0';
+		InsertWatch(Temp,winAnsiFromWide(Comment));
 	}
-	
+
 	fclose(WatchFile);
 	if (RamWatchHWnd)
 		ListView_SetItemCount(GetDlgItem(RamWatchHWnd,IDC_WATCHLIST),WatchCount);
@@ -627,14 +613,14 @@ bool Load_Watches(bool clear, const char* filename)
 
 bool Load_Watches(bool clear)
 {
-	const char* slash = max(strrchr(gamefilename, '|'), max(strrchr(gamefilename, '\\'), strrchr(gamefilename, '/')));
-	strcpy(Str_Tmp,slash ? slash+1 : gamefilename);
-	char* dot = strrchr(Str_Tmp, '.');
+	const TCHAR *slash = max(_tcsrchr(gamefilename, '|'), max(_tcsrchr(gamefilename, '\\'), _tcsrchr(gamefilename, '/')));
+	_tcscpy(Str_Tmp,slash ? slash+1 : gamefilename);
+	TCHAR* dot = _tcsrchr(Str_Tmp, '.');
 	if(dot) *dot = 0;
-	strcat(Str_Tmp,".wch");
-	if(Change_File_L(Str_Tmp, winGetDestDir(IDS_WATCH_DIR), "Load Watches", "Watchlist|*.wch|All Files|*.*", "wch", RamWatchHWnd))
+	_tcscat(Str_Tmp,_T(".wch"));
+	if(Change_File_L(Str_Tmp, winGetDestDir(IDS_WATCH_DIR), _T("Load Watches"), _T("Watchlist|*.wch|All Files|*.*"), _T("wch"), RamWatchHWnd))
 	{
-		return Load_Watches(clear, Str_Tmp);
+		return Load_Watches(clear, winAnsiFromWide(Str_Tmp));
 	}
 	return false;
 }
@@ -692,10 +678,10 @@ LRESULT CALLBACK EditWatchProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 			//SetWindowPos(hDlg, NULL, max(0, r.left + (dx1 - dx2)), max(0, r.top + (dy1 - dy2)), NULL, NULL, SWP_NOSIZE | SWP_NOZORDER | SWP_SHOWWINDOW);
 			SetWindowPos(hDlg, NULL, r.left, r.top, NULL, NULL, SWP_NOSIZE | SWP_NOZORDER | SWP_SHOWWINDOW);
 			index = (int)lParam;
-			sprintf(Str_Tmp,"%08X",rswatches[index].Address);
+			_stprintf(Str_Tmp,_T("%08X"),rswatches[index].Address);
 			SetDlgItemText(hDlg,IDC_EDIT_COMPAREADDRESS,Str_Tmp);
 			if (rswatches[index].comment != NULL)
-				SetDlgItemText(hDlg,IDC_PROMPT_EDIT,rswatches[index].comment);
+				SetDlgItemText(hDlg,IDC_PROMPT_EDIT,winWideFromAnsi(rswatches[index].comment));
 			s = rswatches[index].Size;
 			t = rswatches[index].Type;
 			switch (s)
@@ -762,10 +748,10 @@ LRESULT CALLBACK EditWatchProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 						Temp.Type = t;
 						Temp.WrongEndian = false; //replace this when I get little endian working properly
 						GetDlgItemText(hDlg,IDC_EDIT_COMPAREADDRESS,Str_Tmp,1024);
-						char *addrstr = Str_Tmp;
-						if (strlen(Str_Tmp) > 8) addrstr = &(Str_Tmp[strlen(Str_Tmp) - 9]);
+						TCHAR *addrstr = Str_Tmp;
+						if (_tcslen(Str_Tmp) > 8) addrstr = &(Str_Tmp[_tcslen(Str_Tmp) - 9]);
 						for(int i = 0; addrstr[i]; i++) {if(toupper(addrstr[i]) == 'O') addrstr[i] = '0';}
-						sscanf(addrstr,"%08X",&(Temp.Address));
+						_stscanf(addrstr, _T("%08X"),&(Temp.Address));
 
 						if((Temp.Address & ~0xFFFFFF) == ~0xFFFFFF)
 							Temp.Address &= 0xFFFFFF;
@@ -774,7 +760,7 @@ LRESULT CALLBACK EditWatchProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 						{
 							GetDlgItemText(hDlg,IDC_PROMPT_EDIT,Str_Tmp,80);
 							if (index < WatchCount) RemoveWatch(index);
-							InsertWatch(Temp,Str_Tmp);
+							InsertWatch(Temp,winAnsiFromWide(Str_Tmp));
 							if(RamWatchHWnd)
 							{
 								ListView_SetItemCount(GetDlgItem(RamWatchHWnd,IDC_WATCHLIST),WatchCount);
@@ -783,17 +769,17 @@ LRESULT CALLBACK EditWatchProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 						}
 						else
 						{
-							MessageBox(hDlg,"Invalid Address","ERROR",MB_OK);
+							MessageBox(hDlg,_T("Invalid Address"),_T("ERROR"),MB_OK);
 						}
 					}
 					else
 					{
-						strcpy(Str_Tmp,"Error:");
+						_tcscpy(Str_Tmp,_T("Error:"));
 						if (!s)
-							strcat(Str_Tmp," Size must be specified.");
+							_tcscat(Str_Tmp,_T(" Size must be specified."));
 						if (!t)
-							strcat(Str_Tmp," Type must be specified.");
-						MessageBox(hDlg,Str_Tmp,"ERROR",MB_OK);
+							_tcscat(Str_Tmp,_T(" Type must be specified."));
+						MessageBox(hDlg,Str_Tmp,_T("ERROR"),MB_OK);
 					}
 					RWfileChanged=true;
 					return true;
@@ -911,7 +897,8 @@ LRESULT CALLBACK RamWatchProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
 			rwrecentmenu=CreateMenu();
 			UpdateRW_RMenu(rwrecentmenu, RAMMENU_FILE_RECENT, RW_MENU_FIRST_RECENT_FILE);
 			
-			const char* names[3] = {"Address","Value","Notes"};
+			const CString names[3] = { winResLoadString(IDS_ADDRESS), winResLoadString(IDS_VALUE),
+			                           winResLoadString(IDS_NOTES) };
 			init_list_box(GetDlgItem(hDlg,IDC_WATCHLIST),names,3);
 			if (!ResultCount)
 				reset_address_info();
@@ -921,7 +908,9 @@ LRESULT CALLBACK RamWatchProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
 			if (!noMisalign) SendDlgItemMessage(hDlg, IDC_MISALIGN, BM_SETCHECK, BST_CHECKED, 0);
 			//if (littleEndian) SendDlgItemMessage(hDlg, IDC_ENDIAN, BM_SETCHECK, BST_CHECKED, 0);
 
-			RamWatchAccels = LoadAccelerators(hInst, MAKEINTRESOURCE(IDR_ACCELERATOR1));
+			// the accel table has no text to translate, so it stays in the
+			// executable while the dialogs come from hInst
+			RamWatchAccels = LoadAccelerators(AfxGetInstanceHandle(), MAKEINTRESOURCE(IDR_ACCELERATOR1));
 
 			// due to some bug in windows, the arrow button width from the resource gets ignored, so we have to set it here
 			SetWindowPos(GetDlgItem(hDlg,ID_WATCHES_UPDOWN), 0,0,0, 30,60, SWP_NOMOVE);
@@ -987,30 +976,30 @@ LRESULT CALLBACK RamWatchProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
 							Item->item.state = 0;
 							Item->item.iImage = 0;
 							const unsigned int iNum = Item->item.iItem;
-							static char num[11];
+							static TCHAR num[11];
 							switch (Item->item.iSubItem)
 							{
 								case 0:
-									sprintf(num,"%08X",rswatches[iNum].Address);
+									_stprintf(num,_T("%08X"),rswatches[iNum].Address);
 									Item->item.pszText = num;
 									return true;
 								case 1: {
 									int i = rswatches[iNum].CurValue;
 									int t = rswatches[iNum].Type;
 									int size = rswatches[iNum].Size;
-									const char* formatString = ((t=='s') ? "%d" : (t=='u') ? "%u" : (size=='d' ? "%08X" : size=='w' ? "%04X" : "%02X"));
+									const TCHAR *formatString = ((t=='s') ? _T("%d") : (t=='u') ? _T("%u") : (size=='d' ? _T("%08X") : size=='w' ? _T("%04X") : _T("%02X")));
 									switch (size)
 									{
 										case 'b':
-										default: sprintf(num, formatString, t=='s' ? (char)(i&0xff) : (unsigned char)(i&0xff)); break;
-										case 'w': sprintf(num, formatString, t=='s' ? (short)(i&0xffff) : (unsigned short)(i&0xffff)); break;
-										case 'd': sprintf(num, formatString, t=='s' ? (long)(i&0xffffffff) : (unsigned long)(i&0xffffffff)); break;
+										default: _stprintf(num, formatString, t=='s' ? (char)(i&0xff) : (unsigned char)(i&0xff)); break;
+										case 'w': _stprintf(num, formatString, t=='s' ? (short)(i&0xffff) : (unsigned short)(i&0xffff)); break;
+										case 'd': _stprintf(num, formatString, t=='s' ? (long)(i&0xffffffff) : (unsigned long)(i&0xffffffff)); break;
 									}
 
 									Item->item.pszText = num;
 								}	return true;
 								case 2:
-									Item->item.pszText = rswatches[iNum].comment ? rswatches[iNum].comment : "";
+									Item->item.pszText = const_cast<LPTSTR>((LPCTSTR)winWideFromAnsi(rswatches[iNum].comment));
 									return true;
 
 								default:
@@ -1243,7 +1232,7 @@ LRESULT CALLBACK RamWatchProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
 			HDROP hDrop = (HDROP)wParam;
 			DragQueryFile(hDrop, 0, Str_Tmp, 1024);
 			DragFinish(hDrop);
-			return Load_Watches(true, Str_Tmp);
+			return Load_Watches(true, winAnsiFromWide(Str_Tmp));
 		}	break;
 	}
 

@@ -124,13 +124,13 @@ BOOL GBMemoryViewerDlg::OnInitDialog()
 {
 	CDialog::OnInitDialog();
 
-	autoUpdate = !regQueryDwordValue("memViewerAutoUpdate", 1);
+	autoUpdate = !regQueryDwordValue(_T("memViewerAutoUpdate"), 1);
 	OnAutoUpdate(); // inverts and update dialog
 
-	decimalDisplay = !regQueryDwordValue("memViewerDecimalDisplay", 0);
+	decimalDisplay = !regQueryDwordValue(_T("memViewerDecimalDisplay"), 0);
 	OnDecimalDisplay();
 
-	align = !regQueryDwordValue("memViewerAlign", 0);
+	align = !regQueryDwordValue(_T("memViewerAlign"), 0);
 	OnAlign();
 
 	DIALOG_SIZER_START(sz)
@@ -148,7 +148,7 @@ BOOL GBMemoryViewerDlg::OnInitDialog()
 	SetData(sz,
 	        TRUE,
 	        HKEY_CURRENT_USER,
-	        "Software\\Emulators\\VisualBoyAdvance\\Viewer\\GBMemoryView",
+	        _T("Software\\Emulators\\VisualBoyAdvance\\Viewer\\GBMemoryView"),
 	        NULL);
 
 	m_viewer.setDialog(this);
@@ -156,14 +156,14 @@ BOOL GBMemoryViewerDlg::OnInitDialog()
 	m_viewer.EnableScrollBar(SB_VERT, ESB_ENABLE_BOTH);
 
 	LPCTSTR s[] = {
-		"0x0000 - ROM",
-		"0x4000 - ROM",
-		"0x8000 - VRAM",
-		"0xA000 - SRAM",
-		"0xC000 - RAM",
-		"0xD000 - WRAM",
-		"0xFF00 - I/O",
-		"0xFF80 - RAM"
+		_T("0x0000 - ROM"),
+		_T("0x4000 - ROM"),
+		_T("0x8000 - VRAM"),
+		_T("0xA000 - SRAM"),
+		_T("0xC000 - RAM"),
+		_T("0xD000 - WRAM"),
+		_T("0xFF00 - I/O"),
+		_T("0xFF80 - RAM")
 	};
 
 	for (int i = 0; i < 8; i++)
@@ -193,7 +193,7 @@ BOOL GBMemoryViewerDlg::OnInitDialog()
 
 	m_address.LimitText(8);
 
-	m_size = regQueryDwordValue("memViewerDataSize", 0);
+	m_size = regQueryDwordValue(_T("memViewerDataSize"), 0);
 	if (m_size < 0 || m_size > 2)
 		m_size = 0;
 	m_viewer.setSize(m_size);
@@ -225,19 +225,19 @@ void GBMemoryViewerDlg::update()
 void GBMemoryViewerDlg::On8Bit()
 {
 	m_viewer.setSize(0);
-	regSetDwordValue("memViewerDataSize", 0);
+	regSetDwordValue(_T("memViewerDataSize"), 0);
 }
 
 void GBMemoryViewerDlg::On16Bit()
 {
 	m_viewer.setSize(1);
-	regSetDwordValue("memViewerDataSize", 1);
+	regSetDwordValue(_T("memViewerDataSize"), 1);
 }
 
 void GBMemoryViewerDlg::On32Bit()
 {
 	m_viewer.setSize(2);
-	regSetDwordValue("memViewerDataSize", 2);
+	regSetDwordValue(_T("memViewerDataSize"), 2);
 }
 
 void GBMemoryViewerDlg::OnAutoUpdate()
@@ -253,7 +253,7 @@ void GBMemoryViewerDlg::OnAutoUpdate()
 	}
 	if (GetDlgItem(IDC_AUTO_UPDATE))
 		((CButton *)GetDlgItem(IDC_AUTO_UPDATE))->SetCheck(autoUpdate ? TRUE : FALSE);
-	regSetDwordValue("memViewerAutoUpdate", autoUpdate);
+	regSetDwordValue(_T("memViewerAutoUpdate"), autoUpdate);
 }
 
 void GBMemoryViewerDlg::OnDecimalDisplay()
@@ -263,7 +263,7 @@ void GBMemoryViewerDlg::OnDecimalDisplay()
 	if (GetDlgItem(IDC_DECIMAL_DISPLAY))
 		((CButton *)GetDlgItem(IDC_DECIMAL_DISPLAY))->SetCheck(decimalDisplay ? TRUE : FALSE);
 
-	regSetDwordValue("memViewerDecimalDisplay", decimalDisplay);
+	regSetDwordValue(_T("memViewerDecimalDisplay"), decimalDisplay);
 }
 
 void GBMemoryViewerDlg::OnAlign()
@@ -272,7 +272,7 @@ void GBMemoryViewerDlg::OnAlign()
 	if (GetDlgItem(IDC_ALIGN))
 		((CButton *)GetDlgItem(IDC_ALIGN))->SetCheck(align ? TRUE : FALSE);
 
-	regSetDwordValue("memViewerAlign", align);
+	regSetDwordValue(_T("memViewerAlign"), align);
 }
 
 void GBMemoryViewerDlg::OnGo()
@@ -282,7 +282,7 @@ void GBMemoryViewerDlg::OnGo()
 	m_address.GetWindowText(buffer);
 
 	u32 address;
-	sscanf(buffer, "%x", &address);
+	_stscanf(buffer, _T("%x"), &address);
 	if (align)
 		address &= ~0xF;
 	else
@@ -332,7 +332,7 @@ void GBMemoryViewerDlg::setCurrentAddress(u32 address)
 {
 	CString buffer;
 
-	buffer.Format("0x%08X", address);
+	buffer.Format(_T("0x%08X"), address);
 	m_current.SetWindowText(buffer);
 }
 
@@ -342,7 +342,7 @@ void GBMemoryViewerDlg::OnSave()
 
 	dlg.setAddress(m_viewer.getCurrentAddress());
 
-	LPCTSTR exts[] = { ".dmp", NULL };
+	LPCTSTR exts[] = { _T(".dmp"), NULL };
 
 	CString filter = winResLoadFilter(IDS_FILTER_DUMP);
 	CString title  = winResLoadString(IDS_SELECT_DUMP_FILE);
@@ -354,15 +354,15 @@ void GBMemoryViewerDlg::OnSave()
 		             buffer,
 		             filter,
 		             0,
-		             "DMP",
+		             _T("DMP"),
 		             exts,
-		             "",
+		             _T(""),
 		             title,
 		             true);
 		if (file.DoModal() == IDOK)
 		{
 			buffer = file.GetPathName();
-			FILE *f = fopen(buffer, "wb");
+			FILE *f = _wfopen(buffer, L"wb");
 
 			if (f == NULL)
 			{
@@ -387,7 +387,7 @@ void GBMemoryViewerDlg::OnSave()
 void GBMemoryViewerDlg::OnLoad()
 {
 	CString buffer;
-	LPCTSTR exts[] = { ".dmp", NULL };
+	LPCTSTR exts[] = { _T(".dmp"), NULL };
 	CString filter = winResLoadFilter(IDS_FILTER_DUMP);
 	CString title  = winResLoadString(IDS_SELECT_DUMP_FILE);
 
@@ -395,16 +395,16 @@ void GBMemoryViewerDlg::OnLoad()
 	             buffer,
 	             filter,
 	             0,
-	             "DMP",
+	             _T("DMP"),
 	             exts,
-	             "",
+	             _T(""),
 	             title,
 	             false);
 
 	if (file.DoModal() == IDOK)
 	{
 		buffer = file.GetPathName();
-		FILE *f = fopen(buffer, "rb");
+		FILE *f = _wfopen(buffer, L"rb");
 		if (f == NULL)
 		{
 			systemMessage(IDS_CANNOT_OPEN_FILE,

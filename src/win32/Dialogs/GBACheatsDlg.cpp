@@ -28,7 +28,7 @@ bool winGbaCheatReaddress()
 
 	block         = &cheatSearchData.blocks[1];
 	block->data   = internalRAM;
-	
+
 	cheatSearchData.count = 2;
 	return true;
 }
@@ -186,14 +186,14 @@ static bool reportInvalidCodes(const CString &errors)
 {
 	if (errors.IsEmpty())
 		return false;
-	systemMessage(IDS_INVALID_CHEAT_CODES, N_("Invalid cheat code(s):\n%s"), (LPCSTR)errors);
+	systemMessage(IDS_INVALID_CHEAT_CODES, N_(_T("Invalid cheat code(s):\n%s")), (LPCTSTR)errors);
 	return true;
 }
 
 static bool processRawCheatCodes(const CString &buffer, const CString &desc, bool apply, int *codeCount = NULL)
 {
 	StringTokenizer st(buffer, " \t\n\r");
-	const char *t = st.next();
+	LPCTSTR t = st.next();
 	if (!t)
 	{
 		systemMessage(0, N_("Code cannot be empty"));
@@ -206,7 +206,7 @@ static bool processRawCheatCodes(const CString &buffer, const CString &desc, boo
 	{
 		CString token = t;
 		token.MakeUpper();
-		if (!cheatsValidateCheatCode(token, false))
+		if (!cheatsValidateCheatCode(winAnsiFromWide(token), false))
 		{
 			if (!apply)
 				addInvalidCode(errors, token);
@@ -214,7 +214,7 @@ static bool processRawCheatCodes(const CString &buffer, const CString &desc, boo
 		else
 		{
 			if (apply)
-				cheatsAddCheatCode(token, desc);
+				cheatsAddCheatCode(winAnsiFromWide(token), winAnsiFromWide(desc));
 			count++;
 		}
 		t = st.next();
@@ -235,7 +235,7 @@ static bool processGsaCbaCodes(const CString &buffer, const CString &desc, bool 
 	CString errors;
 	int count = 0;
 
-	const char *t = st.next();
+	LPCTSTR t = st.next();
 	if (!t)
 	{
 		systemMessage(0, N_("Code cannot be empty"));
@@ -248,7 +248,7 @@ static bool processGsaCbaCodes(const CString &buffer, const CString &desc, bool 
 		token.MakeUpper();
 		if (token.GetLength() == 16)
 		{
-			if (!cheatsValidateGSACode(token, false))
+			if (!cheatsValidateGSACode(winAnsiFromWide(token), false))
 			{
 				if (!apply)
 					addInvalidCode(errors, token);
@@ -256,14 +256,14 @@ static bool processGsaCbaCodes(const CString &buffer, const CString &desc, bool 
 			else
 			{
 				if (apply)
-					cheatsAddGSACode(token, desc, false);
+					cheatsAddGSACode(winAnsiFromWide(token), winAnsiFromWide(desc), false);
 				count++;
 			}
 		}
 		else if (token.GetLength() == 12)
 		{
 			CString code = token.Left(8) + " " + token.Right(4);
-			if (!cheatsValidateCBACode(code, false))
+			if (!cheatsValidateCBACode(winAnsiFromWide(code), false))
 			{
 				if (!apply)
 					addInvalidCode(errors, code);
@@ -271,7 +271,7 @@ static bool processGsaCbaCodes(const CString &buffer, const CString &desc, bool 
 			else
 			{
 				if (apply)
-					cheatsAddCBACode(code, desc);
+					cheatsAddCBACode(winAnsiFromWide(code), winAnsiFromWide(desc));
 				count++;
 			}
 		}
@@ -283,7 +283,7 @@ static bool processGsaCbaCodes(const CString &buffer, const CString &desc, bool 
 			if (token.GetLength() == 4)
 			{
 				code = part1 + " " + token;
-				if (!cheatsValidateCBACode(code, false))
+				if (!cheatsValidateCBACode(winAnsiFromWide(code), false))
 				{
 					if (!apply)
 						addInvalidCode(errors, code);
@@ -291,14 +291,14 @@ static bool processGsaCbaCodes(const CString &buffer, const CString &desc, bool 
 				else
 				{
 					if (apply)
-						cheatsAddCBACode(code, desc);
+						cheatsAddCBACode(winAnsiFromWide(code), winAnsiFromWide(desc));
 					count++;
 				}
 			}
 			else
 			{
 				code = part1 + token;
-				if (!cheatsValidateGSACode(code, false))
+				if (!cheatsValidateGSACode(winAnsiFromWide(code), false))
 				{
 					if (!apply)
 						addInvalidCode(errors, code);
@@ -306,7 +306,7 @@ static bool processGsaCbaCodes(const CString &buffer, const CString &desc, bool 
 				else
 				{
 					if (apply)
-						cheatsAddGSACode(code, desc, true);
+						cheatsAddGSACode(winAnsiFromWide(code), winAnsiFromWide(desc), true);
 					count++;
 				}
 			}
@@ -471,13 +471,13 @@ void GBACheatSearch::OnSearch()
 		switch (numberType)
 		{
 		case 0:
-			value = (int)strtol(buffer, NULL, 10);
+			value = (int)_tcstol(buffer, NULL, 10);
 			break;
 		case 1:
-			value = (int)strtoul(buffer, NULL, 10);
+			value = (int)_tcstoul(buffer, NULL, 10);
 			break;
 		default:
-			value = (int)strtoul(buffer, NULL, 16);
+			value = (int)_tcstoul(buffer, NULL, 16);
 		}
 		cheatSearchValue(&cheatSearchData,
 		                 searchType,
@@ -524,7 +524,7 @@ void GBACheatSearch::OnUpdate()
 		updateValues = true;
 	else
 		updateValues = false;
-	regSetDwordValue("cheatsUpdate", updateValues);
+	regSetDwordValue(_T("cheatsUpdate"), updateValues);
 }
 
 void GBACheatSearch::OnGetdispinfoCheatList(NMHDR*pNMHDR, LRESULT*pResult)
@@ -538,13 +538,13 @@ void GBACheatSearch::OnGetdispinfoCheatList(NMHDR*pNMHDR, LRESULT*pResult)
 		switch (col)
 		{
 		case 0:
-			strcpy(info->item.pszText, data[index].address);
+			lstrcpyn(info->item.pszText, winWideFromAnsi(data[index].address), info->item.cchTextMax);
 			break;
 		case 1:
-			strcpy(info->item.pszText, data[index].oldValue);
+			lstrcpyn(info->item.pszText, winWideFromAnsi(data[index].oldValue), info->item.cchTextMax);
 			break;
 		case 2:
-			strcpy(info->item.pszText, data[index].newValue);
+			lstrcpyn(info->item.pszText, winWideFromAnsi(data[index].newValue), info->item.cchTextMax);
 			break;
 		}
 	}
@@ -582,23 +582,23 @@ BOOL GBACheatSearch::OnInitDialog()
 		GetDlgItem(IDC_ADD_CHEAT)->EnableWindow(FALSE);
 	}
 
-	valueType = regQueryDwordValue("cheatsValueType", 0);
+	valueType = regQueryDwordValue(_T("cheatsValueType"), 0);
 	if (valueType < 0 || valueType > 1)
 		valueType = 0;
 
-	searchType = regQueryDwordValue("cheatsSearchType", SEARCH_EQ);
+	searchType = regQueryDwordValue(_T("cheatsSearchType"), SEARCH_EQ);
 	if (searchType > 5 || searchType < 0)
 		searchType = 0;
 
-	numberType = regQueryDwordValue("cheatsNumberType", 2);
+	numberType = regQueryDwordValue(_T("cheatsNumberType"), 2);
 	if (numberType < 0 || numberType > 2)
 		numberType = 2;
 
-	sizeType = regQueryDwordValue("cheatsSizeType", 0);
+	sizeType = regQueryDwordValue(_T("cheatsSizeType"), 0);
 	if (sizeType < 0 || sizeType > 2)
 		sizeType = 0;
 
-	updateValues = regQueryDwordValue("cheatsUpdate", 0) ?
+	updateValues = regQueryDwordValue(_T("cheatsUpdate"), 0) ?
 	               true : false;
 
 	UpdateData(FALSE);
@@ -771,12 +771,12 @@ void GBACheatSearch::OnValueType(UINT id)
 	case IDC_OLD_VALUE:
 		valueType = 0;
 		m_value.EnableWindow(FALSE);
-		regSetDwordValue("cheatsValueType", 0);
+		regSetDwordValue(_T("cheatsValueType"), 0);
 		break;
 	case IDC_SPECIFIC_VALUE:
 		valueType = 1;
 		m_value.EnableWindow(TRUE);
-		regSetDwordValue("cheatsValueType", 1);
+		regSetDwordValue(_T("cheatsValueType"), 1);
 		break;
 	}
 }
@@ -787,27 +787,27 @@ void GBACheatSearch::OnSearchType(UINT id)
 	{
 	case IDC_EQ:
 		searchType = SEARCH_EQ;
-		regSetDwordValue("cheatsSearchType", 0);
+		regSetDwordValue(_T("cheatsSearchType"), 0);
 		break;
 	case IDC_NE:
 		searchType = SEARCH_NE;
-		regSetDwordValue("cheatsSearchType", 1);
+		regSetDwordValue(_T("cheatsSearchType"), 1);
 		break;
 	case IDC_LT:
 		searchType = SEARCH_LT;
-		regSetDwordValue("cheatsSearchType", 2);
+		regSetDwordValue(_T("cheatsSearchType"), 2);
 		break;
 	case IDC_LE:
 		searchType = SEARCH_LE;
-		regSetDwordValue("cheatsSearchType", 3);
+		regSetDwordValue(_T("cheatsSearchType"), 3);
 		break;
 	case IDC_GT:
 		searchType = SEARCH_GT;
-		regSetDwordValue("cheatsSearchType", 4);
+		regSetDwordValue(_T("cheatsSearchType"), 4);
 		break;
 	case IDC_GE:
 		searchType = SEARCH_GE;
-		regSetDwordValue("cheatsSearchType", 5);
+		regSetDwordValue(_T("cheatsSearchType"), 5);
 		break;
 	}
 }
@@ -818,7 +818,7 @@ void GBACheatSearch::OnNumberType(UINT id)
 	{
 	case IDC_SIGNED:
 		numberType = 0;
-		regSetDwordValue("cheatsNumberType", 0);
+		regSetDwordValue(_T("cheatsNumberType"), 0);
 		if (m_list.GetItemCount())
 		{
 			addChanges(false);
@@ -826,7 +826,7 @@ void GBACheatSearch::OnNumberType(UINT id)
 		break;
 	case IDC_UNSIGNED:
 		numberType = 1;
-		regSetDwordValue("cheatsNumberType", 1);
+		regSetDwordValue(_T("cheatsNumberType"), 1);
 		if (m_list.GetItemCount())
 		{
 			addChanges(false);
@@ -834,7 +834,7 @@ void GBACheatSearch::OnNumberType(UINT id)
 		break;
 	case IDC_HEXADECIMAL:
 		numberType = 2;
-		regSetDwordValue("cheatsNumberType", 2);
+		regSetDwordValue(_T("cheatsNumberType"), 2);
 		if (m_list.GetItemCount())
 		{
 			addChanges(false);
@@ -849,7 +849,7 @@ void GBACheatSearch::OnSizeType(UINT id)
 	{
 	case IDC_SIZE_8:
 		sizeType = BITS_8;
-		regSetDwordValue("cheatsSizeType", 0);
+		regSetDwordValue(_T("cheatsSizeType"), 0);
 		if (m_list.GetItemCount())
 		{
 			addChanges(false);
@@ -857,7 +857,7 @@ void GBACheatSearch::OnSizeType(UINT id)
 		break;
 	case IDC_SIZE_16:
 		sizeType = BITS_16;
-		regSetDwordValue("cheatsSizeType", 1);
+		regSetDwordValue(_T("cheatsSizeType"), 1);
 		if (m_list.GetItemCount())
 		{
 			addChanges(false);
@@ -865,7 +865,7 @@ void GBACheatSearch::OnSizeType(UINT id)
 		break;
 	case IDC_SIZE_32:
 		sizeType = BITS_32;
-		regSetDwordValue("cheatsSizeType", 2);
+		regSetDwordValue(_T("cheatsSizeType"), 2);
 		if (m_list.GetItemCount())
 		{
 			addChanges(false);
@@ -881,10 +881,10 @@ AddCheat::AddCheat(u32 address, CWnd*pParent /*=NULL*/, int editIndex /*=-1*/, b
 	: CDialog(AddCheat::IDD, pParent)
 {
 	//{{AFX_DATA_INIT(AddCheat)
-	numberType = regQueryDwordValue("cheatsNumberType", 2);
+	numberType = regQueryDwordValue(_T("cheatsNumberType"), 2);
 	if (numberType < 0 || numberType > 2)
 		numberType = 2;
-	sizeType = regQueryDwordValue("cheatsSizeType", 0);
+	sizeType = regQueryDwordValue(_T("cheatsSizeType"), 0);
 	if (sizeType < 0 || sizeType > 2)
 		sizeType = 0;
 	//}}AFX_DATA_INIT
@@ -952,27 +952,27 @@ BOOL AddCheat::OnInitDialog()
 
 	if (editIndex >= 0 && editIndex < cheatsNumber)
 	{
-		buffer.Format("%08x", cheatsList[editIndex].address);
+		buffer.Format(_T("%08x"), cheatsList[editIndex].address);
 		m_address.SetWindowText(buffer);
 
 		switch (numberType)
 		{
 		case 0:
-			buffer.Format("%d", (int)cheatsList[editIndex].value);
+			buffer.Format(_T("%d"), (int)cheatsList[editIndex].value);
 			break;
 		case 1:
-			buffer.Format("%u", cheatsList[editIndex].value);
+			buffer.Format(_T("%u"), cheatsList[editIndex].value);
 			break;
 		default:
-			buffer.Format("%x", cheatsList[editIndex].value);
+			buffer.Format(_T("%x"), cheatsList[editIndex].value);
 			break;
 		}
 		m_value.SetWindowText(buffer);
-		m_desc.SetWindowText(cheatsList[editIndex].desc);
+		m_desc.SetWindowText(winWideFromAnsi(cheatsList[editIndex].desc));
 	}
 	else if (address != 0)
 	{
-		buffer.Format("%08x", address);
+		buffer.Format(_T("%08x"), address);
 		m_address.SetWindowText(buffer);
 		m_address.EnableWindow(FALSE);
 	}
@@ -1018,15 +1018,15 @@ void AddCheat::OnNumberType(UINT id)
 	{
 	case IDC_SIGNED:
 		numberType = 0;
-		regSetDwordValue("cheatsNumberType", 0);
+		regSetDwordValue(_T("cheatsNumberType"), 0);
 		break;
 	case IDC_UNSIGNED:
 		numberType = 1;
-		regSetDwordValue("cheatsNumberType", 1);
+		regSetDwordValue(_T("cheatsNumberType"), 1);
 		break;
 	case IDC_HEXADECIMAL:
 		numberType = 2;
-		regSetDwordValue("cheatsNumberType", 2);
+		regSetDwordValue(_T("cheatsNumberType"), 2);
 		break;
 	}
 }
@@ -1037,15 +1037,15 @@ void AddCheat::OnSizeType(UINT id)
 	{
 	case IDC_SIZE_8:
 		sizeType = BITS_8;
-		regSetDwordValue("cheatsSizeType", 0);
+		regSetDwordValue(_T("cheatsSizeType"), 0);
 		break;
 	case IDC_SIZE_16:
 		sizeType = BITS_16;
-		regSetDwordValue("cheatsSizeType", 1);
+		regSetDwordValue(_T("cheatsSizeType"), 1);
 		break;
 	case IDC_SIZE_32:
 		sizeType = BITS_32;
-		regSetDwordValue("cheatsSizeType", 2);
+		regSetDwordValue(_T("cheatsSizeType"), 2);
 		break;
 	}
 }
@@ -1069,12 +1069,12 @@ bool AddCheat::addCheat()
 		return false;
 	}
 
-	char *end = NULL;
-	const char *start = buffer;
-	u32 address = (u32)strtoul(start, &end, 16);
+	TCHAR *end = NULL;
+	const TCHAR *start = buffer;
+	u32 address = (u32)_tcstoul(start, &end, 16);
 	if (end == start || *end != 0)
 	{
-		systemMessage(0, N_("Invalid address: %s"), (LPCSTR)buffer);
+		systemMessage(0, N_(_T("Invalid address: %s")), (LPCTSTR)buffer);
 		return false;
 	}
 
@@ -1114,17 +1114,17 @@ bool AddCheat::addCheat()
 	switch (numberType)
 	{
 	case 0:
-		value = (u32)strtol(start, &end, 10);
+		value = (u32)_tcstol(start, &end, 10);
 		break;
 	case 1:
-		value = (u32)strtoul(start, &end, 10);
+		value = (u32)_tcstoul(start, &end, 10);
 		break;
 	default:
-		value = (u32)strtoul(start, &end, 16);
+		value = (u32)_tcstoul(start, &end, 16);
 	}
 	if (end == start || *end != 0)
 	{
-		systemMessage(0, N_("Invalid value: %s"), (LPCSTR)buffer);
+		systemMessage(0, N_(_T("Invalid value: %s")), (LPCTSTR)buffer);
 		return false;
 	}
 
@@ -1133,13 +1133,13 @@ bool AddCheat::addCheat()
 	switch (sizeType)
 	{
 	case 0:
-		code.Format("%08x:%02x", address, value);
+		code.Format(_T("%08x:%02x"), address, value);
 		break;
 	case 1:
-		code.Format("%08x:%04x", address, value);
+		code.Format(_T("%08x:%04x"), address, value);
 		break;
 	case 2:
-		code.Format("%08x:%08x", address, value);
+		code.Format(_T("%08x:%08x"), address, value);
 		break;
 	}
 
@@ -1149,9 +1149,9 @@ bool AddCheat::addCheat()
 	int newIndex = cheatsNumber;
 
 #ifdef USE_GBA_CORE_V7
-	cheatsAdd(code, buffer, address, value, -1, sizeType);
+    cheatsAdd(winAnsiFromWide(code), winAnsiFromWide(buffer), address, value, -1, sizeType);
 #else
-	cheatsAdd(code, buffer, address, address, value, -1, sizeType);
+    cheatsAdd(winAnsiFromWide(code), winAnsiFromWide(buffer), address, address, value, -1, sizeType); // note one more address
 #endif
 
 	if (cheatsNumber > newIndex)
@@ -1339,7 +1339,7 @@ void GBACheatList::OnRemove()
 
 	CString format = winResLoadString(IDS_CONFIRM_DELETE_CHEATS);
 	CString message;
-	message.Format((LPCSTR)format, deleteCount);
+	message.Format((LPCTSTR)format, deleteCount);
 	if (MessageBox(message, winResLoadString(IDS_CONFIRM_DELETE),
 	               MB_YESNO | MB_ICONQUESTION) != IDYES)
 		return;
@@ -1355,13 +1355,13 @@ void GBACheatList::OnRemove()
 void GBACheatList::OnRestore()
 {
 	restoreValues = !restoreValues;
-	regSetDwordValue("cheatsRestore", restoreValues);
+	regSetDwordValue(_T("cheatsRestore"), restoreValues);
 }
 
 void GBACheatList::OnGroupCheats()
 {
 	groupCheats = !groupCheats;
-	regSetDwordValue("cheatsGroup", groupCheats);
+	regSetDwordValue(_T("cheatsGroup"), groupCheats);
 	refresh();
 }
 
@@ -1499,12 +1499,12 @@ BOOL GBACheatList::OnInitDialog()
 	m_list.SetExtendedStyle(LVS_EX_CHECKBOXES | LVS_EX_FULLROWSELECT);
 	addCheatArrowImages(m_list);
 
-	restoreValues = regQueryDwordValue("cheatsRestore", 0) ?
+	restoreValues = regQueryDwordValue(_T("cheatsRestore"), 0) ?
 	                true : false;
 
 	m_restore.SetCheck(restoreValues);
 
-	groupCheats = regQueryDwordValue("cheatsGroup", 1) ?
+	groupCheats = regQueryDwordValue(_T("cheatsGroup"), 1) ?
 	              true : false;
 
 	m_group.SetCheck(groupCheats);
@@ -1620,10 +1620,10 @@ void GBACheatList::refresh()
 			// The state image shows the Unicode arrow; the Code text names the
 			// action.  Together they read as "arrow [Expand]/[Collapse]".
 			CString text = row.expanded ? "[Collapse]" : "[Expand]";
-			item.pszText = (LPSTR)(LPCSTR)text;
+			item.pszText = const_cast<LPTSTR>((LPCTSTR)text);
 			m_list.InsertItem(&item);
 
-			m_list.SetItemText(i, 1, cheatsList[row.first].desc);
+			m_list.SetItemText(i, 1, winWideFromAnsi(cheatsList[row.first].desc));
 
 			bool anyEnabled = false;
 			bool allEnabled = true;
@@ -1635,22 +1635,23 @@ void GBACheatList::refresh()
 					allEnabled = false;
 			}
 
-			CString status = allEnabled ? "E" : (anyEnabled ? "-" : "D");
+			CString status = allEnabled ? _T("E") : (anyEnabled ? _T("-") : _T("D"));
 			m_list.SetItemText(i, 2, status);
-			m_list.SetItemText(i, 3, gbaCheatTypeName(cheatsList[row.first].code));
+			m_list.SetItemText(i, 3, winWideFromAnsi(gbaCheatTypeName(cheatsList[row.first].code)));
 
 			int state = row.expanded ? CHEAT_STATE_EXPANDED : CHEAT_STATE_COLLAPSED;
 			m_list.SetItemState(i, INDEXTOSTATEIMAGEMASK(state), LVIS_STATEIMAGEMASK);
 		}
 		else
 		{
-			item.pszText = cheatsList[row.first].codestring;
+			const CString codeText = winWideFromAnsi(cheatsList[row.first].codestring);
+			item.pszText = const_cast<LPTSTR>((LPCTSTR)codeText);
 			m_list.InsertItem(&item);
 
-			m_list.SetItemText(i, 1, cheatsList[row.first].desc);
-			CString status = cheatsList[row.first].enabled ? "E" : "D";
+			m_list.SetItemText(i, 1, winWideFromAnsi(cheatsList[row.first].desc));
+			CString status = cheatsList[row.first].enabled ? _T("E") : _T("D");
 			m_list.SetItemText(i, 2, status);
-			m_list.SetItemText(i, 3, gbaCheatTypeName(cheatsList[row.first].code));
+			m_list.SetItemText(i, 3, winWideFromAnsi(gbaCheatTypeName(cheatsList[row.first].code)));
 
 			m_list.SetCheck(i, cheatsList[row.first].enabled ? TRUE : FALSE);
 		}
@@ -1675,7 +1676,7 @@ void GBACheatList::editCheat(int cheatIndex)
 	}
 	else if (type == GBA_CHEAT_TYPE_CODEBREAKER)
 	{
-		AddCBACode dlg(this, cheatsList[cheatIndex].codestring, cheatsList[cheatIndex].desc,
+		AddCBACode dlg(this, winWideFromAnsi(cheatsList[cheatIndex].codestring), winWideFromAnsi(cheatsList[cheatIndex].desc),
 		               cheatIndex, 1, enabled);
 		dlg.DoModal();
 	}
@@ -1683,9 +1684,9 @@ void GBACheatList::editCheat(int cheatIndex)
 	{
 		CString code = cheatsList[cheatIndex].codestring;
 		if (cheatsList[cheatIndex].code == 257)
-			code = gsaV3CodeForEdit(code);
+			code = gsaV3CodeForEdit(winAnsiFromWide(code));
 
-		AddGSACode dlg(this, code, cheatsList[cheatIndex].desc,
+		AddGSACode dlg(this, code, winWideFromAnsi(cheatsList[cheatIndex].desc),
 		               cheatIndex, 1, enabled);
 		dlg.DoModal();
 	}
@@ -1709,7 +1710,7 @@ void GBACheatList::editGroup(int rowIndex)
 
 		CString line = cheatsList[i].codestring;
 		if (cheatsList[i].code == 257)
-			line = gsaV3CodeForEdit(line);
+			line = gsaV3CodeForEdit(winAnsiFromWide(line));
 		code += line;
 
 		if (!cheatsList[i].enabled)
@@ -1738,11 +1739,11 @@ void GBACheatList::editGroup(int rowIndex)
 /////////////////////////////////////////////////////////////////////////////
 // AddGSACode dialog
 
-AddGSACode::AddGSACode(CWnd*pParent /*=NULL*/, const char *code /*=NULL*/, const char *desc /*=NULL*/,
+AddGSACode::AddGSACode(CWnd*pParent /*=NULL*/, LPCTSTR code /*=NULL*/, LPCTSTR desc /*=NULL*/,
                        int editIndex /*=-1*/, int editCount /*=1*/, bool initialEnabled /*=true*/)
 	: CDialog(AddGSACode::IDD, pParent)
-	, initialCode(code ? code : "")
-	, initialDesc(desc ? desc : "")
+	, initialCode(code ? code : _T(""))
+	, initialDesc(desc ? desc : _T(""))
 	, editIndex(editIndex)
 	, editCount(editCount)
 	, initialEnabled(initialEnabled)
@@ -1842,11 +1843,11 @@ BOOL AddGSACode::OnInitDialog()
 /////////////////////////////////////////////////////////////////////////////
 // AddCBACode dialog
 
-AddCBACode::AddCBACode(CWnd*pParent /*=NULL*/, const char *code /*=NULL*/, const char *desc /*=NULL*/,
+AddCBACode::AddCBACode(CWnd*pParent /*=NULL*/, LPCTSTR code /*=NULL*/, LPCTSTR desc /*=NULL*/,
                        int editIndex /*=-1*/, int editCount /*=1*/, bool initialEnabled /*=true*/)
 	: CDialog(AddCBACode::IDD, pParent)
-	, initialCode(code ? code : "")
-	, initialDesc(desc ? desc : "")
+	, initialCode(code ? code : _T(""))
+	, initialDesc(desc ? desc : _T(""))
 	, editIndex(editIndex)
 	, editCount(editCount)
 	, initialEnabled(initialEnabled)
@@ -1946,11 +1947,11 @@ BOOL AddCBACode::OnInitDialog()
 /////////////////////////////////////////////////////////////////////////////
 // AddCheatCode dialog
 
-AddCheatCode::AddCheatCode(CWnd*pParent /*=NULL*/, const char *code /*=NULL*/, const char *desc /*=NULL*/,
+AddCheatCode::AddCheatCode(CWnd*pParent /*=NULL*/, LPCTSTR code /*=NULL*/, LPCTSTR desc /*=NULL*/,
                            int editIndex /*=-1*/, int editCount /*=1*/, bool initialEnabled /*=true*/)
 	: CDialog(AddCheatCode::IDD, pParent)
-	, initialCode(code ? code : "")
-	, initialDesc(desc ? desc : "")
+	, initialCode(code ? code : _T(""))
+	, initialDesc(desc ? desc : _T(""))
 	, editIndex(editIndex)
 	, editCount(editCount)
 	, initialEnabled(initialEnabled)
@@ -2051,4 +2052,3 @@ void GBACheatSearch::OnBnClickedCheatrefreshbutton()
 {
 	addChanges(false);
 }
-

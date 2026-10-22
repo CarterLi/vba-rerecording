@@ -83,7 +83,7 @@ void Logging::OnOk()
 void Logging::OnClear()
 {
 	text = "";
-	m_log.SetWindowText("");
+	m_log.SetWindowText(_T(""));
 }
 
 void Logging::OnVerboseAgbprint()
@@ -140,22 +140,22 @@ void Logging::OnSave()
 {
 	int len = m_log.GetWindowTextLength();
 
-	char *mem = (char *)malloc(len);
+	TCHAR *mem = (TCHAR *)malloc(len * sizeof(TCHAR));
 
 	if (mem)
 	{
-		LPCTSTR exts[] = { ".txt", NULL };
+		LPCTSTR exts[] = { _T(".txt"), NULL };
 		m_log.GetWindowText(mem, len);
-		CString filter = "All Files|*.*||";
-		FileDlg dlg(this, "", filter, 0,
-		            NULL, exts, NULL, "Save output", true);
+		CString filter = _T("All Files|*.*||");
+		FileDlg dlg(this, _T(""), filter, 0,
+		            NULL, exts, NULL, _T("Save output"), true);
 
 		if (dlg.DoModal() == IDOK)
 		{
-			FILE *f = fopen(dlg.GetPathName(), "w");
+			FILE *f = _wfopen(dlg.GetPathName(), L"w");
 			if (f)
 			{
-				fwrite(mem, 1, len - 1, f);
+				fwrite(mem, sizeof(TCHAR), len - 1, f);
 				fclose(f);
 			}
 		}
@@ -192,7 +192,7 @@ BOOL Logging::OnInitDialog()
 	SetData(sz,
 	        TRUE,
 	        HKEY_CURRENT_USER,
-	        "Software\\Emulators\\VisualBoyAdvance\\Viewer\\LogView",
+	        _T("Software\\Emulators\\VisualBoyAdvance\\Viewer\\LogView"),
 	        NULL);
 
 	m_swi = (systemVerbose & 1) != 0;
@@ -218,7 +218,7 @@ void Logging::log(const char *s)
 {
 	int size = (int)::SendMessage(m_log, WM_GETTEXTLENGTH, 0, 0);
 	m_log.SetSel(size, size);
-	m_log.ReplaceSel(s);
+	m_log.ReplaceSel(winWideFromAnsi(s));
 }
 
 void Logging::OnClose()
@@ -267,7 +267,7 @@ void toolsLog(const char *s)
 	Logging::text += str;
 	if (Logging::instance != NULL)
 	{
-		Logging::instance->log(str);
+		Logging::instance->log(winAnsiFromWide(str));
 	}
 }
 

@@ -18,7 +18,6 @@
 
 extern int systemSpeed;
 extern int Init_2xSaI(u32);
-extern void winlog(const char *, ...);
 
 class OpenGLDisplay : public IDisplay
 {
@@ -136,7 +135,7 @@ bool OpenGLDisplay::initialize()
 
 	if (!(iPixelFormat = ChoosePixelFormat(hDC, &pfd)))
 	{
-		winlog("Failed ChoosePixelFormat\n");
+		winlog(_T("Failed ChoosePixelFormat\n"));
 		return false;
 	}
 
@@ -145,25 +144,25 @@ bool OpenGLDisplay::initialize()
 	if (!(DescribePixelFormat(hDC, iPixelFormat,
 	                          sizeof(PIXELFORMATDESCRIPTOR), &pfd)))
 	{
-		winlog("Failed DescribePixelFormat\n");
+		winlog(_T("Failed DescribePixelFormat\n"));
 		return false;
 	}
 
 	if (!SetPixelFormat(hDC, iPixelFormat, &pfd))
 	{
-		winlog("Failed SetPixelFormat\n");
+		winlog(_T("Failed SetPixelFormat\n"));
 		return false;
 	}
 
 	if (!(hglrc = wglCreateContext(hDC)))
 	{
-		winlog("Failed wglCreateContext\n");
+		winlog(_T("Failed wglCreateContext\n"));
 		return false;
 	}
 
 	if (!wglMakeCurrent(hDC, hglrc))
 	{
-		winlog("Failed wglMakeCurrent\n");
+		winlog(_T("Failed wglMakeCurrent\n"));
 		return false;
 	}
 	pWnd->ReleaseDC(dc);
@@ -193,9 +192,9 @@ bool OpenGLDisplay::initialize()
 	Init_2xSaI(32);
 	if (theApp.ddrawDebug)
 	{
-		winlog("R shift: %d\n", systemRedShift);
-		winlog("G shift: %d\n", systemGreenShift);
-		winlog("B shift: %d\n", systemBlueShift);
+		winlog(_T("R shift: %d\n"), systemRedShift);
+		winlog(_T("G shift: %d\n"), systemGreenShift);
+		winlog(_T("B shift: %d\n"), systemBlueShift);
 	}
 
 	systemUpdateColorMaps();
@@ -450,7 +449,7 @@ bool OpenGLDisplay::initializeTexture(int w, int h)
 	glGenTextures(1, &texture);
 	glBindTexture(GL_TEXTURE_2D, texture);
 
-	int filter = regQueryDwordValue("glFilter", 0);
+	int filter = regQueryDwordValue(_T("glFilter"), 0);
 	if (filter < 0 || filter > 1)
 		filter = 0;
 	updateFiltering(filter);

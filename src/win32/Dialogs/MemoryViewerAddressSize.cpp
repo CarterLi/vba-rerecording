@@ -44,12 +44,12 @@ BOOL MemoryViewerAddressSize::OnInitDialog()
 	CString buffer;
 	if (address != 0xFFFFFFFF)
 	{
-		buffer.Format("%08X", address);
+		buffer.Format(_T("%08X"), address);
 		m_address.SetWindowText(buffer);
 	}
 	if (size != -1)
 	{
-		buffer.Format("%08X", size);
+		buffer.Format(_T("%08X"), size);
 		m_size.SetWindowText(buffer);
 		m_size.EnableWindow(FALSE);
 	}
@@ -74,7 +74,7 @@ void MemoryViewerAddressSize::OnOk()
 		m_address.SetFocus();
 		return;
 	}
-	sscanf(buffer, "%x", &address);
+	_stscanf(buffer, _T("%x"), &address);
 
 	m_size.GetWindowText(buffer);
 	if (buffer.IsEmpty())
@@ -82,7 +82,7 @@ void MemoryViewerAddressSize::OnOk()
 		m_size.SetFocus();
 		return;
 	}
-	sscanf(buffer, "%x", &size);
+	_stscanf(buffer, _T("%x"), &size);
 	EndDialog(TRUE);
 }
 

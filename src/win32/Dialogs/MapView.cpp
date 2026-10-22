@@ -542,35 +542,35 @@ void MapView::paint()
 	u32 charBase   = ((control >> 2) & 0x03) * 0x4000 + 0x6000000;
 	u32 screenBase = ((control >> 8) & 0x1f) * 0x800 + 0x6000000;
 
-	buffer.Format("%d", mode);
+	buffer.Format(_T("%d"), mode);
 	m_mode.SetWindowText(buffer);
 
 	if (mode >= 3)
 	{
-		m_mapbase.SetWindowText("");
-		m_charbase.SetWindowText("");
+		m_mapbase.SetWindowText(_T(""));
+		m_charbase.SetWindowText(_T(""));
 	}
 	else
 	{
-		buffer.Format("0x%08X", screenBase);
+		buffer.Format(_T("0x%08X"), screenBase);
 		m_mapbase.SetWindowText(buffer);
 
-		buffer.Format("0x%08X", charBase);
+		buffer.Format(_T("0x%08X"), charBase);
 		m_charbase.SetWindowText(buffer);
 	}
 
-	buffer.Format("%dx%d", w, h);
+	buffer.Format(_T("%dx%d"), w, h);
 	m_dim.SetWindowText(buffer);
 
-	m_numcolors.SetWindowText(control & 0x80 ? "256" : "16");
+	m_numcolors.SetWindowText(control & 0x80 ? _T("256") : _T("16"));
 
-	buffer.Format("%d", control & 3);
+	buffer.Format(_T("%d"), control & 3);
 	m_priority.SetWindowText(buffer);
 
-	m_mosaic.SetWindowText(control & 0x40 ? "1" : "0");
+	m_mosaic.SetWindowText(control & 0x40 ? _T("1") : _T("0"));
 
-	m_overflow.SetWindowText(bg <= 1 ? "" :
-	                         control & 0x2000 ? "1" : "0");
+	m_overflow.SetWindowText(bg <= 1 ? _T("") :
+	                         control & 0x2000 ? _T("1") : _T("0"));
 }
 
 BOOL MapView::OnInitDialog()
@@ -590,14 +590,14 @@ BOOL MapView::OnInitDialog()
 	SetData(sz,
 	        TRUE,
 	        HKEY_CURRENT_USER,
-	        "Software\\Emulators\\VisualBoyAdvance\\Viewer\\MapView",
+	        _T("Software\\Emulators\\VisualBoyAdvance\\Viewer\\MapView"),
 	        NULL);
 
 	SIZE size;
 	size.cx = 1;
 	size.cy = 1;
 	mapView.SetScrollSizes(MM_TEXT, size);
-	int s = regQueryDwordValue("mapViewStretch", 0);
+	int s = regQueryDwordValue(_T("mapViewStretch"), 0);
 	if (s)
 		mapView.setStretch(true);
 	((CButton *)GetDlgItem(IDC_STRETCH))->SetCheck(s);
@@ -724,7 +724,7 @@ void MapView::OnStretch()
 {
 	mapView.setStretch(!mapView.getStretch());
 	paint();
-	regSetDwordValue("mapViewStretch", mapView.getStretch());
+	regSetDwordValue(_T("mapViewStretch"), mapView.getStretch());
 }
 
 void MapView::OnAutoUpdate()
@@ -803,20 +803,20 @@ LRESULT MapView::OnMapInfo(WPARAM wParam, LPARAM lParam)
 	int y = (int)(wParam >> 16);
 
 	CString buffer;
-	buffer.Format("(%d,%d)", x, y);
+	buffer.Format(_T("(%d,%d)"), x, y);
 	GetDlgItem(IDC_XY)->SetWindowText(buffer);
 
 	u32 address = GetClickAddress(x, y);
-	buffer.Format("0x%08X", address);
+	buffer.Format(_T("0x%08X"), address);
 	GetDlgItem(IDC_ADDRESS)->SetWindowText(buffer);
 
 	int mode = DISPCNT & 7;
 	if (mode >= 3)
 	{
 		// bitmap modes
-		GetDlgItem(IDC_TILE_NUM)->SetWindowText("---");
-		GetDlgItem(IDC_FLIP)->SetWindowText("--");
-		GetDlgItem(IDC_PALETTE_NUM)->SetWindowText("---");
+		GetDlgItem(IDC_TILE_NUM)->SetWindowText(_T("---"));
+		GetDlgItem(IDC_FLIP)->SetWindowText(_T("--"));
+		GetDlgItem(IDC_PALETTE_NUM)->SetWindowText(_T("---"));
 	}
 	else if (mode == 0 || bg < 2)
 	{
@@ -824,7 +824,7 @@ LRESULT MapView::OnMapInfo(WPARAM wParam, LPARAM lParam)
 		u16 value = *((u16 *)&vram[address - 0x6000000]);
 
 		int tile = value & 1023;
-		buffer.Format("%d", tile);
+		buffer.Format(_T("%d"), tile);
 		GetDlgItem(IDC_TILE_NUM)->SetWindowText(buffer);
 		buffer.Empty();
 		buffer += value & 1024 ? 'H' : '-';
@@ -833,7 +833,7 @@ LRESULT MapView::OnMapInfo(WPARAM wParam, LPARAM lParam)
 
 		if (!(control & 0x80))
 		{
-			buffer.Format("%d", (value >> 12) & 15);
+			buffer.Format(_T("%d"), (value >> 12) & 15);
 		}
 		else
 			buffer = "---";
@@ -842,9 +842,9 @@ LRESULT MapView::OnMapInfo(WPARAM wParam, LPARAM lParam)
 	else
 	{
 		// rot bgs
-		GetDlgItem(IDC_TILE_NUM)->SetWindowText("---");
-		GetDlgItem(IDC_FLIP)->SetWindowText("--");
-		GetDlgItem(IDC_PALETTE_NUM)->SetWindowText("---");
+		GetDlgItem(IDC_TILE_NUM)->SetWindowText(_T("---"));
+		GetDlgItem(IDC_FLIP)->SetWindowText(_T("--"));
+		GetDlgItem(IDC_PALETTE_NUM)->SetWindowText(_T("---"));
 	}
 
 	return TRUE;
@@ -861,13 +861,13 @@ LRESULT MapView::OnColInfo(WPARAM wParam, LPARAM lParam)
 	int b = (c & 0x7c00) >> 10;
 
 	CString buffer;
-	buffer.Format("R: %d", r);
+	buffer.Format(_T("R: %d"), r);
 	GetDlgItem(IDC_R)->SetWindowText(buffer);
 
-	buffer.Format("G: %d", g);
+	buffer.Format(_T("G: %d"), g);
 	GetDlgItem(IDC_G)->SetWindowText(buffer);
 
-	buffer.Format("B: %d", b);
+	buffer.Format(_T("B: %d"), b);
 	GetDlgItem(IDC_B)->SetWindowText(buffer);
 
 	return TRUE;

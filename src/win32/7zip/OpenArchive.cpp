@@ -131,16 +131,16 @@ int ChooseItemFromArchive(ArchiveFile& archive, bool autoChooseIfOnly1, const ch
 	// check if there's nothing
 	if(info.files.size() < 1)
 	{
-		MessageBox(GetArchiveParentHWND(), "The archive is either empty or encrypted.", "Nothing to load!", MB_OK | MB_ICONWARNING);
+		MessageBoxA(GetArchiveParentHWND(), "The archive is either empty or encrypted.", "Nothing to load!", MB_OK | MB_ICONWARNING);
 		return -1;
 	}
 
 	// warn if all the files in the archive have extensions we should ignore
 	if(numIgnoreExtensions != prevNumIgnoreExtensions)
 	{
-		CString msg;
+		CStringA msg;
 		msg.Format("The archive appears to only contain the wrong type of files.\n\n(in \"%s\")", archive.GetArchiveFileName());
-		int answer = MessageBox(GetArchiveParentHWND(), msg, "Warning", MB_OKCANCEL | MB_ICONWARNING | MB_DEFBUTTON2);
+		int answer = MessageBoxA(GetArchiveParentHWND(), msg, "Warning", MB_OKCANCEL | MB_ICONWARNING | MB_DEFBUTTON2);
 		if(answer == IDCANCEL)
 			return -1;
 	}
@@ -150,7 +150,7 @@ int ChooseItemFromArchive(ArchiveFile& archive, bool autoChooseIfOnly1, const ch
 		return info.files[0].itemIndex;
 
 	// bring up a dialog to choose the index if there's more than 1
-	DialogBoxParam(AfxGetInstanceHandle(), MAKEINTRESOURCE(IDD_ARCHIVEFILECHOOSER), GetArchiveParentHWND(), (DLGPROC) ArchiveFileChooser,(LPARAM) &info);
+	DialogBoxParam(AfxGetResourceHandle(), MAKEINTRESOURCE(IDD_ARCHIVEFILECHOOSER), GetArchiveParentHWND(), (DLGPROC) ArchiveFileChooser,(LPARAM) &info);
 	archive.m_userMadeSelection = (s_archiveFileChooserResult != -1);
 	return s_archiveFileChooserResult;
 }
@@ -172,7 +172,7 @@ static struct TempFiles
 			category = cat;
 
 			char tempPath [2048];
-			GetTempPath(2048, tempPath);
+			GetTempPathA(2048, tempPath);
 			//GetTempFileName(tempPath, cat, 0, filename, ext); // alas
 
 			char*const fname = tempPath + strlen(tempPath);
@@ -185,9 +185,9 @@ static struct TempFiles
 				if(file)
 				{
 					// mark the temporary file as read-only and (whatever this does) temporary
-					DWORD attributes = GetFileAttributes(tempPath);
+					DWORD attributes = GetFileAttributesA(tempPath);
 					attributes |= FILE_ATTRIBUTE_READONLY | FILE_ATTRIBUTE_TEMPORARY;
-					SetFileAttributes(tempPath, attributes);
+					SetFileAttributesA(tempPath, attributes);
 
 					fclose(file);
 
@@ -217,9 +217,9 @@ static struct TempFiles
 
 			// remove read-only attribute so Windows will let us delete it
 			// (our temporary files are read-only to discourage other apps from tampering)
-			DWORD attributes = GetFileAttributes(filename);
+			DWORD attributes = GetFileAttributesA(filename);
 			if(attributes & FILE_ATTRIBUTE_READONLY)
-				SetFileAttributes(filename, attributes & ~FILE_ATTRIBUTE_READONLY);
+				SetFileAttributesA(filename, attributes & ~FILE_ATTRIBUTE_READONLY);
 
 			if(_unlink(filename) == 0 || errno != EACCES)
 			{
@@ -232,7 +232,7 @@ static struct TempFiles
 
 			// restore read-only if we couldn't delete it (not sure if this ever succeeds or matters though)
 			if(attributes & FILE_ATTRIBUTE_READONLY)
-				SetFileAttributes(filename, attributes);
+				SetFileAttributesA(filename, attributes);
 
 			return false; // failed to delete read-only or in-use file
 		}
@@ -295,24 +295,24 @@ static struct TempFiles
 	static void AddEntryToGarbageRegistry(const char* filename)
 	{
 		char gbgFile[2048];
-		GetTempPath(2048, gbgFile);
+		GetTempPathA(2048, gbgFile);
 		strcat(gbgFile, "VBATempFileRecords");
 		char key[64];
 		int i = 0;
 		while(true)
 		{
 			sprintf(key, "File%d", i);
-			GetPrivateProfileString("Files", key, "", Str_Tmp, 2048, gbgFile);
+			GetPrivateProfileStringA("Files", key, "", Str_Tmp, 2048, gbgFile);
 			if(!*Str_Tmp)
 				break;
 			i++;
 		}
-		WritePrivateProfileString("Files", key, filename, gbgFile);
+		WritePrivateProfileStringA("Files", key, filename, gbgFile);
 	}
 	static bool RemoveEntryFromGarbageRegistry(const char* filename)
 	{
 		char gbgFile[2048];
-		GetTempPath(2048, gbgFile);
+		GetTempPathA(2048, gbgFile);
 		strcat(gbgFile, "VBATempFileRecords");
 		char key[64];
 		int i = 0;
@@ -320,7 +320,7 @@ static struct TempFiles
 		while(true)
 		{
 			sprintf(key, "File%d", i);
-			GetPrivateProfileString("Files", key, "", Str_Tmp, 2048, gbgFile);
+			GetPrivateProfileStringA("Files", key, "", Str_Tmp, 2048, gbgFile);
 			if(!*Str_Tmp)
 				break;
 			if(!strcmp(Str_Tmp, filename))
@@ -333,12 +333,12 @@ static struct TempFiles
 			if(i != deleteSlot)
 			{
 				sprintf(key, "File%d", i);
-				GetPrivateProfileString("Files", key, "", Str_Tmp, 2048, gbgFile);
+				GetPrivateProfileStringA("Files", key, "", Str_Tmp, 2048, gbgFile);
 				sprintf(key, "File%d", deleteSlot);
-				WritePrivateProfileString("Files", key, Str_Tmp, gbgFile);
+				WritePrivateProfileStringA("Files", key, Str_Tmp, gbgFile);
 			}
 			sprintf(key, "File%d", i);
-			if(0 == WritePrivateProfileString("Files", key, NULL, gbgFile))
+			if(0 == WritePrivateProfileStringA("Files", key, NULL, gbgFile))
 				return false;
 		}
 		if(i <= 0 && deleteSlot == 0)
@@ -350,7 +350,7 @@ private:
 	static void CleanOutGarbageRegistry()
 	{
 		char gbgFile[2048];
-		GetTempPath(2048, gbgFile);
+		GetTempPathA(2048, gbgFile);
 		strcat(gbgFile, "VBATempFileRecords");
 
 		char key[64];
@@ -358,7 +358,7 @@ private:
 		while(true)
 		{
 			sprintf(key, "File%d", i);
-			GetPrivateProfileString("Files", key, "", Str_Tmp, 2048, gbgFile);
+			GetPrivateProfileStringA("Files", key, "", Str_Tmp, 2048, gbgFile);
 			if(!*Str_Tmp)
 				break;
 			TemporaryFile temp;
@@ -419,7 +419,7 @@ restart:
 			          "Archive support is unavailable, so \"%s\" cannot be opened.\n\n"
 			          "Extract the file and load it directly, or repack it as a .zip archive.",
 			          LogicalName);
-			MessageBox(GetArchiveParentHWND(), message, "Archive support unavailable",
+			MessageBoxA(GetArchiveParentHWND(), message, "Archive support unavailable",
 			           MB_OK | MB_ICONWARNING);
 			return false;
 		}
@@ -559,7 +559,7 @@ LRESULT CALLBACK ArchiveFileChooser(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM 
 			std::string title = "Choose File in ";
 			title += archive.GetArchiveTypeName();
 			title += " Archive";
-			SetWindowText(hDlg, title.c_str());
+			SetWindowTextA(hDlg, title.c_str());
 
 			// populate list
 			for(size_t i = 0; i < files.size(); i++)

@@ -160,7 +160,7 @@ class AddGBCode : public CDialog
 {
 	// Construction
 public:
-	AddGBCode(bool(*verify)(const char *, const char *), int, const char *, CWnd*pParent = NULL);  // standard constructor
+	AddGBCode(bool(*verify)(const char *, const char *), int, LPCTSTR, CWnd*pParent = NULL);  // standard constructor
 
 	// Dialog Data
 	//{{AFX_DATA(AddGBCode)

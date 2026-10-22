@@ -4,12 +4,18 @@
 // ModernFileDialog.cpp; this class only carries the parameters the rest of
 // the emulator passes around and remembers the picked path.
 //
+// That dialog layer speaks the ANSI code page (it is the one place where the
+// parameters are handed to OPENFILENAMEA in the Windows XP build), so the
+// TCHAR the rest of the Win32 layer uses is converted here, once.
+//
 //////////////////////////////////////////////////////////////////////
 #include "../stdafx.h"
 #include "FileDlg.h"
 #include "ModernFileDialog.h"
 #include "../Sound.h"
 #include "../../common/System.h"
+
+#include <vector>
 
 /////////////////////////////////////////////////////////////////////////////
 // FileDlg
@@ -44,21 +50,45 @@ int FileDlg::DoModal()
 {
 	systemSoundClearBuffer();
 
+	// The narrow copies outlive the call: the parameter struct points into
+	// them, and it is used for the whole of winFileDialog().
+	const CStringA title  = winAnsiFromWide(m_title);
+	const CStringA dir    = winAnsiFromWide(m_initialDir);
+	const CStringA file   = winAnsiFromWide(m_file);
+	const CStringA filter = winAnsiFromWide(m_filter);
+	const CStringA ext    = winAnsiFromWide(m_ext);
+
+	std::vector<CStringA>     extensionStorage;
+	std::vector<const char *> extensionPointers;
+
+	if (extensions != NULL)
+	{
+		for (int i = 0; extensions[i] != NULL; ++i)
+			extensionStorage.push_back(winAnsiFromWide(extensions[i]));
+		for (size_t i = 0; i < extensionStorage.size(); ++i)
+			extensionPointers.push_back(extensionStorage[i].GetString());
+		extensionPointers.push_back(NULL);
+	}
+
 	WinFileDialogParams params;
 	params.owner        = m_parent ? m_parent->GetSafeHwnd() : NULL;
 	params.save         = isSave;
 	params.mustExist    = !isSave;
 	params.hideReadOnly = noReadOnly;
-	params.title        = m_title;
-	params.initialDir   = m_initialDir;
-	params.fileName     = m_file;
-	params.filter       = m_filter;
+	params.title        = m_title.IsEmpty() ? NULL : title.GetString();
+	params.initialDir   = m_initialDir.IsEmpty() ? NULL : dir.GetString();
+	params.fileName     = file.GetString();
+	params.filter       = m_filter.IsEmpty() ? NULL : filter.GetString();
 	params.filterIndex  = m_filterIndex;
-	params.defaultExt   = m_ext;
-	params.extensions   = extensions;
+	params.defaultExt   = m_ext.IsEmpty() ? NULL : ext.GetString();
+	params.extensions   = extensionPointers.empty() ? NULL : extensionPointers.data();
 
-	int index  = m_filterIndex;
-	int result = winFileDialog(params, m_path, &index);
+	int         index  = m_filterIndex;
+	std::string picked;
+	int         result = winFileDialog(params, picked, &index);
+
+	if (result == IDOK)
+		m_path = winWideFromAnsi(picked);
 
 	m_filterIndex = index;
 	return result;
@@ -71,5 +101,5 @@ int FileDlg::getFilterIndex()
 
 LPCTSTR FileDlg::GetPathName()
 {
-	return m_path.c_str();
+	return m_path;
 }

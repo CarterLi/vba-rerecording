@@ -15,235 +15,252 @@ struct WinGBACompanyName
 };
 
 static WinGBACompanyName winGBARomInfoCompanies[] = {
-	{ "01", "Nintendo"							  },
-	{ "02", "Rocket Games"						  },
-	{ "08", "Capcom"							  },
-	{ "09", "Hot B Co."							  },
-	{ "0A", "Jaleco"							  },
-	{ "0B", "Coconuts Japan"					  },
-	{ "0C", "Coconuts Japan/G.X.Media"			  },
-	{ "0H", "Starfish"							  },
-	{ "0L", "Warashi Inc."						  },
-	{ "0N", "Nowpro"							  },
-	{ "0P", "Game Village"						  },
-	{ "13", "Electronic Arts Japan"				  },
-	{ "18", "Hudson Soft Japan"					  },
-	{ "19", "S.C.P."							  },
-	{ "1A", "Yonoman"							  },
-	{ "1G", "SMDE"								  },
-	{ "1P", "Creatures Inc."					  },
-	{ "1Q", "TDK Deep Impresion"				  },
-	{ "20", "Destination Software"				  },
-	{ "22", "VR 1 Japan"						  },
-	{ "25", "San-X"								  },
-	{ "28", "Kemco Japan"						  },
-	{ "29", "Seta"								  },
-	{ "2H", "Ubisoft Japan"						  },
-	{ "2K", "NEC InterChannel"					  },
-	{ "2L", "Tam"								  },
-	{ "2M", "Jordan"							  },
-	{ "2N", "Smilesoft"							  },
-	{ "2Q", "Mediakite"							  },
-	{ "36", "Codemasters"						  },
-	{ "37", "GAGA Communications"				  },
-	{ "38", "Laguna"							  },
-	{ "39", "Telstar Fun and Games"				  },
-	{ "41", "Ubi Soft Entertainment"			  },
-	{ "42", "Sunsoft"							  },
-	{ "47", "Spectrum Holobyte"					  },
-	{ "49", "IREM"								  },
-	{ "4D", "Malibu Games"						  },
-	{ "4F", "Eidos/U.S. Gold"					  },
-	{ "4J", "Fox Interactive"					  },
-	{ "4K", "Time Warner Interactive"			  },
-	{ "4Q", "Disney"							  },
-	{ "4S", "Black Pearl"						  },
-	{ "4X", "GT Interactive"					  },
-	{ "4Y", "RARE"								  },
-	{ "4Z", "Crave Entertainment"				  },
-	{ "50", "Absolute Entertainment"			  },
-	{ "51", "Acclaim"							  },
-	{ "52", "Activision"						  },
-	{ "53", "American Sammy Corp."				  },
-	{ "54", "Take 2 Interactive"				  },
-	{ "55", "Hi Tech"							  },
-	{ "56", "LJN LTD."							  },
-	{ "58", "Mattel"							  },
-	{ "5A", "Mindscape/Red Orb Ent."			  },
-	{ "5C", "Taxan"								  },
-	{ "5D", "Midway"							  },
-	{ "5F", "American Softworks"				  },
-	{ "5G", "Majesco Sales Inc"					  },
-	{ "5H", "3DO"								  },
-	{ "5K", "Hasbro"							  },
-	{ "5L", "NewKidCo"							  },
-	{ "5M", "Telegames"							  },
-	{ "5N", "Metro3D"							  },
-	{ "5P", "Vatical Entertainment"				  },
-	{ "5Q", "LEGO Media"						  },
-	{ "5S", "Xicat Interactive"					  },
-	{ "5T", "Cryo Interactive"					  },
-	{ "5W", "Red Storm Ent./BKN Ent."			  },
-	{ "5X", "Microids"							  },
-	{ "5Z", "Conspiracy Entertainment Corp."	  },
-	{ "60", "Titus Interactive Studios"			  },
-	{ "61", "Virgin Interactive"				  },
-	{ "62", "Maxis"								  },
-	{ "64", "LucasArts Entertainment"			  },
-	{ "67", "Ocean"								  },
-	{ "69", "Electronic Arts"					  },
-	{ "6E", "Elite Systems Ltd."				  },
-	{ "6F", "Electro Brain"						  },
-	{ "6G", "The Learning Company"				  },
-	{ "6H", "BBC"								  },
-	{ "6J", "Software 2000"						  },
-	{ "6L", "BAM! Entertainment"				  },
-	{ "6M", "Studio 3"							  },
-	{ "6Q", "Classified Games"					  },
-	{ "6S", "TDK Mediactive"					  },
-	{ "6U", "DreamCatcher"						  },
-	{ "6V", "JoWood Productions"				  },
-	{ "6W", "SEGA"								  },
-	{ "6X", "Wannado Edition"					  },
-	{ "6Y", "LSP"								  },
-	{ "6Z", "ITE Media"							  },
-	{ "70", "Infogrames"						  },
-	{ "71", "Interplay"							  },
-	{ "72", "JVC Musical Industries Inc"		  },
-	{ "73", "Parker Brothers"					  },
-	{ "75", "SCI"								  },
-	{ "78", "THQ"								  },
-	{ "79", "Accolade"							  },
-	{ "7A", "Triffix Ent. Inc."					  },
-	{ "7C", "Microprose Software"				  },
-	{ "7D", "Universal Interactive Studios"		  },
-	{ "7F", "Kemco"								  },
-	{ "7G", "Rage Software"						  },
-	{ "7H", "Encore"							  },
-	{ "7J", "Zoo"								  },
-	{ "7K", "BVM"								  },
-	{ "7L", "Simon & Schuster Interactive"		  },
-	{ "7M", "Asmik Ace Entertainment Inc./AIA"	  },
-	{ "7N", "Empire Interactive"				  },
-	{ "7Q", "Jester Interactive"				  },
-	{ "7T", "Scholastic"						  },
-	{ "7U", "Ignition Entertainment"			  },
-	{ "7W", "Stadlbauer"						  },
-	{ "80", "Misawa"							  },
-	{ "83", "LOZC"								  },
-	{ "8B", "Bulletproof Software"				  },
-	{ "8C", "Vic Tokai Inc."					  },
-	{ "8J", "General Entertainment"				  },
-	{ "8N", "Success"							  },
-	{ "8P", "SEGA Japan"						  },
-	{ "91", "Chun Soft"							  },
-	{ "92", "Video System"						  },
-	{ "93", "BEC"								  },
-	{ "96", "Yonezawa/S'pal"					  },
-	{ "97", "Kaneko"							  },
-	{ "99", "Victor Interactive Software"		  },
-	{ "9A", "Nichibutsu/Nihon Bussan"			  },
-	{ "9B", "Tecmo"								  },
-	{ "9C", "Imagineer"							  },
-	{ "9F", "Nova"								  },
-	{ "9H", "Bottom Up"							  },
-	{ "9L", "Hasbro Japan"						  },
-	{ "9N", "Marvelous Entertainment"			  },
-	{ "9P", "Keynet Inc."						  },
-	{ "9Q", "Hands-On Entertainment"			  },
-	{ "A0", "Telenet"							  },
-	{ "A1", "Hori"								  },
-	{ "A4", "Konami"							  },
-	{ "A6", "Kawada"							  },
-	{ "A7", "Takara"							  },
-	{ "A9", "Technos Japan Corp."				  },
-	{ "AA", "JVC"								  },
-	{ "AC", "Toei Animation"					  },
-	{ "AD", "Toho"								  },
-	{ "AF", "Namco"								  },
-	{ "AG", "Media Rings Corporation"			  },
-	{ "AH", "J-Wing"							  },
-	{ "AK", "KID"								  },
-	{ "AL", "MediaFactory"						  },
-	{ "AP", "Infogrames Hudson"					  },
-	{ "AQ", "Kiratto. Ludic Inc"				  },
-	{ "B0", "Acclaim Japan"						  },
-	{ "B1", "ASCII"								  },
-	{ "B2", "Bandai"							  },
-	{ "B4", "Enix"								  },
-	{ "B6", "HAL Laboratory"					  },
-	{ "B7", "SNK"								  },
-	{ "B9", "Pony Canyon Hanbai"				  },
-	{ "BA", "Culture Brain"						  },
-	{ "BB", "Sunsoft"							  },
-	{ "BD", "Sony Imagesoft"					  },
-	{ "BF", "Sammy"								  },
-	{ "BG", "Magical"							  },
-	{ "BJ", "Compile"							  },
-	{ "BL", "MTO Inc."							  },
-	{ "BN", "Sunrise Interactive"				  },
-	{ "BP", "Global A Entertainment"			  },
-	{ "BQ", "Fuuki"								  },
-	{ "C0", "Taito"								  },
-	{ "C2", "Kemco"								  },
-	{ "C3", "Square Soft"						  },
-	{ "C5", "Data East"							  },
-	{ "C6", "Tonkin House"						  },
-	{ "C8", "Koei"								  },
-	{ "CA", "Konami/Palcom/Ultra"				  },
-	{ "CB", "Vapinc/NTVIC"						  },
-	{ "CC", "Use Co.,Ltd."						  },
-	{ "CD", "Meldac"							  },
-	{ "CE", "FCI/Pony Canyon"					  },
-	{ "CF", "Angel"								  },
-	{ "CM", "Konami Computer Entertainment Osaka" },
-	{ "CP", "Enterbrain"						  },
-	{ "D1", "Sofel"								  },
-	{ "D2", "Quest"								  },
-	{ "D3", "Sigma Enterprises"					  },
-	{ "D4", "Ask Kodansa"						  },
-	{ "D6", "Naxat"								  },
-	{ "D7", "Copya System"						  },
-	{ "D9", "Banpresto"							  },
-	{ "DA", "TOMY"								  },
-	{ "DB", "LJN Japan"							  },
-	{ "DD", "NCS"								  },
-	{ "DF", "Altron Corporation"				  },
-	{ "DH", "Gaps Inc."							  },
-	{ "DN", "ELF"								  },
-	{ "E2", "Yutaka"							  },
-	{ "E3", "Varie"								  },
-	{ "E5", "Epoch"								  },
-	{ "E7", "Athena"							  },
-	{ "E8", "Asmik Ace Entertainment Inc."		  },
-	{ "E9", "Natsume"							  },
-	{ "EA", "King Records"						  },
-	{ "EB", "Atlus"								  },
-	{ "EC", "Epic/Sony Records"					  },
-	{ "EE", "IGS"								  },
-	{ "EL", "Spike"								  },
-	{ "EM", "Konami Computer Entertainment Tokyo" },
-	{ "EN", "Alphadream Corporation"			  },
-	{ "F0", "A Wave"							  },
-	{ "G1", "PCCW"								  },
-	{ "G4", "KiKi Co Ltd"						  },
-	{ "G5", "Open Sesame Inc."					  },
-	{ "G6", "Sims"								  },
-	{ "G7", "Broccoli"							  },
-	{ "G8", "Avex"								  },
-	{ "G9", "D3 Publisher"						  },
-	{ "GB", "Konami Computer Entertainment Japan" },
-	{ "GD", "Square-Enix"						  },
-	{ "HY", "Sachen"							  },
+	{ _T("01"), _T("Nintendo")							  },
+	{ _T("02"), _T("Rocket Games")						  },
+	{ _T("08"), _T("Capcom")							  },
+	{ _T("09"), _T("Hot B Co.")							  },
+	{ _T("0A"), _T("Jaleco")							  },
+	{ _T("0B"), _T("Coconuts Japan")					  },
+	{ _T("0C"), _T("Coconuts Japan/G.X.Media")			  },
+	{ _T("0H"), _T("Starfish")							  },
+	{ _T("0L"), _T("Warashi Inc.")						  },
+	{ _T("0N"), _T("Nowpro")							  },
+	{ _T("0P"), _T("Game Village")						  },
+	{ _T("13"), _T("Electronic Arts Japan")				  },
+	{ _T("18"), _T("Hudson Soft Japan")					  },
+	{ _T("19"), _T("S.C.P.")							  },
+	{ _T("1A"), _T("Yonoman")							  },
+	{ _T("1G"), _T("SMDE")								  },
+	{ _T("1P"), _T("Creatures Inc.")					  },
+	{ _T("1Q"), _T("TDK Deep Impresion")				  },
+	{ _T("20"), _T("Destination Software")				  },
+	{ _T("22"), _T("VR 1 Japan")						  },
+	{ _T("25"), _T("San-X")								  },
+	{ _T("28"), _T("Kemco Japan")						  },
+	{ _T("29"), _T("Seta")								  },
+	{ _T("2H"), _T("Ubisoft Japan")						  },
+	{ _T("2K"), _T("NEC InterChannel")					  },
+	{ _T("2L"), _T("Tam")								  },
+	{ _T("2M"), _T("Jordan")							  },
+	{ _T("2N"), _T("Smilesoft")							  },
+	{ _T("2Q"), _T("Mediakite")							  },
+	{ _T("36"), _T("Codemasters")						  },
+	{ _T("37"), _T("GAGA Communications")				  },
+	{ _T("38"), _T("Laguna")							  },
+	{ _T("39"), _T("Telstar Fun and Games")				  },
+	{ _T("41"), _T("Ubi Soft Entertainment")			  },
+	{ _T("42"), _T("Sunsoft")							  },
+	{ _T("47"), _T("Spectrum Holobyte")					  },
+	{ _T("49"), _T("IREM")								  },
+	{ _T("4D"), _T("Malibu Games")						  },
+	{ _T("4F"), _T("Eidos/U.S. Gold")					  },
+	{ _T("4J"), _T("Fox Interactive")					  },
+	{ _T("4K"), _T("Time Warner Interactive")			  },
+	{ _T("4Q"), _T("Disney")							  },
+	{ _T("4S"), _T("Black Pearl")						  },
+	{ _T("4X"), _T("GT Interactive")					  },
+	{ _T("4Y"), _T("RARE")								  },
+	{ _T("4Z"), _T("Crave Entertainment")				  },
+	{ _T("50"), _T("Absolute Entertainment")			  },
+	{ _T("51"), _T("Acclaim")							  },
+	{ _T("52"), _T("Activision")						  },
+	{ _T("53"), _T("American Sammy Corp.")				  },
+	{ _T("54"), _T("Take 2 Interactive")				  },
+	{ _T("55"), _T("Hi Tech")							  },
+	{ _T("56"), _T("LJN LTD.")							  },
+	{ _T("58"), _T("Mattel")							  },
+	{ _T("5A"), _T("Mindscape/Red Orb Ent.")			  },
+	{ _T("5C"), _T("Taxan")								  },
+	{ _T("5D"), _T("Midway")							  },
+	{ _T("5F"), _T("American Softworks")				  },
+	{ _T("5G"), _T("Majesco Sales Inc")					  },
+	{ _T("5H"), _T("3DO")								  },
+	{ _T("5K"), _T("Hasbro")							  },
+	{ _T("5L"), _T("NewKidCo")							  },
+	{ _T("5M"), _T("Telegames")							  },
+	{ _T("5N"), _T("Metro3D")							  },
+	{ _T("5P"), _T("Vatical Entertainment")				  },
+	{ _T("5Q"), _T("LEGO Media")						  },
+	{ _T("5S"), _T("Xicat Interactive")					  },
+	{ _T("5T"), _T("Cryo Interactive")					  },
+	{ _T("5W"), _T("Red Storm Ent./BKN Ent.")			  },
+	{ _T("5X"), _T("Microids")							  },
+	{ _T("5Z"), _T("Conspiracy Entertainment Corp.")	  },
+	{ _T("60"), _T("Titus Interactive Studios")			  },
+	{ _T("61"), _T("Virgin Interactive")				  },
+	{ _T("62"), _T("Maxis")								  },
+	{ _T("64"), _T("LucasArts Entertainment")			  },
+	{ _T("67"), _T("Ocean")								  },
+	{ _T("69"), _T("Electronic Arts")					  },
+	{ _T("6E"), _T("Elite Systems Ltd.")				  },
+	{ _T("6F"), _T("Electro Brain")						  },
+	{ _T("6G"), _T("The Learning Company")				  },
+	{ _T("6H"), _T("BBC")								  },
+	{ _T("6J"), _T("Software 2000")						  },
+	{ _T("6L"), _T("BAM! Entertainment")				  },
+	{ _T("6M"), _T("Studio 3")							  },
+	{ _T("6Q"), _T("Classified Games")					  },
+	{ _T("6S"), _T("TDK Mediactive")					  },
+	{ _T("6U"), _T("DreamCatcher")						  },
+	{ _T("6V"), _T("JoWood Productions")				  },
+	{ _T("6W"), _T("SEGA")								  },
+	{ _T("6X"), _T("Wannado Edition")					  },
+	{ _T("6Y"), _T("LSP")								  },
+	{ _T("6Z"), _T("ITE Media")							  },
+	{ _T("70"), _T("Infogrames")						  },
+	{ _T("71"), _T("Interplay")							  },
+	{ _T("72"), _T("JVC Musical Industries Inc")		  },
+	{ _T("73"), _T("Parker Brothers")					  },
+	{ _T("75"), _T("SCI")								  },
+	{ _T("78"), _T("THQ")								  },
+	{ _T("79"), _T("Accolade")							  },
+	{ _T("7A"), _T("Triffix Ent. Inc.")					  },
+	{ _T("7C"), _T("Microprose Software")				  },
+	{ _T("7D"), _T("Universal Interactive Studios")		  },
+	{ _T("7F"), _T("Kemco")								  },
+	{ _T("7G"), _T("Rage Software")						  },
+	{ _T("7H"), _T("Encore")							  },
+	{ _T("7J"), _T("Zoo")								  },
+	{ _T("7K"), _T("BVM")								  },
+	{ _T("7L"), _T("Simon & Schuster Interactive")		  },
+	{ _T("7M"), _T("Asmik Ace Entertainment Inc./AIA")	  },
+	{ _T("7N"), _T("Empire Interactive")				  },
+	{ _T("7Q"), _T("Jester Interactive")				  },
+	{ _T("7T"), _T("Scholastic")						  },
+	{ _T("7U"), _T("Ignition Entertainment")			  },
+	{ _T("7W"), _T("Stadlbauer")						  },
+	{ _T("80"), _T("Misawa")							  },
+	{ _T("83"), _T("LOZC")								  },
+	{ _T("8B"), _T("Bulletproof Software")				  },
+	{ _T("8C"), _T("Vic Tokai Inc.")					  },
+	{ _T("8J"), _T("General Entertainment")				  },
+	{ _T("8N"), _T("Success")							  },
+	{ _T("8P"), _T("SEGA Japan")						  },
+	{ _T("91"), _T("Chun Soft")							  },
+	{ _T("92"), _T("Video System")						  },
+	{ _T("93"), _T("BEC")								  },
+	{ _T("96"), _T("Yonezawa/S'pal")					  },
+	{ _T("97"), _T("Kaneko")							  },
+	{ _T("99"), _T("Victor Interactive Software")		  },
+	{ _T("9A"), _T("Nichibutsu/Nihon Bussan")			  },
+	{ _T("9B"), _T("Tecmo")								  },
+	{ _T("9C"), _T("Imagineer")							  },
+	{ _T("9F"), _T("Nova")								  },
+	{ _T("9H"), _T("Bottom Up")							  },
+	{ _T("9L"), _T("Hasbro Japan")						  },
+	{ _T("9N"), _T("Marvelous Entertainment")			  },
+	{ _T("9P"), _T("Keynet Inc.")						  },
+	{ _T("9Q"), _T("Hands-On Entertainment")			  },
+	{ _T("A0"), _T("Telenet")							  },
+	{ _T("A1"), _T("Hori")								  },
+	{ _T("A4"), _T("Konami")							  },
+	{ _T("A6"), _T("Kawada")							  },
+	{ _T("A7"), _T("Takara")							  },
+	{ _T("A9"), _T("Technos Japan Corp.")				  },
+	{ _T("AA"), _T("JVC")								  },
+	{ _T("AC"), _T("Toei Animation")					  },
+	{ _T("AD"), _T("Toho")								  },
+	{ _T("AF"), _T("Namco")								  },
+	{ _T("AG"), _T("Media Rings Corporation")			  },
+	{ _T("AH"), _T("J-Wing")							  },
+	{ _T("AK"), _T("KID")								  },
+	{ _T("AL"), _T("MediaFactory")						  },
+	{ _T("AP"), _T("Infogrames Hudson")					  },
+	{ _T("AQ"), _T("Kiratto. Ludic Inc")				  },
+	{ _T("B0"), _T("Acclaim Japan")						  },
+	{ _T("B1"), _T("ASCII")								  },
+	{ _T("B2"), _T("Bandai")							  },
+	{ _T("B4"), _T("Enix")								  },
+	{ _T("B6"), _T("HAL Laboratory")					  },
+	{ _T("B7"), _T("SNK")								  },
+	{ _T("B9"), _T("Pony Canyon Hanbai")				  },
+	{ _T("BA"), _T("Culture Brain")						  },
+	{ _T("BB"), _T("Sunsoft")							  },
+	{ _T("BD"), _T("Sony Imagesoft")					  },
+	{ _T("BF"), _T("Sammy")								  },
+	{ _T("BG"), _T("Magical")							  },
+	{ _T("BJ"), _T("Compile")							  },
+	{ _T("BL"), _T("MTO Inc.")							  },
+	{ _T("BN"), _T("Sunrise Interactive")				  },
+	{ _T("BP"), _T("Global A Entertainment")			  },
+	{ _T("BQ"), _T("Fuuki")								  },
+	{ _T("C0"), _T("Taito")								  },
+	{ _T("C2"), _T("Kemco")								  },
+	{ _T("C3"), _T("Square Soft")						  },
+	{ _T("C5"), _T("Data East")							  },
+	{ _T("C6"), _T("Tonkin House")						  },
+	{ _T("C8"), _T("Koei")								  },
+	{ _T("CA"), _T("Konami/Palcom/Ultra")				  },
+	{ _T("CB"), _T("Vapinc/NTVIC")						  },
+	{ _T("CC"), _T("Use Co.,Ltd.")						  },
+	{ _T("CD"), _T("Meldac")							  },
+	{ _T("CE"), _T("FCI/Pony Canyon")					  },
+	{ _T("CF"), _T("Angel")								  },
+	{ _T("CM"), _T("Konami Computer Entertainment Osaka") },
+	{ _T("CP"), _T("Enterbrain")						  },
+	{ _T("D1"), _T("Sofel")								  },
+	{ _T("D2"), _T("Quest")								  },
+	{ _T("D3"), _T("Sigma Enterprises")					  },
+	{ _T("D4"), _T("Ask Kodansa")						  },
+	{ _T("D6"), _T("Naxat")								  },
+	{ _T("D7"), _T("Copya System")						  },
+	{ _T("D9"), _T("Banpresto")							  },
+	{ _T("DA"), _T("TOMY")								  },
+	{ _T("DB"), _T("LJN Japan")							  },
+	{ _T("DD"), _T("NCS")								  },
+	{ _T("DF"), _T("Altron Corporation")				  },
+	{ _T("DH"), _T("Gaps Inc.")							  },
+	{ _T("DN"), _T("ELF")								  },
+	{ _T("E2"), _T("Yutaka")							  },
+	{ _T("E3"), _T("Varie")								  },
+	{ _T("E5"), _T("Epoch")								  },
+	{ _T("E7"), _T("Athena")							  },
+	{ _T("E8"), _T("Asmik Ace Entertainment Inc.")		  },
+	{ _T("E9"), _T("Natsume")							  },
+	{ _T("EA"), _T("King Records")						  },
+	{ _T("EB"), _T("Atlus")								  },
+	{ _T("EC"), _T("Epic/Sony Records")					  },
+	{ _T("EE"), _T("IGS")								  },
+	{ _T("EL"), _T("Spike")								  },
+	{ _T("EM"), _T("Konami Computer Entertainment Tokyo") },
+	{ _T("EN"), _T("Alphadream Corporation")			  },
+	{ _T("F0"), _T("A Wave")							  },
+	{ _T("G1"), _T("PCCW")								  },
+	{ _T("G4"), _T("KiKi Co Ltd")						  },
+	{ _T("G5"), _T("Open Sesame Inc.")					  },
+	{ _T("G6"), _T("Sims")								  },
+	{ _T("G7"), _T("Broccoli")							  },
+	{ _T("G8"), _T("Avex")								  },
+	{ _T("G9"), _T("D3 Publisher")						  },
+	{ _T("GB"), _T("Konami Computer Entertainment Japan") },
+	{ _T("GD"), _T("Square-Enix")						  },
+	{ _T("HY"), _T("Sachen")							  },
 	{ NULL, NULL								  }
 };
+
+// The cartridge header holds byte fields, not strings in the machine's code
+// page: they are copied through the ANSI code page, which is how these bytes
+// have always been read.
+static void winRomInfoCopyHeader(TCHAR *out, int outSize, const u8 *bytes, int count)
+{
+	char text[64];
+
+	if (count > (int)sizeof(text) - 1)
+		count = (int)sizeof(text) - 1;
+
+	memcpy(text, bytes, (size_t)count);
+	text[count] = 0;
+
+	const CString wide = winWideFromAnsi(text);
+	lstrcpyn(out, wide, outSize);
+}
 
 static LPCTSTR winGBARomInfoFindMakerCode(LPCTSTR code)
 {
 	int i = 0;
 	while (winGBARomInfoCompanies[i].code)
 	{
-		if (!strcmp(winGBARomInfoCompanies[i].code, code))
+		if (!_tcscmp(winGBARomInfoCompanies[i].code, code))
 			return winGBARomInfoCompanies[i].name;
 		i++;
 	}
@@ -288,27 +305,25 @@ BOOL RomInfoGB::OnInitDialog()
 {
 	CDialog::OnInitDialog();
 
-	char buffer[128];
+	TCHAR buffer[128];
 
-	strncpy(buffer, (const char *)&rom[0x134], 15);
-	buffer[15] = 0;
+	winRomInfoCopyHeader(buffer, _countof(buffer), &rom[0x134], 15);
 	GetDlgItem(IDC_ROM_TITLE)->SetWindowText(buffer);
 
-	sprintf(buffer, "%02x", rom[0x143]);
+	_stprintf(buffer, _T("%02x"), rom[0x143]);
 	GetDlgItem(IDC_ROM_COLOR)->SetWindowText(buffer);
 
-	strncpy(buffer, (const char *)&rom[0x144], 2);
-	buffer[2] = 0;
+	winRomInfoCopyHeader(buffer, _countof(buffer), &rom[0x144], 2);
 	GetDlgItem(IDC_ROM_MAKER_CODE)->SetWindowText(buffer);
 
 	if (rom[0x14b] != 0x33)
 	{
-		sprintf(buffer, "%02X", rom[0x14b]);
+		_stprintf(buffer, _T("%02X"), rom[0x14b]);
 		GetDlgItem(IDC_ROM_MAKER_CODE)->SetWindowText(buffer);
 	}
 	GetDlgItem(IDC_ROM_MAKER_NAME2)->SetWindowText(winGBARomInfoFindMakerCode(buffer));
 
-	sprintf(buffer, "%02x", rom[0x146]);
+	_stprintf(buffer, _T("%02x"), rom[0x146]);
 	GetDlgItem(IDC_ROM_UNIT_CODE)->SetWindowText(buffer);
 
 	CString type = winResLoadString(IDS_UNKNOWN);
@@ -375,7 +390,7 @@ BOOL RomInfoGB::OnInitDialog()
 		type = "ROM+HuC-1";
 		break;
 	}
-	sprintf(buffer, "%02x (%s)", rom[0x147], (const char *)type);
+	_stprintf(buffer, _T("%02x (%s)"), rom[0x147], (LPCTSTR)type);
 	GetDlgItem(IDC_ROM_DEVICE_TYPE)->SetWindowText(buffer);
 
 	type = winResLoadString(IDS_UNKNOWN);
@@ -407,7 +422,7 @@ BOOL RomInfoGB::OnInitDialog()
 		break;
 	}
 
-	sprintf(buffer, "%02x (%s)", rom[0x148], (const char *)type);
+	_stprintf(buffer, _T("%02x (%s)"), rom[0x148], (LPCTSTR)type);
 	GetDlgItem(IDC_ROM_SIZE)->SetWindowText(buffer);
 
 	type = winResLoadString(IDS_UNKNOWN);
@@ -433,16 +448,16 @@ BOOL RomInfoGB::OnInitDialog()
 		break;
 	}
 
-	sprintf(buffer, "%02x (%s)", rom[0x149], (const char *)type);
+	_stprintf(buffer, _T("%02x (%s)"), rom[0x149], (LPCTSTR)type);
 	GetDlgItem(IDC_ROM_RAM_SIZE)->SetWindowText(buffer);
 
-	sprintf(buffer, "%02x", rom[0x14a]);
+	_stprintf(buffer, _T("%02x"), rom[0x14a]);
 	GetDlgItem(IDC_ROM_DEST_CODE)->SetWindowText(buffer);
 
-	sprintf(buffer, "%02x", rom[0x14b]);
+	_stprintf(buffer, _T("%02x"), rom[0x14b]);
 	GetDlgItem(IDC_ROM_LIC_CODE)->SetWindowText(buffer);
 
-	sprintf(buffer, "%02x", rom[0x14c]);
+	_stprintf(buffer, _T("%02x"), rom[0x14c]);
 	GetDlgItem(IDC_ROM_VERSION)->SetWindowText(buffer);
 
 	u8	crc8 = 25;
@@ -454,7 +469,7 @@ BOOL RomInfoGB::OnInitDialog()
 
 	crc8 = 256 - crc8;
 
-	sprintf(buffer, "%02x (%02x)", crc8, rom[0x14d]);
+	_stprintf(buffer, _T("%02x (%02x)"), crc8, rom[0x14d]);
 	GetDlgItem(IDC_ROM_CRC)->SetWindowText(buffer);
 
 	u16 crc16 = 0;
@@ -465,7 +480,7 @@ BOOL RomInfoGB::OnInitDialog()
 
 	crc16 -= rom[0x14e];
 	crc16 -= rom[0x14f];
-	sprintf(buffer, "%04x (%04x)", crc16, (rom[0x14e] << 8) | rom[0x14f]);
+	_stprintf(buffer, _T("%04x (%04x)"), crc16, (rom[0x14e] << 8) | rom[0x14f]);
 	GetDlgItem(IDC_ROM_CHECKSUM)->SetWindowText(buffer);
 
 	CenterWindow();
@@ -512,29 +527,26 @@ BOOL RomInfoGBA::OnInitDialog()
 {
 	CDialog::OnInitDialog();
 
-	char buffer[13];
+	TCHAR buffer[13];
 
-	strncpy(buffer, (const char *)&rom[0xa0], 12);
-	buffer[12] = 0;
+	winRomInfoCopyHeader(buffer, _countof(buffer), &rom[0xa0], 12);
 	GetDlgItem(IDC_ROM_TITLE)->SetWindowText(buffer);
 
-	strncpy(buffer, (const char *)&rom[0xac], 4);
-	buffer[4] = 0;
+	winRomInfoCopyHeader(buffer, _countof(buffer), &rom[0xac], 4);
 	GetDlgItem(IDC_ROM_GAME_CODE)->SetWindowText(buffer);
 
-	strncpy(buffer, (const char *)&rom[0xb0], 2);
-	buffer[2] = 0;
+	winRomInfoCopyHeader(buffer, _countof(buffer), &rom[0xb0], 2);
 	GetDlgItem(IDC_ROM_MAKER_CODE)->SetWindowText(buffer);
 
 	GetDlgItem(IDC_ROM_MAKER_NAME)->SetWindowText(winGBARomInfoFindMakerCode(buffer));
 
-	sprintf(buffer, "%02x", rom[0xb3]);
+	_stprintf(buffer, _T("%02x"), rom[0xb3]);
 	GetDlgItem(IDC_ROM_UNIT_CODE)->SetWindowText(buffer);
 
-	sprintf(buffer, "%02x", rom[0xb4]);
+	_stprintf(buffer, _T("%02x"), rom[0xb4]);
 	GetDlgItem(IDC_ROM_DEVICE_TYPE)->SetWindowText(buffer);
 
-	sprintf(buffer, "%02x", rom[0xbc]);
+	_stprintf(buffer, _T("%02x"), rom[0xbc]);
 	GetDlgItem(IDC_ROM_VERSION)->SetWindowText(buffer);
 
 	u8 crc = 0x19;
@@ -545,7 +557,7 @@ BOOL RomInfoGBA::OnInitDialog()
 
 	crc = (-crc) & 0xff;
 
-	sprintf(buffer, "%02x (%02x)", crc, rom[0xbd]);
+	_stprintf(buffer, _T("%02x (%02x)"), crc, rom[0xbd]);
 	GetDlgItem(IDC_ROM_CRC)->SetWindowText(buffer);
 	CenterWindow();
 

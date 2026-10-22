@@ -60,7 +60,6 @@
 
 extern int systemSpeed;
 extern int Init_2xSaI(u32);
-extern void winlog(const char *, ...);
 
 // ---------------------------------------------------------------------------
 // The webgpu entry points the renderer calls, resolved from wgpu_native.dll.
@@ -161,10 +160,10 @@ static bool loadWgpuLibrary()
 
 	wgpuProbed = true;
 
-	wgpuModule = LoadLibrary("wgpu_native.dll");
+	wgpuModule = LoadLibrary(_T("wgpu_native.dll"));
 	if (wgpuModule == NULL)
 	{
-		winlog("wgpu: wgpu_native.dll is not available\n");
+		winlog(_T("wgpu: wgpu_native.dll is not available\n"));
 		return false;
 	}
 
@@ -173,7 +172,7 @@ static bool loadWgpuLibrary()
 		FARPROC resolved = GetProcAddress(wgpuModule, g_wgpuFunctionNames[i]);
 		if (resolved == NULL)
 		{
-			winlog("wgpu: wgpu_native.dll does not carry %s - is it another wgpu-native build?\n",
+			winlog(_T("wgpu: wgpu_native.dll does not carry %hs - is it another wgpu-native build?\n"),
 			       g_wgpuFunctionNames[i]);
 			wgpuModule = NULL;
 			return false;
@@ -181,7 +180,7 @@ static bool loadWgpuLibrary()
 		memcpy(g_wgpuFunctionTargets[i], &resolved, sizeof(resolved));
 	}
 
-	winlog("wgpu: wgpu_native.dll, %d entry points\n", (int)WGPU_FUNCTION_COUNT);
+	winlog(_T("wgpu: wgpu_native.dll, %d entry points\n"), (int)WGPU_FUNCTION_COUNT);
 	return true;
 }
 
@@ -233,7 +232,7 @@ bool wgpuAvailable()
 static void uncapturedErrorCallback(WGPUDevice const * device, WGPUErrorType type,
                                     WGPUStringView message, void *, void *)
 {
-	winlog("wgpu: uncaptured error %d: %.*s\n", (int)type, (int)message.length, message.data);
+	winlog(_T("wgpu: uncaptured error %d: %.*hs\n"), (int)type, (int)message.length, message.data);
 }
 
 static bool createWgpuInstance()
@@ -249,7 +248,7 @@ static bool createWgpuInstance()
 
 	wgpuInstance = wgpuCreateInstance_fn(&descriptor);
 	if (wgpuInstance == NULL)
-		winlog("wgpu: the instance cannot be created\n");
+		winlog(_T("wgpu: the instance cannot be created\n"));
 
 	return wgpuInstance != NULL;
 }
@@ -263,7 +262,7 @@ static void adapterCallback(WGPURequestAdapterStatus status, WGPUAdapter adapter
 	adapterGotten = adapter;
 
 	if (status != WGPURequestAdapterStatus_Success)
-		winlog("wgpu: no adapter comes back, %.*s\n", (int)message.length, message.data);
+		winlog(_T("wgpu: no adapter comes back, %.*hs\n"), (int)message.length, message.data);
 
 	InterlockedExchange(&adapterAnswered, 1);
 }
@@ -285,7 +284,7 @@ static bool waitForCallback(volatile LONG *answered, const char *what)
 		Sleep(1);
 	}
 
-	winlog("wgpu: %s did not complete in 30 s, giving up\n", what);
+	winlog(_T("wgpu: %hs did not complete in 30 s, giving up\n"), what);
 	return false;
 }
 
@@ -417,9 +416,9 @@ static const char *wgpuAdapterTypeName(int type)
 // driver bug.
 static bool softwareAdapterAllowed()
 {
-	char value[8];
-	DWORD length = GetEnvironmentVariable("VBA_WGPU_ALLOW_SOFTWARE", value, sizeof(value));
-	return length > 0 && length < sizeof(value) && value[0] != 0 && value[0] != '0';
+	TCHAR value[8];
+	DWORD length = GetEnvironmentVariable(_T("VBA_WGPU_ALLOW_SOFTWARE"), value, ARRAYSIZE(value));
+	return length > 0 && length < ARRAYSIZE(value) && value[0] != 0 && value[0] != _T('0');
 }
 
 // The bytes of a string view the library owns, into a plain buffer.
@@ -478,7 +477,7 @@ static bool enumerateWgpuAdapters()
 		options.backends    = backends[i].flag;
 
 		size_t count = wgpuInstanceEnumerateAdapters_fn(wgpuInstance, &options, NULL);
-		winlog("wgpu: %s, %d adapter(s)\n", backends[i].name, (int)count);
+		winlog(_T("wgpu: %hs, %d adapter(s)\n"), backends[i].name, (int)count);
 
 		if (count == 0)
 			continue;
@@ -503,7 +502,7 @@ static bool enumerateWgpuAdapters()
 				if (software && softwareAdapterAllowed())
 					software = false;
 
-				winlog("wgpu:   %.*s (%.*s), %s, %s, vendor %04x device %04x%s\n",
+				winlog(_T("wgpu:   %.*hs (%.*hs), %hs, %hs, vendor %04x device %04x%hs\n"),
 				       (int)info.device.length, info.device.data,
 				       (int)info.description.length, info.description.data,
 				       wgpuBackendTypeName((int)info.backendType),
@@ -514,7 +513,7 @@ static bool enumerateWgpuAdapters()
 				if (!software && !usable)
 				{
 					usable = true;
-					lstrcpyn(usableName, name, sizeof(usableName));
+					lstrcpynA(usableName, name, sizeof(usableName));
 				}
 
 				if (!software)
@@ -523,7 +522,7 @@ static bool enumerateWgpuAdapters()
 				wgpuAdapterInfoFreeMembers_fn(info);
 			}
 			else
-				winlog("wgpu:   an adapter whose information cannot be read\n");
+				winlog(_T("wgpu:   an adapter whose information cannot be read\n"));
 
 			wgpuAdapterRelease_fn(adapters[a]);
 		}
@@ -532,9 +531,9 @@ static bool enumerateWgpuAdapters()
 	}
 
 	if (usable)
-		winlog("wgpu: %s can carry WebGPU\n", usableName);
+		winlog(_T("wgpu: %hs can carry WebGPU\n"), usableName);
 	else
-		winlog("wgpu: no adapter here can carry WebGPU, the render method is disabled\n");
+		winlog(_T("wgpu: no adapter here can carry WebGPU, the render method is disabled\n"));
 
 	return usable;
 }
@@ -760,17 +759,17 @@ static WGPUStringView resourceInWgpu(LPCSTR name)
 	view.data   = NULL;
 	view.length = 0;
 
-	HRSRC resource = FindResource(NULL, name, RT_RCDATA);
+	HRSRC resource = FindResource(NULL, winWideFromAnsi(name), RT_RCDATA);
 	if (resource == NULL)
 	{
-		winlog("wgpu: the shader resource %s is missing from the executable\n", name);
+		winlog(_T("wgpu: the shader resource %hs is missing from the executable\n"), name);
 		return view;
 	}
 
 	HGLOBAL handle = LoadResource(NULL, resource);
 	if (handle == NULL)
 	{
-		winlog("wgpu: cannot load %s\n", name);
+		winlog(_T("wgpu: cannot load %hs\n"), name);
 		return view;
 	}
 
@@ -1171,14 +1170,14 @@ void WgpuDisplay::makeFrameTexture(int w, int h)
 	frameTexture = wgpuDeviceCreateTexture_fn(device, &descriptor);
 	if (frameTexture == NULL)
 	{
-		winlog("wgpu: the %dx%d frame texture cannot be made\n", w, h);
+		winlog(_T("wgpu: the %dx%d frame texture cannot be made\n"), w, h);
 		return;
 	}
 
 	frameView = wgpuTextureCreateView_fn(frameTexture, NULL);
 	if (frameView == NULL)
 	{
-		winlog("wgpu: the frame texture view cannot be made\n");
+		winlog(_T("wgpu: the frame texture view cannot be made\n"));
 		releaseFrameTexture();
 		return;
 	}
@@ -1188,7 +1187,7 @@ void WgpuDisplay::makeFrameTexture(int w, int h)
 
 	if (frameGroupPoint == NULL || frameGroupLinear == NULL)
 	{
-		winlog("wgpu: the %dx%d frame bind groups cannot be made\n", w, h);
+		winlog(_T("wgpu: the %dx%d frame bind groups cannot be made\n"), w, h);
 		releaseFrameTexture();
 		return;
 	}
@@ -1217,7 +1216,7 @@ void WgpuDisplay::makeFrameTexture(int w, int h)
 	width  = w;
 	height = h;
 
-	winlog("wgpu: frame texture %dx%d, %s format\n", w, h,
+	winlog(_T("wgpu: frame texture %dx%d, %hs format\n"), w, h,
 	       frameBgr565 ? "RGBA8 widened from 565" : "BGRA8 as the core laid it out");
 }
 
@@ -1256,7 +1255,7 @@ void WgpuDisplay::makeOverlayTexture(int w, int h)
 
 	overlay.create(w, h);
 
-	winlog("wgpu: on screen display %dx%d%s\n", w, h, overlayGroup != NULL ? "" : ", no view");
+	winlog(_T("wgpu: on screen display %dx%d%hs\n"), w, h, overlayGroup != NULL ? "" : ", no view");
 
 	stagingOverlayRowBytes = ((w * 4) + 255) & ~255;
 	if (overlayGroup != NULL)
@@ -1267,7 +1266,7 @@ bool WgpuDisplay::createSurface()
 {
 	if (!createWgpuInstance())
 	{
-		winlog("wgpu: the library or the instance is not available\n");
+		winlog(_T("wgpu: the library or the instance is not available\n"));
 		return false;
 	}
 
@@ -1283,7 +1282,7 @@ bool WgpuDisplay::createSurface()
 	surface = wgpuInstanceCreateSurface_fn(wgpuInstance, &descriptor);
 	if (surface == NULL)
 	{
-		winlog("wgpu: the window surface cannot be made\n");
+		winlog(_T("wgpu: the window surface cannot be made\n"));
 		return false;
 	}
 
@@ -1298,18 +1297,18 @@ void WgpuDisplay::nameBackend()
 	WGPUStatus status = wgpuAdapterGetInfo_fn(adapter, &info);
 	if (status != WGPUStatus_Success)
 	{
-		winlog("wgpu: the adapter information cannot be read\n");
+		winlog(_T("wgpu: the adapter information cannot be read\n"));
 		return;
 	}
 
 	const char *model = wgpuBackendTypeName((int)info.backendType);
 
-	lstrcpyn(backendModel, model != NULL ? model : "?", sizeof(backendModel));
+	lstrcpynA(backendModel, model != NULL ? model : "?", sizeof(backendModel));
 
 	adapterType = info.adapterType;
 	copyView(adapterName, sizeof(adapterName), info.device);
 
-	winlog("wgpu: adapter %.*s (%.*s) backend %s, %s, vendor %.*s device %x\n",
+	winlog(_T("wgpu: adapter %.*hs (%.*hs) backend %hs, %hs, vendor %.*hs device %x\n"),
 	       (int)info.description.length, info.description.data,
 	       (int)info.device.length, info.device.data,
 	       backendModel,
@@ -1354,7 +1353,7 @@ bool WgpuDisplay::readSurfaceCapabilities()
 	WGPUStatus status = wgpuSurfaceGetCapabilities_fn(surface, adapter, &capabilities);
 	if (status != WGPUStatus_Success || capabilities.formatCount == 0)
 	{
-		winlog("wgpu: the surface capabilities cannot be read\n");
+		winlog(_T("wgpu: the surface capabilities cannot be read\n"));
 		wgpuSurfaceCapabilitiesFreeMembers_fn(capabilities);
 		return false;
 	}
@@ -1384,19 +1383,19 @@ bool WgpuDisplay::readSurfaceCapabilities()
 			presentModeSupported[index] = true;
 	}
 
-	CString names;
+	CStringA names;
 	for (int index = 0; index < (int)(sizeof(presentModeSupported) / sizeof(presentModeSupported[0])); index++)
 	{
 		if (!presentModeSupported[index])
 			continue;
 
 		static const char *modeNames[] = { "-", "Fifo", "Fifo relaxed", "Immediate", "Mailbox" };
-		CString modeText;
+		CStringA modeText;
 		modeText.Format("%s%s", names.GetLength() > 0 ? ", " : "", modeNames[index]);
 		names += modeText;
 	}
 
-	winlog("wgpu: surface format %s (%d), present modes %s%s\n",
+	winlog(_T("wgpu: surface format %hs (%d), present modes %hs%hs\n"),
 	       surfaceFormatName(surfaceFormat), (int)surfaceFormat, (const char *)names,
 	       surfaceFormatEncodes(surfaceFormat) ? " - this one encodes the frame twice" : "");
 
@@ -1446,7 +1445,7 @@ bool WgpuDisplay::setPresentMode(bool withVsync)
 
 	presentMode = wanted;
 
-	winlog("wgpu: present mode %s\n",
+	winlog(_T("wgpu: present mode %hs\n"),
 	       wanted == WGPUPresentMode_Fifo ? "Fifo (waiting on the vblank)" :
 	       wanted == WGPUPresentMode_Mailbox ? "Mailbox (no wait on the vblank)" :
 	       wanted == WGPUPresentMode_Immediate ? "Immediate (no wait on the vblank)" :
@@ -1478,7 +1477,7 @@ bool WgpuDisplay::createDevice()
 	// backend the adapter really came from, the menu names it too.
 	if (adapter == NULL && wanted != WGPUBackendType_Undefined)
 	{
-		winlog("wgpu: no adapter on backend %s, the request is made without one\n",
+		winlog(_T("wgpu: no adapter on backend %hs, the request is made without one\n"),
 		       wgpuBackendTypeName((int)wanted));
 
 		options.backendType = WGPUBackendType_Undefined;
@@ -1487,7 +1486,7 @@ bool WgpuDisplay::createDevice()
 
 	if (adapter == NULL)
 	{
-		winlog("wgpu: no adapter for this window\n");
+		winlog(_T("wgpu: no adapter for this window\n"));
 		return false;
 	}
 
@@ -1501,7 +1500,7 @@ bool WgpuDisplay::createDevice()
 	if (!softwareAdapterAllowed() &&
 	    adapterIsSoftware(adapterType))
 	{
-		winlog("wgpu: %s is a software adapter, WebGPU is not started on it\n", adapterName);
+		winlog(_T("wgpu: %hs is a software adapter, WebGPU is not started on it\n"), adapterName);
 		refused = true;
 		wgpuAdapterRelease_fn(adapter);
 		adapter = NULL;
@@ -1511,14 +1510,14 @@ bool WgpuDisplay::createDevice()
 	device = requestDevice(adapter);
 	if (device == NULL)
 	{
-		winlog("wgpu: no device comes back%s%s\n", deviceError[0] != 0 ? ": " : "", deviceError);
+		winlog(_T("wgpu: no device comes back%hs%hs\n"), deviceError[0] != 0 ? ": " : "", deviceError);
 		return false;
 	}
 
 	queue = wgpuDeviceGetQueue_fn(device);
 	if (queue == NULL)
 	{
-		winlog("wgpu: no queue comes back\n");
+		winlog(_T("wgpu: no queue comes back\n"));
 		return false;
 	}
 
@@ -1539,7 +1538,7 @@ bool WgpuDisplay::createPipeline()
 	shader = wgpuDeviceCreateShaderModule_fn(device, &shaderDescriptor);
 	if (shader == NULL)
 	{
-		winlog("wgpu: the shader module cannot be made\n");
+		winlog(_T("wgpu: the shader module cannot be made\n"));
 		return false;
 	}
 
@@ -1566,7 +1565,7 @@ bool WgpuDisplay::createPipeline()
 	bindGroupLayout = wgpuDeviceCreateBindGroupLayout_fn(device, &layoutDescriptor);
 	if (bindGroupLayout == NULL)
 	{
-		winlog("wgpu: the bind group layout cannot be made\n");
+		winlog(_T("wgpu: the bind group layout cannot be made\n"));
 		return false;
 	}
 
@@ -1579,7 +1578,7 @@ bool WgpuDisplay::createPipeline()
 	pipelineLayout = wgpuDeviceCreatePipelineLayout_fn(device, &layoutFull);
 	if (pipelineLayout == NULL)
 	{
-		winlog("wgpu: the pipeline layout cannot be made\n");
+		winlog(_T("wgpu: the pipeline layout cannot be made\n"));
 		return false;
 	}
 
@@ -1635,7 +1634,7 @@ bool WgpuDisplay::createPipeline()
 	upscalerGroupLayout = wgpuDeviceCreateBindGroupLayout_fn(device, &upscalerLayoutDescriptor);
 	if (upscalerGroupLayout == NULL)
 	{
-		winlog("wgpu: the upscaler layout cannot be made\n");
+		winlog(_T("wgpu: the upscaler layout cannot be made\n"));
 		return false;
 	}
 
@@ -1648,7 +1647,7 @@ bool WgpuDisplay::createPipeline()
 	upscalerPipelineLayout = wgpuDeviceCreatePipelineLayout_fn(device, &upscalerFull);
 	if (upscalerPipelineLayout == NULL)
 	{
-		winlog("wgpu: the upscaler pipeline layout cannot be made\n");
+		winlog(_T("wgpu: the upscaler pipeline layout cannot be made\n"));
 		return false;
 	}
 
@@ -1737,7 +1736,7 @@ bool WgpuDisplay::createPipeline()
 
 	if (framePipeline == NULL || overlayPipeline == NULL)
 	{
-		winlog("wgpu: the frame%s pipeline cannot be made\n",
+		winlog(_T("wgpu: the frame%hs pipeline cannot be made\n"),
 		       framePipeline == NULL && overlayPipeline == NULL ? " and the overlay" :
 		       framePipeline == NULL ? "" : " or the overlay");
 		return false;
@@ -1761,7 +1760,7 @@ bool WgpuDisplay::createPipeline()
 
 	if (samplerPoint == NULL || samplerLinear == NULL)
 	{
-		winlog("wgpu: the samplers cannot be made\n");
+		winlog(_T("wgpu: the samplers cannot be made\n"));
 		return false;
 	}
 
@@ -1775,7 +1774,7 @@ bool WgpuDisplay::createPipeline()
 	vertexBuffer = wgpuDeviceCreateBuffer_fn(device, &bufferDescriptor);
 	if (vertexBuffer == NULL)
 	{
-		winlog("wgpu: the vertex buffer cannot be made\n");
+		winlog(_T("wgpu: the vertex buffer cannot be made\n"));
 		return false;
 	}
 
@@ -1801,7 +1800,7 @@ bool WgpuDisplay::initialize()
 	// without a message box.
 	if (!wgpuAvailable())
 	{
-		winlog("wgpu: the renderer cannot run here, it is not started\n");
+		winlog(_T("wgpu: the renderer cannot run here, it is not started\n"));
 		refused = true;
 		return false;
 	}
@@ -1810,7 +1809,7 @@ bool WgpuDisplay::initialize()
 
 	if (pWnd == NULL || pWnd->GetSafeHwnd() == NULL)
 	{
-		winlog("wgpu: no main window to draw into\n");
+		winlog(_T("wgpu: no main window to draw into\n"));
 		return false;
 	}
 
@@ -1885,7 +1884,7 @@ bool WgpuDisplay::initialize()
 	if (backWidth > 0 && backHeight > 0)
 		makeOverlayTexture(backWidth, backHeight);
 
-	filterMode = regQueryDwordValue("wgpuFilter", 0);
+	filterMode = regQueryDwordValue(_T("wgpuFilter"), 0);
 	if (filterMode < 0 || filterMode > 1)
 		filterMode = 0;
 
@@ -1988,11 +1987,11 @@ void WgpuDisplay::setOption(const char *option, int value)
 
 		if (value != UPSCALER_OFF && wgpuUpscalerIndex(value) < 0)
 		{
-			winlog("wgpu: upscaler %d has no WGSL port, Off is in effect\n", value);
+			winlog(_T("wgpu: upscaler %d has no WGSL port, Off is in effect\n"), value);
 			systemScreenMessage("The wgpu renderer does not run that upscaler yet");
 		}
 		else
-			winlog("wgpu: upscaler %d picked, the chain is built with the next frame\n", value);
+			winlog(_T("wgpu: upscaler %d picked, the chain is built with the next frame\n"), value);
 	}
 }
 
@@ -2361,14 +2360,14 @@ bool WgpuDisplay::prepareUpscaler()
 
 		if (!built)
 		{
-			winlog("wgpu: the %s upscaler is not available on this device\n", source.name);
+			winlog(_T("wgpu: the %hs upscaler is not available on this device\n"), source.name);
 			releaseUpscaler();
 			upscalerValue  = source.value;
 			upscalerFailed = true;
 			return false;
 		}
 
-		winlog("wgpu: the %s upscaler is ready, %d pass(es)\n", source.name, source.passCount);
+		winlog(_T("wgpu: the %hs upscaler is ready, %d pass(es)\n"), source.name, source.passCount);
 	}
 
 	if (upscalerFailed)
@@ -2457,7 +2456,7 @@ bool WgpuDisplay::prepareUpscaler()
 
 			if (state.view == NULL || state.constants == NULL)
 			{
-				winlog("wgpu: %s pass %d cannot be made\n", source.name, pass + 1);
+				winlog(_T("wgpu: %hs pass %d cannot be made\n"), source.name, pass + 1);
 				releaseUpscalerTargets();
 				return false;
 			}
@@ -2517,7 +2516,7 @@ bool WgpuDisplay::prepareUpscaler()
 
 			if (state.group == NULL)
 			{
-				winlog("wgpu: %s pass %d has no bind group\n", source.name, pass + 1);
+				winlog(_T("wgpu: %hs pass %d has no bind group\n"), source.name, pass + 1);
 				releaseUpscalerTargets();
 				return false;
 			}
@@ -2542,7 +2541,7 @@ bool WgpuDisplay::prepareUpscaler()
 			return false;
 		}
 
-		winlog("wgpu: %s: %dx%d frame over %dx%d, pass(es) at %dx%d\n",
+		winlog(_T("wgpu: %hs: %dx%d frame over %dx%d, pass(es) at %dx%d\n"),
 		       source.name, width, height, backWidth, backHeight, targetWidth, targetHeight);
 	}
 
@@ -2574,7 +2573,7 @@ bool WgpuDisplay::drawAndPresent(bool clearOnly)
 		static int lastStatus = -1;
 		if (lastStatus != (int)surfaceTexture.status)
 		{
-			winlog("wgpu: the surface gave no texture back (%d)\n", (int)surfaceTexture.status);
+			winlog(_T("wgpu: the surface gave no texture back (%d)\n"), (int)surfaceTexture.status);
 			lastStatus = (int)surfaceTexture.status;
 		}
 		return false;
@@ -2583,7 +2582,7 @@ bool WgpuDisplay::drawAndPresent(bool clearOnly)
 	WGPUTextureView backBuffer = wgpuTextureCreateView_fn(surfaceTexture.texture, NULL);
 	if (backBuffer == NULL)
 	{
-		winlog("wgpu: the back buffer view cannot be made\n");
+		winlog(_T("wgpu: the back buffer view cannot be made\n"));
 		wgpuTextureRelease_fn(surfaceTexture.texture);
 		return false;
 	}
@@ -2613,7 +2612,7 @@ bool WgpuDisplay::drawAndPresent(bool clearOnly)
 	WGPUCommandEncoder encoder = wgpuDeviceCreateCommandEncoder_fn(device, NULL);
 	if (encoder == NULL)
 	{
-		winlog("wgpu: the command encoder cannot be made\n");
+		winlog(_T("wgpu: the command encoder cannot be made\n"));
 		wgpuTextureViewRelease_fn(backBuffer);
 		wgpuTextureRelease_fn(surfaceTexture.texture);
 		return false;
@@ -2659,7 +2658,7 @@ bool WgpuDisplay::drawAndPresent(bool clearOnly)
 		pass = wgpuCommandEncoderBeginRenderPass_fn(encoder, &passDescriptor);
 		if (pass == NULL)
 		{
-			winlog("wgpu: the render pass cannot be opened\n");
+			winlog(_T("wgpu: the render pass cannot be opened\n"));
 			wgpuCommandEncoderRelease_fn(encoder);
 			wgpuTextureViewRelease_fn(backBuffer);
 			wgpuTextureRelease_fn(surfaceTexture.texture);
@@ -2717,7 +2716,7 @@ bool WgpuDisplay::drawAndPresent(bool clearOnly)
 			if (traced != state)
 			{
 				static const char *const names[] = { "no target", "nothing visible", "visible" };
-				winlog("wgpu: on screen display %s\n", names[state]);
+				winlog(_T("wgpu: on screen display %hs\n"), names[state]);
 				traced = state;
 			}
 
@@ -2748,7 +2747,7 @@ bool WgpuDisplay::drawAndPresent(bool clearOnly)
 
 	if (commands == NULL)
 	{
-		winlog("wgpu: the command buffer cannot be finished\n");
+		winlog(_T("wgpu: the command buffer cannot be finished\n"));
 		wgpuTextureViewRelease_fn(backBuffer);
 		wgpuTextureRelease_fn(surfaceTexture.texture);
 		return false;
@@ -2765,7 +2764,7 @@ bool WgpuDisplay::drawAndPresent(bool clearOnly)
 		static bool logged = false;
 		if (!logged)
 		{
-			winlog("wgpu: the present failed\n");
+			winlog(_T("wgpu: the present failed\n"));
 			logged = true;
 		}
 	}

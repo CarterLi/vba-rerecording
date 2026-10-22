@@ -49,6 +49,7 @@ typedef INT_PTR intptr_t;
 #include "../../common/SystemGlobals.h"
 #include "../../common/vbalua.h"
 #include "../Reg.h"
+#include "../WinResUtil.h"
 
 static inline u8 *HardwareToSoftwareAddress(HWAddressType address)
 {
@@ -107,8 +108,11 @@ static int			s_prevSelCount = -1;
 
 HWND RamSearchHWnd;
 #define hWnd AfxGetMainWnd()->GetSafeHwnd()
-#define hInst AfxGetInstanceHandle()
-static char Str_Tmp [1024];
+// The dialog templates and the column names live in whichever module holds the
+// resources, so the two RAM windows follow the UI language like the rest of the
+// program does.  With no language module loaded this is the executable.
+#define hInst AfxGetResourceHandle()
+static TCHAR Str_Tmp[1024];
 
 int disableRamSearchUpdate = false;
 
@@ -899,10 +903,10 @@ int ReadControlInt(int controlID, bool forceHex, BOOL &success)
 		{
 			for (int i = 0; Str_Tmp[i]; i++)
 			{
-				if (toupper(Str_Tmp[i]) == 'O')
-					Str_Tmp[i] = '0';
+				if (_totupper(Str_Tmp[i]) == _T('O'))
+					Str_Tmp[i] = _T('0');
 			}
-			const char *strPtr = Str_Tmp;
+			const TCHAR *strPtr = Str_Tmp;
 			bool		negate = false;
 			while (strPtr[0] == '-')
 				strPtr++, negate = !negate;
@@ -914,7 +918,7 @@ int ReadControlInt(int controlID, bool forceHex, BOOL &success)
 				strPtr++, forceHex = true;
 			if (!forceHex)
 			{
-				const char *strSearchPtr = strPtr;
+				const TCHAR *strSearchPtr = strPtr;
 				while (*strSearchPtr)
 				{
 					int c = tolower(*strSearchPtr++);
@@ -922,8 +926,8 @@ int ReadControlInt(int controlID, bool forceHex, BOOL &success)
 						forceHex = true;
 				}
 			}
-			const char *formatString = forceHex ? "%X" : ((rs_t == 's') ? "%d" : "%u");
-			if (sscanf(strPtr, formatString, &rv) > 0)
+			const TCHAR *formatString = forceHex ? _T("%X") : ((rs_t == 's') ? _T("%d") : _T("%u"));
+			if (_stscanf(strPtr, formatString, &rv) > 0)
 				ok = true;
 			if (negate)
 				rv = -rv;
@@ -1380,10 +1384,10 @@ void Signal_RAM_Search_New_Frame()
 				systemSoundClearBuffer();
 				int answer = MessageBox(
 					RamSearchHWnd,
-					"Choosing Retry will reset the search once and continue autosearching.\n"
+					_T("Choosing Retry will reset the search once and continue autosearching.\n"
 					"Choose Ignore will reset the search whenever necessary and continue autosearching.\n"
-					"Choosing Abort will reset the search once and stop autosearching.",
-					"Autosearch - out of results.",
+					"Choosing Abort will reset the search once and stop autosearching."),
+					_T("Autosearch - out of results."),
 					MB_ABORTRETRYIGNORE | MB_DEFBUTTON2 | MB_ICONINFORMATION);
 				if (answer == IDABORT)
 				{
@@ -1492,7 +1496,7 @@ LRESULT CALLBACK RamSearchProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 	{
 		RamSearchHWnd = hDlg;
 
-		SetWindowPos(hDlg, NULL, regQueryDwordValue("ramSearchX", 0), regQueryDwordValue("ramSearchY",
+		SetWindowPos(hDlg, NULL, regQueryDwordValue(_T("ramSearchX"), 0), regQueryDwordValue(_T("ramSearchY"),
 		                                                                                 0), NULL, NULL, SWP_NOSIZE | SWP_NOZORDER | SWP_SHOWWINDOW);
 		switch (rs_o)
 		{
@@ -1569,9 +1573,10 @@ LRESULT CALLBACK RamSearchProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 		s_prevValuesNeedUpdate = true;
 
 		SendDlgItemMessage(hDlg, IDC_C_AUTOSEARCH, BM_SETCHECK, AutoSearch ? BST_CHECKED : BST_UNCHECKED, 0);
-		//const char* names[5] = {"Address","Value","Previous","Changes","Notes"};
-		//int widths[5] = {62,64,64,55,55};
-		const char *names[]	  = { "Address", "Value", "Previous", "Changes" };
+		// the column captions come from the string table, so they follow the
+		// language module like everything else the window shows
+		const CString names[] = { winResLoadString(IDS_ADDRESS), winResLoadString(IDS_VALUE),
+		                          winResLoadString(IDS_PREVIOUS), winResLoadString(IDS_CHANGES) };
 		if (!ResultCount)
 			reset_address_info();
 		else
@@ -1579,7 +1584,7 @@ LRESULT CALLBACK RamSearchProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 			signal_new_frame();
 			CompactAddrs();
 		}
-		void init_list_box(HWND Box, const char *Strs[], int numColumns);
+		void init_list_box(HWND Box, const CString Strs[], int numColumns);
 		init_list_box(GetDlgItem(hDlg, IDC_RAMLIST), names, 4);
 		//ListView_SetItemCount(GetDlgItem(hDlg,IDC_RAMLIST),ResultCount);
 		if (!noMisalign) SendDlgItemMessage(hDlg, IDC_MISALIGN, BM_SETCHECK, BST_CHECKED, 0);
@@ -1631,51 +1636,51 @@ LRESULT CALLBACK RamSearchProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 			Item->item.state  = 0;
 			Item->item.iImage = 0;
 			const unsigned int iNum = Item->item.iItem;
-			static char		   num[11];
+			static TCHAR	   num[11];
 			switch (Item->item.iSubItem)
 			{
 			case 0:
 			{
 				int addr = CALL_WITH_T_SIZE_TYPES_1(GetHardwareAddressFromItemIndex, rs_type_size, rs_t == 's', noMisalign, iNum);
-				sprintf(num, "%08X", addr);
+				_stprintf(num, _T("%08X"), addr);
 				Item->item.pszText = num;
 			}   return true;
 			case 1:
 			{
 				int i = CALL_WITH_T_SIZE_TYPES_1(GetCurValueFromItemIndex, rs_type_size, rs_t == 's', noMisalign, iNum);
-				const char *formatString = ((rs_t == 's') ? "%d" : (rs_t == 'u') ? "%u" : (rs_type_size == 'd' ? "%08X" : rs_type_size == 'w' ? "%04X" : "%02X"));
+				const TCHAR *formatString = ((rs_t == 's') ? _T("%d") : (rs_t == 'u') ? _T("%u") : (rs_type_size == 'd' ? _T("%08X") : rs_type_size == 'w' ? _T("%04X") : _T("%02X")));
 				switch (rs_type_size)
 				{
 				case 'b':
 				default:
-					sprintf(num, formatString, rs_t == 's' ? (char)(i & 0xff) : (unsigned char)(i & 0xff)); break;
+					_stprintf(num, formatString, rs_t == 's' ? (char)(i & 0xff) : (unsigned char)(i & 0xff)); break;
 				case 'w':
-					sprintf(num, formatString, rs_t == 's' ? (short)(i & 0xffff) : (unsigned short)(i & 0xffff)); break;
+					_stprintf(num, formatString, rs_t == 's' ? (short)(i & 0xffff) : (unsigned short)(i & 0xffff)); break;
 				case 'd':
-					sprintf(num, formatString, rs_t == 's' ? (long)(i & 0xffffffff) : (unsigned long)(i & 0xffffffff)); break;
+					_stprintf(num, formatString, rs_t == 's' ? (long)(i & 0xffffffff) : (unsigned long)(i & 0xffffffff)); break;
 				}
 				Item->item.pszText = num;
 			}   return true;
 			case 2:
 			{
 				int i = CALL_WITH_T_SIZE_TYPES_1(GetPrevValueFromItemIndex, rs_type_size, rs_t == 's', noMisalign, iNum);
-				const char *formatString = ((rs_t == 's') ? "%d" : (rs_t == 'u') ? "%u" : (rs_type_size == 'd' ? "%08X" : rs_type_size == 'w' ? "%04X" : "%02X"));
+				const TCHAR *formatString = ((rs_t == 's') ? _T("%d") : (rs_t == 'u') ? _T("%u") : (rs_type_size == 'd' ? _T("%08X") : rs_type_size == 'w' ? _T("%04X") : _T("%02X")));
 				switch (rs_type_size)
 				{
 				case 'b':
 				default:
-					sprintf(num, formatString, rs_t == 's' ? (char)(i & 0xff) : (unsigned char)(i & 0xff)); break;
+					_stprintf(num, formatString, rs_t == 's' ? (char)(i & 0xff) : (unsigned char)(i & 0xff)); break;
 				case 'w':
-					sprintf(num, formatString, rs_t == 's' ? (short)(i & 0xffff) : (unsigned short)(i & 0xffff)); break;
+					_stprintf(num, formatString, rs_t == 's' ? (short)(i & 0xffff) : (unsigned short)(i & 0xffff)); break;
 				case 'd':
-					sprintf(num, formatString, rs_t == 's' ? (long)(i & 0xffffffff) : (unsigned long)(i & 0xffffffff)); break;
+					_stprintf(num, formatString, rs_t == 's' ? (long)(i & 0xffffffff) : (unsigned long)(i & 0xffffffff)); break;
 				}
 				Item->item.pszText = num;
 			}   return true;
 			case 3:
 			{
 				int i = CALL_WITH_T_SIZE_TYPES_1(GetNumChangesFromItemIndex, rs_type_size, rs_t == 's', noMisalign, iNum);
-				sprintf(num, "%d", i);
+				_stprintf(num, _T("%d"), i);
 
 				Item->item.pszText = num;
 			}   return true;
@@ -1935,14 +1940,14 @@ LRESULT CALLBACK RamSearchProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 
 			if (!ResultCount)
 			{
-				MessageBox(RamSearchHWnd, "Resetting search.", "Out of results.", MB_OK | MB_ICONINFORMATION);
+				MessageBox(RamSearchHWnd, _T("Resetting search."), _T("Out of results."), MB_OK | MB_ICONINFORMATION);
 				soft_reset_address_info();
 			}
 
 			{ rv = true; break; }
 
 invalid_field:
-			MessageBox(RamSearchHWnd, "Invalid or out-of-bound entered value.", "Error", MB_OK | MB_ICONSTOP);
+			MessageBox(RamSearchHWnd, _T("Invalid or out-of-bound entered value."), _T("Error"), MB_OK | MB_ICONSTOP);
 			if (AutoSearch)        // stop autosearch if it just started
 			{
 				SendDlgItemMessage(hDlg, IDC_C_AUTOSEARCH, BM_SETCHECK, BST_UNCHECKED, 0);
@@ -2094,8 +2099,8 @@ invalid_field:
 	case WM_CLOSE:
 		RECT r;
 		GetWindowRect(hDlg, &r);
-		regSetDwordValue("ramSearchX", r.left);
-		regSetDwordValue("ramSearchY", r.top);
+		regSetDwordValue(_T("ramSearchX"), r.left);
+		regSetDwordValue(_T("ramSearchY"), r.top);
 		SendMessage(RamSearchHWnd, WM_DESTROY, 0, 0);
 		break;
 	case WM_DESTROY:
@@ -2110,18 +2115,18 @@ invalid_field:
 
 void UpdateRamSearchTitleBar(int percent)
 {
-#define HEADER_STR " RAM Search - "
-#define PROGRESS_STR " %d%% ... "
-#define STATUS_STR "%d Possibilit%s (%d Region%s)"
+#define HEADER_STR _T(" RAM Search - ")
+#define PROGRESS_STR _T(" %d%% ... ")
+#define STATUS_STR _T("%d Possibilit%s (%d Region%s)")
 
 	int poss	= last_rs_possible;
 	int regions = last_rs_regions;
 	if (poss <= 0)
-		strcpy(Str_Tmp, " RAM Search");
+		_tcscpy(Str_Tmp, _T(" RAM Search"));
 	else if (percent <= 0)
-		sprintf(Str_Tmp, HEADER_STR STATUS_STR, poss, poss == 1 ? "y" : "ies", regions, regions == 1 ? "" : "s");
+		_stprintf(Str_Tmp, HEADER_STR STATUS_STR, poss, poss == 1 ? _T("y") : _T("ies"), regions, regions == 1 ? _T("") : _T("s"));
 	else
-		sprintf(Str_Tmp, PROGRESS_STR STATUS_STR, percent, poss, poss == 1 ? "y" : "ies", regions, regions == 1 ? "" : "s");
+		_stprintf(Str_Tmp, PROGRESS_STR STATUS_STR, percent, poss, poss == 1 ? _T("y") : _T("ies"), regions, regions == 1 ? _T("") : _T("s"));
 	SetWindowText(RamSearchHWnd, Str_Tmp);
 }
 
@@ -2176,7 +2181,7 @@ struct InitRamSearch
 	}
 } initRamSearch;
 
-void init_list_box(HWND Box, const char *Strs[], int numColumns) //initializes the ram search and/or ram
+void init_list_box(HWND Box, const CString Strs[], int numColumns) //initializes the ram search and/or ram
                                                                 // watch listbox
 {
 	// the columns share the width of the list view, with the remainder going to
@@ -2204,7 +2209,7 @@ void init_list_box(HWND Box, const char *Strs[], int numColumns) //initializes t
 	{
 		Col.iOrder	 = i;
 		Col.iSubItem = i;
-		Col.pszText	 = (LPSTR)(Strs[i]);
+		Col.pszText	 = const_cast<LPTSTR>((LPCTSTR)Strs[i]);
 		// the remainder goes to the last column, so the row ends at the edge
 		Col.cx		 = (i == numColumns - 1) ? width - each * (numColumns - 1) : each;
 		ListView_InsertColumn(Box, i, &Col);

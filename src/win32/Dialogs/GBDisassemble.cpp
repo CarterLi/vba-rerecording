@@ -90,7 +90,7 @@ void GBDisassemble::OnGo()
 {
 	CString buffer;
 	m_address.GetWindowText(buffer);
-	sscanf(buffer, "%hx", &address);
+	_stscanf(buffer, _T("%hx"), &address);
 	refresh();
 }
 
@@ -130,7 +130,7 @@ BOOL GBDisassemble::OnInitDialog()
 	SetData(sz,
 	        TRUE,
 	        HKEY_CURRENT_USER,
-	        "Software\\Emulators\\VisualBoyAdvance\\Viewer\\GBDisassembleView",
+	        _T("Software\\Emulators\\VisualBoyAdvance\\Viewer\\GBDisassembleView"),
 	        NULL);
 
 	SCROLLINFO si;
@@ -194,6 +194,7 @@ void GBDisassemble::refresh()
 		return;
 
 	char buffer[80];
+	TCHAR text[80];
 	u16  addr = address;
 	int  i;
 	int  sel = -1;
@@ -202,26 +203,26 @@ void GBDisassemble::refresh()
 		if (addr == PC.W)
 			sel = i;
 		addr += gbDis(buffer, addr);
-		m_list.InsertString(-1, buffer);
+		m_list.InsertString(-1, winWideFromAnsi(buffer));
 	}
 	lastAddress = addr-1;
 	if (sel != -1)
 		m_list.SetCurSel(sel);
 
-	sprintf(buffer, "%04x", AF.W);
-	GetDlgItem(IDC_R0)->SetWindowText(buffer);
-	sprintf(buffer, "%04x", BC.W);
-	GetDlgItem(IDC_R1)->SetWindowText(buffer);
-	sprintf(buffer, "%04x", DE.W);
-	GetDlgItem(IDC_R2)->SetWindowText(buffer);
-	sprintf(buffer, "%04x", HL.W);
-	GetDlgItem(IDC_R3)->SetWindowText(buffer);
-	sprintf(buffer, "%04x", SP.W);
-	GetDlgItem(IDC_R4)->SetWindowText(buffer);
-	sprintf(buffer, "%04x", PC.W);
-	GetDlgItem(IDC_R5)->SetWindowText(buffer);
-	sprintf(buffer, "%04x", IFF);
-	GetDlgItem(IDC_R6)->SetWindowText(buffer);
+	_stprintf(text, _T("%04x"), AF.W);
+	GetDlgItem(IDC_R0)->SetWindowText(text);
+	_stprintf(text, _T("%04x"), BC.W);
+	GetDlgItem(IDC_R1)->SetWindowText(text);
+	_stprintf(text, _T("%04x"), DE.W);
+	GetDlgItem(IDC_R2)->SetWindowText(text);
+	_stprintf(text, _T("%04x"), HL.W);
+	GetDlgItem(IDC_R3)->SetWindowText(text);
+	_stprintf(text, _T("%04x"), SP.W);
+	GetDlgItem(IDC_R4)->SetWindowText(text);
+	_stprintf(text, _T("%04x"), PC.W);
+	GetDlgItem(IDC_R5)->SetWindowText(text);
+	_stprintf(text, _T("%04x"), IFF);
+	GetDlgItem(IDC_R6)->SetWindowText(text);
 
 	m_z = (AF.B.B0 & 0x80) != 0;
 	m_n = (AF.B.B0 & 0x40) != 0;

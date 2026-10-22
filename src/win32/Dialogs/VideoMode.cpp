@@ -23,8 +23,8 @@
 // Keeps data on the available DDraw drivers
 struct
 {
-	char     szDescription[128];
-	char     szName[128];
+	TCHAR    szDescription[128];
+	TCHAR    szName[128];
 	GUID *   pGUID;
 	GUID     GUIDcopy;
 	HMONITOR hm;
@@ -42,7 +42,7 @@ static GUID *gpSelectedDriverGUID;
 //       devices, so the user can pick which one to run on.
 //-----------------------------------------------------------------------------
 BOOL WINAPI
-DDEnumCallbackEx(GUID *pGUID, LPSTR pDescription, LPSTR pName, LPVOID pContext, HMONITOR hm)
+DDEnumCallbackEx(GUID *pGUID, LPOLESTR pDescription, LPOLESTR pName, LPVOID pContext, HMONITOR hm)
 {
 	if (pGUID)
 	{
@@ -51,10 +51,10 @@ DDEnumCallbackEx(GUID *pGUID, LPSTR pDescription, LPSTR pName, LPVOID pContext, 
 	}
 	else
 		Drivers[gDriverCnt].pGUID = NULL;
-	Drivers[gDriverCnt].szDescription[127] = '\0';
-	Drivers[gDriverCnt].szName[127]        = '\0';
-	strncpy(Drivers[gDriverCnt].szDescription, pDescription, 127);
-	strncpy(Drivers[gDriverCnt].szName, pName, 127);
+	Drivers[gDriverCnt].szDescription[127] = 0;
+	Drivers[gDriverCnt].szName[127]        = 0;
+	lstrcpyn(Drivers[gDriverCnt].szDescription, pDescription, 128);
+	lstrcpyn(Drivers[gDriverCnt].szName, pName, 128);
 	Drivers[gDriverCnt].hm = hm;
 	if (gDriverCnt < MAX_DRIVERS)
 		gDriverCnt++;
@@ -68,7 +68,7 @@ DDEnumCallbackEx(GUID *pGUID, LPSTR pDescription, LPSTR pName, LPVOID pContext, 
 // Desc: This callback is used only with old versions of DDraw.
 //-----------------------------------------------------------------------------
 BOOL WINAPI
-DDEnumCallback(GUID *pGUID, LPSTR pDescription, LPSTR pName, LPVOID context)
+DDEnumCallback(GUID *pGUID, LPOLESTR pDescription, LPOLESTR pName, LPVOID context)
 {
 	return (DDEnumCallbackEx(pGUID, pDescription, pName, context, NULL));
 }
@@ -100,7 +100,7 @@ static HRESULT WINAPI addVideoMode(LPDDSURFACEDESC2 surf, LPVOID lpContext)
 
 int winVideoModeSelect(CWnd *pWnd, GUID **guid)
 {
-	HINSTANCE h = /**/ ::LoadLibrary("ddraw.dll");
+	HINSTANCE h = /**/ ::LoadLibrary(_T("ddraw.dll"));
 
 	// If ddraw.dll doesn't exist in the search path,
 	// then DirectX probably isn't installed, so fail.
@@ -135,7 +135,7 @@ int winVideoModeSelect(CWnd *pWnd, GUID **guid)
 		BOOL (WINAPI *lpDDEnum)(LPDDENUMCALLBACK, LPVOID);
 
 		lpDDEnum = (BOOL (WINAPI *)(LPDDENUMCALLBACK, LPVOID))
-		           GetProcAddress(h, "DirectDrawEnumerateA");
+		           GetProcAddress(h, "DirectDrawEnumerateW");
 		if (lpDDEnum)
 			lpDDEnum(DDEnumCallback, NULL);
 

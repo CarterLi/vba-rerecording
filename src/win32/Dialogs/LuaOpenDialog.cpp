@@ -80,8 +80,8 @@ void WinLuaOnStart(std::intptr_t hDlgAsInt)
 	//info.started = true;
 	EnableWindow(GetDlgItem(hDlg, IDC_BUTTON_LUABROWSE), false); // disable browse while running because it misbehaves if clicked in a frameadvance loop
 	EnableWindow(GetDlgItem(hDlg, IDC_BUTTON_LUASTOP), true);
-	SetWindowText(GetDlgItem(hDlg, IDC_BUTTON_LUARUN), "Restart");
-	SetWindowText(GetDlgItem(hDlg, IDC_LUACONSOLE), ""); // clear the console
+	SetWindowText(GetDlgItem(hDlg, IDC_BUTTON_LUARUN), _T("Restart"));
+	SetWindowText(GetDlgItem(hDlg, IDC_LUACONSOLE), _T("")); // clear the console
 //	Show_Genesis_Screen(HWnd); // otherwise we might never show the first thing the script draws
 }
 
@@ -97,7 +97,7 @@ void WinLuaOnStop(std::intptr_t hDlgAsInt)
 	//info.started = false;
 	EnableWindow(GetDlgItem(hDlg, IDC_BUTTON_LUABROWSE), true);
 	EnableWindow(GetDlgItem(hDlg, IDC_BUTTON_LUASTOP), false);
-	SetWindowText(GetDlgItem(hDlg, IDC_BUTTON_LUARUN), "Run");
+	SetWindowText(GetDlgItem(hDlg, IDC_BUTTON_LUARUN), _T("Run"));
 //	if(statusOK)
 //		Show_Genesis_Screen(MainWindow->getHWnd()); // otherwise we might never show the last thing the script draws
 	//if(info.closeOnStop)
@@ -158,7 +158,7 @@ INT_PTR CALLBACK DlgLuaScriptDialog(HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 		}
 
 		DragAcceptFiles(hDlg, TRUE);
-		SetDlgItemText(hDlg, IDC_EDIT_LUAPATH, VBAGetLuaScriptName());
+		SetDlgItemText(hDlg, IDC_EDIT_LUAPATH, winWideFromAnsi(VBAGetLuaScriptName()));
 
 		SystemParametersInfo(SPI_GETICONTITLELOGFONT, sizeof(LOGFONT), &LuaConsoleLogFont, 0); // reset with an acceptable font
 		return TRUE;
@@ -244,9 +244,9 @@ INT_PTR CALLBACK DlgLuaScriptDialog(HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 			{
 				if (systemIsEmulating())
 				{
-					char filename[MAX_PATH];
+					TCHAR filename[MAX_PATH];
 					GetDlgItemText(hDlg, IDC_EDIT_LUAPATH, filename, MAX_PATH);
-					VBALoadLuaCode(filename);
+					VBALoadLuaCode(winAnsiFromWide(filename));
 				}
 			}	break;
 
@@ -257,13 +257,13 @@ INT_PTR CALLBACK DlgLuaScriptDialog(HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 
 			case IDC_BUTTON_LUAEDIT:
 			{
-				char Str_Tmp [1024];
+				TCHAR Str_Tmp[1024];
 				SendDlgItemMessage(hDlg,IDC_EDIT_LUAPATH,WM_GETTEXT,(WPARAM)512,(LPARAM)Str_Tmp);
 				// tell the OS to open the file with its associated editor,
 				// without blocking on it or leaving a command window open.
-				if((INT_PTR)ShellExecute(NULL, "edit", Str_Tmp, NULL, NULL, SW_SHOWNORMAL) == SE_ERR_NOASSOC)
-					if((INT_PTR)ShellExecute(NULL, "open", Str_Tmp, NULL, NULL, SW_SHOWNORMAL) == SE_ERR_NOASSOC)
-						ShellExecute(NULL, NULL, "notepad", Str_Tmp, NULL, SW_SHOWNORMAL);
+				if((INT_PTR)ShellExecute(NULL, _T("edit"), Str_Tmp, NULL, NULL, SW_SHOWNORMAL) == SE_ERR_NOASSOC)
+					if((INT_PTR)ShellExecute(NULL, _T("open"), Str_Tmp, NULL, NULL, SW_SHOWNORMAL) == SE_ERR_NOASSOC)
+						ShellExecute(NULL, NULL, _T("notepad"), Str_Tmp, NULL, SW_SHOWNORMAL);
 			}	break;
 
 			case IDC_BUTTON_LUABROWSE:
@@ -276,30 +276,37 @@ INT_PTR CALLBACK DlgLuaScriptDialog(HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 				CString luaName = winGetDestFilename(theApp.gameFilename, IDS_LUA_DIR, ".lua");
 				CString luaDir  = winGetDestDir(IDS_LUA_DIR);
 
+				// The dialog layer speaks the ANSI code page; the copies have to
+				// outlive the call, so they are named locals.
+				const CStringA titleA  = winAnsiFromWide(title);
+				const CStringA dirA    = winAnsiFromWide(luaDir);
+				const CStringA nameA   = winAnsiFromWide(luaName);
+				const CStringA filterA = winAnsiFromWide(filter);
+
 				WinFileDialogParams params;
 				params.owner       = hDlg;
 				params.save        = false;
 				params.mustExist   = true;
-				params.title       = title;
-				params.initialDir  = luaDir;
-				params.fileName    = luaName;
-				params.filter      = filter;
+				params.title       = titleA;
+				params.initialDir  = dirA;
+				params.fileName    = nameA;
+				params.filter      = filterA;
 				params.filterIndex = 1;
 				params.defaultExt  = "lua";
 
 				std::string path;
 				if (winFileDialog(params, path) == IDOK)
 				{
-					SetWindowText(GetDlgItem(hDlg, IDC_EDIT_LUAPATH), path.c_str());
+					SetWindowText(GetDlgItem(hDlg, IDC_EDIT_LUAPATH), winWideFromAnsi(path));
 				}
 				return TRUE;
 			}	break;
 
 			case IDC_EDIT_LUAPATH:
 			{
-				char filename[MAX_PATH];
+				TCHAR filename[MAX_PATH];
 				GetDlgItemText(hDlg, IDC_EDIT_LUAPATH, filename, MAX_PATH);
-				FILE* file = fopen(filename, "rb");
+				FILE* file = _wfopen(filename, L"rb");
 				EnableWindow(GetDlgItem(hDlg, IDC_BUTTON_LUAEDIT), file != NULL);
 				if(file)
 					fclose(file);
@@ -327,7 +334,7 @@ INT_PTR CALLBACK DlgLuaScriptDialog(HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 
 			case IDC_LUACONSOLE_CLEAR:
 			{
-				SetWindowText(GetDlgItem(hDlg, IDC_LUACONSOLE), "");
+				SetWindowText(GetDlgItem(hDlg, IDC_LUACONSOLE), _T(""));
 			}	break;
 
 			case IDC_LUACONSOLE_ABOUT:
@@ -339,16 +346,16 @@ INT_PTR CALLBACK DlgLuaScriptDialog(HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 				// VBALuaEngineFileVersion, which adds that DLL's own file
 				// version when it carries one, which is where a stock Lua 5.1
 				// build states its patch level.
-				text.Format(VBA_NAME_AND_VERSION " Lua scripting\r\n\r\n"
+				text.Format(_T(VBA_NAME_AND_VERSION) _T(" Lua scripting\r\n\r\n")
 				            "Engine  : %s\r\n"
 				            "Lua DLL : %s",
 				            VBALuaEngineVersion(), VBALuaEnginePath());
 
 				CString fileVersion = VBALuaEngineFileVersion();
 				if (!fileVersion.IsEmpty())
-					text.AppendFormat("\r\nFile ver: %s", (LPCSTR)fileVersion);
+					text.AppendFormat(_T("\r\nFile ver: %s"), (LPCTSTR)fileVersion);
 
-				MessageBox(hDlg, text, "About Lua Scripting", MB_OK | MB_ICONINFORMATION);
+				MessageBox(hDlg, text, _T("About Lua Scripting"), MB_OK | MB_ICONINFORMATION);
 			}	break;
 		}
 		break;
@@ -371,12 +378,12 @@ INT_PTR CALLBACK DlgLuaScriptDialog(HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 		HDROP hDrop;
 		//UINT fileNo;
 		UINT fileCount;
-		char filename[_MAX_PATH];
+		TCHAR filename[_MAX_PATH];
 
 		hDrop = (HDROP)wParam;
 		fileCount = DragQueryFile(hDrop, 0xFFFFFFFF, NULL, 0);
 		if (fileCount > 0) {
-			DragQueryFile(hDrop, 0, filename, sizeof(filename));
+			DragQueryFile(hDrop, 0, filename, _MAX_PATH);
 			SetWindowText(GetDlgItem(hDlg, IDC_EDIT_LUAPATH), filename);
 		}
 		DragFinish(hDrop);

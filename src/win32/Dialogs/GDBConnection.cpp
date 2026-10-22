@@ -68,7 +68,7 @@ BOOL GDBPortDlg::OnInitDialog()
 
 	CString buffer;
 
-	buffer.Format("%d", port);
+	buffer.Format(_T("%d"), port);
 
 	m_port.SetWindowText(buffer);
 
@@ -87,7 +87,7 @@ void GDBPortDlg::OnOk()
 	sockaddr_in address;
 	address.sin_family      = AF_INET;
 	address.sin_addr.s_addr = inet_addr("0.0.0.0");
-	address.sin_port        = htons(atoi(buffer));
+	address.sin_port        = htons(_ttoi(buffer));
 	port = ntohs(address.sin_port);
 
 	SOCKET s = socket(AF_INET, SOCK_STREAM, 0);
@@ -171,7 +171,7 @@ BOOL GDBWaitingDlg::OnInitDialog()
 
 	CString buffer;
 
-	buffer.Format("%d", port);
+	buffer.Format(_T("%d"), port);
 
 	m_port.SetWindowText(buffer);
 

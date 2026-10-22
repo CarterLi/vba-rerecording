@@ -29,7 +29,7 @@ protected:
 	bool      noReadOnly;
 	LPCTSTR  *extensions;
 	int       m_filterIndex;
-	std::string m_path;
+	CString m_path;
 
 private:
 	CString m_file;
