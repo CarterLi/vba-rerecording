@@ -1,0 +1,97 @@
+---VBA-rr Modernized Edition (v24.1 for the V8 core, v23.7 for the V7 core)---
+The Modernized Edition carries the VBA-rr line on from the upstream revision
+4526341 (2019-09-15).  The savestate and movie formats, the re-recording
+semantics and the emulation timing are unchanged, so every existing recording
+still replays exactly the way it did; what changed is the shell around them.
+The entries below are in the same style as the older changelogs, which cover
+the releases up to v23.5.
+
+10-22-2026 Carter Li - Win32: Divide the RAM Watch and RAM Search columns evenly, so the last column is no longer cut off.
+10-22-2026 Carter Li - Win32: Make the pad setup dialog capture a Nintendo Switch controller. The Switch pad declares its buttons under the simple report only, so the setup dialog captured nothing and the pad did not work in game either.
+10-21-2026 Carter Li - Win32: Fix the jag2 assignment upstream got wrong in xBR-mlv4 pass 2, which demoted every level 5 and 6 edge in three of the four channels.
+10-21-2026 Carter Li - Win32: Port xBR-mlv4 to the WebGPU renderer. This was the last chain the WebGPU backend was missing, so the upscaling menu no longer has an entry it greys out there.
+10-21-2026 Carter Li - Win32: Add ScaleFX to the WebGPU renderer.
+10-21-2026 Carter Li - Win32: Add xBRZ and super-xBR to the WebGPU renderer.
+10-21-2026 Carter Li - Win32: Port xBR lv3 multipass to the WebGPU renderer.
+10-21-2026 Carter Li - Docs: Write down what porting an upscaler to WGSL takes.
+10-21-2026 Carter Li - Win32: Stop the render method entry growing a backend name on every menu update.
+10-21-2026 Carter Li - Win32: Add xBR lv3 to the WebGPU renderer.
+10-21-2026 Carter Li - Win32: Add xBR lv2 no-blend to the WebGPU renderer.
+10-21-2026 Carter Li - Win32: Stop the WebGPU surface from encoding the frame twice, which washed out the whole picture including the blacks.
+10-21-2026 Carter Li - Win32: Add the xBR lv2 upscaler to the WebGPU renderer.
+10-21-2026 Carter Li - Win32: Run the Lanczos upscaler on the WebGPU renderer.
+10-21-2026 Carter Li - Win32: Add the Lanczos upscaler to the upscaling menu.
+10-21-2026 Carter Li - Win32: Let the WebGPU render method run on a backend of its choice: Automatic, Direct3D 12, Vulkan, Metal or OpenGL (ANGLE).
+10-21-2026 Carter Li - Win32: Unify the texture filters into one menu and add trilinear.
+10-21-2026 Carter Li - Win32: Add a WebGPU render method through wgpu-native.
+10-21-2026 Carter Li - Win32: Add ARM64 support.
+10-21-2026 Carter Li - Decouple the core from MFC, and add a per-frame regression trace.
+10-20-2026 Carter Li - Core: Derive the flash device IDs from the restored save size, so a 128K save is no longer reported as 64K and the upper half is reachable.
+10-20-2026 Carter Li - Win32: Make the file naming and special effects menus self-explanatory.
+10-20-2026 Carter Li - Win32: Fix the accelerator config over-read, which made hotkeys such as F1, F3 and F4 intermittently stop loading save states.
+10-20-2026 Carter Li - Win32: Make GBA cheat grouping optional.
+10-20-2026 Carter Li - Win32: Keep the trace open for the run, log the build and readiness.
+10-20-2026 Carter Li - Win32: Compile only the selected upscaler shader on startup, so the program starts much faster.
+10-20-2026 Carter Li - Lua: Add the vba.screenshot() function.
+10-20-2026 Carter Li - Win32: Group and edit GBA cheats.
+10-20-2026 Carter Li - Movie: Warn about a core mismatch when a movie is opened.
+10-20-2026 Carter Li - Win32: Show the Git revision instead of svn0.
+10-20-2026 Carter Li - gb: Initialise the V7 MBC3 battery timestamp.
+10-20-2026 Carter Li - common: Pick three safe upstream fixes.
+10-20-2026 Carter Li - Win32: Remove the unused nasm.exe.
+10-20-2026 Carter Li - lua: Upgrade SFMT to 1.5.1 and compile it separately.
+10-20-2026 Carter Li - build: Drop the autotools build and other unused files.
+10-20-2026 Carter Li - common: Reimplement memgzio on top of zlib's gzip support.
+10-19-2026 Carter Li - Win32: Name the modernized build in the About box.
+10-19-2026 Carter Li - warn: Stop suppressing C4244, make every 64->32 narrowing explicit.
+10-19-2026 Carter Li - x64: Clean up the project and fix the 64-bit build.
+10-19-2026 Carter Li - build: Drop _USE_32BIT_TIME_T, make the machine type follow the platform.
+10-19-2026 Carter Li - x64: Drop the inline assembly from the CPU cores.
+10-19-2026 Carter Li - x64: Rewrite the asm that maps 1:1 onto intrinsics.
+10-19-2026 Carter Li - OpenGL 3.3: Run NVIDIA Image Scaling, and fix the shader splice and the trace.
+10-19-2026 Carter Li - Win32: Write images through the Windows Imaging Component.
+10-19-2026 Carter Li - Remove the VC6 era compiler guards.
+10-19-2026 Carter Li - Win32: Remove the SDL and GTK frontends.
+10-19-2026 Carter Li - zlib: Upgrade the vendored copy from 1.2.11 to 1.3.2.
+10-19-2026 Carter Li - Win32: Filter the frame with the shaders of libretro.
+10-19-2026 Carter Li - Win32: Let the memory viewer's address be read and copied.
+10-19-2026 Carter Li - Win32: Fix the caption, the stale frame and the white flash.
+10-19-2026 Carter Li - Win32: System UI font, per-monitor DPI and 12x window scaling.
+10-19-2026 Carter Li - Win32: Follow the system dark mode with the title bar and the menu bar.
+10-19-2026 Carter Li - Win32: Use the Vista+ common item dialogs for file and folder pickers.
+10-18-2026 Carter Li - Filters: Replace the MMX paths with plain C and SSE2, and replace the VS2005/2008/2010 project files with VBA_Latest.
+10-18-2026 Carter Li - Video: Say that the GL Triangle and GL Quads entries are legacy only.
+10-18-2026 Carter Li - GDI: Blit the real frame buffer instead of uninitialised memory.
+10-18-2026 Carter Li - Direct3D 11: Wind the on screen display quad like every other quad.
+10-18-2026 Carter Li - Log: Keep a whole run in the trace, and say what the on screen display did.
+10-18-2026 Carter Li - Video: Make the on screen display appear on the Direct3D 11 and OpenGL 3.3 renderers.
+10-18-2026 Carter Li - Direct3D 11: Draw the on screen display the right way up.
+10-18-2026 Carter Li - Video: Let the upscalers be capped at a ratio instead of filling the window.
+10-18-2026 Carter Li - OpenGL: Stop the frame upload and the OSD from waiting on the last frame.
+10-18-2026 Carter Li - OpenGL: Add an OpenGL 3.3 renderer beside the fixed function one.
+10-18-2026 Carter Li - Direct3D 11: Make the single pass upscalers data driven.
+10-18-2026 Carter Li - Direct3D 11: Add the xBRZ-Freescale upscaler.
+10-18-2026 Carter Li - Direct3D 11: Make the vertical blank sync a video option.
+10-18-2026 Carter Li - Lua: Report the engine version and bundle lua51.dll with the build.
+10-18-2026 Carter Li - Lua: Say which engine the scripts really run on.
+10-18-2026 Carter Li - Audio: Name the DirectSound ring in the sound API menu.
+10-18-2026 Carter Li - Audio: Hold four blocks in the XAudio2 voice and say so.
+10-18-2026 Carter Li - Video: Name the Direct3D 9 device the renderer really got.
+10-18-2026 Carter Li - Video: Present in the flip model on Direct3D 9Ex too.
+10-18-2026 Carter Li - Video: Name the presentation model in the render method menu.
+10-18-2026 Carter Li - Video: Present in the flip model on Direct3D 11.
+10-18-2026 Carter Li - Video: Load the Direct3D 11 libraries at run time.
+10-18-2026 Carter Li - Video: Add FidelityFX Super Resolution 1.0 to the Direct3D 11 backend.
+10-18-2026 Carter Li - Video: Add NVIDIA Image Scaling to the Direct3D 11 backend.
+10-18-2026 Carter Li - Sound: Add an optional XAudio2 2.9 backend.
+10-18-2026 Carter Li - Filters: Add GB/GBC LCD colour filters and window-sized AVI recording.
+10-18-2026 Carter Li - Filters: Add xBRZ 2x-5x, HQ4x, ScaleFX 3x and modernize existing filters.
+10-18-2026 Carter Li - Input: Add hold to autofire feature.
+10-18-2026 Carter Li - 7zip: Upgrade to 26.04.
+10-18-2026 Carter Li - Direct3D 11: Add a Direct3D 11 renderer.
+10-18-2026 Carter Li - Direct3D 9: Create a Direct3D 9Ex device and present with it.
+10-18-2026 Carter Li - Win32: Draw the screen messages through a shared GDI text overlay.
+10-18-2026 Carter Li - Win32: Add the 5x-8x window sizes and an isFullscreenOption helper.
+10-18-2026 Carter Li - Lua: Replace Lua 5.1 with LuaJIT 2.1.
+10-18-2026 Carter Li - Build: Move the Win32 project to Visual Studio 2010 and the SDK.
+10-18-2026 Carter Li - Global: Mark the rewritten sources as UTF-8 with a BOM.
