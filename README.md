@@ -137,6 +137,9 @@ something they would rather keep using.
   texture (BGR565 at 16 bpp) drawn as a single quad, the on screen display
   blended on top, the flip model where the system supports it and bitblt where
   it does not, and VSync as a video option rather than a fixed wait.
+* **The defaults are the modern ones**: a build that does not target Windows
+  XP starts on Direct3D 11, XAudio2, a 2x window and 44 kHz audio instead of
+  DirectDraw, DirectSound, 1x and 22 kHz.  A WINXP build keeps the old ones.
 * **OpenGL 3.3** - a core profile renderer beside the fixed function one, with
   double buffered frame textures so the upload no longer waits on the last
   draw, and `WGL_EXT_swap_control_tear` so a frame that misses the blanking
@@ -217,9 +220,10 @@ method that finally starts is the one that is saved.
 
 ### Audio that says what it is doing
 
-* **XAudio2 2.9** is available as an optional backend, loaded at run time and
-  degrading to DirectSound on any failure.  It holds four blocks instead of
-  the DirectSound ring's ten, which is about 67 ms of latency instead of 150.
+* **XAudio2 2.9** is the default sound backend of a modern build, loaded at
+  run time and degrading to DirectSound on any failure.  It holds four blocks
+  instead of the DirectSound ring's ten, which is about 67 ms of latency
+  instead of 150.
 * **The sound API menu names the buffering**: "DirectSound - 9 blocks, 150 ms"
   next to "XAudio2 (2.9) - 4 blocks, 67 ms", with the dropouts appended when
   there are any.  For once the latency is visible where the backend is chosen.

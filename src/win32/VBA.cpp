@@ -59,15 +59,20 @@ extern IDisplay *newWgpuDisplay();
 extern bool wgpuLibraryAvailable();
 #endif
 
-// The renderer a build with no stored settings starts on.  DirectDraw is the
-// one the tree always started on; a build without it starts on Direct3D 9
-// instead.
+// The renderer a build with no stored settings starts on.  A build that
+// targets Windows XP keeps DirectDraw, which is the renderer it always
+// started on; every other build starts on Direct3D 11.  Direct3D 9 is the
+// step below DirectDraw when the DirectDraw backend is not built either.
 static DISPLAY_TYPE defaultRenderMethod()
 {
+#if defined(WINXP)
 #if VBA_ENABLE_DDRAW
 	return DIRECT_DRAW;
 #else
 	return DIRECT_3D;
+#endif
+#else
+	return DIRECT_3D11;
 #endif
 }
 
@@ -2314,6 +2319,22 @@ static bool renderMethodBuilt(DISPLAY_TYPE method)
 void VBA::loadSettings()
 {
 	CString	buffer;
+
+	// What a build with no stored settings starts on.  A modern build starts
+	// on Direct3D 11, XAudio2, a 2x window and 44 kHz audio; a build that
+	// targets Windows XP keeps the older defaults, since neither Direct3D 11
+	// nor XAudio2 exists there.
+	const DISPLAY_TYPE defaultMethod = defaultRenderMethod();
+#if defined(WINXP)
+	const DWORD defaultVideoOption = VIDEO_1X;
+	const DWORD defaultSoundApi = SOUND_API_DIRECTSOUND;
+	const DWORD defaultSoundQuality = 2;
+#else
+	const DWORD defaultVideoOption = VIDEO_2X;
+	const DWORD defaultSoundApi = SOUND_API_XAUDIO2;
+	const DWORD defaultSoundQuality = 1;
+#endif
+
 	// video
 	bool defaultVideoDriver = regQueryDwordValue("defaultVideoDriver", true) ? true : false;
 	if (!regQueryBinaryValue("videoDriverGUID", (char *)&videoDriverGUID, sizeof(GUID)))
@@ -2325,9 +2346,9 @@ void VBA::loadSettings()
 	else
 		pVideoDriverGUID = &videoDriverGUID;
 
-	videoOption = regQueryDwordValue("video", 0);
+	videoOption = regQueryDwordValue("video", defaultVideoOption);
 	if (videoOption < 0 || videoOption > VIDEO_12X)
-		videoOption = 0;
+		videoOption = defaultVideoOption;
 	switch (videoOption)
 	{
 	case VIDEO_320x240:
@@ -2349,9 +2370,9 @@ void VBA::loadSettings()
 	if (videoOption == VIDEO_OTHER)
 	{
 		if (fsWidth < 0 || fsWidth > 4095 || fsHeight < 0 || fsHeight > 4095)
-			videoOption = 0;
+			videoOption = defaultVideoOption;
 		if (fsColorDepth != 16 && fsColorDepth != 24 && fsColorDepth != 32)
-			videoOption = 0;
+			videoOption = defaultVideoOption;
 	}
 
 	fsWidth = regQueryDwordValue("fsWidth", 0);
@@ -2360,18 +2381,18 @@ void VBA::loadSettings()
 	fsMaxScale		  = regQueryDwordValue("fsMaxScale", 0);
 	fullScreenStretch = regQueryDwordValue("stretch", 0) ? true : false;
 
-	renderMethod = (DISPLAY_TYPE)regQueryDwordValue("renderMethod", defaultRenderMethod());
+	renderMethod = (DISPLAY_TYPE)regQueryDwordValue("renderMethod", defaultMethod);
 	if (renderMethod < GDI || renderMethod > WGPU)
-		renderMethod = defaultRenderMethod();
+		renderMethod = defaultMethod;
 
 	// A render method this build does not have cannot be used, so a setting
 	// left over from a build that had it falls back to the default one.
 	if (!renderMethodBuilt(renderMethod))
 	{
 		winlog("VBA: render method %d is not in this build, %d is used instead\n",
-		       renderMethod, defaultRenderMethod());
+		       renderMethod, defaultMethod);
 
-		renderMethod = defaultRenderMethod();
+		renderMethod = defaultMethod;
 	}
 
 	ddrawEmulationOnly	= regQueryDwordValue("ddrawEmulationOnly", false) ? true : false;
@@ -2456,8 +2477,8 @@ void VBA::loadSettings()
 	systemSoundEnableChannels(resChannels);
 	systemSoundDisableChannels(~resChannels);
 	soundOffFlag = (regQueryDwordValue("soundOff", 0)) ? true : false;
-	soundQuality = regQueryDwordValue("soundQuality", 2);
-	soundApi	 = regQueryDwordValue("soundApi", SOUND_API_DIRECTSOUND);
+	soundQuality = regQueryDwordValue("soundQuality", defaultSoundQuality);
+	soundApi	 = regQueryDwordValue("soundApi", defaultSoundApi);
 	if (soundApi != SOUND_API_XAUDIO2)
 		soundApi = SOUND_API_DIRECTSOUND;
 	soundEcho	 = regQueryDwordValue("soundEcho", 0) ? true : false;
