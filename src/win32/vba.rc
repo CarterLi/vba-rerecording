@@ -1,6 +1,7 @@
 ﻿// Microsoft Visual C++ generated resource script.
 //
 #include "resource.h"
+#include "DDrawConfig.h"
 #include "GdiConfig.h"
 #include "OpenGLConfig.h"
 #include "WgpuConfig.h"
@@ -2016,11 +2017,13 @@ BEGIN
                 MENUITEM "&GDI",                        ID_OPTIONS_VIDEO_RENDERMETHOD_GDI
                 MENUITEM SEPARATOR
 #endif
+#if VBA_ENABLE_DDRAW
                 MENUITEM "&DirectDraw",                 ID_OPTIONS_VIDEO_RENDERMETHOD_DIRECTDRAW
                 MENUITEM "    DDraw &Emulation Only",   ID_OPTIONS_VIDEO_DDRAWEMULATIONONLY
                 MENUITEM "    DDraw &Use Video Memory", ID_OPTIONS_VIDEO_DDRAWUSEVIDEOMEMORY
                 MENUITEM "    DDraw &Triple Buffering", ID_OPTIONS_VIDEO_TRIPLEBUFFERING
                 MENUITEM SEPARATOR
+#endif
                 MENUITEM "Direct3D &11",                ID_OPTIONS_VIDEO_RENDERMETHOD_DIRECT3D11
                 MENUITEM "Direct&3D 9Ex",               ID_OPTIONS_VIDEO_RENDERMETHOD_DIRECT3D
 #if VBA_ENABLE_WGPU
@@ -2053,14 +2056,22 @@ BEGIN
             MENUITEM SEPARATOR
 // The label names the renderers that honour the setting, so it follows the
 // ones this build has.
-#if VBA_ENABLE_WGPU && VBA_ENABLE_OPENGL
+#if VBA_ENABLE_DDRAW && VBA_ENABLE_OPENGL && VBA_ENABLE_WGPU
             MENUITEM "V&Sync (DDraw, D3D11, OpenGL 3.3, WebGPU)", ID_OPTIONS_VIDEO_VSYNC
-#elif VBA_ENABLE_WGPU
-            MENUITEM "V&Sync (DDraw, D3D11, WebGPU)", ID_OPTIONS_VIDEO_VSYNC
-#elif VBA_ENABLE_OPENGL
+#elif VBA_ENABLE_DDRAW && VBA_ENABLE_OPENGL
             MENUITEM "V&Sync (DDraw, D3D11, OpenGL 3.3)", ID_OPTIONS_VIDEO_VSYNC
-#else
+#elif VBA_ENABLE_DDRAW && VBA_ENABLE_WGPU
+            MENUITEM "V&Sync (DDraw, D3D11, WebGPU)", ID_OPTIONS_VIDEO_VSYNC
+#elif VBA_ENABLE_DDRAW
             MENUITEM "V&Sync (DDraw, D3D11)", ID_OPTIONS_VIDEO_VSYNC
+#elif VBA_ENABLE_OPENGL && VBA_ENABLE_WGPU
+            MENUITEM "V&Sync (D3D11, OpenGL 3.3, WebGPU)", ID_OPTIONS_VIDEO_VSYNC
+#elif VBA_ENABLE_OPENGL
+            MENUITEM "V&Sync (D3D11, OpenGL 3.3)", ID_OPTIONS_VIDEO_VSYNC
+#elif VBA_ENABLE_WGPU
+            MENUITEM "V&Sync (D3D11, WebGPU)", ID_OPTIONS_VIDEO_VSYNC
+#else
+            MENUITEM "V&Sync (D3D11)", ID_OPTIONS_VIDEO_VSYNC
 #endif
             MENUITEM SEPARATOR
             POPUP "&Window Size"

@@ -14,6 +14,7 @@
 #include "AcceleratorManager.h"
 #include "AVIWrite.h"
 #include "Display.h"
+#include "DDrawConfig.h"
 #include "GdiConfig.h"
 #include "OpenGLConfig.h"
 #include "WgpuConfig.h"

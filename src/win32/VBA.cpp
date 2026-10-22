@@ -43,7 +43,9 @@
 #if VBA_ENABLE_GDI
 extern IDisplay *newGDIDisplay();
 #endif
+#if VBA_ENABLE_DDRAW
 extern IDisplay *newDirectDrawDisplay();
+#endif
 extern IDisplay *newDirect3DDisplay();
 #if VBA_ENABLE_OPENGL
 extern IDisplay *newOpenGLDisplay();
@@ -56,6 +58,18 @@ extern IDisplay *newWgpuDisplay();
 // not, the WebGPU entries leave the menu instead of staying greyed.
 extern bool wgpuLibraryAvailable();
 #endif
+
+// The renderer a build with no stored settings starts on.  DirectDraw is the
+// one the tree always started on; a build without it starts on Direct3D 9
+// instead.
+static DISPLAY_TYPE defaultRenderMethod()
+{
+#if VBA_ENABLE_DDRAW
+	return DIRECT_DRAW;
+#else
+	return DIRECT_3D;
+#endif
+}
 
 extern Input *newDirectInput();
 
@@ -503,7 +517,7 @@ VBA::VBA() : emulator(::theEmulator)
 	vsync = false;
 	changingVideoSize = false;
 	pVideoDriverGUID  = NULL;
-	renderMethod	  = DIRECT_DRAW;
+	renderMethod	  = defaultRenderMethod();
 	iconic = false;
 	ddrawEmulationOnly		= false;
 	ddrawUsingEmulationOnly = false;
@@ -1921,9 +1935,11 @@ bool VBA::initDisplay()
 			display = newGDIDisplay();
 			break;
 #endif
+#if VBA_ENABLE_DDRAW
 		case DIRECT_DRAW:
 			display = newDirectDrawDisplay();
 			break;
+#endif
 		case DIRECT_3D:
 			display = newDirect3DDisplay();
 			break;
@@ -2000,7 +2016,8 @@ bool VBA::updateRenderMethod(bool force)
 			// either of them falls back to the renderer below them in one
 			// step.  The same goes for the WebGPU renderer, so that a
 			// setting left over from a build that had it does not send the
-			// loop around again and again.
+			// loop around again and again.  DirectDraw and GDI are skipped
+			// the same way when their backends are not built.
 			if (renderMethod == OPENGL33)
 			{
 #if VBA_ENABLE_OPENGL
@@ -2016,7 +2033,18 @@ bool VBA::updateRenderMethod(bool force)
 			else if (renderMethod == OPENGL)
 				renderMethod = DIRECT_3D;
 			else if (renderMethod == DIRECT_3D)
+			{
+#if VBA_ENABLE_DDRAW
 				renderMethod = DIRECT_DRAW;
+#elif VBA_ENABLE_GDI
+				renderMethod = GDI;
+#else
+				// Neither DirectDraw nor GDI is built, so there is nothing
+				// below Direct3D to try and the chain ends here.
+				winlog("VBA: no renderer is left to try\n");
+				break;
+#endif
+			}
 			else if (renderMethod == DIRECT_DRAW)
 			{
 #if VBA_ENABLE_GDI
@@ -2250,19 +2278,22 @@ void VBA::winRemoveUpdateListener(IUpdateListener *l)
 	}
 }
 
-// Whether the render method named is one this build has.  The GDI, the
-// OpenGL and the WebGPU renderers sit behind a compile time switch, so a
+// Whether the render method named is one this build has.  The DirectDraw,
+// GDI, OpenGL and WebGPU renderers sit behind a compile time switch, so a
 // build without them cannot run them at all, and a setting left over from a
 // build that had them has to fall back to one it has.
 static bool renderMethodBuilt(DISPLAY_TYPE method)
 {
 	switch (method)
 	{
+#if VBA_ENABLE_DDRAW
+	case DIRECT_DRAW:
+		return true;
+#endif
 #if VBA_ENABLE_GDI
 	case GDI:
 		return true;
 #endif
-	case DIRECT_DRAW:
 	case DIRECT_3D:
 	case DIRECT_3D11:
 		return true;
@@ -2329,18 +2360,18 @@ void VBA::loadSettings()
 	fsMaxScale		  = regQueryDwordValue("fsMaxScale", 0);
 	fullScreenStretch = regQueryDwordValue("stretch", 0) ? true : false;
 
-	renderMethod = (DISPLAY_TYPE)regQueryDwordValue("renderMethod", DIRECT_DRAW);
+	renderMethod = (DISPLAY_TYPE)regQueryDwordValue("renderMethod", defaultRenderMethod());
 	if (renderMethod < GDI || renderMethod > WGPU)
-		renderMethod = DIRECT_DRAW;
+		renderMethod = defaultRenderMethod();
 
 	// A render method this build does not have cannot be used, so a setting
 	// left over from a build that had it falls back to the default one.
 	if (!renderMethodBuilt(renderMethod))
 	{
-		winlog("VBA: render method %d is not in this build, DirectDraw is used instead\n",
-		       renderMethod);
+		winlog("VBA: render method %d is not in this build, %d is used instead\n",
+		       renderMethod, defaultRenderMethod());
 
-		renderMethod = DIRECT_DRAW;
+		renderMethod = defaultRenderMethod();
 	}
 
 	ddrawEmulationOnly	= regQueryDwordValue("ddrawEmulationOnly", false) ? true : false;

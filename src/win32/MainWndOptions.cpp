@@ -713,6 +713,7 @@ void MainWnd::OnUpdateOptionsVideoRendermethodGdi(CCmdUI*pCmdUI)
 }
 #endif // VBA_ENABLE_GDI
 
+#if VBA_ENABLE_DDRAW
 void MainWnd::OnOptionsVideoRendermethodDirectdraw()
 {
 	theApp.renderMethod = DIRECT_DRAW;
@@ -723,6 +724,7 @@ void MainWnd::OnUpdateOptionsVideoRendermethodDirectdraw(CCmdUI*pCmdUI)
 {
 	pCmdUI->SetCheck(theApp.renderMethod == DIRECT_DRAW);
 }
+#endif // VBA_ENABLE_DDRAW
 
 void MainWnd::OnOptionsVideoRendermethodDirect3d()
 {
@@ -850,6 +852,7 @@ void MainWnd::OnUpdateOptionsVideoWgpubackend(CCmdUI *pCmdUI)
 }
 #endif
 
+#if VBA_ENABLE_DDRAW
 void MainWnd::OnOptionsVideoTriplebuffering()
 {
 	theApp.tripleBuffering = !theApp.tripleBuffering;
@@ -879,6 +882,7 @@ void MainWnd::OnUpdateOptionsVideoDdrawusevideomemory(CCmdUI*pCmdUI)
 {
 	pCmdUI->SetCheck(theApp.ddrawUseVideoMemory);
 }
+#endif // VBA_ENABLE_DDRAW
 
 // The texture filter menu is one menu for all the renderers, while each of
 // them keeps its own setting: the two Direct3D ones share d3dFilter, the two

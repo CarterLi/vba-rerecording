@@ -871,6 +871,9 @@
 // The GDI render method entry; it is compiled in with the backend, see
 // VBA_ENABLE_GDI in GdiConfig.h.
 #define ID_OPTIONS_VIDEO_RENDERMETHOD_GDI 40228
+// The DirectDraw render method entries, with its two video memory options and
+// the triple buffering one; they are compiled in with the backend, see
+// VBA_ENABLE_DDRAW in DDrawConfig.h.
 #define ID_OPTIONS_VIDEO_RENDERMETHOD_DIRECTDRAW 40229
 #define ID_OPTIONS_VIDEO_RENDERMETHOD_DIRECT3D 40230
 // The OpenGL render method entries; they are compiled in with the backends,

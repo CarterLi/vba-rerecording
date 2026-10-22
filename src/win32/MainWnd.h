@@ -5,6 +5,7 @@
 // MainWnd.h : header file
 //
 
+#include "DDrawConfig.h"
 #include "GdiConfig.h"
 #include "OpenGLConfig.h"
 #include "WgpuConfig.h"
@@ -207,8 +208,10 @@ protected:
 	afx_msg void OnOptionsVideoRendermethodGdi();
 	afx_msg void OnUpdateOptionsVideoRendermethodGdi(CCmdUI*pCmdUI);
 #endif
+#if VBA_ENABLE_DDRAW
 	afx_msg void OnOptionsVideoRendermethodDirectdraw();
 	afx_msg void OnUpdateOptionsVideoRendermethodDirectdraw(CCmdUI*pCmdUI);
+#endif
 	afx_msg void OnOptionsVideoRendermethodDirect3d();
 	afx_msg void OnUpdateOptionsVideoRendermethodDirect3d(CCmdUI*pCmdUI);
 #if VBA_ENABLE_OPENGL
@@ -225,12 +228,14 @@ protected:
 	afx_msg void OnOptionsVideoWgpubackend(UINT nID);
 	afx_msg void OnUpdateOptionsVideoWgpubackend(CCmdUI*pCmdUI);
 #endif
+#if VBA_ENABLE_DDRAW
 	afx_msg void OnOptionsVideoTriplebuffering();
 	afx_msg void OnUpdateOptionsVideoTriplebuffering(CCmdUI*pCmdUI);
 	afx_msg void OnOptionsVideoDdrawemulationonly();
 	afx_msg void OnUpdateOptionsVideoDdrawemulationonly(CCmdUI*pCmdUI);
 	afx_msg void OnOptionsVideoDdrawusevideomemory();
 	afx_msg void OnUpdateOptionsVideoDdrawusevideomemory(CCmdUI*pCmdUI);
+#endif
 	afx_msg void OnOptionsVideoTexturefilter(UINT nID);
 	afx_msg void OnUpdateOptionsVideoTexturefilter(CCmdUI*pCmdUI);
 #if VBA_ENABLE_OPENGL

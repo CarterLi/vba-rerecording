@@ -128,6 +128,11 @@ something they would rather keep using.
   a compile time switch (`VBA_ENABLE_GDI` in `GdiConfig.h`), so a build
   without it leaves the entry out of the Video menu and falls back to
   DirectDraw instead.  Disabled by default.
+* **DirectDraw** - the older accelerated renderer, which runs on `DDRAW.DLL`
+  and sits below Direct3D in the fallback chain.  It sits behind a compile
+  time switch (`VBA_ENABLE_DDRAW` in `DDrawConfig.h`), so a build without it
+  leaves the entry and its options out of the Video menu and falls from
+  Direct3D to GDI.  Enabled by default.
 * **Direct3D 11** - a new backend: device, swap chain, a dynamic BGRA frame
   texture (BGR565 at 16 bpp) drawn as a single quad, the on screen display
   blended on top, the flip model where the system supports it and bitblt where
@@ -151,12 +156,15 @@ something they would rather keep using.
   and, where it runs, the WebGPU backend behind it.  No more guessing from
   the trace log.
 
-The three renderers that are not built by default sit behind compile time
-switches, so a build can leave them out or put them back:
+The renderers sit behind compile time switches, so a build can leave them out
+or put them back.  GDI, OpenGL and WebGPU are off by default; DirectDraw is on:
 
 * `VBA_ENABLE_GDI` in `src/win32/GdiConfig.h` builds the GDI renderer.  With
   it off, the "GDI" entry leaves the Video menu, and the fallback chain ends
   at DirectDraw instead of at GDI.
+* `VBA_ENABLE_DDRAW` in `src/win32/DDrawConfig.h` builds the DirectDraw
+  renderer.  With it off, the "DirectDraw" entry and its options leave the
+  Video menu, and the fallback chain goes from Direct3D to GDI.
 * `VBA_ENABLE_OPENGL` in `src/win32/OpenGLConfig.h` builds the two OpenGL
   renderers - the fixed function one and the OpenGL 3.3 one.  With it off,
   the "OpenGL 3.3" and "OpenGL (Legacy)" entries and the two legacy GL
@@ -169,8 +177,8 @@ switches, so a build can leave them out or put them back:
 
 A build that leaves a renderer out still reads the settings of an earlier
 build: a stored render method that names a renderer the build does not have
-falls back to DirectDraw rather than failing, and the render method that
-finally starts is the one that is saved.
+falls back to the one the build starts on rather than failing, and the render
+method that finally starts is the one that is saved.
 
 ### GPU upscaling that does not cost the emulation thread
 

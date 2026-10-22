@@ -1,4 +1,7 @@
 ﻿#include "stdafx.h"
+#include "DDrawConfig.h"
+
+#if VBA_ENABLE_DDRAW
 
 #define DIRECTDRAW_VERSION 0x0700
 #include "ddraw.h"
@@ -839,4 +842,18 @@ IDisplay *newDirectDrawDisplay()
 {
 	return new DirectDrawDisplay();
 }
+
+#else // ndef VBA_ENABLE_DDRAW
+
+#include "Display.h"
+
+// The renderer is not built, so there is nothing to create.  The menu does
+// not offer it either, see the switch in DDrawConfig.h.
+IDisplay *newDirectDrawDisplay()
+{
+	return NULL;
+}
+
+#endif // !VBA_ENABLE_DDRAW
+
 
