@@ -40,7 +40,9 @@
 #include "../filters/filters.h"
 #include "../version.h"
 
+#if VBA_ENABLE_GDI
 extern IDisplay *newGDIDisplay();
+#endif
 extern IDisplay *newDirectDrawDisplay();
 extern IDisplay *newDirect3DDisplay();
 #if VBA_ENABLE_OPENGL
@@ -1914,9 +1916,11 @@ bool VBA::initDisplay()
 
 		switch (renderMethod)
 		{
+#if VBA_ENABLE_GDI
 		case GDI:
 			display = newGDIDisplay();
 			break;
+#endif
 		case DIRECT_DRAW:
 			display = newDirectDrawDisplay();
 			break;
@@ -2014,7 +2018,17 @@ bool VBA::updateRenderMethod(bool force)
 			else if (renderMethod == DIRECT_3D)
 				renderMethod = DIRECT_DRAW;
 			else if (renderMethod == DIRECT_DRAW)
+			{
+#if VBA_ENABLE_GDI
 				renderMethod = GDI;
+#else
+				// The GDI renderer is the last one of the chain, and it is
+				// not built, so there is nothing below the DirectDraw
+				// renderer to try and the chain ends here.
+				winlog("VBA: no renderer is left to try\n");
+				break;
+#endif
+			}
 
 			winlog("VBA: render method %d did not start, trying %d\n", failed, renderMethod);
 
@@ -2236,15 +2250,18 @@ void VBA::winRemoveUpdateListener(IUpdateListener *l)
 	}
 }
 
-// Whether the render method named is one this build has.  The OpenGL and the
-// WebGPU renderers sit behind a compile time switch, so a build without them
-// cannot run them at all, and a setting left over from a build that had them
-// has to fall back to one it has.
+// Whether the render method named is one this build has.  The GDI, the
+// OpenGL and the WebGPU renderers sit behind a compile time switch, so a
+// build without them cannot run them at all, and a setting left over from a
+// build that had them has to fall back to one it has.
 static bool renderMethodBuilt(DISPLAY_TYPE method)
 {
 	switch (method)
 	{
+#if VBA_ENABLE_GDI
 	case GDI:
+		return true;
+#endif
 	case DIRECT_DRAW:
 	case DIRECT_3D:
 	case DIRECT_3D11:

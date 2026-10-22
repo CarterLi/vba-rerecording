@@ -1,4 +1,8 @@
 ﻿#include "stdafx.h"
+#include "GdiConfig.h"
+
+#if VBA_ENABLE_GDI
+
 #include <cstdio>
 
 #include "resource.h"
@@ -370,4 +374,17 @@ IDisplay *newGDIDisplay()
 {
 	return new GDIDisplay();
 }
+
+#else // ndef VBA_ENABLE_GDI
+
+#include "Display.h"
+
+// The renderer is not built, so there is nothing to create.  The menu does
+// not offer it either, see the switch in GdiConfig.h.
+IDisplay *newGDIDisplay()
+{
+	return NULL;
+}
+
+#endif // !VBA_ENABLE_GDI
 

@@ -5,6 +5,7 @@
 // MainWnd.h : header file
 //
 
+#include "GdiConfig.h"
 #include "OpenGLConfig.h"
 #include "WgpuConfig.h"
 
@@ -202,8 +203,10 @@ protected:
 	afx_msg void OnUpdateOptionsVideoDisablesfx(CCmdUI*pCmdUI);
 	afx_msg void OnOptionsVideoFullscreenstretchtofit();
 	afx_msg void OnUpdateOptionsVideoFullscreenstretchtofit(CCmdUI*pCmdUI);
+#if VBA_ENABLE_GDI
 	afx_msg void OnOptionsVideoRendermethodGdi();
 	afx_msg void OnUpdateOptionsVideoRendermethodGdi(CCmdUI*pCmdUI);
+#endif
 	afx_msg void OnOptionsVideoRendermethodDirectdraw();
 	afx_msg void OnUpdateOptionsVideoRendermethodDirectdraw(CCmdUI*pCmdUI);
 	afx_msg void OnOptionsVideoRendermethodDirect3d();

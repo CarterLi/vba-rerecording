@@ -121,6 +121,13 @@ something they would rather keep using.
   the frame is handed to the desktop window manager instead of being copied
   through a redirection surface.  The flip model is used where the system has
   it, and the bitblt model stays as the fallback.
+* **GDI** - the renderer the tree was born with, and the slowest of them: it
+  blits the frame into a DIB and hands it to `StretchDIBits`, so the picture
+  is scaled by the CPU.  It is the last renderer of the fallback chain, so it
+  is what the emulator falls back to when no other one starts.  It sits behind
+  a compile time switch (`VBA_ENABLE_GDI` in `GdiConfig.h`), so a build
+  without it leaves the entry out of the Video menu and falls back to
+  DirectDraw instead.  Disabled by default.
 * **Direct3D 11** - a new backend: device, swap chain, a dynamic BGRA frame
   texture (BGR565 at 16 bpp) drawn as a single quad, the on screen display
   blended on top, the flip model where the system supports it and bitblt where
@@ -144,9 +151,12 @@ something they would rather keep using.
   and, where it runs, the WebGPU backend behind it.  No more guessing from
   the trace log.
 
-The two renderers that are not built by default sit behind compile time
+The three renderers that are not built by default sit behind compile time
 switches, so a build can leave them out or put them back:
 
+* `VBA_ENABLE_GDI` in `src/win32/GdiConfig.h` builds the GDI renderer.  With
+  it off, the "GDI" entry leaves the Video menu, and the fallback chain ends
+  at DirectDraw instead of at GDI.
 * `VBA_ENABLE_OPENGL` in `src/win32/OpenGLConfig.h` builds the two OpenGL
   renderers - the fixed function one and the OpenGL 3.3 one.  With it off,
   the "OpenGL 3.3" and "OpenGL (Legacy)" entries and the two legacy GL

@@ -700,6 +700,7 @@ void MainWnd::OnUpdateVideoLayer(CCmdUI *pCmdUI)
 	}
 }
 
+#if VBA_ENABLE_GDI
 void MainWnd::OnOptionsVideoRendermethodGdi()
 {
 	theApp.renderMethod = GDI;
@@ -710,6 +711,7 @@ void MainWnd::OnUpdateOptionsVideoRendermethodGdi(CCmdUI*pCmdUI)
 {
 	pCmdUI->SetCheck(theApp.renderMethod == GDI);
 }
+#endif // VBA_ENABLE_GDI
 
 void MainWnd::OnOptionsVideoRendermethodDirectdraw()
 {

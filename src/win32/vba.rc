@@ -1,6 +1,7 @@
 ﻿// Microsoft Visual C++ generated resource script.
 //
 #include "resource.h"
+#include "GdiConfig.h"
 #include "OpenGLConfig.h"
 #include "WgpuConfig.h"
 #define APSTUDIO_READONLY_SYMBOLS
@@ -2011,8 +2012,10 @@ BEGIN
         BEGIN
             POPUP "&Render Method"
             BEGIN
+#if VBA_ENABLE_GDI
                 MENUITEM "&GDI",                        ID_OPTIONS_VIDEO_RENDERMETHOD_GDI
                 MENUITEM SEPARATOR
+#endif
                 MENUITEM "&DirectDraw",                 ID_OPTIONS_VIDEO_RENDERMETHOD_DIRECTDRAW
                 MENUITEM "    DDraw &Emulation Only",   ID_OPTIONS_VIDEO_DDRAWEMULATIONONLY
                 MENUITEM "    DDraw &Use Video Memory", ID_OPTIONS_VIDEO_DDRAWUSEVIDEOMEMORY
