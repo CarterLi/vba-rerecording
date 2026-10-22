@@ -190,14 +190,14 @@
     <OutDir Condition="'$(Configuration)|$(Platform)'=='V82XD|ARM64'">$(SolutionDir)arm64\$(Configuration)\</OutDir>
     <OutDir Condition="'$(Configuration)|$(Platform)'=='V72XR|ARM64'">$(SolutionDir)arm64\$(Configuration)\</OutDir>
     <OutDir Condition="'$(Configuration)|$(Platform)'=='V72XD|ARM64'">$(SolutionDir)arm64\$(Configuration)\</OutDir>
-    <OutDir Condition="'$(Configuration)|$(Platform)'=='V82XR|Win32'">$(SolutionDir)__V82Xbins\</OutDir>
-    <OutDir Condition="'$(Configuration)|$(Platform)'=='V72XR|Win32'">$(SolutionDir)__bins\</OutDir>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='V82XR|Win32'">$(SolutionDir)x86\$(Configuration)\</OutDir>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='V72XR|Win32'">$(SolutionDir)x86\$(Configuration)\</OutDir>
     <IntDir Condition="'$(Configuration)|$(Platform)'=='V82XR|Win32'">$(SolutionDir).VS_Latest\$(Configuration)\$(Platform)\</IntDir>
     <IntDir Condition="'$(Configuration)|$(Platform)'=='V82XR|x64'">$(SolutionDir).VS_Latest\$(Configuration)\$(Platform)\</IntDir>
     <IntDir Condition="'$(Configuration)|$(Platform)'=='V72XR|Win32'">$(SolutionDir).VS_Latest\$(Configuration)\$(Platform)\</IntDir>
     <IntDir Condition="'$(Configuration)|$(Platform)'=='V72XR|x64'">$(SolutionDir).VS_Latest\$(Configuration)\$(Platform)\</IntDir>
-    <OutDir Condition="'$(Configuration)|$(Platform)'=='V82XD|Win32'">$(SolutionDir)__V82Xbins\</OutDir>
-    <OutDir Condition="'$(Configuration)|$(Platform)'=='V72XD|Win32'">$(SolutionDir)__V72Xbins\</OutDir>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='V82XD|Win32'">$(SolutionDir)x86\$(Configuration)\</OutDir>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='V72XD|Win32'">$(SolutionDir)x86\$(Configuration)\</OutDir>
     <IntDir Condition="'$(Configuration)|$(Platform)'=='V82XD|Win32'">$(SolutionDir).VS_Latest\$(Configuration)\$(Platform)\</IntDir>
     <IntDir Condition="'$(Configuration)|$(Platform)'=='V82XD|x64'">$(SolutionDir).VS_Latest\$(Configuration)\$(Platform)\</IntDir>
     <IntDir Condition="'$(Configuration)|$(Platform)'=='V72XD|Win32'">$(SolutionDir).VS_Latest\$(Configuration)\$(Platform)\</IntDir>
@@ -250,7 +250,7 @@
     <TargetName Condition="'$(Configuration)|$(Platform)'=='V82XR|x64'">$(ProjectName)_$(Configuration)</TargetName>
     <TargetName Condition="'$(Configuration)|$(Platform)'=='V72XR|Win32'">$(ProjectName)_release</TargetName>
     <TargetName Condition="'$(Configuration)|$(Platform)'=='V72XR|x64'">$(ProjectName)_release</TargetName>
-    <OutDir Condition="'$(Configuration)|$(Platform)'=='V72XR|Win32'">$(SolutionDir)__V72Xbins\</OutDir>
+    <OutDir Condition="'$(Configuration)|$(Platform)'=='V72XR|Win32'">$(SolutionDir)x86\$(Configuration)\</OutDir>
     <IntDir Condition="'$(Configuration)|$(Platform)'=='V72XR|Win32'">$(SolutionDir).VS_Latest\$(Configuration)\$(Platform)\</IntDir>
     <IntDir Condition="'$(Configuration)|$(Platform)'=='V72XR|x64'">$(SolutionDir).VS_Latest\$(Configuration)\$(Platform)\</IntDir>
     <TargetName Condition="'$(Configuration)|$(Platform)'=='V72XR|Win32'">$(ProjectName)_$(Configuration)</TargetName>
