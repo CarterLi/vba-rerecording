@@ -1309,13 +1309,14 @@ BEGIN
     CONTROL         "Hide SGB Border",IDC_CHECK_HIDEBORDER,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,116,123,70,10
 END
 
-IDD_TEXTCONFIG DIALOGEX 0, 0, 139, 120
+IDD_TEXTCONFIG DIALOGEX 0, 0, 138, 228
 STYLE DS_SETFONT | DS_MODALFRAME | DS_FIXEDSYS | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Text Options"
 FONT 8, "MS Shell Dlg", 400, 0, 0x1
 BEGIN
-    DEFPUSHBUTTON   "OK",IDOK,69,99,63,14
-    PUSHBUTTON      "Cancel",IDCANCEL,7,99,53,14
+    PUSHBUTTON      "Cancel",IDCANCEL,7,207,36,14
+    PUSHBUTTON      "Apply",IDC_TEXT_APPLY,51,207,36,14
+    DEFPUSHBUTTON   "OK",IDOK,95,207,36,14
     GROUPBOX        "Color",IDC_STATIC,7,7,54,86
     CONTROL         "White",IDC_RADIO_WHITE,"Button",BS_AUTORADIOBUTTON | WS_GROUP,13,16,35,8
     CONTROL         "Red",IDC_RADIO_RED,"Button",BS_AUTORADIOBUTTON,13,25,29,8
@@ -1325,13 +1326,28 @@ BEGIN
     CONTROL         "Blue",IDC_RADIO_BLUE,"Button",BS_AUTORADIOBUTTON,13,63,29,8
     CONTROL         "Magenta",IDC_RADIO_MAGENTA,"Button",BS_AUTORADIOBUTTON,13,72,44,8
     CONTROL         "Black",IDC_RADIO_BLACK,"Button",BS_AUTORADIOBUTTON,13,82,32,8
-    CONTROL         "Outlined",IDC_CHECK_OUTLINED,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,74,17,43,10
-    CONTROL         "Transparent",IDC_CHECK_TRANSPARENT,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,74,28,55,10
-    GROUPBOX        "Mode",IDC_STATIC,69,7,63,36
-    GROUPBOX        "Display",IDC_STATIC,69,48,63,45
-    CONTROL         "In Game",IDC_RADIO_PREFILTER,"Button",BS_AUTORADIOBUTTON | WS_GROUP,73,58,43,10
-    CONTROL         "On Game",IDC_RADIO_POSTFILTER,"Button",BS_AUTORADIOBUTTON,73,69,45,10
-    CONTROL         "On Screen",IDC_RADIO_POSTRENDER,"Button",BS_AUTORADIOBUTTON,73,80,49,10
+    CONTROL         "Outlined",IDC_CHECK_OUTLINED,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,73,17,55,10
+    CONTROL         "Transparent",IDC_CHECK_TRANSPARENT,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,73,28,55,10
+    GROUPBOX        "Mode",IDC_STATIC,69,7,62,36
+    GROUPBOX        "Display",IDC_STATIC,69,48,62,45
+    CONTROL         "In Game",IDC_RADIO_PREFILTER,"Button",BS_AUTORADIOBUTTON | WS_GROUP,73,58,55,10
+    CONTROL         "On Game",IDC_RADIO_POSTFILTER,"Button",BS_AUTORADIOBUTTON,73,69,55,10
+    CONTROL         "On Screen",IDC_RADIO_POSTRENDER,"Button",BS_AUTORADIOBUTTON,73,80,55,10
+    GROUPBOX        "Font",IDC_STATIC,7,97,124,57
+    LTEXT           "Font:",IDC_STATIC,13,106,25,8
+    COMBOBOX        IDC_TEXT_FONT,45,104,80,60,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    LTEXT           "Font size:",IDC_STATIC,13,120,30,8
+    COMBOBOX        IDC_TEXT_SIZE,45,118,80,60,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    EDITTEXT        IDC_TEXT_SCREEN_SIZE,45,118,80,12,ES_AUTOHSCROLL | ES_NUMBER | WS_TABSTOP
+    CONTROL         "",IDC_TEXT_SCREEN_SIZE_SPIN,"msctls_updown32",UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_SETBUDDYINT | UDS_ARROWKEYS | UDS_NOTHOUSANDS,115,118,10,12
+    LTEXT           "Bitmap fonts use the system's fixed pixel sizes.",IDC_STATIC,13,134,112,16
+    GROUPBOX        "Position",IDC_STATIC,7,157,124,44
+    RTEXT           "Left margin:",IDC_STATIC,13,167,53,8
+    EDITTEXT        IDC_TEXT_MARGIN_LEFT,68,165,57,12,ES_AUTOHSCROLL | ES_NUMBER | ES_RIGHT | WS_TABSTOP
+    CONTROL         "",IDC_TEXT_MARGIN_LEFT_SPIN,"msctls_updown32",UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_SETBUDDYINT | UDS_ARROWKEYS | UDS_NOTHOUSANDS,115,165,10,12
+    RTEXT           "Bottom margin:",IDC_STATIC,13,181,53,8
+    EDITTEXT        IDC_TEXT_MARGIN_BOTTOM,68,179,57,12,ES_AUTOHSCROLL | ES_NUMBER | ES_RIGHT | WS_TABSTOP
+    CONTROL         "",IDC_TEXT_MARGIN_BOTTOM_SPIN,"msctls_updown32",UDS_ALIGNRIGHT | UDS_AUTOBUDDY | UDS_SETBUDDYINT | UDS_ARROWKEYS | UDS_NOTHOUSANDS,115,179,10,12
 END
 
 IDD_LUA DIALOGEX 0, 0, 270, 150
@@ -1806,9 +1822,9 @@ BEGIN
     IDD_TEXTCONFIG, DIALOG
     BEGIN
         LEFTMARGIN, 7
-        RIGHTMARGIN, 132
+        RIGHTMARGIN, 131
         TOPMARGIN, 7
-        BOTTOMMARGIN, 113
+        BOTTOMMARGIN, 221
     END
 
     IDD_RAMSEARCH, DIALOG
@@ -2838,6 +2854,15 @@ BEGIN
     IDS_CONFIRM_DELETE      "Confirm delete"
     IDS_GROUP_CHEATS_TIP    "Merge adjacent entries with the same description and type into groups"
     IDS_RESTORE_TIP         "When deleting a cheat, write its original value back to memory to undo the cheat's effect"
+    IDS_TEXT_PREFILTER_TIP  "Drawn into the emulated frame before video filters.\nFilters and AVI recording include this text."
+    IDS_TEXT_POSTFILTER_TIP "Drawn into the emulated frame after video filters.\nStays sharp, but still scales with the window."
+    IDS_TEXT_POSTRENDER_TIP "Overlaid on the final window after rendering.\nNot affected by filters and not recorded to AVI."
+    IDS_TEXT_FONT_BUILTIN   "Built-in 8x8"
+    IDS_TEXT_GAME_FONT_TIP  "Font used by In Game and On Game.\nOnly bitmap fonts are listed; sizes follow the fixed pixel strikes the face provides (the built-in font has only 8)."
+    IDS_TEXT_SCREEN_FONT_TIP "Font used by On Screen.\nScalable fixed-width fonts are drawn with ClearType antialiasing."
+    IDS_TEXT_SIZE_TIP       "Size in pixels. TrueType sizes range from 8 to 60; bitmap fonts only offer their fixed strikes."
+    IDS_TEXT_MARGIN_LEFT_TIP "Horizontal offset of the text from the left edge, in pixels (0-9999)."
+    IDS_TEXT_MARGIN_BOTTOM_TIP "Vertical offset of the text from the bottom edge, in pixels (0-9999)."
     IDS_FAILED_TO_LOAD_LIBRARY "Failed to load library %s"
     IDS_FAILED_TO_GET_LOCINFO "Failed to get locale information"
     IDS_SELECT_CHEAT_LIST_NAME "Select cheat list name"

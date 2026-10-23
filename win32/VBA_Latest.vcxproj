@@ -1134,6 +1134,7 @@ call "$(ProjectDir)defaultconfig\CopyWgpu.bat" "$(Platform)" "$(OutDir)"</Comman
     <ClCompile Include="..\src\win32\Direct3D11.cpp" />
     <ClCompile Include="..\src\win32\Wgpu.cpp" />
     <ClCompile Include="..\src\win32\TextOverlay.cpp" />
+    <ClCompile Include="..\src\win32\GameText.cpp" />
     <ClCompile Include="..\src\win32\DirectDraw.cpp" />
     <ClCompile Include="..\src\win32\DirectInput.cpp" />
     <ClCompile Include="..\src\win32\DirectSound.cpp" />
@@ -1278,6 +1279,7 @@ call "$(ProjectDir)defaultconfig\CopyWgpu.bat" "$(Platform)" "$(OutDir)"</Comman
     <ClInclude Include="..\src\win32\Dialogs\VideoMode.h" />
     <ClInclude Include="..\src\win32\Display.h" />
     <ClInclude Include="..\src\win32\TextOverlay.h" />
+    <ClInclude Include="..\src\win32\GameText.h" />
     <ClInclude Include="..\src\win32\Input.h" />
     <ClInclude Include="..\src\win32\IUpdate.h" />
     <ClInclude Include="..\src\win32\MainWnd.h" />

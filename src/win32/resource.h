@@ -214,6 +214,15 @@
 #define IDS_PREVIOUS                    209
 #define IDS_CHANGES                     210
 #define IDS_NOTES                       211
+#define IDS_TEXT_PREFILTER_TIP          212
+#define IDS_TEXT_POSTFILTER_TIP         213
+#define IDS_TEXT_POSTRENDER_TIP         214
+#define IDS_TEXT_FONT_BUILTIN           215
+#define IDS_TEXT_GAME_FONT_TIP          216
+#define IDS_TEXT_SCREEN_FONT_TIP        217
+#define IDS_TEXT_SIZE_TIP               218
+#define IDS_TEXT_MARGIN_LEFT_TIP        219
+#define IDS_TEXT_MARGIN_BOTTOM_TIP      220
 #define IDR_MENU                        401
 #define IDR_ACCELERATOR                 405
 #define IDR_GB_PRINTER                  406
@@ -1209,6 +1218,15 @@
 #define IDC_PROMPT_TEXT                 43410
 #define IDC_PROMPT_TEXT2                43411
 #define IDC_PROMPT_EDIT                 43412
+#define IDC_TEXT_FONT                   43413
+#define IDC_TEXT_SIZE                   43414
+#define IDC_TEXT_MARGIN_LEFT            43415
+#define IDC_TEXT_MARGIN_BOTTOM          43416
+#define IDC_TEXT_SCREEN_SIZE            43417
+#define IDC_TEXT_SCREEN_SIZE_SPIN       43418
+#define IDC_TEXT_APPLY                  43419
+#define IDC_TEXT_MARGIN_LEFT_SPIN       43420
+#define IDC_TEXT_MARGIN_BOTTOM_SPIN     43421
 
 // Embedded 7z.dll (see 7zip/7zapi.cpp and the RCDATA entry in VBA.rc)
 #define IDR_SEVENZ_DLL                  310

@@ -9,6 +9,7 @@
 #include "MainWnd.h"
 #include "Reg.h"
 #include "VBA.h"
+#include "TextOverlay.h"
 
 #include "../gba/GBAGlobals.h"
 #include "../gb/gbGlobals.h"
@@ -297,6 +298,13 @@ void GDIDisplay::render()
 		winlog(_T("GDI: StretchDIBits failed with %d, GetLastError %lu"), copied, GetLastError());
 
 	if (textMethod == 2)
+	{
+		HFONT font = createScreenTextFont();
+		HFONT oldFont = (HFONT)dc->SelectObject(font);
+		const int lineHeight = screenTextLineHeight();
+		const int textLeft   = p.x + 10 + theApp.textMarginLeft;
+		const int textBottom = p2.y - theApp.textMarginBottom;
+
 		for (int slot = 0; slot < SCREEN_MESSAGE_SLOTS; slot++)
 		{
 			if (theApp.screenMessage[slot])
@@ -316,7 +324,7 @@ void GDIDisplay::render()
 						const static int yd [8] = {-1, -1, -1, 0, 1, 1, 1, 0};
 						for (int i = 0; i < 8; i++)
 						{
-							dc->TextOut(p.x+10+xd[i], p2.y - 20*(slot+1)+yd[i], theApp.screenMessageBuffer[slot]);
+							dc->TextOut(textLeft+xd[i], textBottom - lineHeight*(slot+1)+yd[i], theApp.screenMessageBuffer[slot]);
 						}
 					}
 
@@ -343,7 +351,7 @@ void GDIDisplay::render()
 					dc->SetTextColor(color);
 
 					// draw center text
-					dc->TextOut(p.x+10, p2.y - 20*(slot+1), theApp.screenMessageBuffer[slot]);
+					dc->TextOut(textLeft, textBottom - lineHeight*(slot+1), theApp.screenMessageBuffer[slot]);
 				}
 				else
 				{
@@ -351,6 +359,10 @@ void GDIDisplay::render()
 				}
 			}
 		}
+
+		dc->SelectObject(oldFont);
+		DeleteObject(font);
+	}
 
 	pWnd->ReleaseDC(dc);
 }

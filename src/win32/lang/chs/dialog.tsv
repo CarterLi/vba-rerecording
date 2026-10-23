@@ -6,6 +6,7 @@
 
 OK	确定
 Cancel	取消
+Apply	应用
 &OK	确定(&O)
 &Cancel	取消(&C)
 Open	打开
@@ -292,6 +293,17 @@ Display	显示
 In Game	游戏内
 On Game	游戏上
 On Screen	屏幕上
+Font	字体
+Font:	字体：
+Scale:	缩放：
+Font (On Screen)	字体（仅屏幕上）
+Screen font:	屏幕字体：
+Game font:	游戏字体：
+Bitmap fonts use the system's fixed pixel sizes.	位图字体使用系统固定的像素字号。
+Font size:	字号：
+Position	位置
+Left margin:	左边距：
+Bottom margin:	下边距：
 Lua Script	Lua 脚本
 Browse...	浏览...
 Run	运行

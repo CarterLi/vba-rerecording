@@ -1,15 +1,11 @@
 #include "stdafx.h"
 
+#include <vector>
+
 #include "TextOverlay.h"
 #include "VBA.h"
 
 #include "../common/Text.h"
-
-// The DIB is filled with this colour and every pixel that still carries it
-// after rendering becomes fully transparent.
-#define OVERLAY_KEY_R 1
-#define OVERLAY_KEY_G 2
-#define OVERLAY_KEY_B 3
 
 static COLORREF overlayTextColor(int index)
 {
@@ -25,6 +21,39 @@ static COLORREF overlayTextColor(int index)
 	case 7:  return RGB(0, 0, 0);
 	default: return RGB(255, 255, 255);
 	}
+}
+
+int screenTextFontHeight()
+{
+	int height = theApp.screenTextSize;
+	if (height < SCREEN_TEXT_SIZE_MIN)
+		height = SCREEN_TEXT_SIZE_MIN;
+	if (height > SCREEN_TEXT_SIZE_MAX)
+		height = SCREEN_TEXT_SIZE_MAX;
+	return height;
+}
+
+int screenTextLineHeight()
+{
+	// Six pixels of leading keep the default 12 pixel font on the same
+	// comfortable row the historical 20 pixel On Screen layout had, and give
+	// larger fonts the room they need.
+	return screenTextFontHeight() + 6;
+}
+
+HFONT createScreenTextFont()
+{
+	CString face = theApp.screenTextFont;
+	if (face.IsEmpty())
+		face = _T("Consolas");
+
+	// The On Screen font list only offers scalable faces, so asking for
+	// ClearType here gets the system antialiasing the user expects.  The
+	// renderer copies the coverage out of a black mask instead of letting
+	// GDI touch the transparent overlay, which keeps the edges soft.
+	return CreateFont(-screenTextFontHeight(), 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE,
+	                  DEFAULT_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
+	                  CLEARTYPE_QUALITY, DEFAULT_PITCH | FF_DONTCARE, face);
 }
 
 TextOverlay::TextOverlay()
@@ -120,36 +149,146 @@ bool TextOverlay::create(int width, int height)
 
 void TextOverlay::drawSlot(int slot)
 {
+	const int lineHeight = screenTextLineHeight();
+
 	RECT r;
-	r.left   = 10;
-	r.top    = overlayHeight - 20 * (slot + 1);
-	r.right  = overlayWidth - 10;
-	r.bottom = r.top + 20;
+	r.left   = 10 + theApp.textMarginLeft;
+	r.top    = overlayHeight - theApp.textMarginBottom - lineHeight * (slot + 1);
+	r.right  = overlayWidth - 10 + theApp.textMarginLeft;
+	r.bottom = r.top + lineHeight;
 
-	SetBkMode(dc, TRANSPARENT);
-	SetTextAlign(dc, TA_LEFT | TA_TOP);
+	const int w = r.right - r.left;
+	const int h = r.bottom - r.top;
+	if (w <= 0 || h <= 0)
+		return;
 
-	if (outlinedText)
+	// GDI rasterises the glyphs into a mask of their own, one pixel larger on
+	// each side than the text row so the outline is not clipped.  Rendering
+	// straight into the overlay would blend the glyph against the transparent
+	// overlay colour and lose the antialiased edge.
+	const int mw = w + 2;
+	const int mh = h + 2;
+
+	BITMAPINFO bmi;
+	ZeroMemory(&bmi, sizeof(bmi));
+	bmi.bmiHeader.biSize        = sizeof(BITMAPINFOHEADER);
+	bmi.bmiHeader.biWidth       = mw;
+	bmi.bmiHeader.biHeight      = -mh; // top-down
+	bmi.bmiHeader.biPlanes      = 1;
+	bmi.bmiHeader.biBitCount    = 32;
+	bmi.bmiHeader.biCompression = BI_RGB;
+
+	void *bits = NULL;
+	HBITMAP bitmap = CreateDIBSection(dc, &bmi, DIB_RGB_COLORS, &bits, NULL, 0);
+	if (bitmap == NULL || bits == NULL)
 	{
-		const static int xd[8] = { -1, 0, 1, 1, 1, 0, -1, -1 };
-		const static int yd[8] = { -1, -1, -1, 0, 1, 1, 1, 0 };
-
-		SetTextColor(dc, textColor != 7 ? RGB(0, 0, 0) : RGB(255, 255, 255));
-		for (int i = 0; i < 8; i++)
-		{
-			RECT r2 = r;
-			r2.left   += xd[i];
-			r2.right  += xd[i];
-			r2.top    += yd[i];
-			r2.bottom += yd[i];
-			DrawText(dc, theApp.screenMessageBuffer[slot], -1, &r2,
-			         DT_LEFT | DT_TOP | DT_SINGLELINE | DT_NOPREFIX);
-		}
+		if (bitmap != NULL)
+			DeleteObject(bitmap);
+		return;
 	}
 
-	SetTextColor(dc, overlayTextColor(textColor));
-	DrawText(dc, theApp.screenMessageBuffer[slot], -1, &r,
-	         DT_LEFT | DT_TOP | DT_SINGLELINE | DT_NOPREFIX);
+	HDC maskDC = CreateCompatibleDC(dc);
+	if (maskDC == NULL)
+	{
+		DeleteObject(bitmap);
+		return;
+	}
+
+	HGDIOBJ oldBitmap = SelectObject(maskDC, bitmap);
+	HGDIOBJ oldFont   = SelectObject(maskDC, GetCurrentObject(dc, OBJ_FONT));
+
+	PatBlt(maskDC, 0, 0, mw, mh, BLACKNESS);
+	SetBkMode(maskDC, OPAQUE);
+	SetBkColor(maskDC, RGB(0, 0, 0));
+	SetTextColor(maskDC, RGB(255, 255, 255));
+	SetTextAlign(maskDC, TA_LEFT | TA_TOP);
+
+	RECT maskRect;
+	maskRect.left   = 1;
+	maskRect.top    = 1;
+	maskRect.right  = w + 1;
+	maskRect.bottom = h + 1;
+	DrawTextW(maskDC, theApp.screenMessageBuffer[slot], -1, &maskRect,
+	          DT_LEFT | DT_TOP | DT_SINGLELINE | DT_NOPREFIX);
+
+	SelectObject(maskDC, oldFont);
+	SelectObject(maskDC, oldBitmap);
+	DeleteDC(maskDC);
+
+	// Every channel of a white ClearType rendering carries a share of the
+	// subpixel coverage; their average is the coverage of that pixel.
+	std::vector<unsigned char> coverage((size_t)mw * mh);
+	const unsigned char *src = (const unsigned char *)bits;
+	for (int y = 0; y < mh; y++)
+	{
+		const unsigned char *row = src + (size_t)y * mw * 4;
+		for (int x = 0; x < mw; x++, row += 4)
+			coverage[(size_t)y * mw + x] = (unsigned char)((row[0] + row[1] + row[2]) / 3);
+	}
+	DeleteObject(bitmap);
+
+	const COLORREF color  = overlayTextColor(textColor);
+	const COLORREF border = textColor != 7 ? RGB(0, 0, 0) : RGB(255, 255, 255);
+	const int tr = GetRValue(color),  tg = GetGValue(color),  tb = GetBValue(color);
+	const int br = GetRValue(border), bg = GetGValue(border), bb = GetBValue(border);
+
+	const int originX = r.left - 1;
+	const int originY = r.top - 1;
+
+	for (int y = 0; y < mh; y++)
+	{
+		const int py = originY + y;
+		if (py < 0 || py >= overlayHeight)
+			continue;
+
+		unsigned char *dstRow = (unsigned char *)dibBits + (size_t)py * overlayPitch;
+		for (int x = 0; x < mw; x++)
+		{
+			const int px = originX + x;
+			if (px < 0 || px >= overlayWidth)
+				continue;
+
+			const int glyph = coverage[(size_t)y * mw + x];
+
+			int outline = 0;
+			if (outlinedText)
+			{
+				for (int dy = -1; dy <= 1; dy++)
+				{
+					const int ny = y + dy;
+					if (ny < 0 || ny >= mh)
+						continue;
+					for (int dx = -1; dx <= 1; dx++)
+					{
+						if (dx == 0 && dy == 0)
+							continue;
+						const int nx = x + dx;
+						if (nx < 0 || nx >= mw)
+							continue;
+						const int value = coverage[(size_t)ny * mw + nx];
+						if (value > outline)
+							outline = value;
+					}
+				}
+			}
+
+			if (glyph == 0 && outline == 0)
+				continue;
+
+			// The outline sits behind the glyph: a partially covered glyph
+			// pixel shows the outline through the rest of the pixel.
+			const int outlineAlpha = outline * (255 - glyph) / 255;
+			const int alpha = glyph + outlineAlpha;
+			if (alpha <= 0)
+				continue;
+
+			unsigned char *p = dstRow + px * 4;
+			p[0] = (unsigned char)((tb * glyph + bb * outlineAlpha) / alpha);
+			p[1] = (unsigned char)((tg * glyph + bg * outlineAlpha) / alpha);
+			p[2] = (unsigned char)((tr * glyph + br * outlineAlpha) / alpha);
+			p[3] = (unsigned char)alpha;
+		}
+	}
 }
 
 // Folds one visible slot into the signature the overlay is redrawn on.  The
@@ -167,9 +306,11 @@ static unsigned int hashSlot(unsigned int hash, int slot, const CString &text)
 
 int TextOverlay::usedTop() const
 {
-	// One 20 pixel row per slot, counted up from the bottom, and the outline
-	// reaches one pixel above its row.
-	int top = overlayHeight - 20 * SCREEN_MESSAGE_SLOTS - 1;
+	// One row per slot, counted up from the bottom, and the outline reaches a
+	// few pixels above its row at larger scales.  The bottom margin moves the
+	// whole block, so it moves the first painted row too.
+	int top = overlayHeight - theApp.textMarginBottom
+		- screenTextLineHeight() * SCREEN_MESSAGE_SLOTS - 1;
 
 	return top > 0 ? top : 0;
 }
@@ -215,9 +356,14 @@ bool TextOverlay::update()
 	}
 
 	// Both colours are picked when the text is drawn, so they are part of what
-	// the signature has to cover.
+	// the signature has to cover, and so is the font the options selected.
 	signature = (signature ^ (unsigned int)textColor) * 16777619u;
 	signature = (signature ^ (unsigned int)outlinedText) * 16777619u;
+	signature = (signature ^ (unsigned int)theApp.screenTextSize) * 16777619u;
+	signature = (signature ^ (unsigned int)theApp.textMarginLeft) * 16777619u;
+	signature = (signature ^ (unsigned int)theApp.textMarginBottom) * 16777619u;
+	for (int i = 0; i < theApp.screenTextFont.GetLength(); i++)
+		signature = (signature ^ (unsigned int)(unsigned short)theApp.screenTextFont[i]) * 16777619u;
 
 	anyVisible     = visibleCount > 0;
 	contentChanged = false;
@@ -234,26 +380,14 @@ bool TextOverlay::update()
 	if (haveSignature && signature == lastSignature)
 		return true;
 
-	// Fill with the transparent key colour.
-	unsigned char *row = (unsigned char *)dibBits;
+	// Clear to transparent; drawSlot() writes the text pixels and their alpha.
 	for (int y = 0; y < overlayHeight; y++)
-	{
-		unsigned char *p = row;
-		for (int x = 0; x < overlayWidth; x++, p += 4)
-		{
-			p[0] = OVERLAY_KEY_B;
-			p[1] = OVERLAY_KEY_G;
-			p[2] = OVERLAY_KEY_R;
-			p[3] = 0;
-		}
-		row += overlayPitch;
-	}
+		memset((unsigned char *)dibBits + (size_t)y * overlayPitch, 0, (size_t)overlayPitch);
 
-	HFONT font = CreateFont(-14, 0, 0, 0, FW_BOLD, FALSE, FALSE, FALSE,
-	                        ANSI_CHARSET, OUT_DEFAULT_PRECIS, CLIP_DEFAULT_PRECIS,
-	                        ANTIALIASED_QUALITY, DEFAULT_PITCH | FF_DONTCARE,
-	                        _T("Arial"));
-	HFONT oldFont = (HFONT)SelectObject(dc, font);
+	HFONT font = createScreenTextFont();
+	HGDIOBJ oldFont = NULL;
+	if (font != NULL)
+		oldFont = SelectObject(dc, font);
 
 	for (int slot = 0; slot < SCREEN_MESSAGE_SLOTS; slot++)
 	{
@@ -261,27 +395,10 @@ bool TextOverlay::update()
 			drawSlot(slot);
 	}
 
-	SelectObject(dc, oldFont);
-	DeleteObject(font);
-
-	// Turn the key colour into transparency.
-	row = (unsigned char *)dibBits;
-	for (int y = 0; y < overlayHeight; y++)
+	if (font != NULL)
 	{
-		unsigned char *p = row;
-		for (int x = 0; x < overlayWidth; x++, p += 4)
-		{
-			if (p[0] == OVERLAY_KEY_B && p[1] == OVERLAY_KEY_G && p[2] == OVERLAY_KEY_R)
-			{
-				p[0] = p[1] = p[2] = 0;
-				p[3] = 0;
-			}
-			else
-			{
-				p[3] = 255;
-			}
-		}
-		row += overlayPitch;
+		SelectObject(dc, oldFont);
+		DeleteObject(font);
 	}
 
 	lastSignature  = signature;

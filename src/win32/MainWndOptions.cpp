@@ -2818,7 +2818,8 @@ void MainWnd::OnOptionsVideoTextdisplayoptions()
 
 	theApp.winCheckFullscreen();
 
-	dlg.DoModal();
+	if (dlg.DoModal() == IDOK)
+		systemRefreshScreen();
 }
 
 void MainWnd::OnUpdateOptionsVideoTextdisplayoptions(CCmdUI *pCmdUI)

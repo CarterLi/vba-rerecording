@@ -121,6 +121,17 @@ inline void upscalerTargetSize(int frameWidth, int frameHeight,
 #define MAX_REWIND_SLOTS 256
 #define SCREEN_MESSAGE_SLOTS 8
 
+// The On Screen overlay draws with a TrueType face, and its size is the font
+// height in pixels.  Eight is the smallest size that stays legible with the
+// outline, sixty the largest that still fits a normal message row.
+#define SCREEN_TEXT_SIZE_MIN 8
+#define SCREEN_TEXT_SIZE_MAX 60
+
+// The text margins are non-negative pixel offsets.  The spinner range covers
+// any value that can move the text across a normal window.
+#define TEXT_MARGIN_MIN 0
+#define TEXT_MARGIN_MAX 9999
+
 /////////////////////////////////////////////////////////////////////////////
 // forward decl
 class IUpdateListener;
@@ -162,6 +173,19 @@ public:
 	int		  videoOption;
 	bool	  fullScreenStretch;
 	bool	  disableStatusMessage;
+	// Head-up display fonts.  The On Screen overlay can use any installed
+	// face, while the In Game and On Game modes draw into the emulated frame
+	// and therefore use a raster font (or the built-in 8x8 bitmap font).
+	CString	  screenTextFont;
+	CString	  gameTextFont;
+	int		  screenTextSize;   // On Screen font height in pixels
+	int		  gameTextSize;     // In Game / On Game font height in pixels
+	// Offset of the text from the left and bottom edges, in pixels.  They
+	// apply to all three modes; for In Game / On Game they are in emulated
+	// frame pixels, so the text moves with the picture when it is scaled.
+	// Negative values are allowed.
+	int		  textMarginLeft;
+	int		  textMarginBottom;
 	int		  showSpeed;
 	BOOL	  showSpeedTransparent;
 	int		  showRenderedFrames;

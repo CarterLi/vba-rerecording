@@ -9,6 +9,7 @@
 #include "MainWnd.h"
 #include "Reg.h"
 #include "VBA.h"
+#include "TextOverlay.h"
 
 #include "../gba/GBAGlobals.h"
 #include "../gb/gbGlobals.h"
@@ -344,8 +345,18 @@ void OpenGLDisplay::render()
 
 	CDC *dc = theApp.m_pMainWnd->GetDC();
 
+	HFONT font    = NULL;
+	HFONT oldFont = NULL;
+	const int lineHeight = screenTextLineHeight();
+
 	if (textMethod == 2)
 	{
+		font    = createScreenTextFont();
+		oldFont = (HFONT)dc->SelectObject(font);
+
+		const int textLeft   = 10 + theApp.textMarginLeft;
+		const int textBottom = theApp.surfaceSizeY - theApp.textMarginBottom;
+
 		for (int slot = 0; slot < SCREEN_MESSAGE_SLOTS; slot++)
 		{
 			if (theApp.screenMessage[slot])
@@ -364,7 +375,7 @@ void OpenGLDisplay::render()
 						const static int yd [8] = {-1, -1, -1, 0, 1, 1, 1, 0};
 						for (int i = 0; i < 8; i++)
 						{
-							dc->TextOut(10+xd[i], theApp.surfaceSizeY - 20*(slot+1)+yd[i], theApp.screenMessageBuffer[slot]);
+							dc->TextOut(textLeft+xd[i], textBottom - lineHeight*(slot+1)+yd[i], theApp.screenMessageBuffer[slot]);
 						}
 					}
 
@@ -391,7 +402,7 @@ void OpenGLDisplay::render()
 					dc->SetTextColor(color);
 
 					// draw center text
-					dc->TextOut(10, theApp.surfaceSizeY - 20*(slot+1), theApp.screenMessageBuffer[slot]);
+					dc->TextOut(textLeft, textBottom - lineHeight*(slot+1), theApp.screenMessageBuffer[slot]);
 				}
 				else
 				{
@@ -399,6 +410,9 @@ void OpenGLDisplay::render()
 				}
 			}
 		}
+
+		dc->SelectObject(oldFont);
+		DeleteObject(font);
 	}
 
 	SwapBuffers(dc->GetSafeHdc());

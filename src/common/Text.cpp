@@ -244,6 +244,11 @@ static void calcColors(const int colorNum, int & lo, int & hi, int & out)
 		out = 0;  // black border
 }
 
+void drawTextGetColors(int colorNum, int &lo, int &hi, int &out)
+{
+	calcColors(colorNum, lo, hi, out);
+}
+
 int lastColID = 0;
 static void progressColorList(const char *& colorList, int & lo, int & hi, int & out)
 {
@@ -262,9 +267,201 @@ static void progressColorList(const char *& colorList, int & lo, int & hi, int &
 	}
 }
 
-static void drawTextInternal(u8 *screen, int pitch, int x, int y,
-                             const char *string, bool trans, const char *colorList = NULL)
+// Renders one glyph of the built-in bitmap font scaled to dw x dh pixels.
+// The result is a (dw + 2*t) by (dh + 2*t) cell of 0 = background,
+// 1 = glyph, 2 = outline.  The cell is filled with the background first, so
+// the caller can reuse the same buffer for every character.
+static void scaledGlyphCell(int c, int dw, int dh, int t, bool outline,
+                            unsigned char *cell)
 {
+	const int cw = dw + 2 * t;
+	const int ch = dh + 2 * t;
+
+	for (int y = 0; y < ch; y++)
+		for (int x = 0; x < cw; x++)
+			cell[y * cw + x] = 0;
+
+	// Nearest neighbour is what a pixel font should use: every destination
+	// pixel takes the glyph bit it covers.  The bit order matches the
+	// unscaled renderer below.
+	for (int y = 0; y < dh; y++)
+	{
+		unsigned char row = fontdata2[(c << 3) + y * 8 / dh];
+		for (int x = 0; x < dw; x++)
+			if ((row >> (x * 8 / dw)) & 1)
+				cell[(y + t) * cw + (x + t)] = 1;
+	}
+
+	if (!outline)
+		return;
+
+	// Grow every glyph pixel by t in all directions.  Text pixels are all
+	// set before this runs, so marking only empty cells cannot eat into the
+	// glyph, and a second pass over this loop cannot grow the border again.
+	for (int y = 0; y < ch; y++)
+		for (int x = 0; x < cw; x++)
+		{
+			if (cell[y * cw + x] != 1)
+				continue;
+
+			for (int oy = -t; oy <= t; oy++)
+				for (int ox = -t; ox <= t; ox++)
+				{
+					int nx = x + ox;
+					int ny = y + oy;
+					if (nx >= 0 && nx < cw && ny >= 0 && ny < ch && cell[ny * cw + nx] == 0)
+						cell[ny * cw + nx] = 2;
+				}
+		}
+}
+
+// Percentage version of drawTextInternal.  Only the game modes use it: the
+// built-in font is drawn into the emulated frame, which the window then
+// scales, so its size is expressed relative to the historical 8x8 glyph
+// rather than in points.
+static void drawTextScaled(u8 *screen, int pitch, int x, int y,
+                           const char *string, bool trans, const char *colorList,
+                           int scalePercent)
+{
+	if (colorList && !*colorList)
+		colorList = NULL;
+
+	if (scalePercent < 25)
+		scalePercent = 25;
+	if (scalePercent > 200)
+		scalePercent = 200;
+
+	int dw = (8 * scalePercent + 50) / 100;
+	if (dw < 1)
+		dw = 1;
+	int dh = dw;
+	int t  = (scalePercent + 50) / 100;
+	if (t < 1)
+		t = 1;
+
+	const int cw = dw + 2 * t;
+	const int ch = dh + 2 * t;
+
+	unsigned char cell[20 * 20]; // 200 percent: 16 + 2*2 pixels per side
+	if (cw > 20 || ch > 20)
+		return;
+
+	int loCol, hiCol, outCol;
+	calcColors(textColor, loCol, hiCol, outCol);
+	lastColID = 0;
+
+	int inc = 2;
+	switch (systemColorDepth)
+	{
+	case 24:
+		inc = 3;
+		break;
+	case 32:
+		inc = 4;
+		break;
+	}
+
+	const int width = pitch / inc;
+	const int baseY = y - t;
+
+	u8 *base = screen;
+
+	while (*string)
+	{
+		unsigned char c = (unsigned char)*string++;
+
+		if (colorList)
+			progressColorList(colorList, loCol, hiCol, outCol);
+
+		if (x >= width)
+			break;
+
+		scaledGlyphCell(c, dw, dh, t, outlinedText, cell);
+
+		for (int gy = 0; gy < ch; gy++)
+		{
+			int py = baseY + gy;
+			if (py < 0)
+				continue;
+
+			u8 *row = base + (size_t)py * pitch;
+
+			for (int gx = 0; gx < cw; gx++)
+			{
+				int state = cell[gy * cw + gx];
+				if (state == 0)
+					continue;
+
+				int px = x - t + gx;
+				if (px < 0 || px >= width)
+					continue;
+
+				if (systemColorDepth == 16)
+				{
+					u16 *p = (u16 *)(row + px * 2);
+					u16  mask = u16(~RGB_LOW_BITS_MASK);
+					if (state == 1)
+					{
+						if (trans)
+							*p = (u16)(loCol + ((*p & mask) >> 1));
+						else
+							*p = (u16)hiCol;
+					}
+					else if (trans)
+						*p = (u16)(outCol + ((*p & mask) >> 1));
+					else
+						*p = (u16)outCol;
+				}
+				else if (systemColorDepth == 24)
+				{
+					u8 *p = row + px * 3;
+					u32 color = state == 1 ? (u32)hiCol : (u32)outCol;
+					if (trans)
+					{
+						*p       = (u8)(((color & 255) >> 1) + (*p >> 1));
+						*(p + 1) = (u8)((((color >> 8) & 255) >> 1) + (*(p + 1) >> 1));
+						*(p + 2) = (u8)((((color >> 16) & 255) >> 1) + (*(p + 2) >> 1));
+					}
+					else
+					{
+						*p       = (u8)(color & 255);
+						*(p + 1) = (u8)((color >> 8) & 255);
+						*(p + 2) = (u8)((color >> 16) & 255);
+					}
+				}
+				else
+				{
+					u32 *p    = (u32 *)(row + px * 4);
+					u32  mask = 0xfefefe;
+					if (state == 1)
+					{
+						if (trans)
+							*p = (u32)(hiCol + ((*p & mask) >> 1));
+						else
+							*p = (u32)hiCol;
+					}
+					else if (trans)
+						*p = (u32)(outCol + ((*p & mask) >> 1));
+					else
+						*p = (u32)outCol;
+				}
+			}
+		}
+
+		x += dw;
+	}
+}
+
+static void drawTextInternal(u8 *screen, int pitch, int x, int y,
+                             const char *string, bool trans, const char *colorList = NULL,
+                             int scalePercent = 100)
+{
+	if (scalePercent != 100)
+	{
+		drawTextScaled(screen, pitch, x, y, string, trans, colorList, scalePercent);
+		return;
+	}
+
 	if (colorList && !*colorList)
 		colorList = NULL;
 
@@ -486,13 +683,32 @@ static void drawTextInternal(u8 *screen, int pitch, int x, int y,
 	}
 }
 
-void drawText(u8 *screen, int pitch, int x, int y, const char *string, const char *colorList)
+int drawTextLineHeight(int scalePercent)
 {
-	drawTextInternal(screen, pitch, x, y, string, transparentText, colorList);
+	if (scalePercent < 25)
+		scalePercent = 25;
+	if (scalePercent > 200)
+		scalePercent = 200;
+
+	int glyph = (8 * scalePercent + 50) / 100;
+	if (glyph < 1)
+		glyph = 1;
+	int border = (scalePercent + 50) / 100;
+	if (border < 1)
+		border = 1;
+
+	return glyph + 2 * border;
 }
 
-void drawTextTransp(u8 *screen, int pitch, int x, int y, const char *string, const char *colorList)
+void drawText(u8 *screen, int pitch, int x, int y, const char *string, const char *colorList,
+              int scalePercent)
 {
-	drawTextInternal(screen, pitch, x, y, string, true, colorList);
+	drawTextInternal(screen, pitch, x, y, string, transparentText, colorList, scalePercent);
+}
+
+void drawTextTransp(u8 *screen, int pitch, int x, int y, const char *string, const char *colorList,
+                    int scalePercent)
+{
+	drawTextInternal(screen, pitch, x, y, string, true, colorList, scalePercent);
 }
 

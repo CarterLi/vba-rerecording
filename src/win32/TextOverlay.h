@@ -1,14 +1,20 @@
 // TextOverlay.h: GDI based OSD text renderer shared by the D3D9 and D3D11 displays.
 //
 // The overlay is rendered once per frame into a 32bpp top-down DIB and then
-// uploaded as a BGRA texture by the backend.  Pixels that keep the transparent
-// key colour end up with alpha = 0, everything else becomes opaque, which lets
-// the backends draw the overlay as a normal alpha blended quad.
+// uploaded as a BGRA texture by the backend.  Text is rasterised by GDI into a
+// coverage mask and composited with straight alpha, so the antialiased edges
+// of a TrueType face stay soft instead of turning opaque.
 
 #ifndef VBA_WIN32_TEXTOVERLAY_H
 #define VBA_WIN32_TEXTOVERLAY_H
 
 #pragma once
+
+// Font used by the On Screen display.  It is always a scalable fixed pitch
+// face; the In Game / On Game modes have their own raster font list.
+HFONT createScreenTextFont();
+int   screenTextFontHeight();
+int   screenTextLineHeight();
 
 class TextOverlay
 {

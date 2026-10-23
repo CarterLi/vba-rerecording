@@ -10,6 +10,7 @@
 #include "VBA.h"
 #include "AVIWrite.h"
 #include "DarkMode.h"
+#include "GameText.h"
 #include "Input.h"
 #include "IUpdate.h"
 #include "MainWnd.h"
@@ -101,6 +102,32 @@ int	 pauseAfterTime = -1;
 
 void DrawTextMessages(u8 *dest, int pitch, int left, int bottom)
 {
+	// The In Game and On Game modes can use a system raster font instead of
+	// the built-in 8x8 bitmap.  gameTextLineHeight() returns 0 when the
+	// selected face cannot be configured, in which case the historical
+	// built-in renderer takes over.
+	const bool builtinGameFont = gameTextFontIsBuiltin();
+	const int gameSize = builtinGameFont ? 8 : theApp.gameTextSize;
+	const int gameLineHeight = builtinGameFont
+		? 0
+		: gameTextLineHeight(gameSize);
+
+	// The built-in font is scaled relative to its historical 8 pixel height.
+	int percent = (gameSize * 100 + 4) / 8;
+	if (percent < 25)
+		percent = 25;
+	if (percent > 200)
+		percent = 200;
+
+	const int lineHeight = gameLineHeight > 0
+		? gameLineHeight
+		: drawTextLineHeight(percent);
+
+	// The margins are in emulated frame pixels here, so In Game and On Game
+	// text moves and stretches with the picture just like the frame does.
+	const int x = left + theApp.textMarginLeft;
+	const int textBottom = bottom - theApp.textMarginBottom;
+
 	for (int slot = 0; slot < SCREEN_MESSAGE_SLOTS; slot++)
 	{
 		if (theApp.screenMessage[slot])
@@ -109,15 +136,32 @@ void DrawTextMessages(u8 *dest, int pitch, int left, int bottom)
 			     (int)(GetTickCount() - theApp.screenMessageTime[slot]) < theApp.screenMessageDuration[slot]) &&
 			    (!theApp.disableStatusMessage || slot == 1 || slot == 2))
 			{
-				// The on screen font is the core's own 8x8 bitmap, so this
-				// text is ASCII by design: characters outside the code page
-				// show as '?', which is what the font can draw.
-				drawText(dest,
-				         pitch,
-				         left,
-				         bottom - 10 * (slot + 1),
-				         winAnsiFromWide(theApp.screenMessageBuffer[slot]),
-				         winAnsiFromWide(theApp.screenMessageColorBuffer[slot]));
+				const int y = textBottom - lineHeight * (slot + 1);
+
+				if (gameLineHeight > 0)
+				{
+					drawGameText(dest,
+					             pitch,
+					             x,
+					             y,
+					             bottom,
+					             theApp.screenMessageBuffer[slot],
+					             winAnsiFromWide(theApp.screenMessageColorBuffer[slot]),
+					             gameSize);
+				}
+				else
+				{
+					// The built-in font is ASCII by design: characters
+					// outside the code page show as '?', which is what the
+					// font can draw.
+					drawText(dest,
+					         pitch,
+					         x,
+					         y,
+					         winAnsiFromWide(theApp.screenMessageBuffer[slot]),
+					         winAnsiFromWide(theApp.screenMessageColorBuffer[slot]),
+					         percent);
+				}
 			}
 			else
 			{
@@ -451,6 +495,12 @@ VBA::VBA() : emulator(::theEmulator)
 	videoOption			 = 0;
 	fullScreenStretch	 = false;
 	disableStatusMessage = false;
+	screenTextFont		 = _T("Consolas");
+	gameTextFont		 = GAME_TEXT_FONT_BUILTIN;
+	screenTextSize		 = 12;
+	gameTextSize		 = 8;
+	textMarginLeft		 = 0;
+	textMarginBottom	 = 0;
 	showSpeed			 = 1;
 	showSpeedTransparent = true;
 	showRenderedFrames	 = 0;
@@ -2538,6 +2588,41 @@ void VBA::loadSettings()
 	transparentText		 = regQueryDwordValue(_T("transparentText"), FALSE) != 0;
 	textColor			 = regQueryDwordValue(_T("textColor"), 0);
 	textMethod			 = regQueryDwordValue(_T("textMethod"), 1);
+	screenTextFont		 = regQueryStringValue(_T("screenTextFont"), _T("Consolas"));
+	gameTextFont		 = regQueryStringValue(_T("gameTextFont"), GAME_TEXT_FONT_BUILTIN);
+	screenTextSize		 = regQueryDwordValue(_T("screenTextSize"), 12);
+	gameTextSize		 = regQueryDwordValue(_T("gameTextSize"), 8);
+	textMarginLeft		 = (int)regQueryDwordValue(_T("textMarginLeft"), 0);
+	textMarginBottom	 = (int)regQueryDwordValue(_T("textMarginBottom"), 0);
+
+	// Older builds allowed signed margins; the dialog now accepts 0..9999.
+	if (textMarginLeft < TEXT_MARGIN_MIN)
+		textMarginLeft = TEXT_MARGIN_MIN;
+	else if (textMarginLeft > TEXT_MARGIN_MAX)
+		textMarginLeft = TEXT_MARGIN_MAX;
+	if (textMarginBottom < TEXT_MARGIN_MIN)
+		textMarginBottom = TEXT_MARGIN_MIN;
+	else if (textMarginBottom > TEXT_MARGIN_MAX)
+		textMarginBottom = TEXT_MARGIN_MAX;
+
+	// The On Screen font is a TrueType face.  A value left by an earlier
+	// build that still offered the built-in font there means Consolas now.
+	if (screenTextFont.IsEmpty() ||
+	    screenTextFont.Compare(GAME_TEXT_FONT_BUILTIN) == 0)
+		screenTextFont = _T("Consolas");
+
+	if (screenTextSize < SCREEN_TEXT_SIZE_MIN)
+		screenTextSize = 12;
+	if (screenTextSize > SCREEN_TEXT_SIZE_MAX)
+		screenTextSize = SCREEN_TEXT_SIZE_MAX;
+	if (gameTextSize < 1)
+		gameTextSize = 8;
+	if (gameTextSize > 128)
+		gameTextSize = 128;
+
+	// The built-in font has no other size than its native 8 pixels.
+	if (gameTextFontIsBuiltin())
+		gameTextSize = 8;
 	frameCounter		 = regQueryDwordValue(_T("frameCounter"), false) ? true : false;
 	lagCounter			 = regQueryDwordValue(_T("lagCounter"), false) ? true : false;
 	extraCounter		 = regQueryDwordValue(_T("extraCounter"), false) ? true : false;
@@ -2765,6 +2850,12 @@ void VBA::saveSettings()
 	regSetDwordValue(_T("transparentText"), transparentText);
 	regSetDwordValue(_T("textColor"), textColor);
 	regSetDwordValue(_T("textMethod"), textMethod);
+	regSetStringValue(_T("screenTextFont"), screenTextFont);
+	regSetStringValue(_T("gameTextFont"), gameTextFont);
+	regSetDwordValue(_T("screenTextSize"), screenTextSize);
+	regSetDwordValue(_T("gameTextSize"), gameTextSize);
+	regSetDwordValue(_T("textMarginLeft"), (DWORD)textMarginLeft);
+	regSetDwordValue(_T("textMarginBottom"), (DWORD)textMarginBottom);
 	regSetDwordValue(_T("frameCounter"), frameCounter);
 	regSetDwordValue(_T("lagCounter"), lagCounter);
 	regSetDwordValue(_T("extraCounter"), extraCounter);

@@ -10,6 +10,7 @@
 #include "MainWnd.h"
 #include "Reg.h"
 #include "VBA.h"
+#include "TextOverlay.h"
 
 #include "../common/System.h"
 #include "../common/SystemGlobals.h"
@@ -739,6 +740,11 @@ void DirectDrawDisplay::render()
 	if (textMethod == 2)
 	{
 		HDC hdc;
+		HFONT font    = NULL;
+		HFONT oldFont = NULL;
+		const int lineHeight = screenTextLineHeight();
+		const int textLeft   = theApp.dest.left + 10 + theApp.textMarginLeft;
+		const int textBottom = theApp.dest.bottom - theApp.textMarginBottom;
 
 		for (int slot = 0; slot < SCREEN_MESSAGE_SLOTS; slot++)
 		{
@@ -754,6 +760,8 @@ void DirectDrawDisplay::render()
 						ddsPrimary->SetClipper(ddsClipper);
 						ddsPrimary->GetDC(&hdc);
 						SetBkMode(hdc, TRANSPARENT);
+						font    = createScreenTextFont();
+						oldFont = (HFONT)SelectObject(hdc, font);
 						SetTextColor(hdc, textColor != 7 ? RGB(0, 0, 0) : RGB(255, 255, 255));
 					}
 
@@ -765,8 +773,8 @@ void DirectDrawDisplay::render()
 						for (int i = 0; i < 8; i++)
 						{
 							TextOut(hdc,
-							        theApp.dest.left+10+xd[i],
-							        theApp.dest.bottom - 20*(slot+1)+yd[i],
+							        textLeft+xd[i],
+							        textBottom - lineHeight*(slot+1)+yd[i],
 							        theApp.screenMessageBuffer[slot],
 							        theApp.screenMessageBuffer[slot].GetLength());
 						}
@@ -812,7 +820,7 @@ void DirectDrawDisplay::render()
 						(int)(GetTickCount() - theApp.screenMessageTime[slot]) < theApp.screenMessageDuration[slot]) &&
 					    (!theApp.disableStatusMessage || slot == 1 || slot == 2))
 					{
-						TextOut(hdc, theApp.dest.left+10, theApp.dest.bottom - 20*(slot+1), theApp.screenMessageBuffer[slot],
+						TextOut(hdc, textLeft, textBottom - lineHeight*(slot+1), theApp.screenMessageBuffer[slot],
 						        theApp.screenMessageBuffer[slot].GetLength());
 					}
 				}
@@ -821,6 +829,8 @@ void DirectDrawDisplay::render()
 
 		if (textMessageStarted)
 		{
+			SelectObject(hdc, oldFont);
+			DeleteObject(font);
 			ddsPrimary->ReleaseDC(hdc);
 		}
 	}
