@@ -15,12 +15,12 @@ Select Plugin directory:	选择插件目录：
 Lua Script (.lua)_*.lua_All Files_*.*__	Lua 脚本 (.lua)_*.lua_所有文件_*.*__
 Select Lua script file name	选择 Lua 脚本文件名
 Select Lua script file directory:	选择 Lua 脚本文件目录：
-Start &AVI Recording...	开始 AVI 录制(&A)...
-Stop &AVI Recording	停止 AVI 录制(&A)
+Start &AVI Recording...	开始 &AVI 录制...
+Stop &AVI Recording	停止 &AVI 录制
 Pause AVI &Recording	暂停 AVI 录制(&R)
 Resume AVI &Recording	继续 AVI 录制(&R)
-Start &WAV Recording...	开始 WAV 录制(&W)...
-Stop &WAV Recording	停止 WAV 录制(&W)
+Start &WAV Recording...	开始 &WAV 录制...
+Stop &WAV Recording	停止 &WAV 录制
 Image encoder for %s is not installed.\n\nWindows could not start the codec for this format. Install the matching Windows image codec (the HEIF and JPEG XL ones are Microsoft Store extensions), then try again.\n\nSee vba-trace.log for details.	没有安装 %s 的图像编码器。\n\nWindows 无法启动该格式的编解码器。请安装对应的 Windows 图像编解码器（HEIF 与 JPEG XL 属于 Microsoft Store 扩展），然后重试。\n\n详情见 vba-trace.log。
 Image export needs the Windows Imaging Component, which this version of Windows does not have.\n\nWindows XP has no WIC, so screenshots cannot be saved there. They work on Windows Vista and later.	导出图片需要 Windows 映像组件（WIC），当前版本的 Windows 没有该组件。\n\nWindows XP 不提供 WIC，因此无法在该系统上保存截图。Windows Vista 及更高版本可以正常工作。
 Unsupported cheat list type %d	不支持的金手指列表类型 %d

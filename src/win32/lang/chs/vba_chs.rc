@@ -191,9 +191,9 @@ BEGIN
     CONTROL         "",IDC_CHEAT_LIST,"SysListView32",LVS_REPORT | LVS_SINGLESEL | WS_BORDER | WS_TABSTOP,3,5,265,111
     CONTROL         "旧值(&D)",IDC_OLD_VALUE,"Button",BS_AUTORADIOBUTTON | WS_GROUP,11,129,46,10
     CONTROL         "指定值(&C)",IDC_SPECIFIC_VALUE,"Button",BS_AUTORADIOBUTTON,11,141,61,10
-    CONTROL         "8 位(&8)",IDC_SIZE_8,"Button",BS_AUTORADIOBUTTON | WS_GROUP,11,167,33,10
-    CONTROL         "16 位(&1)",IDC_SIZE_16,"Button",BS_AUTORADIOBUTTON,11,179,37,10
-    CONTROL         "32 位(&3)",IDC_SIZE_32,"Button",BS_AUTORADIOBUTTON,11,191,37,10
+    CONTROL         "&8 位",IDC_SIZE_8,"Button",BS_AUTORADIOBUTTON | WS_GROUP,11,167,33,10
+    CONTROL         "&16 位",IDC_SIZE_16,"Button",BS_AUTORADIOBUTTON,11,179,37,10
+    CONTROL         "&32 位",IDC_SIZE_32,"Button",BS_AUTORADIOBUTTON,11,191,37,10
     CONTROL         "等于(&E)",IDC_EQ,"Button",BS_AUTORADIOBUTTON | WS_GROUP,100,128,34,10
     CONTROL         "不等于(&N)",IDC_NE,"Button",BS_AUTORADIOBUTTON,100,140,47,10
     CONTROL         "小于(&L)",IDC_LT,"Button",BS_AUTORADIOBUTTON,100,152,47,10
@@ -250,7 +250,7 @@ BEGIN
     CONTROL         "合并金手指(&G)",IDC_GROUP_CHEATS,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,103,183,80,10
     PUSHBUTTON      "代码(&C)...",IDC_ADD_CODE,9,208,64,14,WS_GROUP
     PUSHBUTTON      "金手指(&H)...",IDC_ADD_CHEAT,75,208,64,14
-    PUSHBUTTON      "GameShark(&G)...",IDC_ADD_GAMESHARK,141,208,64,14
+    PUSHBUTTON      "&GameShark...",IDC_ADD_GAMESHARK,141,208,64,14
     PUSHBUTTON      "CodeBreaker...",IDC_ADD_CODEBREAKER,206,208,64,14
     PUSHBUTTON      "编辑(&E)",IDC_EDIT,9,230,64,14
     PUSHBUTTON      "删除(&R)",IDC_REMOVE,75,230,64,14
@@ -346,8 +346,8 @@ CAPTION "Game Boy 金手指列表"
 FONT 8, "MS Sans Serif"
 BEGIN
     CONTROL         "",IDC_CHEAT_LIST,"SysListView32",LVS_REPORT | WS_BORDER | WS_GROUP | WS_TABSTOP,9,20,269,156
-    PUSHBUTTON      "添加 GameGenie(&G)...",IDC_ADD_GG_CHEAT,9,183,80,14,WS_GROUP
-    PUSHBUTTON      "添加 GameShark(&A)...",IDC_ADD_GS_CHEAT,103,183,80,14,WS_GROUP
+    PUSHBUTTON      "添加 &GameGenie...",IDC_ADD_GG_CHEAT,9,183,80,14,WS_GROUP
+    PUSHBUTTON      "添加 G&ameShark...",IDC_ADD_GS_CHEAT,103,183,80,14,WS_GROUP
     PUSHBUTTON      "删除(&R)",IDC_REMOVE,197,183,80,14
     PUSHBUTTON      "全部删除(&L)",IDC_REMOVE_ALL,9,202,80,14
     PUSHBUTTON      "启用/禁用(&E)",IDC_ENABLE,103,202,80,14
@@ -1254,9 +1254,9 @@ BEGIN
     CONTROL         "无符号(&U)",IDC_UNSIGNED,"Button",BS_AUTORADIOBUTTON,18,57,67,8
     CONTROL         "十六进制(&H)",IDC_HEX,"Button",BS_AUTORADIOBUTTON,18,67,67,8
     GROUPBOX        "数据大小",IDC_STATIC,94,37,73,42,0,WS_EX_TRANSPARENT
-    CONTROL         "1 字节(&1)",IDC_1_BYTE,"Button",BS_AUTORADIOBUTTON | WS_GROUP,98,47,61,11
-    CONTROL         "2 字节(&2)",IDC_2_BYTES,"Button",BS_AUTORADIOBUTTON,98,57,61,11
-    CONTROL         "4 字节(&4)",IDC_4_BYTES,"Button",BS_AUTORADIOBUTTON,98,67,61,11
+    CONTROL         "&1 字节",IDC_1_BYTE,"Button",BS_AUTORADIOBUTTON | WS_GROUP,98,47,61,11
+    CONTROL         "&2 字节",IDC_2_BYTES,"Button",BS_AUTORADIOBUTTON,98,57,61,11
+    CONTROL         "&4 字节",IDC_4_BYTES,"Button",BS_AUTORADIOBUTTON,98,67,61,11
     DEFPUSHBUTTON   "确定(&O)",IDOK,66,80,50,14
     PUSHBUTTON      "取消(&C)",ID_CANCEL,120,80,50,14
 END
@@ -1294,8 +1294,8 @@ IDR_MENU MENU
 BEGIN
     POPUP "文件(&F)"
     BEGIN
-        MENUITEM "打开 GBA ROM(&O)...",            ID_FILE_OPEN
-        MENUITEM "打开 GBx ROM(&G)...",            ID_FILE_OPENGAMEBOY
+        MENUITEM "打开 GBA R&OM...",            ID_FILE_OPEN
+        MENUITEM "打开 &GBx ROM...",            ID_FILE_OPENGAMEBOY
         POPUP "最近的 ROM(&N)"
         BEGIN
             MENUITEM "清除(&C)",                      ID_FILE_RECENT_RESET
@@ -1320,7 +1320,7 @@ BEGIN
             MENUITEM "从文件读取(&F)...",          ID_FILE_LOAD
             MENUITEM SEPARATOR
             MENUITEM "导入电池存档(&B)...",     ID_FILE_IMPORT_BATTERYFILE
-            MENUITEM "导入 GameShark 快照(&G)...", ID_FILE_IMPORT_GAMESHARKSNAPSHOT
+            MENUITEM "导入 &GameShark 快照...", ID_FILE_IMPORT_GAMESHARKSNAPSHOT
             MENUITEM SEPARATOR
             MENUITEM "存档位 #&1",                    ID_FILE_LOADGAME_SLOT1
             MENUITEM "存档位 #&2",                    ID_FILE_LOADGAME_SLOT2
@@ -1345,7 +1345,7 @@ BEGIN
             MENUITEM "保存到文件(&F)...",            ID_FILE_SAVE
             MENUITEM SEPARATOR
             MENUITEM "导出电池存档(&B)...",     ID_FILE_EXPORT_BATTERYFILE
-            MENUITEM "导出 GameShark 快照(&G)...", ID_FILE_EXPORT_GAMESHARKSNAPSHOT
+            MENUITEM "导出 &GameShark 快照...", ID_FILE_EXPORT_GAMESHARKSNAPSHOT
             MENUITEM SEPARATOR
             MENUITEM "存档位 #&1",                    ID_FILE_SAVEGAME_SLOT1
             MENUITEM "存档位 #&2",                    ID_FILE_SAVEGAME_SLOT2
@@ -1398,19 +1398,19 @@ BEGIN
         BEGIN
             POPUP "配置控制器(&C)"
             BEGIN
-                MENUITEM "控制器 1(&1)...",            ID_OPTIONS_JOYPAD_CONFIGURE_1
-                MENUITEM "控制器 2(&2)...",            ID_OPTIONS_JOYPAD_CONFIGURE_2
-                MENUITEM "控制器 3(&3)...",            ID_OPTIONS_JOYPAD_CONFIGURE_3
-                MENUITEM "控制器 4(&4)...",            ID_OPTIONS_JOYPAD_CONFIGURE_4
+                MENUITEM "控制器 &1...",            ID_OPTIONS_JOYPAD_CONFIGURE_1
+                MENUITEM "控制器 &2...",            ID_OPTIONS_JOYPAD_CONFIGURE_2
+                MENUITEM "控制器 &3...",            ID_OPTIONS_JOYPAD_CONFIGURE_3
+                MENUITEM "控制器 &4...",            ID_OPTIONS_JOYPAD_CONFIGURE_4
                 MENUITEM SEPARATOR
                 MENUITEM "动作感应器(&M)...",           ID_OPTIONS_JOYPAD_MOTIONCONFIGURE
             END
             POPUP "使用控制器(&U)"
             BEGIN
-                MENUITEM "控制器 1(&1)",               ID_OPTIONS_JOYPAD_DEFAULTJOYPAD_1
-                MENUITEM "控制器 2(&2)",               ID_OPTIONS_JOYPAD_DEFAULTJOYPAD_2
-                MENUITEM "控制器 3(&3)",               ID_OPTIONS_JOYPAD_DEFAULTJOYPAD_3
-                MENUITEM "控制器 4(&4)",               ID_OPTIONS_JOYPAD_DEFAULTJOYPAD_4
+                MENUITEM "控制器 &1",               ID_OPTIONS_JOYPAD_DEFAULTJOYPAD_1
+                MENUITEM "控制器 &2",               ID_OPTIONS_JOYPAD_DEFAULTJOYPAD_2
+                MENUITEM "控制器 &3",               ID_OPTIONS_JOYPAD_DEFAULTJOYPAD_3
+                MENUITEM "控制器 &4",               ID_OPTIONS_JOYPAD_DEFAULTJOYPAD_4
             END
             MENUITEM SEPARATOR
             MENUITEM "允许 左+右 / 上+下(&A)", ID_OPTIONS_JOYPAD_ALLOWLEFTRIGHT
@@ -1495,35 +1495,35 @@ BEGIN
             POPUP "渲染方式(&R)"
             BEGIN
 #if VBA_ENABLE_GDI
-                MENUITEM "GDI(&G)",                        ID_OPTIONS_VIDEO_RENDERMETHOD_GDI
+                MENUITEM "&GDI",                        ID_OPTIONS_VIDEO_RENDERMETHOD_GDI
                 MENUITEM SEPARATOR
 #endif
 #if VBA_ENABLE_DDRAW
-                MENUITEM "DirectDraw(&D)",                 ID_OPTIONS_VIDEO_RENDERMETHOD_DIRECTDRAW
+                MENUITEM "&DirectDraw",                 ID_OPTIONS_VIDEO_RENDERMETHOD_DIRECTDRAW
                 MENUITEM "    仅用于模拟(&E)",   ID_OPTIONS_VIDEO_DDRAWEMULATIONONLY
                 MENUITEM "    使用显存(&U)", ID_OPTIONS_VIDEO_DDRAWUSEVIDEOMEMORY
                 MENUITEM "    三重缓冲(&T)", ID_OPTIONS_VIDEO_TRIPLEBUFFERING
                 MENUITEM SEPARATOR
 #endif
-                MENUITEM "Direct3D 11(&1)",                ID_OPTIONS_VIDEO_RENDERMETHOD_DIRECT3D11
-                MENUITEM "Direct3D 9Ex(&3)",               ID_OPTIONS_VIDEO_RENDERMETHOD_DIRECT3D
+                MENUITEM "Direct3D &11",                ID_OPTIONS_VIDEO_RENDERMETHOD_DIRECT3D11
+                MENUITEM "Direct&3D 9Ex",               ID_OPTIONS_VIDEO_RENDERMETHOD_DIRECT3D
 #if VBA_ENABLE_WGPU
                 MENUITEM SEPARATOR
-                MENUITEM "WebGPU(&W)",                     ID_OPTIONS_VIDEO_RENDERMETHOD_WEBGPU
-                POPUP "    WebGPU 后端(&B)"
+                MENUITEM "&WebGPU",                     ID_OPTIONS_VIDEO_RENDERMETHOD_WEBGPU
+                POPUP "    We&bGPU 后端"
                 BEGIN
                     MENUITEM "自动(&A)",              ID_OPTIONS_VIDEO_WGPUBACKEND_AUTO
                     MENUITEM SEPARATOR
-                    MENUITEM "Direct3D 12(&1)",            ID_OPTIONS_VIDEO_WGPUBACKEND_D3D12
-                    MENUITEM "Vulkan(&V)",                 ID_OPTIONS_VIDEO_WGPUBACKEND_VULKAN
-                    MENUITEM "Metal(&M)",                  ID_OPTIONS_VIDEO_WGPUBACKEND_METAL
-                    MENUITEM "OpenGL (ANGLE)(&O)",         ID_OPTIONS_VIDEO_WGPUBACKEND_OPENGL
+                    MENUITEM "Direct3D &12",            ID_OPTIONS_VIDEO_WGPUBACKEND_D3D12
+                    MENUITEM "&Vulkan",                 ID_OPTIONS_VIDEO_WGPUBACKEND_VULKAN
+                    MENUITEM "&Metal",                  ID_OPTIONS_VIDEO_WGPUBACKEND_METAL
+                    MENUITEM "&OpenGL (ANGLE)",         ID_OPTIONS_VIDEO_WGPUBACKEND_OPENGL
                 END
 #endif
 #if VBA_ENABLE_OPENGL
                 MENUITEM SEPARATOR
-                MENUITEM "OpenGL 3.3(&O)",                 ID_OPTIONS_VIDEO_RENDERMETHOD_OPENGL33
-                MENUITEM "OpenGL（旧版）(&L)",            ID_OPTIONS_VIDEO_RENDERMETHOD_OPENGL
+                MENUITEM "&OpenGL 3.3",                 ID_OPTIONS_VIDEO_RENDERMETHOD_OPENGL33
+                MENUITEM "OpenG&L（旧版）",            ID_OPTIONS_VIDEO_RENDERMETHOD_OPENGL
                 MENUITEM "    GL 三角形（旧版）(&R)", ID_OPTIONS_VIDEO_RENDEROPTIONS_GLTRIANGLE
                 MENUITEM "    GL 四边形（旧版）(&Q)",    ID_OPTIONS_VIDEO_RENDEROPTIONS_GLQUADS
 #endif
@@ -1608,7 +1608,7 @@ BEGIN
             BEGIN
                 MENUITEM "无(&N)",                       ID_OPTIONS_FILTER_NORMAL
                 MENUITEM SEPARATOR
-                MENUITEM "TV 模式(&T)",                    ID_OPTIONS_FILTER_TVMODE
+                MENUITEM "&TV 模式",                    ID_OPTIONS_FILTER_TVMODE
                 MENUITEM "扫描线(&L)",                  ID_OPTIONS_FILTER_SCANLINES
                 MENUITEM SEPARATOR
                 MENUITEM "双线性(&B)",                   ID_OPTIONS_FILTER_BILINEAR
@@ -1616,7 +1616,7 @@ BEGIN
                 MENUITEM SEPARATOR
                 MENUITEM "动态模糊(&M)",                ID_OPTIONS_FILTER16BIT_MOTIONBLUREXPERIMENTAL
             END
-            POPUP "2 倍放大(&2)"
+            POPUP "&2 倍放大"
             BEGIN
                 MENUITEM "简单 2 倍(&X)",                  ID_OPTIONS_FILTER16BIT_SIMPLE2X
                 MENUITEM "像素化 2 倍(&P)",                ID_OPTIONS_FILTER16BIT_PIXELATEEXPERIMENTAL
@@ -1632,7 +1632,7 @@ BEGIN
                 MENUITEM SEPARATOR
                 MENUITEM "xBRZ 2x",                     ID_OPTIONS_FILTER_XBRZ2X
             END
-            POPUP "3 倍放大(&3)"
+            POPUP "&3 倍放大"
             BEGIN
                 MENUITEM "简单 3 倍(&X)",                  ID_OPTIONS_FILTER16BIT_SIMPLE3X
                 MENUITEM "像素化 3 倍(&P)",                ID_OPTIONS_FILTER16BIT_PIXELATEEXPERIMENTAL3X
@@ -1643,7 +1643,7 @@ BEGIN
                 MENUITEM "xBRZ 3x",                     ID_OPTIONS_FILTER_XBRZ3X
                 MENUITEM "ScaleFX 3x",                  ID_OPTIONS_FILTER_SCALEFX3X
             END
-            POPUP "4 倍放大(&4)"
+            POPUP "&4 倍放大"
             BEGIN
                 MENUITEM "简单 4 倍(&X)",                  ID_OPTIONS_FILTER16BIT_SIMPLE4X
                 MENUITEM "像素化 4 倍(&P)",                ID_OPTIONS_FILTER16BIT_PIXELATEEXPERIMENTAL4X
@@ -1652,58 +1652,58 @@ BEGIN
                 MENUITEM SEPARATOR
                 MENUITEM "xBRZ 4x",                     ID_OPTIONS_FILTER_XBRZ4X
             END
-            POPUP "5 倍放大(&5)"
+            POPUP "&5 倍放大"
             BEGIN
                 MENUITEM "xBRZ 5x",                     ID_OPTIONS_FILTER_XBRZ5X
             END
         END
-        POPUP "LCD 色彩滤镜(&L)"
+        POPUP "&LCD 色彩滤镜"
         BEGIN
-            POPUP "GBA(&G)"
+            POPUP "&GBA"
             BEGIN
                 MENUITEM "无(&N)",                       ID_OPTIONS_VIDEO_LCDFILTER_GBA_NONE, CHECKED
                 MENUITEM SEPARATOR
-                MENUITEM "GBA(&B)",                        ID_OPTIONS_VIDEO_LCDFILTER_GBA_GBA
-                MENUITEM "GBA SP（背光）(&S)",           ID_OPTIONS_VIDEO_LCDFILTER_GBA_SP
-                MENUITEM "Game Boy Micro(&M)",             ID_OPTIONS_VIDEO_LCDFILTER_GBA_MICRO
-                MENUITEM "Nintendo DS(&D)",                ID_OPTIONS_VIDEO_LCDFILTER_GBA_NDS
-                MENUITEM "Nintendo DS Lite(&L)",           ID_OPTIONS_VIDEO_LCDFILTER_GBA_DSLITE
-                MENUITEM "NSO GBA(&N)",                    ID_OPTIONS_VIDEO_LCDFILTER_GBA_NSO
+                MENUITEM "G&BA",                        ID_OPTIONS_VIDEO_LCDFILTER_GBA_GBA
+                MENUITEM "GBA &SP（背光）",           ID_OPTIONS_VIDEO_LCDFILTER_GBA_SP
+                MENUITEM "Game Boy &Micro",             ID_OPTIONS_VIDEO_LCDFILTER_GBA_MICRO
+                MENUITEM "Nintendo &DS",                ID_OPTIONS_VIDEO_LCDFILTER_GBA_NDS
+                MENUITEM "Nintendo DS &Lite",           ID_OPTIONS_VIDEO_LCDFILTER_GBA_DSLITE
+                MENUITEM "&NSO GBA",                    ID_OPTIONS_VIDEO_LCDFILTER_GBA_NSO
             END
-            POPUP "GB/GBC(&G)"
+            POPUP "&GB/GBC"
             BEGIN
                 MENUITEM "无(&N)",                       ID_OPTIONS_VIDEO_LCDFILTER_GBC_NONE, CHECKED
                 MENUITEM SEPARATOR
-                MENUITEM "Game Boy Color(&G)",             ID_OPTIONS_VIDEO_LCDFILTER_GBC_CGB
-                MENUITEM "NSO GBC(&N)",                    ID_OPTIONS_VIDEO_LCDFILTER_GBC_NSO
+                MENUITEM "&Game Boy Color",             ID_OPTIONS_VIDEO_LCDFILTER_GBC_CGB
+                MENUITEM "&NSO GBC",                    ID_OPTIONS_VIDEO_LCDFILTER_GBC_NSO
             END
         END
         POPUP "超分辨率(&U)"
         BEGIN
             MENUITEM "关闭(&O)",                        ID_OPTIONS_VIDEO_UPSCALER_OFF, CHECKED
             MENUITEM SEPARATOR
-            MENUITEM "NVIDIA NIS（Direct3D 11）(&N)",   ID_OPTIONS_VIDEO_UPSCALER_NIS
-            MENUITEM "AMD FSR 1.0(&F)",                ID_OPTIONS_VIDEO_UPSCALER_FSR
-            MENUITEM "xBRZ（Freescale）(&X)",           ID_OPTIONS_VIDEO_UPSCALER_XBRZ
+            MENUITEM "NVIDIA &NIS（Direct3D 11）",   ID_OPTIONS_VIDEO_UPSCALER_NIS
+            MENUITEM "AMD &FSR 1.0",                ID_OPTIONS_VIDEO_UPSCALER_FSR
+            MENUITEM "&xBRZ（Freescale）",           ID_OPTIONS_VIDEO_UPSCALER_XBRZ
             MENUITEM SEPARATOR
-            MENUITEM "xBR lv2(&L)",                    ID_OPTIONS_VIDEO_UPSCALER_XBR_LV2
+            MENUITEM "xBR &lv2",                    ID_OPTIONS_VIDEO_UPSCALER_XBR_LV2
             MENUITEM "xBR lv2 无混合(&N)",           ID_OPTIONS_VIDEO_UPSCALER_XBR_LV2_NOBLEND
-            MENUITEM "xBR lv3(&V)",                    ID_OPTIONS_VIDEO_UPSCALER_XBR_LV3
+            MENUITEM "xBR l&v3",                    ID_OPTIONS_VIDEO_UPSCALER_XBR_LV3
             MENUITEM "xBR lv3 多遍(&M)",          ID_OPTIONS_VIDEO_UPSCALER_XBR_LV3_MULTIPASS
-            MENUITEM "2xBR(&2)",                       ID_OPTIONS_VIDEO_UPSCALER_XBR_2X
-            MENUITEM "xBR-mlv4(&M)",                   ID_OPTIONS_VIDEO_UPSCALER_XBR_MLV4
-            MENUITEM "Super xBR(&S)",                  ID_OPTIONS_VIDEO_UPSCALER_SUPER_XBR
-            MENUITEM "ScaleFX(&F)",                    ID_OPTIONS_VIDEO_UPSCALER_SCALEFX
-            MENUITEM "PT SkyWalker541（LCD）(&P)",      ID_OPTIONS_VIDEO_UPSCALER_PT_SKYWALKER
-            MENUITEM "Lanczos(&Z)",                    ID_OPTIONS_VIDEO_UPSCALER_LANCZOS3
+            MENUITEM "&2xBR",                       ID_OPTIONS_VIDEO_UPSCALER_XBR_2X
+            MENUITEM "xBR-&mlv4",                   ID_OPTIONS_VIDEO_UPSCALER_XBR_MLV4
+            MENUITEM "&Super xBR",                  ID_OPTIONS_VIDEO_UPSCALER_SUPER_XBR
+            MENUITEM "Scale&FX",                    ID_OPTIONS_VIDEO_UPSCALER_SCALEFX
+            MENUITEM "&PT SkyWalker541（LCD）",      ID_OPTIONS_VIDEO_UPSCALER_PT_SKYWALKER
+            MENUITEM "Lanc&zos",                    ID_OPTIONS_VIDEO_UPSCALER_LANCZOS3
             MENUITEM SEPARATOR
             POPUP "锐化(&S)"
             BEGIN
-                MENUITEM "0%(&0)",                     ID_OPTIONS_VIDEO_UPSCALER_SHARP_0
-                MENUITEM "25%(&2)",                    ID_OPTIONS_VIDEO_UPSCALER_SHARP_25
-                MENUITEM "50%(&5)",                    ID_OPTIONS_VIDEO_UPSCALER_SHARP_50, CHECKED
-                MENUITEM "75%(&7)",                    ID_OPTIONS_VIDEO_UPSCALER_SHARP_75
-                MENUITEM "100%(&0)",                   ID_OPTIONS_VIDEO_UPSCALER_SHARP_100
+                MENUITEM "&0%",                     ID_OPTIONS_VIDEO_UPSCALER_SHARP_0
+                MENUITEM "&25%",                    ID_OPTIONS_VIDEO_UPSCALER_SHARP_25
+                MENUITEM "&50%",                    ID_OPTIONS_VIDEO_UPSCALER_SHARP_50, CHECKED
+                MENUITEM "&75%",                    ID_OPTIONS_VIDEO_UPSCALER_SHARP_75
+                MENUITEM "1&00%",                   ID_OPTIONS_VIDEO_UPSCALER_SHARP_100
             END
             POPUP "最大缩放(&M)"
             BEGIN
@@ -1733,7 +1733,7 @@ BEGIN
             MENUITEM SEPARATOR
             POPUP "音量(&V)"
             BEGIN
-                MENUITEM "0.25 倍(&0)",                       ID_OPTIONS_SOUND_VOLUME_25X
+                MENUITEM "&0.25 倍",                       ID_OPTIONS_SOUND_VOLUME_25X
                 MENUITEM ".&5 倍",                        ID_OPTIONS_SOUND_VOLUME_5X
                 MENUITEM "&1 倍",                         ID_OPTIONS_SOUND_VOLUME_1X
                 MENUITEM "&2 倍",                         ID_OPTIONS_SOUND_VOLUME_2X
@@ -1745,22 +1745,22 @@ BEGIN
                 MENUITEM "启用所有声道(&E)",        ID_OPTIONS_SOUND_ON, CHECKED
                 MENUITEM "禁用所有声道(&D)",       ID_OPTIONS_SOUND_OFF
                 MENUITEM SEPARATOR
-                MENUITEM "声道 1(&1)",                  ID_OPTIONS_SOUND_CHANNEL1, CHECKED
-                MENUITEM "声道 2(&2)",                  ID_OPTIONS_SOUND_CHANNEL2, CHECKED
-                MENUITEM "声道 3(&3)",                  ID_OPTIONS_SOUND_CHANNEL3, CHECKED
-                MENUITEM "声道 4(&4)",                  ID_OPTIONS_SOUND_CHANNEL4, CHECKED
-                MENUITEM "Direct Sound A(&A)",             ID_OPTIONS_SOUND_DIRECTSOUNDA, CHECKED
-                MENUITEM "Direct Sound B(&B)",             ID_OPTIONS_SOUND_DIRECTSOUNDB, CHECKED
+                MENUITEM "声道 &1",                  ID_OPTIONS_SOUND_CHANNEL1, CHECKED
+                MENUITEM "声道 &2",                  ID_OPTIONS_SOUND_CHANNEL2, CHECKED
+                MENUITEM "声道 &3",                  ID_OPTIONS_SOUND_CHANNEL3, CHECKED
+                MENUITEM "声道 &4",                  ID_OPTIONS_SOUND_CHANNEL4, CHECKED
+                MENUITEM "Direct Sound &A",             ID_OPTIONS_SOUND_DIRECTSOUNDA, CHECKED
+                MENUITEM "Direct Sound &B",             ID_OPTIONS_SOUND_DIRECTSOUNDB, CHECKED
             END
             MENUITEM SEPARATOR
-            POPUP "声音 API(&A)"
+            POPUP "声音 &API"
             BEGIN
-                MENUITEM "DirectSound(&D)",                ID_OPTIONS_SOUND_API_DIRECTSOUND, CHECKED
-                MENUITEM "XAudio2 (2.9)(&X)",              ID_OPTIONS_SOUND_API_XAUDIO2
+                MENUITEM "&DirectSound",                ID_OPTIONS_SOUND_API_DIRECTSOUND, CHECKED
+                MENUITEM "&XAudio2 (2.9)",              ID_OPTIONS_SOUND_API_XAUDIO2
             END
-            MENUITEM "11 KHz(&1)",                     ID_OPTIONS_SOUND_11KHZ
-            MENUITEM "22 KHz(&2)",                     ID_OPTIONS_SOUND_22KHZ
-            MENUITEM "44 KHz(&4)",                     ID_OPTIONS_SOUND_44KHZ
+            MENUITEM "&11 KHz",                     ID_OPTIONS_SOUND_11KHZ
+            MENUITEM "&22 KHz",                     ID_OPTIONS_SOUND_22KHZ
+            MENUITEM "&44 KHz",                     ID_OPTIONS_SOUND_44KHZ
         END
         MENUITEM SEPARATOR
         POPUP "模拟(&E)"
@@ -1769,37 +1769,37 @@ BEGIN
             POPUP "存档类型(&T)"
             BEGIN
                 MENUITEM "自动(&A)",                  ID_OPTIONS_EMULATOR_SAVETYPE_AUTOMATIC
-                MENUITEM "EEPROM(&E)",                     ID_OPTIONS_EMULATOR_SAVETYPE_EEPROM
-                MENUITEM "SRAM(&S)",                       ID_OPTIONS_EMULATOR_SAVETYPE_SRAM
-                MENUITEM "Flash(&F)",                      ID_OPTIONS_EMULATOR_SAVETYPE_FLASH
-                MENUITEM "EEPROM+传感器(&P)",              ID_OPTIONS_EMULATOR_SAVETYPE_EEPROMSENSOR
+                MENUITEM "&EEPROM",                     ID_OPTIONS_EMULATOR_SAVETYPE_EEPROM
+                MENUITEM "&SRAM",                       ID_OPTIONS_EMULATOR_SAVETYPE_SRAM
+                MENUITEM "&Flash",                      ID_OPTIONS_EMULATOR_SAVETYPE_FLASH
+                MENUITEM "EE&PROM+传感器",              ID_OPTIONS_EMULATOR_SAVETYPE_EEPROMSENSOR
                 MENUITEM "无(&N)",                       ID_OPTIONS_EMULATOR_SAVETYPE_NONE
                 MENUITEM SEPARATOR
-                MENUITEM "Flash 64K(&6)",                  ID_OPTIONS_EMULATOR_SAVETYPE_FLASH512K
-                MENUITEM "Flash 128K(&1)",                 ID_OPTIONS_EMULATOR_SAVETYPE_FLASH1M
+                MENUITEM "Flash &64K",                  ID_OPTIONS_EMULATOR_SAVETYPE_FLASH512K
+                MENUITEM "Flash &128K",                 ID_OPTIONS_EMULATOR_SAVETYPE_FLASH1M
                 MENUITEM SEPARATOR
                 MENUITEM "增强检测(&D)",         ID_OPTIONS_EMULATOR_SAVETYPE_ENHANCEDDETECTION
             END
             MENUITEM SEPARATOR
             MENUITEM "GBA 延迟降低(&L)",          ID_EMULATOR_GBALAG
             MENUITEM "使用旧版帧时序(&O)",       ID_EMULATOR_USE_OLD_FRAME_TIMING
-            MENUITEM "    使用 v20 GB 帧兼容处理(&G)", ID_EMULATION_V20_GB_FRAME_HACK
-            MENUITEM "使用 GB 空输入兼容处理(&G)",   ID_EMULATOR_USE_GB_INPUT_HACK
+            MENUITEM "    使用 v20 &GB 帧兼容处理", ID_EMULATION_V20_GB_FRAME_HACK
+            MENUITEM "使用 &GB 空输入兼容处理",   ID_EMULATOR_USE_GB_INPUT_HACK
             MENUITEM SEPARATOR
             MENUITEM "使用 BIOS 文件(&U)",              ID_OPTIONS_EMULATOR_USEBIOSFILE
-            MENUITEM "跳过 BIOS 开机画面(&I)",            ID_OPTIONS_EMULATOR_SKIPBIOS
-            MENUITEM "选择 BIOS 文件(&B)...",        ID_OPTIONS_EMULATOR_SELECTBIOSFILE
+            MENUITEM "跳过 B&IOS 开机画面",            ID_OPTIONS_EMULATOR_SKIPBIOS
+            MENUITEM "选择 &BIOS 文件...",        ID_OPTIONS_EMULATOR_SELECTBIOSFILE
             MENUITEM SEPARATOR
-            MENUITEM "自动 IPS 补丁(&P)",     ID_OPTIONS_EMULATOR_AUTOMATICALLYIPSPATCH
+            MENUITEM "自动 I&PS 补丁",     ID_OPTIONS_EMULATOR_AUTOMATICALLYIPSPATCH
         END
-        POPUP "Game Boy 模式(&M)"
+        POPUP "Ga&me Boy 模式"
         BEGIN
             MENUITEM "自动检测(&D)",        ID_OPTIONS_GAMEBOY_AUTOMATIC
-            MENUITEM "Game Boy Advance (GBA/AGB)(&A)", ID_OPTIONS_GAMEBOY_GBA
-            MENUITEM "Game Boy Color (GBC/CGB)(&C)",   ID_OPTIONS_GAMEBOY_CGB
-            MENUITEM "Game Boy Color + SGB 边框(&O)", ID_OPTIONS_GAMEBOY_SGB2
-            MENUITEM "Super Game Boy (SGB)(&S)",       ID_OPTIONS_GAMEBOY_SGB
-            MENUITEM "Game Boy (GB)(&B)",              ID_OPTIONS_GAMEBOY_GB
+            MENUITEM "Game Boy &Advance (GBA/AGB)", ID_OPTIONS_GAMEBOY_GBA
+            MENUITEM "Game Boy &Color (GBC/CGB)",   ID_OPTIONS_GAMEBOY_CGB
+            MENUITEM "Game B&oy Color + SGB 边框", ID_OPTIONS_GAMEBOY_SGB2
+            MENUITEM "&Super Game Boy (SGB)",       ID_OPTIONS_GAMEBOY_SGB
+            MENUITEM "Game &Boy (GB)",              ID_OPTIONS_GAMEBOY_GB
             MENUITEM SEPARATOR
             MENUITEM "自动边框(&U)",           ID_OPTIONS_GAMEBOY_BORDERAUTOMATIC
             MENUITEM "始终显示边框(&W)",              ID_OPTIONS_GAMEBOY_BORDER
@@ -1807,7 +1807,7 @@ BEGIN
             MENUITEM "GB 打印机(&P)",                 ID_OPTIONS_GAMEBOY_PRINTER
             MENUITEM SEPARATOR
             MENUITEM "真实色彩(&R)",                ID_OPTIONS_GAMEBOY_REALCOLORS
-            MENUITEM "Game Boy 色彩(&M)",             ID_OPTIONS_GAMEBOY_GAMEBOYCOLORS
+            MENUITEM "Ga&me Boy 色彩",             ID_OPTIONS_GAMEBOY_GAMEBOYCOLORS
             MENUITEM "自定义色彩(&Z)...",        ID_OPTIONS_GAMEBOY_COLORS
         END
         MENUITEM SEPARATOR
@@ -1849,7 +1849,7 @@ BEGIN
             POPUP "生成的文件名(&N)"
             BEGIN
                 MENUITEM "使用压缩包名（磁盘上）(&A)",  ID_OPTIONS_PREFER_ARCHIVE_NAME
-                MENUITEM "使用 ROM 名（压缩包内）(&R)",   ID_OPTIONS_PREFER_ROM_NAME
+                MENUITEM "使用 &ROM 名（压缩包内）",   ID_OPTIONS_PREFER_ROM_NAME
             END
             MENUITEM "目录(&D)...",             ID_OPTIONS_EMULATOR_DIRECTORIES
             MENUITEM "文件关联(&A)...",               ID_OPTIONS_EMULATOR_ASSOCIATE
@@ -1864,7 +1864,7 @@ BEGIN
     END
     POPUP "金手指(&C)"
     BEGIN
-        MENUITEM "RAM 搜索(&R)...",              ID_RAM_SEARCH
+        MENUITEM "&RAM 搜索...",              ID_RAM_SEARCH
         MENUITEM "RAM 监视(&W)...",               ID_RAM_WATCH
         MENUITEM SEPARATOR
         MENUITEM "旧版金手指搜索(&C)...",        ID_CHEATS_SEARCHFORCHEATS
@@ -1875,7 +1875,7 @@ BEGIN
         MENUITEM "保存金手指列表(&S)...",         ID_CHEATS_SAVECHEATLIST
         MENUITEM "自动保存/读取金手指列表(&A)",  ID_CHEATS_AUTOMATICSAVELOADCHEATS
         MENUITEM SEPARATOR
-        MENUITEM "导入 GameShark 代码文件(&G)...", ID_FILE_IMPORT_GAMESHARKCODEFILE
+        MENUITEM "导入 &GameShark 代码文件...", ID_FILE_IMPORT_GAMESHARKCODEFILE
         MENUITEM SEPARATOR
         MENUITEM "禁用所有金手指(&D)",         ID_CHEATS_DISABLECHEATS
     END
@@ -1885,19 +1885,19 @@ BEGIN
         BEGIN
             MENUITEM "反汇编(&D)...",             ID_TOOLS_DISASSEMBLE
             MENUITEM "日志(&L)...",                 ID_TOOLS_LOGGING
-            MENUITEM "I/O 查看器(&I)...",               ID_TOOLS_IOVIEWER
+            MENUITEM "&I/O 查看器...",               ID_TOOLS_IOVIEWER
             MENUITEM "地图查看器(&M)...",              ID_TOOLS_MAPVIEW
             MENUITEM "内存查看器(&V)...",           ID_TOOLS_MEMORYVIEWER
-            MENUITEM "OAM 查看器(&O)...",              ID_TOOLS_OAMVIEWER
+            MENUITEM "&OAM 查看器...",              ID_TOOLS_OAMVIEWER
             MENUITEM "调色板查看器(&P)...",          ID_TOOLS_PALETTEVIEW
             MENUITEM "图块查看器(&T)...",             ID_TOOLS_TILEVIEWER
             MENUITEM SEPARATOR
-            MENUITEM "AGB 打印(&A)",                  ID_OPTIONS_EMULATOR_AGBPRINT
-            POPUP "GDB(&G)"
+            MENUITEM "&AGB 打印",                  ID_OPTIONS_EMULATOR_AGBPRINT
+            POPUP "&GDB"
             BEGIN
                 MENUITEM "等待连接(&W)...",     ID_TOOLS_DEBUG_GDB
                 MENUITEM "载入并等待(&L)...",           ID_TOOLS_DEBUG_LOADANDWAIT
-                MENUITEM "中断到 GDB(&B)",             ID_TOOLS_DEBUG_BREAK
+                MENUITEM "中断到 GD&B",             ID_TOOLS_DEBUG_BREAK
                 MENUITEM "断开连接(&D)",                 ID_TOOLS_DEBUG_DISCONNECT
             END
         END
@@ -1906,7 +1906,7 @@ BEGIN
         MENUITEM "帧搜索上一帧(&V)",          ID_DEBUG_FRAMESEARCHPREV
         MENUITEM "帧搜索结束(&E)",           ID_DEBUG_FRAMESEARCHLOAD
         MENUITEM SEPARATOR
-        POPUP "Lua 脚本(&L)"
+        POPUP "&Lua 脚本"
         BEGIN
             MENUITEM "新建 Lua 脚本窗口(&N)...",   ID_FILE_LUA_OPEN
             MENUITEM "关闭所有脚本窗口(&A)",   ID_FILE_LUA_CLOSE_ALL
@@ -1927,8 +1927,8 @@ BEGIN
                 MENUITEM SEPARATOR
                 MENUITEM "丢弃模式(&D)",               ID_MOVIE_TOOL_EDIT_MODE_DISCARD
                 MENUITEM "覆盖模式 [W](&O)",         ID_MOVIE_TOOL_EDIT_MODE_OVERWRITE
-                MENUITEM "插入模式 [I](&I)",            ID_MOVIE_TOOL_EDIT_MODE_INSERT
-                MENUITEM "XOR 输入模式 [X](&X)",         ID_MOVIE_TOOL_EDIT_MODE_XOR
+                MENUITEM "插入模式 [&I]",            ID_MOVIE_TOOL_EDIT_MODE_INSERT
+                MENUITEM "&XOR 输入模式 [X]",         ID_MOVIE_TOOL_EDIT_MODE_XOR
             END
             POPUP "录像结束时(&E)"
             BEGIN
@@ -1960,16 +1960,16 @@ BEGIN
             MENUITEM "与即时存档关联(&A)",  ID_MOVIE_ASSC_WITH_SAVESTATE
         END
         MENUITEM "暂停/继续 AVI 录制(&R)", ID_TOOLS_PAUSEAVIRECORDING
-        MENUITEM "开始/停止 AVI 录制(&A)...", ID_TOOLS_AVIRECORDING
+        MENUITEM "开始/停止 &AVI 录制...", ID_TOOLS_AVIRECORDING
         MENUITEM "按窗口尺寸和滤镜录制 AVI/截图(&W)", ID_TOOLS_CAPTURESCALED
-        MENUITEM "开始/停止 WAV 录制(&W)...", ID_TOOLS_SOUNDRECORDING
+        MENUITEM "开始/停止 &WAV 录制...", ID_TOOLS_SOUNDRECORDING
         MENUITEM SEPARATOR
         MENUITEM "屏幕截图(&C)...",      ID_FILE_SCREENCAPTURE
         // "Screenshot &Format" is replaced at run time with one entry per WIC
         // encoder; see MainWnd::OnInitMenuPopup and ImageWrite.h.
         POPUP "截图格式(&F)"
         BEGIN
-            MENUITEM "PNG(&P)",                        ID_OPTIONS_EMULATOR_FORMAT_FIRST
+            MENUITEM "&PNG",                        ID_OPTIONS_EMULATOR_FORMAT_FIRST
         END
     END
     POPUP "帮助(&H)"
@@ -2032,16 +2032,16 @@ BEGIN
     IDS_FILTER_LUA          "Lua 脚本 (.lua)_*.lua_所有文件_*.*__"
     IDS_SELECT_LUA_NAME     "选择 Lua 脚本文件名"
     IDS_SELECT_LUA_DIR      "选择 Lua 脚本文件目录："
-    IDS_STARTAVIRECORDING   "开始 AVI 录制(&A)..."
-    IDS_STOPAVIRECORDING    "停止 AVI 录制(&A)"
+    IDS_STARTAVIRECORDING   "开始 &AVI 录制..."
+    IDS_STOPAVIRECORDING    "停止 &AVI 录制"
     IDS_PAUSEAVIRECORDING   "暂停 AVI 录制(&R)"
     IDS_RESUMEAVIRECORDING  "继续 AVI 录制(&R)"
-    IDS_STARTSOUNDRECORDING "开始 WAV 录制(&W)..."
+    IDS_STARTSOUNDRECORDING "开始 &WAV 录制..."
 END
 
 STRINGTABLE
 BEGIN
-    IDS_STOPSOUNDRECORDING  "停止 WAV 录制(&W)"
+    IDS_STOPSOUNDRECORDING  "停止 &WAV 录制"
 END
 
 STRINGTABLE

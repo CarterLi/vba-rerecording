@@ -54,9 +54,9 @@ Dead zone:	死区：
 Search for cheats	搜索金手指
 Ol&d value	旧值(&D)
 Specifi&c value	指定值(&C)
-&8 bits	8 位(&8)
-&16 bits	16 位(&1)
-&32 bits	32 位(&3)
+&8 bits	&8 位
+&16 bits	&16 位
+&32 bits	&32 位
 &Equal	等于(&E)
 &Not equal	不等于(&N)
 &Less than	小于(&L)
@@ -91,7 +91,7 @@ Restore &previous values	恢复原值(&P)
 &Group cheats	合并金手指(&G)
 &Code...	代码(&C)...
 C&heat...	金手指(&H)...
-&Gameshark...	GameShark(&G)...
+&Gameshark...	&GameShark...
 CodeBreaker...	CodeBreaker...
 &Edit	编辑(&E)
 &Remove	删除(&R)
@@ -122,8 +122,8 @@ Dest. code:	目标代码：
 License code:	授权代码：
 Checksum:	校验和：
 Gameboy Cheat List	Game Boy 金手指列表
-Add &GameGenie...	添加 GameGenie(&G)...
-&Add GameShark...	添加 GameShark(&A)...
+Add &GameGenie...	添加 &GameGenie...
+&Add GameShark...	添加 G&ameShark...
 Remove A&ll	全部删除(&L)
 Title	标题
 &Code:	代码(&C)：
@@ -343,9 +343,9 @@ Check Misaligned	检查未对齐
 Is	是
  Edit Watch	 ​编辑监视项
 Data Type	数据类型
-&1 byte	1 字节(&1)
-&2 bytes	2 字节(&2)
-&4 bytes	4 字节(&4)
+&1 byte	&1 字节
+&2 bytes	&2 字节
+&4 bytes	&4 字节
  RAM Watch	 RAM 监视
 &New	新建(&N)
 Duplic&ate	复制(&A)
