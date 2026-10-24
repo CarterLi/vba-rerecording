@@ -1048,6 +1048,7 @@ call "$(ProjectDir)defaultconfig\CopyWgpu.bat" "$(Platform)" "$(OutDir)"</Comman
     <ClInclude Include="..\src\gb\V8\gbSound.cpp" />
     <ClCompile Include="..\src\win32\Commands.cpp" />
     <ClCompile Include="..\src\win32\Controls\BitmapControl.cpp" />
+    <ClCompile Include="..\src\win32\Controls\CheatCodeEdit.cpp" />
     <ClCompile Include="..\src\win32\Controls\ColorButton.cpp" />
     <ClCompile Include="..\src\win32\Controls\ColorControl.cpp" />
     <ClCompile Include="..\src\win32\Controls\Hyperlink.cpp" />
@@ -1224,6 +1225,7 @@ call "$(ProjectDir)defaultconfig\CopyWgpu.bat" "$(Platform)" "$(OutDir)"</Comman
     <ClInclude Include="..\src\win32\CmdAccelOb.h" />
     <ClInclude Include="..\src\win32\DarkMode.h" />
     <ClInclude Include="..\src\win32\Controls\BitmapControl.h" />
+    <ClInclude Include="..\src\win32\Controls\CheatCodeEdit.h" />
     <ClInclude Include="..\src\win32\Controls\ColorButton.h" />
     <ClInclude Include="..\src\win32\Controls\ColorControl.h" />
     <ClInclude Include="..\src\win32\Controls\Hyperlink.h" />

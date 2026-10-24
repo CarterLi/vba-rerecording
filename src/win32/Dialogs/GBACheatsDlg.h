@@ -8,6 +8,8 @@
 #include <set>
 #include <vector>
 
+#include "../Controls/CheatCodeEdit.h"
+
 /////////////////////////////////////////////////////////////////////////////
 // GBACheatSearch dialog
 
@@ -199,9 +201,9 @@ public:
 	// Dialog Data
 	//{{AFX_DATA(AddGSACode)
 	enum { IDD = IDD_ADD_CHEAT_DLG };
-	CEdit   m_desc;
-	CEdit   m_code;
-	CButton m_enabled;
+	CEdit          m_desc;
+	CCheatCodeEdit m_code;
+	CButton        m_enabled;
 	//}}AFX_DATA
 
 	// Overrides
@@ -241,9 +243,9 @@ public:
 	// Dialog Data
 	//{{AFX_DATA(AddCBACode)
 	enum { IDD = IDD_ADD_CHEAT_DLG };
-	CEdit   m_desc;
-	CEdit   m_code;
-	CButton m_enabled;
+	CEdit          m_desc;
+	CCheatCodeEdit m_code;
+	CButton        m_enabled;
 	//}}AFX_DATA
 
 	// Overrides
@@ -283,9 +285,9 @@ public:
 	// Dialog Data
 	//{{AFX_DATA(AddCheatCode)
 	enum { IDD = IDD_ADD_CHEAT_DLG };
-	CEdit   m_desc;
-	CEdit   m_code;
-	CButton m_enabled;
+	CEdit          m_desc;
+	CCheatCodeEdit m_code;
+	CButton        m_enabled;
 	//}}AFX_DATA
 
 	// Overrides

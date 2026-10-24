@@ -5,6 +5,8 @@
 // GBCheats.h : header file
 //
 
+#include "../Controls/CheatCodeEdit.h"
+
 /////////////////////////////////////////////////////////////////////////////
 // GBCheatSearch dialog
 
@@ -165,8 +167,8 @@ public:
 	// Dialog Data
 	//{{AFX_DATA(AddGBCode)
 	enum { IDD = IDD_ADD_CHEAT_DLG };
-	CEdit m_desc;
-	CEdit m_code;
+	CEdit         m_desc;
+	CCheatCodeEdit m_code;
 	//}}AFX_DATA
 
 	// Overrides

@@ -6,6 +6,7 @@ still replays exactly the way it did; what changed is the shell around them.
 The entries below are in the same style as the older changelogs, which cover
 the releases up to v23.5.
 
+10-24-2026 Carter Li - Win32: Keep the line breaks of a pasted cheat code list. The EDIT control only starts a new line on CR LF, so codes copied from a web page with bare LF line endings were stored as is but drawn as one long line; the cheat code boxes now rewrite the clipboard text to CR LF before the control sees it, which covers Ctrl+V and the context menu Paste alike.
 10-22-2026 Carter Li - Win32: Divide the RAM Watch and RAM Search columns evenly, so the last column is no longer cut off.
 10-22-2026 Carter Li - Win32: Make the pad setup dialog capture a Nintendo Switch controller. The Switch pad declares its buttons under the simple report only, so the setup dialog captured nothing and the pad did not work in game either.
 10-21-2026 Carter Li - Win32: Fix the jag2 assignment upstream got wrong in xBR-mlv4 pass 2, which demoted every level 5 and 6 edge in three of the four channels.
