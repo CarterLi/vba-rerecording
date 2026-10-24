@@ -51,44 +51,7 @@
  * D0000020 YYYY - if button keys equal value enable next code
  * EAAAAAAA YYYY - increase value stored in address
  */
-#define UNKNOWN_CODE           -1
-#define INT_8_BIT_WRITE        0
-#define INT_16_BIT_WRITE       1
-#define INT_32_BIT_WRITE       2
-#define GSA_16_BIT_ROM_PATCH   3
-#define GSA_8_BIT_GS_WRITE     4
-#define GSA_16_BIT_GS_WRITE    5
-#define GSA_32_BIT_GS_WRITE    6
-#define CBA_IF_KEYS_PRESSED    7
-#define CBA_IF_TRUE            8
-#define CBA_SLIDE_CODE         9
-#define CBA_IF_FALSE           10
-#define CBA_AND                11
-#define GSA_8_BIT_GS_WRITE2    12
-#define GSA_16_BIT_GS_WRITE2   13
-#define GSA_32_BIT_GS_WRITE2   14
-#define GSA_16_BIT_ROM_PATCH2  15
-#define GSA_8_BIT_SLIDE        16
-#define GSA_16_BIT_SLIDE       17
-#define GSA_32_BIT_SLIDE       18
-#define GSA_8_BIT_IF_TRUE      19
-#define GSA_32_BIT_IF_TRUE     20
-#define GSA_8_BIT_IF_FALSE     21
-#define GSA_32_BIT_IF_FALSE    22
-#define GSA_8_BIT_FILL         23
-#define GSA_16_BIT_FILL        24
-#define GSA_8_BIT_IF_TRUE2     25
-#define GSA_16_BIT_IF_TRUE2    26
-#define GSA_32_BIT_IF_TRUE2    27
-#define GSA_8_BIT_IF_FALSE2    28
-#define GSA_16_BIT_IF_FALSE2   29
-#define GSA_32_BIT_IF_FALSE2   30
-#define GSA_SLOWDOWN           31
-#define CBA_ADD                32
-#define CBA_OR                 33
-#define CBA_LT                 34
-#define CBA_GT                 35
-#define CBA_SUPER              36
+#include "../GBACheatTypes.h"
 
  // evil macros
 #ifndef countof

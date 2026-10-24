@@ -6,6 +6,7 @@ still replays exactly the way it did; what changed is the shell around them.
 The entries below are in the same style as the older changelogs, which cover
 the releases up to v23.5.
 
+10-24-2026 Carter Li - Win32: Explain a cheat in words. The cheat list now has an Explain button: with one row selected it opens a window that says what each code of that row - or of the whole group - does, which address gets which value, which key has to be held and which condition has to hold, so a pasted code no longer has to be decoded by hand.
 10-24-2026 Carter Li - Win32: Translate the Undo/Redo caption of the RAM Search button. It was set from an ANSI literal through WM_SETTEXT on a Unicode button, so the first search left two meaningless characters there instead of the word.
 10-24-2026 Carter Li - Win32: Say the RAM Search window title in the UI language. The title is rebuilt with the result counts after every search and the words were hard coded English, so the window fell back to English even though its dialog caption was translated; the two halves now come from the string table, with only the counts going through the format.
 10-24-2026 Carter Li - Win32: Add a Memory button to RAM Search and RAM Watch. With a row selected it opens a memory viewer on that address, in the data size the row is searched or watched at, so a value found by the search no longer has to be retyped into the viewer.

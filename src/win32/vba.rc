@@ -419,6 +419,7 @@ FONT 8, "MS Sans Serif"
 BEGIN
     CONTROL         "Restore &previous values",IDC_RESTORE,"Button",BS_AUTOCHECKBOX | WS_GROUP | WS_TABSTOP,5,183,92,10
     CONTROL         "&Group cheats",IDC_GROUP_CHEATS,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,103,183,80,10
+    PUSHBUTTON      "E&xplain",IDC_EXPLAIN_CHEAT,206,183,64,14,WS_DISABLED
     PUSHBUTTON      "&Code...",IDC_ADD_CODE,9,208,64,14,WS_GROUP
     PUSHBUTTON      "C&heat...",IDC_ADD_CHEAT,75,208,64,14
     PUSHBUTTON      "&Gameshark...",IDC_ADD_GAMESHARK,141,208,64,14
@@ -433,6 +434,15 @@ BEGIN
     LTEXT           "E: Enabled",IDC_STATIC,188,3,36,8
     LTEXT           "D: Disabled",IDC_STATIC,234,3,38,8
     GROUPBOX        "Add",IDC_STATIC,5,199,268,27
+END
+
+IDD_CHEAT_EXPLAIN DIALOG 0, 0, 320, 200
+STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "Cheat explanation"
+FONT 8, "MS Sans Serif"
+BEGIN
+    EDITTEXT        IDC_EXPLAIN_TEXT,7,7,306,170,ES_MULTILINE | ES_AUTOVSCROLL | ES_READONLY | WS_VSCROLL | WS_TABSTOP
+    DEFPUSHBUTTON   "&OK",ID_OK,135,182,50,14
 END
 
 IDD_ASSOCIATIONS DIALOG 0, 0, 116, 95
@@ -2948,6 +2958,59 @@ BEGIN
     IDS_RAM_SEARCH_RESULTS  "%d result(s) (%d region(s))"
     IDS_RAM_SEARCH_UNDO     "&Undo"
     IDS_RAM_SEARCH_REDO     "&Redo"
+END
+/////////////////////////////////////////////////////////////////////////////
+//
+// Cheat explanation window
+//
+
+STRINGTABLE
+BEGIN
+    IDS_CHEAT_EXPLAIN_TITLE         "Cheat explanation"
+    IDS_CHEAT_EXPLAIN_HEADER        "%s code, %d line(s)"
+    IDS_CHEAT_EXPLAIN_CHEAT         "Cheat: %s"
+    IDS_CHEAT_EXPLAIN_TARGET        "the value at 0x%08X (%d-bit)"
+    IDS_CHEAT_EXPLAIN_POINTER_TARGET "the value pointed to by 0x%08X (%d-bit)"
+    IDS_CHEAT_EXPLAIN_WRITE         "set %s to %s"
+    IDS_CHEAT_EXPLAIN_WRITE_KEY     "while L and R are held, set %s to %s"
+    IDS_CHEAT_EXPLAIN_WRITE_KEY2    "while L and R are held, set the value pointed to by the line above"
+    IDS_CHEAT_EXPLAIN_IF_EQ         "if %s is %s, run the code below"
+    IDS_CHEAT_EXPLAIN_IF_NE         "if %s is not %s, run the code below"
+    IDS_CHEAT_EXPLAIN_IF_GT         "if %s is greater than %s, run the code below"
+    IDS_CHEAT_EXPLAIN_IF_LT         "if %s is less than %s, run the code below"
+    IDS_CHEAT_EXPLAIN_IF_GE         "if %s is greater than or equal to %s, run the code below"
+    IDS_CHEAT_EXPLAIN_IF_LE         "if %s is less than or equal to %s, run the code below"
+    IDS_CHEAT_EXPLAIN_IF_AND        "if %s shares any bit with %s, run the code below"
+    IDS_CHEAT_EXPLAIN_IF_AND_NOT    "if %s shares no bit with %s, skip the rest of this cheat"
+    IDS_CHEAT_EXPLAIN_IF_KEY_ANY    "if any of %s is held, run the code below"
+    IDS_CHEAT_EXPLAIN_IF_KEY_ALL    "if all of %s are held, run the code below"
+    IDS_CHEAT_EXPLAIN_ELSE_REST     "otherwise skip the rest of this cheat"
+    IDS_CHEAT_EXPLAIN_SKIP_NEXT     "this line only skips the line below"
+    IDS_CHEAT_EXPLAIN_SKIP_TWO      "this line only skips the two lines below"
+    IDS_CHEAT_EXPLAIN_FILL          "fill 0x%08X with %s, %d byte(s)"
+    IDS_CHEAT_EXPLAIN_FILL16        "fill 0x%08X with %s, %d half-word(s)"
+    IDS_CHEAT_EXPLAIN_SLIDE         "repeat from 0x%08X for %d step(s), address step 0x%X, value step %d"
+    IDS_CHEAT_EXPLAIN_ADD           "add 0x%X to %s"
+    IDS_CHEAT_EXPLAIN_OR            "OR 0x%X into %s"
+    IDS_CHEAT_EXPLAIN_AND           "AND 0x%X into %s"
+    IDS_CHEAT_EXPLAIN_MIF           "if %s is %s, run the code below, otherwise skip some lines"
+    IDS_CHEAT_EXPLAIN_ROM_PATCH     "patch the ROM: %s becomes %s"
+    IDS_CHEAT_EXPLAIN_ROM_PATCH2    "patch the ROM at 0x%08X with the value in the line below"
+    IDS_CHEAT_EXPLAIN_SUPER         "super code: write from 0x%08X onward %d byte(s), the bytes are in the lines below"
+    IDS_CHEAT_EXPLAIN_GROUP_WRITE   "group write: %d 32-bit value(s), the addresses are in this and the following lines"
+    IDS_CHEAT_EXPLAIN_ADD2          "add the 32-bit value in the line below to the 32-bit value at 0x%08X"
+    IDS_CHEAT_EXPLAIN_SUB2          "subtract the 32-bit value in the line below from the 32-bit value at 0x%08X"
+    IDS_CHEAT_EXPLAIN_IO            "write %s to the I/O register 0x%03X"
+    IDS_CHEAT_EXPLAIN_SLOWDOWN      "while L and R are held, slow the game down"
+    IDS_CHEAT_EXPLAIN_CODES_ON      "turn the codes that follow back on"
+    IDS_CHEAT_EXPLAIN_MASTER        "master code: enables the codes that follow"
+    IDS_CHEAT_EXPLAIN_ID            "identity code: only checks that the cheat belongs to this game"
+    IDS_CHEAT_EXPLAIN_UNKNOWN       "unrecognised code type %d, or data belonging to the line above"
+    IDS_CHEAT_EXPLAIN_KEYS_OTHER    "the keys written in the code"
+    IDS_CHEAT_EXPLAIN_TYPE_CODE     "Code"
+    IDS_CHEAT_EXPLAIN_TYPE_GAMESHARK"Gameshark"
+    IDS_CHEAT_EXPLAIN_TYPE_CODEBREAKER    "CodeBreaker"
+    IDS_CHEAT_EXPLAIN_DATA          "data used by the line above"
 END
 
 /////////////////////////////////////////////////////////////////////////////

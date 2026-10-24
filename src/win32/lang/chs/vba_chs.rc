@@ -248,6 +248,7 @@ FONT 8, "MS Sans Serif"
 BEGIN
     CONTROL         "恢复原值(&P)",IDC_RESTORE,"Button",BS_AUTOCHECKBOX | WS_GROUP | WS_TABSTOP,5,183,92,10
     CONTROL         "合并金手指(&G)",IDC_GROUP_CHEATS,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,103,183,80,10
+    PUSHBUTTON      "解释(&X)",IDC_EXPLAIN_CHEAT,206,183,64,14,WS_DISABLED
     PUSHBUTTON      "代码(&C)...",IDC_ADD_CODE,9,208,64,14,WS_GROUP
     PUSHBUTTON      "金手指(&H)...",IDC_ADD_CHEAT,75,208,64,14
     PUSHBUTTON      "&GameShark...",IDC_ADD_GAMESHARK,141,208,64,14
@@ -262,6 +263,15 @@ BEGIN
     LTEXT           "E：启用",IDC_STATIC,188,3,36,8
     LTEXT           "D：禁用",IDC_STATIC,234,3,38,8
     GROUPBOX        "添加",IDC_STATIC,5,199,268,27
+END
+
+IDD_CHEAT_EXPLAIN DIALOG 0, 0, 320, 200
+STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+CAPTION "金手指说明"
+FONT 8, "MS Sans Serif"
+BEGIN
+    EDITTEXT        IDC_EXPLAIN_TEXT,7,7,306,170,ES_MULTILINE | ES_AUTOVSCROLL | ES_READONLY | WS_VSCROLL | WS_TABSTOP
+    DEFPUSHBUTTON   "确定(&O)",ID_OK,135,182,50,14
 END
 
 IDD_ASSOCIATIONS DIALOG 0, 0, 116, 95
@@ -2297,6 +2307,55 @@ BEGIN
     IDS_RAM_SEARCH_RESULTS  "%d 个结果（%d 个区域）"
     IDS_RAM_SEARCH_UNDO     "撤销(&U)"
     IDS_RAM_SEARCH_REDO     "重做(&R)"
+END
+
+STRINGTABLE
+BEGIN
+    IDS_CHEAT_EXPLAIN_TITLE         "金手指说明"
+    IDS_CHEAT_EXPLAIN_HEADER        "%s 代码，共 %d 行"
+    IDS_CHEAT_EXPLAIN_CHEAT         "金手指：%s"
+    IDS_CHEAT_EXPLAIN_TARGET        "0x%08X 处的 %d 位值"
+    IDS_CHEAT_EXPLAIN_POINTER_TARGET "0x%08X 指向的 %d 位值"
+    IDS_CHEAT_EXPLAIN_WRITE         "把 %s设为 %s"
+    IDS_CHEAT_EXPLAIN_WRITE_KEY     "按住 L+R 时，把 %s设为 %s"
+    IDS_CHEAT_EXPLAIN_WRITE_KEY2    "按住 L+R 时，把上一行指向的值写入"
+    IDS_CHEAT_EXPLAIN_IF_EQ         "如果 %s等于 %s，则执行后面的代码"
+    IDS_CHEAT_EXPLAIN_IF_NE         "如果 %s不等于 %s，则执行后面的代码"
+    IDS_CHEAT_EXPLAIN_IF_GT         "如果 %s大于 %s，则执行后面的代码"
+    IDS_CHEAT_EXPLAIN_IF_LT         "如果 %s小于 %s，则执行后面的代码"
+    IDS_CHEAT_EXPLAIN_IF_GE         "如果 %s大于等于 %s，则执行后面的代码"
+    IDS_CHEAT_EXPLAIN_IF_LE         "如果 %s小于等于 %s，则执行后面的代码"
+    IDS_CHEAT_EXPLAIN_IF_AND        "如果 %s与 %s 有共同的位，则执行后面的代码"
+    IDS_CHEAT_EXPLAIN_IF_AND_NOT    "如果 %s与 %s 没有共同的位，则跳过这个金手指剩下的代码"
+    IDS_CHEAT_EXPLAIN_IF_KEY_ANY    "如果按住了 %s 中的任意一个，则执行后面的代码"
+    IDS_CHEAT_EXPLAIN_IF_KEY_ALL    "如果 %s 全部被按住，则执行后面的代码"
+    IDS_CHEAT_EXPLAIN_ELSE_REST     "否则跳过这个金手指剩下的代码"
+    IDS_CHEAT_EXPLAIN_SKIP_NEXT     "这一行只是跳过下一行"
+    IDS_CHEAT_EXPLAIN_SKIP_TWO      "这一行只是跳过下面两行"
+    IDS_CHEAT_EXPLAIN_FILL          "从 0x%08X 起填充 %s，共 %d 个字节"
+    IDS_CHEAT_EXPLAIN_FILL16        "从 0x%08X 起填充 %s，共 %d 个半字"
+    IDS_CHEAT_EXPLAIN_SLIDE         "从 0x%08X 开始重复 %d 次，地址步长 0x%X，值步长 %d"
+    IDS_CHEAT_EXPLAIN_ADD           "把 0x%X 加到 %s上"
+    IDS_CHEAT_EXPLAIN_OR            "把 0x%X 按位或进 %s"
+    IDS_CHEAT_EXPLAIN_AND           "把 0x%X 按位与进 %s"
+    IDS_CHEAT_EXPLAIN_MIF           "如果 %s等于 %s，则执行后面的代码，否则跳过若干行"
+    IDS_CHEAT_EXPLAIN_ROM_PATCH     "改动 ROM：%s 改为 %s"
+    IDS_CHEAT_EXPLAIN_ROM_PATCH2    "用下一行的值改动 ROM 的 0x%08X 处"
+    IDS_CHEAT_EXPLAIN_SUPER         "超级码：从 0x%08X 开始写入 %d 个字节，数据在后面的行里"
+    IDS_CHEAT_EXPLAIN_GROUP_WRITE   "批量写：%d 个 32 位值，地址在本行和后面的行里"
+    IDS_CHEAT_EXPLAIN_ADD2          "把下一行的 32 位值加到 0x%08X 处的 32 位值上"
+    IDS_CHEAT_EXPLAIN_SUB2          "把 0x%08X 处的 32 位值减去下一行的 32 位值"
+    IDS_CHEAT_EXPLAIN_IO            "把 %s 写入 I/O 寄存器 0x%03X"
+    IDS_CHEAT_EXPLAIN_SLOWDOWN      "按住 L+R 时让游戏变慢"
+    IDS_CHEAT_EXPLAIN_CODES_ON      "重新启用后面的代码"
+    IDS_CHEAT_EXPLAIN_MASTER        "主码：用于启用后面的代码"
+    IDS_CHEAT_EXPLAIN_ID            "识别码：只用来检查金手指是否属于这个游戏"
+    IDS_CHEAT_EXPLAIN_UNKNOWN       "未识别的代码类型 %d，或者属于上一行的数据"
+    IDS_CHEAT_EXPLAIN_KEYS_OTHER    "代码里写的按键"
+    IDS_CHEAT_EXPLAIN_TYPE_CODE     "代码"
+    IDS_CHEAT_EXPLAIN_TYPE_GAMESHARK"Gameshark"
+    IDS_CHEAT_EXPLAIN_TYPE_CODEBREAKER    "CodeBreaker"
+    IDS_CHEAT_EXPLAIN_DATA          "上一行的数据"
 END
 
 IDD_ARCHIVEFILECHOOSER DIALOGEX 0, 0, 182, 113

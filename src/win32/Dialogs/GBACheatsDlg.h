@@ -176,6 +176,7 @@ protected:
 	afx_msg void OnAddGameshark();
 	afx_msg void OnEnable();
 	afx_msg void OnEdit();
+	afx_msg void OnExplain();
 	afx_msg void OnRemove();
 	afx_msg void OnRestore();
 	afx_msg void OnGroupCheats();

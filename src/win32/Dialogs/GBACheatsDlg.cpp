@@ -4,6 +4,7 @@
 #include "../stdafx.h"
 #include "../resource.h"
 #include "GBACheatsDlg.h"
+#include "CheatExplain.h"
 #include "../StringTokenizer.h"
 #include "../Reg.h"
 #include "../WinResUtil.h"
@@ -1197,6 +1198,7 @@ ON_BN_CLICKED(IDC_ADD_CODEBREAKER, OnAddCodebreaker)
 ON_BN_CLICKED(IDC_ADD_GAMESHARK, OnAddGameshark)
 ON_BN_CLICKED(IDC_ENABLE, OnEnable)
 ON_BN_CLICKED(IDC_EDIT, OnEdit)
+ON_BN_CLICKED(IDC_EXPLAIN_CHEAT, OnExplain)
 ON_BN_CLICKED(IDC_REMOVE, OnRemove)
 ON_BN_CLICKED(IDC_RESTORE, OnRestore)
 ON_BN_CLICKED(IDC_GROUP_CHEATS, OnGroupCheats)
@@ -1302,6 +1304,18 @@ void GBACheatList::OnEdit()
 		editCheat(rows[mark].first);
 }
 
+void GBACheatList::OnExplain()
+{
+	if (m_list.GetSelectedCount() != 1)
+		return;
+
+	int mark = m_list.GetSelectionMark();
+	if (mark < 0 || mark >= (int)rows.size())
+		return;
+
+	winShowCheatExplanation(this, rows[mark].first, rows[mark].count);
+}
+
 void GBACheatList::OnRemove()
 {
 	if (m_list.GetSelectedCount() == 0)
@@ -1387,6 +1401,7 @@ void GBACheatList::updateButtonStates()
 	int selected = m_list.GetSelectedCount();
 	GetDlgItem(IDC_REMOVE)->EnableWindow(selected > 0);
 	GetDlgItem(IDC_EDIT)->EnableWindow(selected == 1);
+	GetDlgItem(IDC_EXPLAIN_CHEAT)->EnableWindow(selected == 1);
 	GetDlgItem(IDC_ENABLE)->EnableWindow(selected > 0);
 }
 

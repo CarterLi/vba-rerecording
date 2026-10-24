@@ -224,3 +224,46 @@ Notes	备注
 # the same literal as the dialog caption, so that part is glossed in dialog.tsv.
 %d result(s) (%d region(s))	%d 个结果（%d 个区域）
 &Redo	重做(&R)
+%s code, %d line(s)	%s 代码，共 %d 行
+Cheat: %s	金手指：%s
+the value at 0x%08X (%d-bit)	0x%08X 处的 %d 位值
+the value pointed to by 0x%08X (%d-bit)	0x%08X 指向的 %d 位值
+set %s to %s	把 %s设为 %s
+while L and R are held, set %s to %s	按住 L+R 时，把 %s设为 %s
+while L and R are held, set the value pointed to by the line above	按住 L+R 时，把上一行指向的值写入
+if %s is %s, run the code below	如果 %s等于 %s，则执行后面的代码
+if %s is not %s, run the code below	如果 %s不等于 %s，则执行后面的代码
+if %s is greater than %s, run the code below	如果 %s大于 %s，则执行后面的代码
+if %s is less than %s, run the code below	如果 %s小于 %s，则执行后面的代码
+if %s is greater than or equal to %s, run the code below	如果 %s大于等于 %s，则执行后面的代码
+if %s is less than or equal to %s, run the code below	如果 %s小于等于 %s，则执行后面的代码
+if %s shares any bit with %s, run the code below	如果 %s与 %s 有共同的位，则执行后面的代码
+if %s shares no bit with %s, skip the rest of this cheat	如果 %s与 %s 没有共同的位，则跳过这个金手指剩下的代码
+if any of %s is held, run the code below	如果按住了 %s 中的任意一个，则执行后面的代码
+if all of %s are held, run the code below	如果 %s 全部被按住，则执行后面的代码
+otherwise skip the rest of this cheat	否则跳过这个金手指剩下的代码
+this line only skips the line below	这一行只是跳过下一行
+this line only skips the two lines below	这一行只是跳过下面两行
+fill 0x%08X with %s, %d byte(s)	从 0x%08X 起填充 %s，共 %d 个字节
+fill 0x%08X with %s, %d half-word(s)	从 0x%08X 起填充 %s，共 %d 个半字
+repeat from 0x%08X for %d step(s), address step 0x%X, value step %d	从 0x%08X 开始重复 %d 次，地址步长 0x%X，值步长 %d
+add 0x%X to %s	把 0x%X 加到 %s上
+OR 0x%X into %s	把 0x%X 按位或进 %s
+AND 0x%X into %s	把 0x%X 按位与进 %s
+if %s is %s, run the code below, otherwise skip some lines	如果 %s等于 %s，则执行后面的代码，否则跳过若干行
+patch the ROM: %s becomes %s	改动 ROM：%s 改为 %s
+patch the ROM at 0x%08X with the value in the line below	用下一行的值改动 ROM 的 0x%08X 处
+super code: write from 0x%08X onward %d byte(s), the bytes are in the lines below	超级码：从 0x%08X 开始写入 %d 个字节，数据在后面的行里
+group write: %d 32-bit value(s), the addresses are in this and the following lines	批量写：%d 个 32 位值，地址在本行和后面的行里
+add the 32-bit value in the line below to the 32-bit value at 0x%08X	把下一行的 32 位值加到 0x%08X 处的 32 位值上
+subtract the 32-bit value in the line below from the 32-bit value at 0x%08X	把 0x%08X 处的 32 位值减去下一行的 32 位值
+write %s to the I/O register 0x%03X	把 %s 写入 I/O 寄存器 0x%03X
+while L and R are held, slow the game down	按住 L+R 时让游戏变慢
+turn the codes that follow back on	重新启用后面的代码
+master code: enables the codes that follow	主码：用于启用后面的代码
+identity code: only checks that the cheat belongs to this game	识别码：只用来检查金手指是否属于这个游戏
+unrecognised code type %d, or data belonging to the line above	未识别的代码类型 %d，或者属于上一行的数据
+the keys written in the code	代码里写的按键
+Gameshark	Gameshark
+CodeBreaker	CodeBreaker
+data used by the line above	上一行的数据

@@ -1059,6 +1059,7 @@ call "$(ProjectDir)defaultconfig\CopyWgpu.bat" "$(Platform)" "$(OutDir)"</Comman
     <ClCompile Include="..\src\win32\Dialogs\AccelEditor.cpp" />
     <ClCompile Include="..\src\win32\Dialogs\Associate.cpp" />
     <ClCompile Include="..\src\win32\Dialogs\BugReport.cpp" />
+    <ClCompile Include="..\src\win32\Dialogs\CheatExplain.cpp" />
     <ClCompile Include="..\src\win32\Dialogs\Directories.cpp" />
     <ClCompile Include="..\src\win32\Dialogs\Disassemble.cpp" />
     <ClCompile Include="..\src\win32\Dialogs\ExportGSASnapshot.cpp" />
@@ -1202,6 +1203,7 @@ call "$(ProjectDir)defaultconfig\CopyWgpu.bat" "$(Platform)" "$(OutDir)"</Comman
     <ClInclude Include="..\src\gba\agbprint.h" />
     <ClInclude Include="..\src\gba\armdis.h" />
     <ClInclude Include="..\src\gba\bios.h" />
+    <ClInclude Include="..\src\gba\GBACheatTypes.h" />
     <ClInclude Include="..\src\gba\GBACheats.h" />
     <ClInclude Include="..\src\gba\EEprom.h" />
     <ClInclude Include="..\src\gba\elf.h" />
@@ -1236,6 +1238,7 @@ call "$(ProjectDir)defaultconfig\CopyWgpu.bat" "$(Platform)" "$(OutDir)"</Comman
     <ClInclude Include="..\src\win32\Dialogs\AccelEditor.h" />
     <ClInclude Include="..\src\win32\Dialogs\Associate.h" />
     <ClInclude Include="..\src\win32\Dialogs\BugReport.h" />
+    <ClInclude Include="..\src\win32\Dialogs\CheatExplain.h" />
     <ClInclude Include="..\src\win32\Dialogs\Directories.h" />
     <ClInclude Include="..\src\win32\Dialogs\Disassemble.h" />
     <ClInclude Include="..\src\win32\Dialogs\ExportGSASnapshot.h" />
