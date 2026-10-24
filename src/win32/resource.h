@@ -223,6 +223,8 @@
 #define IDS_TEXT_SIZE_TIP               218
 #define IDS_TEXT_MARGIN_LEFT_TIP        219
 #define IDS_TEXT_MARGIN_BOTTOM_TIP      220
+#define IDS_RAM_SEARCH_TITLE            221
+#define IDS_RAM_SEARCH_RESULTS          222
 #define IDR_MENU                        401
 #define IDR_ACCELERATOR                 405
 #define IDR_GB_PRINTER                  406

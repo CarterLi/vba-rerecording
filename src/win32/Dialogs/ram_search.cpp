@@ -2136,19 +2136,38 @@ invalid_field:
 
 void UpdateRamSearchTitleBar(int percent)
 {
-#define HEADER_STR _T(" RAM Search - ")
-#define PROGRESS_STR _T(" %d%% ... ")
-#define STATUS_STR _T("%d Possibilit%s (%d Region%s)")
-
 	int poss	= last_rs_possible;
 	int regions = last_rs_regions;
+
+	// The title is composed here instead of coming from the dialog template,
+	// so the words have to be loaded from the resources like any other string
+	// or the window keeps an English caption under a translated UI.
+	CString title = winResLoadString(IDS_RAM_SEARCH_TITLE);
+
 	if (poss <= 0)
-		_tcscpy(Str_Tmp, _T(" RAM Search"));
-	else if (percent <= 0)
-		_stprintf(Str_Tmp, HEADER_STR STATUS_STR, poss, poss == 1 ? _T("y") : _T("ies"), regions, regions == 1 ? _T("") : _T("s"));
+	{
+		SetWindowText(RamSearchHWnd, title);
+		return;
+	}
+
+	// Only numbers go through the format string, so a translation is free to
+	// spell the counts out in whatever way its language wants.
+	CString results;
+	results.Format(winResLoadString(IDS_RAM_SEARCH_RESULTS), poss, regions);
+
+	if (percent <= 0)
+	{
+		title += _T(" - ");
+		title += results;
+	}
 	else
-		_stprintf(Str_Tmp, PROGRESS_STR STATUS_STR, percent, poss, poss == 1 ? _T("y") : _T("ies"), regions, regions == 1 ? _T("") : _T("s"));
-	SetWindowText(RamSearchHWnd, Str_Tmp);
+	{
+		CString progress;
+		progress.Format(_T(" %d%% ... "), percent);
+		title = progress + results;
+	}
+
+	SetWindowText(RamSearchHWnd, title);
 }
 
 void UpdatePossibilities(int rs_possible, int regions)
