@@ -9,6 +9,11 @@ extern int winResDialogBox(LPCTSTR boxName, HWND parent, DLGPROC dlgProc, LPARAM
 extern CString winResLoadString(UINT id);
 extern CString winResLoadFilter(UINT id);
 
+// Text the on screen display shows: always the English the executable carries,
+// whatever the UI language is, because the display's fonts cannot draw the
+// characters of a translation.
+extern CString winResLoadOsdString(UINT id);
+
 // The save dialog for an image capture.  It offers every format WIC can write
 // (see ImageWrite.h), with the capture format picked in the Options menu
 // selected, and the user may save in any of them.  The pick becomes the capture

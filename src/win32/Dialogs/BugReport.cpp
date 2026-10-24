@@ -114,7 +114,6 @@ static void AppendFormat(CString& report, LPCTSTR format, ...)
 
 CString BugReport::createReport()
 {
-	theApp.winCheckFullscreen();
 
 	CString report = "";
 	AppendFormat(report, _T("Emu version  : %s\r\n"), _T(VBA_VERSION_STRING));

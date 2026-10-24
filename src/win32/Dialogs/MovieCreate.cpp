@@ -104,7 +104,6 @@ END_MESSAGE_MAP()
 
 void MovieCreate::OnBnClickedBrowse()
 {
-	theApp.winCheckFullscreen();
 
 	LPCTSTR exts[] = { _T(".vbm"), NULL };
 

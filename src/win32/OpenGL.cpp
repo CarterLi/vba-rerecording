@@ -24,6 +24,7 @@ class OpenGLDisplay : public IDisplay
 {
 private:
 	HDC    hDC;
+	CWnd * dcWnd;
 	HGLRC  hglrc;
 	GLuint texture;
 	int    width;
@@ -41,14 +42,11 @@ public:
 	virtual bool initialize();
 	virtual void cleanup();
 	virtual void render();
-	virtual void checkFullScreen();
-	virtual void renderMenu();
 	virtual void clear();
 	virtual bool changeRenderSize(int w, int h);
 	virtual void resize(int w, int h);
 	virtual DISPLAY_TYPE getType() { return OPENGL; };
 	virtual void setOption(const char *, int);
-	virtual int selectFullScreenMode(GUID * *);
 
 	// The legacy renderer samples a texture with the two filters the fixed
 	// function pipeline has, and has no mip chain to blend between: trilinear
@@ -59,6 +57,7 @@ public:
 OpenGLDisplay::OpenGLDisplay()
 {
 	hDC        = NULL;
+	dcWnd      = NULL;
 	hglrc      = NULL;
 	texture    = 0;
 	width      = 0;
@@ -88,7 +87,9 @@ void OpenGLDisplay::cleanup()
 	}
 	if (hDC != NULL)
 	{
-		ReleaseDC(*theApp.m_pMainWnd, hDC);
+		if (dcWnd != NULL)
+			::ReleaseDC(dcWnd->GetSafeHwnd(), hDC);
+		dcWnd = NULL;
 		hDC = NULL;
 	}
 	if (filterData)
@@ -103,14 +104,12 @@ void OpenGLDisplay::cleanup()
 
 bool OpenGLDisplay::initialize()
 {
-	CWnd *pWnd = theApp.m_pMainWnd;
+	CWnd *pWnd = theApp.winRenderWnd();
 
-	theApp.mode320Available = false;
-	theApp.mode640Available = false;
-	theApp.mode800Available = false;
 
 	CDC *dc  = pWnd->GetDC();
-	HDC  hDC = dc->GetSafeHdc();
+	hDC      = dc->GetSafeHdc();
+	dcWnd    = pWnd;
 
 	PIXELFORMATDESCRIPTOR pfd = {
 		sizeof(PIXELFORMATDESCRIPTOR), //  size of this pfd
@@ -213,10 +212,10 @@ bool OpenGLDisplay::initialize()
 
 void OpenGLDisplay::clear()
 {
-	if (hglrc == NULL || theApp.m_pMainWnd == NULL)
+	if (hglrc == NULL || theApp.winRenderWnd() == NULL)
 		return;
 
-	CDC *dc = theApp.m_pMainWnd->GetDC();
+	CDC *dc = theApp.winRenderWnd()->GetDC();
 	if (dc == NULL)
 		return;
 
@@ -232,20 +231,7 @@ void OpenGLDisplay::clear()
 
 	SwapBuffers(hdc);
 
-	theApp.m_pMainWnd->ReleaseDC(dc);
-}
-
-void OpenGLDisplay::renderMenu()
-{
-	checkFullScreen();
-	if (theApp.m_pMainWnd)
-		theApp.m_pMainWnd->DrawMenuBar();
-}
-
-void OpenGLDisplay::checkFullScreen()
-{
-	//  if(tripleBuffering)
-	//    pOpenGL->FlipToGDISurface();
+	theApp.winRenderWnd()->ReleaseDC(dc);
 }
 
 void OpenGLDisplay::render()
@@ -343,13 +329,13 @@ void OpenGLDisplay::render()
 		glEnd();
 	}
 
-	CDC *dc = theApp.m_pMainWnd->GetDC();
+	CDC *dc = theApp.winRenderWnd()->GetDC();
 
 	HFONT font    = NULL;
 	HFONT oldFont = NULL;
 	const int lineHeight = screenTextLineHeight();
 
-	if (textMethod == 2)
+	if (textMethod == 2 && !theApp.statusBarActive())
 	{
 		font    = createScreenTextFont();
 		oldFont = (HFONT)dc->SelectObject(font);
@@ -417,7 +403,7 @@ void OpenGLDisplay::render()
 
 	SwapBuffers(dc->GetSafeHdc());
 
-	theApp.m_pMainWnd->ReleaseDC(dc);
+	theApp.winRenderWnd()->ReleaseDC(dc);
 }
 
 void OpenGLDisplay::resize(int w, int h)
@@ -498,20 +484,6 @@ void OpenGLDisplay::setOption(const char *option, int value)
 {
 	if (!strcmp(option, "glFilter"))
 		updateFiltering(value);
-}
-
-int OpenGLDisplay::selectFullScreenMode(GUID * *)
-{
-	HWND wnd = GetDesktopWindow();
-	RECT r;
-	GetWindowRect(wnd, &r);
-	int w  = (r.right - r.left) & 4095;
-	int h  = (r.bottom - r.top) & 4095;
-	HDC dc = GetDC(wnd);
-	int c  = GetDeviceCaps(dc, BITSPIXEL);
-	ReleaseDC(wnd, dc);
-
-	return (c << 24) | (w << 12) | h;
 }
 
 IDisplay *newOpenGLDisplay()

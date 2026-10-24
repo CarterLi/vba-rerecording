@@ -70,7 +70,8 @@ rebuilds all of that for a current Windows, and adds the things a modern
 emulator is expected to have.
 
 **The short version:** a Direct3D 9Ex / Direct3D 11 rendering stack, with an
-OpenGL 3.3 and a WebGPU renderer behind compile time switches, GPU upscaling
+OpenGL 3.3 and a WebGPU renderer behind compile time switches, GDI as the
+fallback that needs nothing, GPU upscaling
 with NVIDIA Image Scaling, AMD FidelityFX and
 the whole libretro xBR family, a Windows 10 era shell with dark mode and
 per-monitor DPI, XAudio2 as a lower latency sound backend, screenshots in
@@ -124,22 +125,34 @@ something they would rather keep using.
 * **GDI** - the renderer the tree was born with, and the slowest of them: it
   blits the frame into a DIB and hands it to `StretchDIBits`, so the picture
   is scaled by the CPU.  It is the last renderer of the fallback chain, so it
-  is what the emulator falls back to when no other one starts.  It sits behind
-  a compile time switch (`VBA_ENABLE_GDI` in `GdiConfig.h`), so a build
-  without it leaves the entry out of the Video menu and falls back to
-  DirectDraw instead.  Disabled by default.
+  is what the emulator falls back to when no other one starts, and it is on by
+  default: it needs no DirectX at all, so it works over a remote desktop, in
+  safe mode and on a virtual machine that only has the basic display adapter,
+  which is exactly where the other renderers give up.  A build without it
+  (`VBA_ENABLE_GDI` in `GdiConfig.h`) leaves the entry out of the Video menu
+  and falls back to DirectDraw, when that one is built.
 * **DirectDraw** - the older accelerated renderer, which runs on `DDRAW.DLL`
-  and sits below Direct3D in the fallback chain.  It sits behind a compile
-  time switch (`VBA_ENABLE_DDRAW` in `DDrawConfig.h`), so a build without it
-  leaves the entry and its options out of the Video menu and falls from
-  Direct3D to GDI.  Enabled by default.
+  and is off by default: on Windows 8 and later `DDRAW.DLL` is itself a
+  compatibility layer over DXGI, so it fails wherever Direct3D fails and pays
+  for the layer wherever it does not.  With its compile time switch
+  (`VBA_ENABLE_DDRAW` in `DDrawConfig.h`) on, the entry and its options come
+  back to the Video menu; the fallback chain reaches it only in a build that
+  leaves GDI out.
 * **Direct3D 11** - a new backend: device, swap chain, a dynamic BGRA frame
   texture (BGR565 at 16 bpp) drawn as a single quad, the on screen display
   blended on top, the flip model where the system supports it and bitblt where
   it does not, and VSync as a video option rather than a fixed wait.
+* **Screen scaling that keeps the picture's shape.**  **Video -> Screen
+  Scaling** offers stretch, aspect fit and aspect fit with an integer factor,
+  and both the window and full screen follow it, so a 3:2 picture is no longer
+  stretched into whatever shape the window happens to have.  The picture is
+  drawn into a child window that is sized and centred for the mode, and the
+  bars around it are the window's own background - in full screen too, where
+  the picture also stays inside the monitor when the menu bar is shown.
 * **The defaults are the modern ones**: a build that does not target Windows
   XP starts on Direct3D 11, XAudio2, a 2x window and 44 kHz audio instead of
-  DirectDraw, DirectSound, 1x and 22 kHz.  A WINXP build keeps the old ones.
+  DirectDraw, DirectSound, 1x and 22 kHz.  A WINXP build starts on Direct3D 9
+  and keeps the old sound and window size.
 * **OpenGL 3.3** - a core profile renderer beside the fixed function one, with
   double buffered frame textures so the upload no longer waits on the last
   draw, and `WGL_EXT_swap_control_tear` so a frame that misses the blanking
@@ -160,14 +173,16 @@ something they would rather keep using.
   the trace log.
 
 The renderers sit behind compile time switches, so a build can leave them out
-or put them back.  GDI, OpenGL and WebGPU are off by default; DirectDraw is on:
+or put them back.  DirectDraw, OpenGL and WebGPU are off by default; GDI, the
+one that runs everywhere, is on:
 
 * `VBA_ENABLE_GDI` in `src/win32/GdiConfig.h` builds the GDI renderer.  With
   it off, the "GDI" entry leaves the Video menu, and the fallback chain ends
-  at DirectDraw instead of at GDI.
+  at DirectDraw, when that backend is built.
 * `VBA_ENABLE_DDRAW` in `src/win32/DDrawConfig.h` builds the DirectDraw
-  renderer.  With it off, the "DirectDraw" entry and its options leave the
-  Video menu, and the fallback chain goes from Direct3D to GDI.
+  renderer, which is off by default.  With it on, the "DirectDraw" entry and
+  its options come back to the Video menu, and the chain tries it only in a
+  build that leaves GDI out.
 * `VBA_ENABLE_OPENGL` in `src/win32/OpenGLConfig.h` builds the two OpenGL
   renderers - the fixed function one and the OpenGL 3.3 one.  With it off,
   the "OpenGL 3.3" and "OpenGL (Legacy)" entries and the two legacy GL
@@ -512,8 +527,10 @@ plainly:
   `D3D11.DLL`, `D3DCOMPILER_47.DLL`, `XAUDIO2_9.DLL`, `DXGI.DLL`, `7z.dll`,
   `wgpu_native.dll` - is resolved at run time with `LoadLibrary`, and each one
   degrades gracefully: a missing DLL leaves its menu entry out, the renderer
-  falls back to the next one, and the emulator carries on.  Nothing is imported
-  statically, so the program still starts where the library is not installed.
+  falls back to the next one, and the emulator carries on.  The last step of
+  that chain is the GDI renderer, which imports nothing but GDI and USER and
+  therefore always starts.  Nothing is imported statically, so the program
+  still starts where the library is not installed.
 * The one exception is the **Windows Imaging Component** the screenshots go
   through, which needs the codecs that Windows 7 and later ship with.
 * **Windows 7 or later is what we recommend**, and Windows 10 or 11 if you want

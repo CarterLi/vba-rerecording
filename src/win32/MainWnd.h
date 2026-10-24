@@ -10,6 +10,66 @@
 #include "OpenGLConfig.h"
 #include "WgpuConfig.h"
 
+// Height of the status bar part of the main window, in pixels.  The status
+// bar is a child of the main window and sits below the picture, so the
+// windowed main window is this much taller when it is on.
+int winStatusBarHeight();
+
+/////////////////////////////////////////////////////////////////////////////
+// RenderWnd window
+//
+// The display backends draw into this child of the main window rather than
+// into the main window itself.  The status bar can then be a sibling below
+// it, and switching renderers only has to repaint this area.
+
+class RenderWnd : public CWnd
+{
+public:
+	RenderWnd();
+
+protected:
+	afx_msg void OnPaint();
+	afx_msg BOOL OnEraseBkgnd(CDC *pDC);
+	afx_msg void OnMouseMove(UINT nFlags, CPoint point);
+	afx_msg void OnContextMenu(CWnd *pWnd, CPoint point);
+	afx_msg void OnDropFiles(HDROP hDropInfo);
+
+	DECLARE_MESSAGE_MAP()
+};
+
+/////////////////////////////////////////////////////////////////////////////
+// HudStatusBar window
+//
+// The common controls status bar has no dark theme, and even when its parts
+// are owner drawn it still paints its own separators and edges in the light
+// system colours.  In dark mode this class therefore paints the whole bar,
+// which leaves nothing of the native painting to show through.  In light mode
+// it is an ordinary status bar.
+
+class HudStatusBar : public CStatusBarCtrl
+{
+public:
+	HudStatusBar();
+
+	// Text of one of the three parts.  Ignored, except for invalidating the
+	// bar, when the text did not change.
+	void setText(int part, const CString &text);
+	// Right edge of each part, needed by the paint code.
+	void setPartEdges(const int edges[3]);
+
+protected:
+	afx_msg void OnPaint();
+	afx_msg BOOL OnEraseBkgnd(CDC *pDC);
+	afx_msg LRESULT OnPrintClient(WPARAM wParam, LPARAM lParam);
+
+	void paint(CDC &dc);
+
+	CString m_text[3];
+	CRect   m_part[3];
+
+	DECLARE_MESSAGE_MAP()
+};
+
 /////////////////////////////////////////////////////////////////////////////
 // MainWnd window
 
@@ -25,11 +85,42 @@ private:
 	HCURSOR arrow;
 	HACCEL m_hAccelTable;
 
+	// The picture area and the status bar below it, both children of this
+	// window.  They exist from WM_CREATE on; fullscreen hides them and the
+	// backends draw into the main window instead.
+	RenderWnd      m_renderWnd;
+	HudStatusBar   m_statusBar;
+	bool           m_statusBarReady;
+	int            m_statusBarHeight;
+	// Whether the parts were laid out with room for the input display, and
+	// which form the speed takes.  The middle part is empty when the input
+	// display is off and the speed part is short unless the detailed form is
+	// on, so giving that width back is what keeps the counters and the
+	// messages from being ellipsised away.
+	int            m_statusBarLayoutKey;
+	CString        m_statusBarLeft;
+	CString        m_statusBarInput;
+	CString        m_statusBarSpeed;
+
 	// Implementation
 private:
+	void layoutRenderArea(int cx, int cy);
+	void layoutStatusBarParts(int width);
+	void setStatusBarText(int part, const CString &text);
 
 	// Operations
 public:
+	int  statusBarVisible() const;
+	// Height the status bar actually takes.  The control adjusts its own
+	// height to its font, which is not exactly winStatusBarHeight(), so the
+	// measured value is used once the bar exists: otherwise the bar grows
+	// over the bottom of the picture.
+	int  statusBarHeight() const;
+	// Lay the picture area and the status bar out for the current client
+	// size.  Used when the window was rebuilt outside of a WM_SIZE.
+	void layoutNow();
+	void updateStatusBar();
+	RenderWnd *renderWnd() { return &m_renderWnd; }
 	afx_msg void OnOptionsEmulatorSelectbiosfile();
 	void winFileClose(bool reopening = false);
 	bool winFileRun(bool reopening = false);
@@ -47,6 +138,7 @@ public:
 	// Generated message map functions
 protected:
 	//{{AFX_MSG(MainWnd)
+	afx_msg int OnCreate(LPCREATESTRUCT lpCreateStruct);
 	afx_msg LRESULT OnConfirmMode(WPARAM, LPARAM);
 	afx_msg LRESULT OnMySysCommand(WPARAM, LPARAM);
 
@@ -202,8 +294,8 @@ protected:
 	afx_msg void OnUpdateOptionsVideoFullscreen(CCmdUI*pCmdUI);
 	afx_msg void OnOptionsVideoDisablesfx();
 	afx_msg void OnUpdateOptionsVideoDisablesfx(CCmdUI*pCmdUI);
-	afx_msg void OnOptionsVideoFullscreenstretchtofit();
-	afx_msg void OnUpdateOptionsVideoFullscreenstretchtofit(CCmdUI*pCmdUI);
+	afx_msg void OnOptionsVideoScreenScaling(UINT nID);
+	afx_msg void OnUpdateOptionsVideoScreenScaling(CCmdUI *pCmdUI);
 #if VBA_ENABLE_GDI
 	afx_msg void OnOptionsVideoRendermethodGdi();
 	afx_msg void OnUpdateOptionsVideoRendermethodGdi(CCmdUI*pCmdUI);
@@ -229,8 +321,6 @@ protected:
 	afx_msg void OnUpdateOptionsVideoWgpubackend(CCmdUI*pCmdUI);
 #endif
 #if VBA_ENABLE_DDRAW
-	afx_msg void OnOptionsVideoTriplebuffering();
-	afx_msg void OnUpdateOptionsVideoTriplebuffering(CCmdUI*pCmdUI);
 	afx_msg void OnOptionsVideoDdrawemulationonly();
 	afx_msg void OnUpdateOptionsVideoDdrawemulationonly(CCmdUI*pCmdUI);
 	afx_msg void OnOptionsVideoDdrawusevideomemory();
@@ -574,6 +664,8 @@ protected:
 	afx_msg void OnOptionsVideoFullscreenmaxscale();
 	afx_msg void OnOptionsVideoTextdisplayoptions();
 	afx_msg void OnUpdateOptionsVideoTextdisplayoptions(CCmdUI *pCmdUI);
+	afx_msg void OnToolsStatusbar();
+	afx_msg void OnUpdateToolsStatusbar(CCmdUI *pCmdUI);
 
 	afx_msg void OnUpdateFileRecentFile(CCmdUI *pCmdUI);
 	afx_msg void OnUpdateFileLoadSlot(CCmdUI *pCmdUI);

@@ -123,7 +123,6 @@ S&ynchronize Emulation Speed	同步模拟速度(&Y)
 &DirectDraw	&DirectDraw
     DDraw &Emulation Only	    仅用于模拟(&E)
     DDraw &Use Video Memory	    使用显存(&U)
-    DDraw &Triple Buffering	    三重缓冲(&T)
 Direct3D &11	Direct3D &11
 Direct&3D 9Ex	Direct&3D 9Ex
 &WebGPU	&WebGPU
@@ -167,7 +166,10 @@ Full Screen (640x480)	全屏 (640x480)
 Full Screen (800x600)	全屏 (800x600)
 &Other Full Screen...	其他全屏尺寸(&O)...
 Full Screen &Max Scale...	全屏最大缩放(&M)...
-Full Screen &Ignore Ratio	全屏忽略宽高比(&I)
+Screen &Scaling	屏幕缩放(&S)
+&Stretch to Fit	拉伸铺满(&S)
+Keep &Aspect Ratio	保持纵横比(&A)
+Aspect Ratio + &Integer Scale	保持纵横比 + 整数缩放(&I)
 Full Screen &Hide Menu	全屏隐藏菜单(&H)
 Full Screen &Auto Hide Menu	全屏自动隐藏菜单(&A)
 &Disable GBA Special Effects (blending, fades, windows)	禁用 GBA 特效（混合、淡变、窗口）(&D)
@@ -289,6 +291,7 @@ Customi&ze Colors...	自定义色彩(&Z)...
     &Extra Counter	    扩展计数器(&E)
     Extra Counter &Reset	    扩展计数器重置(&R)
     &Next-Frame Input	    下一帧输入(&N)
+&Status Bar	状态栏(&S)
 &Text Display Options...	文字显示选项(&T)...
 Disable Status &Messages	禁用状态消息(&M)
 Show &Speed	显示速度(&S)

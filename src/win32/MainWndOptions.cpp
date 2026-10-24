@@ -571,21 +571,20 @@ void MainWnd::OnUpdateOptionsVideoX12(CCmdUI*pCmdUI)
 	pCmdUI->SetCheck(theApp.videoOption == VIDEO_12X);
 }
 
+// The three fixed full screen sizes are window sizes like any other, so they
+// are always available: nothing has to be mode-set for them.
 void MainWnd::OnUpdateOptionsVideoFullscreen320x240(CCmdUI*pCmdUI)
 {
-	pCmdUI->Enable(theApp.mode320Available);
 	pCmdUI->SetCheck(theApp.videoOption == VIDEO_320x240);
 }
 
 void MainWnd::OnUpdateOptionsVideoFullscreen640x480(CCmdUI*pCmdUI)
 {
-	pCmdUI->Enable(theApp.mode640Available);
 	pCmdUI->SetCheck(theApp.videoOption == VIDEO_640x480);
 }
 
 void MainWnd::OnUpdateOptionsVideoFullscreen800x600(CCmdUI*pCmdUI)
 {
-	pCmdUI->Enable(theApp.mode800Available);
 	pCmdUI->SetCheck(theApp.videoOption == VIDEO_800x600);
 }
 
@@ -613,7 +612,6 @@ void MainWnd::OnOptionsVideoFullscreen800x600()
 
 void MainWnd::OnOptionsVideoFullscreen()
 {
-	theApp.winCheckFullscreen();
 	GUID *pGUID = NULL;
 	int   size  = theApp.display->selectFullScreenMode(&pGUID);
 	if (size != -1)
@@ -666,17 +664,25 @@ void MainWnd::OnUpdateOptionsVideoDisablesfx(CCmdUI*pCmdUI)
 	pCmdUI->SetCheck(cpuDisableSfx);
 }
 
-void MainWnd::OnOptionsVideoFullscreenstretchtofit()
+void MainWnd::OnOptionsVideoScreenScaling(UINT nID)
 {
-	theApp.fullScreenStretch = !theApp.fullScreenStretch;
-	theApp.updateWindowSize(theApp.videoOption);
-	if (theApp.display)
-		theApp.display->clear();
+	theApp.screenScaling = nID - ID_OPTIONS_VIDEO_SCALING_STRETCH;
+	regSetDwordValue(_T("screenScaling"), theApp.screenScaling);
+
+	// Only the picture area changes, so the window is left the size it is:
+	// updateWindowSize() would drop a maximized window out of its state and
+	// undo a size the user dragged out by hand.
+	layoutNow();
+	systemRefreshScreen();
 }
 
-void MainWnd::OnUpdateOptionsVideoFullscreenstretchtofit(CCmdUI*pCmdUI)
+void MainWnd::OnUpdateOptionsVideoScreenScaling(CCmdUI *pCmdUI)
 {
-	pCmdUI->SetCheck(theApp.fullScreenStretch);
+	// A check mark on the mode in use, not the dot of a radio group.  Once
+	// SetRadio() has run on an item it stays a radio item for the rest of
+	// the session and keeps drawing the dot, so this must not go back to it.
+	pCmdUI->SetCheck(theApp.screenScaling ==
+	                 (int)(pCmdUI->m_nID - ID_OPTIONS_VIDEO_SCALING_STRETCH));
 }
 
 BOOL MainWnd::OnVideoLayer(UINT nID)
@@ -856,16 +862,6 @@ void MainWnd::OnUpdateOptionsVideoWgpubackend(CCmdUI *pCmdUI)
 #endif
 
 #if VBA_ENABLE_DDRAW
-void MainWnd::OnOptionsVideoTriplebuffering()
-{
-	theApp.tripleBuffering = !theApp.tripleBuffering;
-}
-
-void MainWnd::OnUpdateOptionsVideoTriplebuffering(CCmdUI*pCmdUI)
-{
-	pCmdUI->SetCheck(theApp.tripleBuffering);
-}
-
 void MainWnd::OnOptionsVideoDdrawemulationonly()
 {
 	theApp.ddrawEmulationOnly = !theApp.ddrawEmulationOnly;
@@ -1009,14 +1005,12 @@ void MainWnd::OnUpdateOptionsVideoRenderoptionsSkin(CCmdUI*pCmdUI)
 
 void MainWnd::OnOptionsEmulatorAssociate()
 {
-	theApp.winCheckFullscreen();
 	Associate dlg;
 	dlg.DoModal();
 }
 
 void MainWnd::OnOptionsEmulatorDirectories()
 {
-	theApp.winCheckFullscreen();
 	Directories dlg;
 	dlg.DoModal();
 }
@@ -1460,7 +1454,6 @@ void MainWnd::OnUpdateOptionsEmulatorUseV20GBFrameHack(CCmdUI*pCmdUI)
 
 void MainWnd::OnOptionsEmulatorSelectbiosfile()
 {
-	theApp.winCheckFullscreen();
 	LPCTSTR exts[] = { NULL };
 	CString filter = winResLoadFilter(IDS_FILTER_BIOS);
 	CString title  = winResLoadString(IDS_SELECT_BIOS_FILE);
@@ -1921,7 +1914,6 @@ void MainWnd::OnUpdateOptionsGameboyGameboycolors(CCmdUI*pCmdUI)
 
 void MainWnd::OnOptionsGameboyColors()
 {
-	theApp.winCheckFullscreen();
 	GBColorDlg dlg;
 	if (dlg.DoModal())
 	{
@@ -2340,7 +2332,6 @@ void MainWnd::OnUpdateOptionsLanguageEnglish(CCmdUI*pCmdUI)
 
 void MainWnd::OnOptionsLanguageOther()
 {
-	theApp.winCheckFullscreen();
 	theApp.winSetLanguageOption(2, false);
 }
 
@@ -2351,7 +2342,6 @@ void MainWnd::OnUpdateOptionsLanguageOther(CCmdUI*pCmdUI)
 
 void MainWnd::OnOptionsJoypadConfigure1()
 {
-	theApp.winCheckFullscreen();
 	JoypadConfig dlg(0);
 	dlg.DoModal();
 }
@@ -2363,7 +2353,6 @@ void MainWnd::OnUpdateOptionsJoypadConfigure1(CCmdUI*pCmdUI)
 
 void MainWnd::OnOptionsJoypadConfigure2()
 {
-	theApp.winCheckFullscreen();
 	JoypadConfig dlg(1);
 	dlg.DoModal();
 }
@@ -2375,7 +2364,6 @@ void MainWnd::OnUpdateOptionsJoypadConfigure2(CCmdUI*pCmdUI)
 
 void MainWnd::OnOptionsJoypadConfigure3()
 {
-	theApp.winCheckFullscreen();
 	JoypadConfig dlg(2);
 	dlg.DoModal();
 }
@@ -2387,7 +2375,6 @@ void MainWnd::OnUpdateOptionsJoypadConfigure3(CCmdUI*pCmdUI)
 
 void MainWnd::OnOptionsJoypadConfigure4()
 {
-	theApp.winCheckFullscreen();
 	JoypadConfig dlg(3);
 	dlg.DoModal();
 }
@@ -2410,7 +2397,6 @@ void MainWnd::OnUpdateOptionsJoypadDefault(CCmdUI *pCmdUI)
 
 void MainWnd::OnOptionsJoypadMotionconfigure()
 {
-	theApp.winCheckFullscreen();
 	MotionConfig dlg;
 	dlg.DoModal();
 }
@@ -2807,7 +2793,6 @@ void MainWnd::OnOptionsVideoFullscreenmaxscale()
 {
 	MaxScale dlg;
 
-	theApp.winCheckFullscreen();
 
 	dlg.DoModal();
 }
@@ -2816,7 +2801,6 @@ void MainWnd::OnOptionsVideoTextdisplayoptions()
 {
 	TextOptions dlg;
 
-	theApp.winCheckFullscreen();
 
 	if (dlg.DoModal() == IDOK)
 		systemRefreshScreen();
@@ -2824,6 +2808,61 @@ void MainWnd::OnOptionsVideoTextdisplayoptions()
 
 void MainWnd::OnUpdateOptionsVideoTextdisplayoptions(CCmdUI *pCmdUI)
 {
-	pCmdUI->Enable(TRUE);
+	// The status bar takes over the whole HUD, so the on screen text has
+	// nothing to configure while it is showing.  Fullscreen has no status
+	// bar, so the options stay available there.
+	pCmdUI->Enable(!theApp.statusBarHud || isFullscreenOption(theApp.videoOption));
 }
+
+void MainWnd::OnToolsStatusbar()
+{
+	const int wasVisible = statusBarVisible();
+
+	theApp.statusBarHud = !theApp.statusBarHud;
+	regSetDwordValue(_T("statusBarHud"), theApp.statusBarHud);
+
+	if (wasVisible == statusBarVisible())
+	{
+		// Fullscreen ignores the status bar; the setting still applies when
+		// the window comes back.
+		return;
+	}
+
+	const int statusHeight = statusBarHeight();
+
+	if (!IsIconic() && !IsZoomed())
+	{
+		// Grow or shrink the outer window by exactly the status bar height,
+		// which keeps the picture the size the user resized it to.  WM_SIZE
+		// lays the children out.
+		RECT wr;
+		GetWindowRect(&wr);
+
+		int height = wr.bottom - wr.top;
+		height += statusBarVisible() ? statusHeight : -statusHeight;
+
+		SetWindowPos(NULL, 0, 0, wr.right - wr.left, height,
+		             SWP_NOMOVE | SWP_NOZORDER | SWP_NOACTIVATE);
+	}
+	else
+	{
+		// A maximized window cannot grow, so the picture gets the space the
+		// status bar takes.
+		CRect client;
+		GetClientRect(&client);
+		layoutRenderArea(client.Width(), client.Height());
+		systemRefreshScreen();
+	}
+
+	updateStatusBar();
+
+	if (m_renderWnd.GetSafeHwnd())
+		m_renderWnd.RedrawWindow(NULL, NULL, RDW_INVALIDATE | RDW_ERASE);
+}
+
+void MainWnd::OnUpdateToolsStatusbar(CCmdUI *pCmdUI)
+{
+	pCmdUI->SetCheck(theApp.statusBarHud);
+}
+
 

@@ -7,7 +7,6 @@
 
 void MainWnd::OnHelpAbout()
 {
-	theApp.winCheckFullscreen();
 	AboutDialog dlg;
 
 	dlg.DoModal();

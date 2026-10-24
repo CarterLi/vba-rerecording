@@ -1711,14 +1711,11 @@ public:
 	virtual bool initialize();
 	virtual void cleanup();
 	virtual void render();
-	virtual void checkFullScreen();
-	virtual void renderMenu();
 	virtual void clear();
 	virtual bool changeRenderSize(int w, int h);
 	virtual void resize(int w, int h);
 	virtual DISPLAY_TYPE getType() { return OPENGL33; };
 	virtual void setOption(const char *, int);
-	virtual int selectFullScreenMode(GUID * *);
 	virtual bool upscalerAvailable(int upscaler);
 	// The frame texture gets a mip chain whenever trilinear is selected, see
 	// uploadFrame(), so all three filters run here - as long as the driver
@@ -1763,7 +1760,7 @@ OpenGL33Display::~OpenGL33Display()
 
 bool OpenGL33Display::createContext()
 {
-	hwnd = theApp.m_pMainWnd->GetSafeHwnd();
+	hwnd = theApp.winRenderWnd()->GetSafeHwnd();
 
 	// The modern entry points can only be asked for with a context current, and
 	// the pixel format of a window can only be set once, so a window of our own
@@ -1997,9 +1994,6 @@ bool OpenGL33Display::initialize()
 {
 	CWnd *pWnd = theApp.m_pMainWnd;
 
-	theApp.mode320Available = false;
-	theApp.mode640Available = false;
-	theApp.mode800Available = false;
 
 	viewWidth  = theApp.surfaceSizeX;
 	viewHeight = theApp.surfaceSizeY;
@@ -2978,17 +2972,6 @@ void OpenGL33Display::clear()
         SwapBuffers(hDC);
 }
 
-void OpenGL33Display::renderMenu()
-{
-	checkFullScreen();
-	if (theApp.m_pMainWnd)
-		theApp.m_pMainWnd->DrawMenuBar();
-}
-
-void OpenGL33Display::checkFullScreen()
-{
-}
-
 bool OpenGL33Display::changeRenderSize(int w, int h)
 {
 	if (frameWidth != w || frameHeight != h)
@@ -3102,20 +3085,6 @@ void OpenGL33Display::setOption(const char *option, int value)
 		       theApp.upscalerMaxScale,
 		       upscalerAvailable(value) ? "" : " - this renderer does not run it");
 	}
-}
-
-int OpenGL33Display::selectFullScreenMode(GUID * *)
-{
-	HWND wnd = GetDesktopWindow();
-	RECT r;
-	GetWindowRect(wnd, &r);
-	int w  = (r.right - r.left) & 4095;
-	int h  = (r.bottom - r.top) & 4095;
-	HDC dc = GetDC(wnd);
-	int c  = GetDeviceCaps(dc, BITSPIXEL);
-	ReleaseDC(wnd, dc);
-
-	return (c << 24) | (w << 12) | h;
 }
 
 // Which of the upscalers the renderer can run: one that has not been built yet

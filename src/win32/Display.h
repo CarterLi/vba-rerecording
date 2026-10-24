@@ -14,6 +14,11 @@ enum DISPLAY_TYPE
 	WGPU        = 6
 };
 
+// The size "Other Full Screen..." uses: the resolution and colour depth of the
+// desktop.  Every renderer presents into a borderless window the size of the
+// monitor, so that is the mode there is to pick.
+int displayDesktopMode();
+
 class IDisplay
 {
 public:
@@ -23,14 +28,12 @@ public:
 	virtual bool initialize() = 0;
 	virtual void cleanup()    = 0;
 	virtual void render()     = 0;
-	virtual void checkFullScreen() { };
-	virtual void renderMenu() { };
 	virtual void clear() = 0;
 	virtual bool changeRenderSize(int w, int h) { return true; };
 	virtual void resize(int w, int h) {};
 	virtual void setOption(const char *option, int value) = 0;
 	virtual DISPLAY_TYPE getType() = 0;
-	virtual int selectFullScreenMode(GUID * *) = 0;
+	virtual int selectFullScreenMode(GUID * *) { return displayDesktopMode(); };
 
 	// Whether this backend can run the upscaler whose UPSCALER_* value is
 	// given, which is the question the upscaling menu greys its items out

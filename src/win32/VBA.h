@@ -96,6 +96,23 @@ inline bool isFullscreenOption(int option)
 	return option >= VIDEO_320x240 && option <= VIDEO_OTHER;
 }
 
+// How the picture is fitted into the area it has (theApp.screenScaling).  The
+// same setting is used windowed and full screen: the picture is a child window
+// of the main window, and it is the child that is sized and centred, so the
+// space a mode does not use stays the black background of the main window.
+enum
+{
+	// Fill the area, whatever that does to the aspect ratio of the picture.
+	SCREEN_SCALING_STRETCH,
+	// Largest size that keeps the aspect ratio of the emulated frame.
+	SCREEN_SCALING_ASPECT,
+	// Same, with the scale rounded down to a whole number, so that every
+	// frame pixel covers the same number of screen pixels.
+	SCREEN_SCALING_INTEGER,
+	// The last of them, for the range check of the settings file.
+	SCREEN_SCALING_LAST = SCREEN_SCALING_INTEGER
+};
+
 // The size an upscaler renders at.  That is the whole window, unless the user
 // capped the scaling factor: the upscalers filter and reconstruct at the ratio
 // they are given, so past a few times the frame size the extra resolution only
@@ -146,9 +163,6 @@ public:
 	CMenu	  m_menu;
 	HMENU	  menu;
 	HMENU	  popup;
-	bool	  mode320Available;
-	bool	  mode640Available;
-	bool	  mode800Available;
 	int		  windowPositionX;
 	int		  windowPositionY;
 	void	  (*filterFunction)(u8 *, u32, u8 *, u8 *, u32, int, int);
@@ -171,7 +185,7 @@ public:
 	int		  surfaceSizeY;
 	double	  scale;
 	int		  videoOption;
-	bool	  fullScreenStretch;
+	int		  screenScaling;
 	bool	  disableStatusMessage;
 	// Head-up display fonts.  The On Screen overlay can use any installed
 	// face, while the In Game and On Game modes draw into the emulated frame
@@ -189,8 +203,18 @@ public:
 	int		  showSpeed;
 	BOOL	  showSpeedTransparent;
 	int		  showRenderedFrames;
+	// When set, every Head-Up Display element is drawn on a status bar below
+	// the picture instead of over it.  Fullscreen has no status bar, so the
+	// on screen display comes back there.
+	bool	  statusBarHud;
 	bool	  screenMessage [SCREEN_MESSAGE_SLOTS];
+	// The two renderings of each message.  "in game" and "on game" draw the
+	// frame with the built-in 8x8 font, which is a table of ASCII bitmaps;
+	// "on screen" and the status bar draw with a Windows font, which has
+	// whatever the language needs.  A message that comes from the string
+	// table therefore carries both, and each path picks the one it can draw.
 	CString	  screenMessageBuffer [SCREEN_MESSAGE_SLOTS];
+	CString	  screenMessageAsciiBuffer [SCREEN_MESSAGE_SLOTS];
 	DWORD	  screenMessageTime [SCREEN_MESSAGE_SLOTS];
 	int		  screenMessageDuration [SCREEN_MESSAGE_SLOTS];
 	CString	  screenMessageColorBuffer [SCREEN_MESSAGE_SLOTS];
@@ -232,7 +256,6 @@ public:
 	bool  rewindSaveNeeded;
 	int	  rewindTimer;
 	int	  rewindSlots;
-	bool  tripleBuffering;
 	bool  autoHideMenu;
 	bool  speedupToggle;
 	int	  throttle;
@@ -246,7 +269,6 @@ public:
 	GUID *		 pVideoDriverGUID;
 	DISPLAY_TYPE renderMethod;
 	bool		 ddrawEmulationOnly;
-	bool		 ddrawUsingEmulationOnly;
 	bool		 ddrawDebug;
 	bool		 ddrawUseVideoMemory;
 	int			 d3dFilter;
@@ -355,6 +377,18 @@ public:
 	void winAddUpdateListener(IUpdateListener *l);
 	void winRemoveUpdateListener(IUpdateListener *l);
 
+	// The child window the display backends draw into.  Both windowed and
+	// full screen size and centre it, see fitSurfaceTo().
+	CWnd *winRenderWnd();
+	// Size of the picture for an area of this size: what the display draws
+	// into, and what the child window is given.  Sets surfaceSizeX/Y and the
+	// scale they work out to.
+	void fitSurfaceTo(int width, int height, bool fullscreen);
+	// True while the status bar replaces the on screen display.
+	bool statusBarActive() const;
+	// Rebuilds the status bar from the pending screen messages and speed.
+	void updateStatusBar();
+
 	// Overrides
 	// ClassWizard generated virtual function overrides
 	//{{AFX_VIRTUAL(VBA)
@@ -369,9 +403,8 @@ public:
 	void winSetLanguageOption(int option, bool force);
 	void updatePriority();
 	void shutdownDisplay();
-	void winCheckFullscreen();
 	bool updateRenderMethod(bool force);
-	bool initDisplay();
+	bool initDisplay(bool resizeWindow = true);
 	void updateWindowSize(int value);
 	void updateVideoSize(UINT id);
 	void updateFrameSkip();

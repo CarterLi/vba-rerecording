@@ -214,10 +214,6 @@ Export Gameshark Snapshot	导出 GameShark 快照
 Description:	描述：
 Notes:	备注：
 Enter address and size	输入地址和大小
-Select video mode	选择视频模式
-Available video modes:	可用的视频模式：
-Select video driver	选择视频驱动
-Available drivers:	可用的驱动：
 Throttle	速度限制
 Enter desired throttle (1%...1000%):	输入目标速度（1%...1000%）：
 GB Disassemble	GB 反汇编

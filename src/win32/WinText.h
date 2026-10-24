@@ -38,6 +38,14 @@ extern void systemMessage(int number, const wchar_t *defaultMsg, ...);
 // reason: the title is UI text and must not be squeezed through ANSI.
 extern void systemSetTitle(const wchar_t *title);
 
+// A screen message whose text is a string table entry rather than something
+// the core assembled.  The message shows up to twice - over the picture and in
+// the status bar - and the two fonts behind those have different repertoires,
+// so the id is resolved twice: the built-in ASCII font that "in game" and
+// "on game" use gets the executable's English string, while "on screen" and
+// the status bar get the translation.  Arguments format both.
+extern void systemScreenMessageRes(UINT id, ...);
+
 // The driver trace (vba-trace-*.log), which every source in this layer writes
 // to.  Declared once here instead of in each renderer: the format is TCHAR now,
 // and a copy that said `const char *` would silently take the wrong arguments.

@@ -413,14 +413,11 @@ public:
 	virtual bool initialize();
 	virtual void cleanup();
 	virtual void render();
-	virtual void checkFullScreen();
-	virtual void renderMenu();
 	virtual void clear();
 	virtual bool changeRenderSize(int w, int h);
 	virtual void resize(int w, int h);
 	virtual DISPLAY_TYPE getType() { return DIRECT_3D11; };
 	virtual void setOption(const char *, int);
-	virtual int selectFullScreenMode(GUID * *);
 	virtual bool upscalerAvailable(int upscaler) { return direct3D11UpscalerAvailable(upscaler); };
 	// Trilinear reads a mip chain, which is the texture pMipTexture carries,
 	// so it stays unselectable where that one could not be made.
@@ -921,11 +918,11 @@ bool Direct3D11Display::createSamplers()
 
 bool Direct3D11Display::initialize()
 {
-        CWnd *pWnd = theApp.m_pMainWnd;
+        CWnd *pWnd = theApp.winRenderWnd();
 
         if (pWnd == NULL || pWnd->GetSafeHwnd() == NULL)
         {
-                winlog(_T("D3D11: no main window to draw into\n"));
+                winlog(_T("D3D11: no window to draw into\n"));
                 return false;
         }
 
@@ -948,9 +945,6 @@ bool Direct3D11Display::initialize()
 	backWidth  = theApp.surfaceSizeX;
 	backHeight = theApp.surfaceSizeY;
 
-	theApp.mode320Available = false;
-	theApp.mode640Available = false;
-	theApp.mode800Available = false;
 
 	// Pick the emulator pixel format from the desktop mode, like the D3D9 backend.
 	HDC dc = GetDC(hwnd);
@@ -1980,17 +1974,6 @@ void Direct3D11Display::clear()
         pSwapChain->Present(0, 0);
 }
 
-void Direct3D11Display::renderMenu()
-{
-	checkFullScreen();
-	if (theApp.m_pMainWnd)
-		theApp.m_pMainWnd->DrawMenuBar();
-}
-
-void Direct3D11Display::checkFullScreen()
-{
-}
-
 void Direct3D11Display::calculateVertices()
 {
 	float left   = 0.0f;
@@ -2338,6 +2321,12 @@ void Direct3D11Display::resize(int w, int h)
 	if (pSwapChain == NULL || w <= 0 || h <= 0)
 		return;
 
+	// The window layout calls this whenever the picture area changes, which
+	// includes the frames where it does not: a resize to the size the chain
+	// already has would cost a frame and flash the picture black.
+	if (w == backWidth && h == backHeight)
+		return;
+
 	backWidth  = w;
 	backHeight = h;
 
@@ -2421,20 +2410,6 @@ void Direct3D11Display::setOption(const char *option, int value)
 				systemScreenMessage("That upscaler runs on the OpenGL 3.3 renderer");
 		}
 	}
-}
-
-int Direct3D11Display::selectFullScreenMode(GUID * *)
-{
-	HWND wnd = GetDesktopWindow();
-	RECT r;
-	GetWindowRect(wnd, &r);
-	int w  = (r.right - r.left) & 4095;
-	int h  = (r.bottom - r.top) & 4095;
-	HDC dc = GetDC(wnd);
-	int c  = GetDeviceCaps(dc, BITSPIXEL);
-	ReleaseDC(wnd, dc);
-
-	return (c << 24) | (w << 12) | h;
 }
 
 IDisplay *newDirect3D11Display()

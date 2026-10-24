@@ -955,28 +955,6 @@ BEGIN
     LTEXT           "Size:",IDC_STATIC,7,29,65,8
 END
 
-IDD_MODES DIALOG 0, 0, 208, 129
-STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
-CAPTION "Select video mode"
-FONT 8, "MS Sans Serif"
-BEGIN
-    LISTBOX         IDC_MODES,7,18,194,80,LBS_SORT | LBS_NOINTEGRALHEIGHT | WS_VSCROLL | WS_TABSTOP
-    DEFPUSHBUTTON   "OK",ID_OK,45,108,50,14
-    PUSHBUTTON      "Cancel",ID_CANCEL,112,108,50,14
-    LTEXT           "Available video modes:",IDC_STATIC,7,7,194,8
-END
-
-IDD_DRIVERS DIALOG 0, 0, 208, 121
-STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
-CAPTION "Select video driver"
-FONT 8, "MS Sans Serif"
-BEGIN
-    LISTBOX         IDC_DRIVERS,7,17,194,80,LBS_NOINTEGRALHEIGHT | WS_VSCROLL | WS_TABSTOP
-    DEFPUSHBUTTON   "OK",ID_OK,45,104,50,14
-    PUSHBUTTON      "Cancel",ID_CANCEL,112,104,50,14
-    LTEXT           "Available drivers:",IDC_STATIC,7,7,194,8
-END
-
 IDD_THROTTLE DIALOGEX 0, 0, 186, 63
 STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Throttle"
@@ -1699,22 +1677,6 @@ BEGIN
         BOTTOMMARGIN, 60
     END
 
-    IDD_MODES, DIALOG
-    BEGIN
-        LEFTMARGIN, 7
-        RIGHTMARGIN, 201
-        TOPMARGIN, 7
-        BOTTOMMARGIN, 122
-    END
-
-    IDD_DRIVERS, DIALOG
-    BEGIN
-        LEFTMARGIN, 7
-        RIGHTMARGIN, 201
-        TOPMARGIN, 7
-        BOTTOMMARGIN, 114
-    END
-
     IDD_THROTTLE, DIALOG
     BEGIN
         LEFTMARGIN, 7
@@ -2051,7 +2013,6 @@ BEGIN
                 MENUITEM "&DirectDraw",                 ID_OPTIONS_VIDEO_RENDERMETHOD_DIRECTDRAW
                 MENUITEM "    DDraw &Emulation Only",   ID_OPTIONS_VIDEO_DDRAWEMULATIONONLY
                 MENUITEM "    DDraw &Use Video Memory", ID_OPTIONS_VIDEO_DDRAWUSEVIDEOMEMORY
-                MENUITEM "    DDraw &Triple Buffering", ID_OPTIONS_VIDEO_TRIPLEBUFFERING
                 MENUITEM SEPARATOR
 #endif
                 MENUITEM "Direct3D &11",                ID_OPTIONS_VIDEO_RENDERMETHOD_DIRECT3D11
@@ -2126,7 +2087,12 @@ BEGIN
             MENUITEM "&Other Full Screen...",       ID_OPTIONS_VIDEO_FULLSCREEN
             MENUITEM SEPARATOR
             MENUITEM "Full Screen &Max Scale...",   ID_OPTIONS_VIDEO_FULLSCREENMAXSCALE
-            MENUITEM "Full Screen &Ignore Ratio",   ID_OPTIONS_VIDEO_FULLSCREENSTRETCHTOFIT
+            POPUP "Screen &Scaling"
+            BEGIN
+                MENUITEM "&Stretch to Fit",                 ID_OPTIONS_VIDEO_SCALING_STRETCH
+                MENUITEM "Keep &Aspect Ratio",              ID_OPTIONS_VIDEO_SCALING_ASPECT
+                MENUITEM "Aspect Ratio + &Integer Scale",   ID_OPTIONS_VIDEO_SCALING_INTEGER
+            END
             MENUITEM "Full Screen &Hide Menu",      ID_FILE_TOGGLEMENU
             MENUITEM "Full Screen &Auto Hide Menu", ID_OPTIONS_EMULATOR_AUTOHIDEMENU
             MENUITEM SEPARATOR
@@ -2369,6 +2335,7 @@ BEGIN
             MENUITEM "&Input",                      ID_TOOLS_INPUTDISPLAY
             MENUITEM "    &Next-Frame Input",       ID_TOOLS_NEXTINPUTDISPLAY
             MENUITEM SEPARATOR
+            MENUITEM "&Status Bar",                 ID_TOOLS_STATUSBAR
             MENUITEM "&Text Display Options...",    ID_OPTIONS_VIDEO_TEXTDISPLAYOPTIONS
             MENUITEM "Disable Status &Messages",    ID_OPTIONS_VIDEO_DISABLESTATUSMESSAGES
             MENUITEM SEPARATOR

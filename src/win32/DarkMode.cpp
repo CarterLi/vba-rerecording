@@ -38,6 +38,11 @@ namespace
 	const COLORREF kBarColor          = RGB(32, 32, 32);
 	const COLORREF kBorderColor       = RGB(56, 56, 56);	// same grey the frame uses
 	const COLORREF kTextColor         = RGB(228, 228, 228);
+	// The status bar is a control face, so it takes the dark counterpart of
+	// BTNFACE (0x333333) rather than the window colour above.  It is a shade
+	// lighter than the window, which is how Windows' own dark panels read.
+	const COLORREF kPanelColor        = RGB(0x33, 0x33, 0x33);
+	const COLORREF kPanelTextColor    = RGB(0xE4, 0xE4, 0xE4);
 	const COLORREF kDisabledTextColor = RGB(128, 128, 128);
 	const COLORREF kMenuHotColor      = RGB(58, 58, 58);
 	const COLORREF kMenuOpenColor     = RGB(74, 74, 74);
@@ -52,7 +57,7 @@ namespace
 	typedef void    (WINAPI *FnRefreshImmersiveColorPolicyState)();
 	typedef HRESULT (WINAPI *FnDwmSetWindowAttribute)(HWND, DWORD, LPCVOID, DWORD);
 
-	FnDwmSetWindowAttribute g_setDwmAttribute = NULL;
+	FnDwmSetWindowAttribute      g_setDwmAttribute    = NULL;
 
 	// PreferredAppMode, as used by the ordinal 135 entry point.
 	enum
@@ -354,6 +359,21 @@ namespace
 
 namespace darkMode
 {
+	bool enabled()
+	{
+		return g_enabled;
+	}
+
+	COLORREF panelColor()
+	{
+		return kPanelColor;
+	}
+
+	COLORREF panelTextColor()
+	{
+		return kPanelTextColor;
+	}
+
 	void resetFont()
 	{
 #if !defined(WINXP)

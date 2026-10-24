@@ -280,19 +280,19 @@ static void announcePads()
 		return;
 
 	CString message;
-	message.Format(winResLoadString(IDS_JOYPAD_CONNECTED), (LPCTSTR)pendingPadNames);
+	message.Format(winResLoadOsdString(IDS_JOYPAD_CONNECTED), (LPCTSTR)pendingPadNames);
 
 	// the trace log keeps the record whether or not the message reaches the
 	// screen: before a game is loaded there is no screen to put it on
 	winlog(_T("%s\n"), (LPCTSTR)message);
 
-	pendingPadNames.Empty();
-	pendingPadCount = 0;
-
 	// a status message on the game screen, the way "state loaded" and the
 	// autofire toggles are reported - a dialog would stop a frame of the game
 	// (and would need a window of its own)
-	systemScreenMessage(winAnsiFromWide(message));
+	systemScreenMessageRes(IDS_JOYPAD_CONNECTED, (LPCTSTR)pendingPadNames);
+
+	pendingPadNames.Empty();
+	pendingPadCount = 0;
 }
 
 // A controller came or went while the emulator was running.  These arrive at
@@ -300,17 +300,16 @@ static void announcePads()
 // failed twice: a single lost frame is not a disconnected controller.
 static void reportPad(deviceInfo &info, bool connected)
 {
-	CString message;
+	const UINT id = connected ? IDS_JOYPAD_CONNECTED : IDS_JOYPAD_DISCONNECTED;
 
-	message.Format(winResLoadString(connected ? IDS_JOYPAD_CONNECTED
-	                                          : IDS_JOYPAD_DISCONNECTED),
-	               info.name);
+	CString message;
+	message.Format(winResLoadOsdString(id), info.name);
 
 	// always in the trace log, so a controller that came or went can be traced
 	// after the on-screen message is long gone
 	winlog(_T("%s\n"), (LPCTSTR)message);
 
-	systemScreenMessage(winAnsiFromWide(message));
+	systemScreenMessageRes(id, info.name);
 }
 
 // Feeds the result of a device read into the attached/lost state machine and

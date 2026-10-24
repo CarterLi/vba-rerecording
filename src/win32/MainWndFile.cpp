@@ -29,7 +29,6 @@
 
 void MainWnd::OnFileOpen()
 {
-	theApp.winCheckFullscreen();
 	if (winFileOpenSelect(0))
 	{
 		winFileRun();
@@ -38,7 +37,6 @@ void MainWnd::OnFileOpen()
 
 void MainWnd::OnFileOpenGBx()
 {
-	theApp.winCheckFullscreen();
 	if (winFileOpenSelect(1))
 	{
 		winFileRun();
@@ -71,7 +69,7 @@ void MainWnd::OnFileReset()
 		else
 		{
 			theApp.emulator.emuReset();
-			systemScreenMessage(winAnsiFromWide(winResLoadString(IDS_RESET)));
+			systemScreenMessageRes(IDS_RESET);
 		}
 	}
 }
@@ -93,7 +91,6 @@ void MainWnd::OnUpdateFileRecentFreeze(CCmdUI *pCmdUI)
 
 void MainWnd::OnFileRecentReset()
 {
-	theApp.winCheckFullscreen();
 	systemSoundClearBuffer();
 	if (MessageBox(_T("Really clear your recent ROMs list?"), //winResLoadString(IDS_REALLY_CLEAR),
 	               winResLoadString(IDS_CONFIRM_ACTION),
@@ -170,7 +167,6 @@ void MainWnd::OnUpdateFileClose(CCmdUI *pCmdUI)
 
 void MainWnd::OnFileLoad()
 {
-	theApp.winCheckFullscreen();
 
 	LPCTSTR exts[] = { _T(".sgm"), NULL };
 	CString filter = winResLoadFilter(IDS_FILTER_SGM);
@@ -194,7 +190,7 @@ void MainWnd::OnFileLoad()
 
 		if (res)
 		{
-			systemScreenMessage(winAnsiFromWide(winResLoadString(IDS_LOADED_STATE)));
+			systemScreenMessageRes(IDS_LOADED_STATE);
 
 			theApp.frameSearching = false;
 			theApp.frameSearchSkipping = false;
@@ -226,26 +222,14 @@ BOOL MainWnd::OnFileLoadSlot(UINT nID)
 
 	if (res)
 	{
-		CString format;
+		// Replaying and re-recording are reported by the movie code's own
+		// strings; a plain load has one of its own.
+		UINT formatId = IDS_LOADED_STATE_N;
 		if (VBAMovieIsActive())
-		{
-			if (!VBAMovieIsRecording())
-			{
-				format = winResLoadString(IDS_REPLAYED_STATE_N);
-			}
-			else
-			{
-				format = winResLoadString(IDS_RERECORDED_STATE_N);
-			}
-		}
-		else
-		{
-			format = winResLoadString(IDS_LOADED_STATE_N);
-		}
+			formatId = VBAMovieIsRecording() ? IDS_RERECORDED_STATE_N
+			                                 : IDS_REPLAYED_STATE_N;
 
-		CString buffer;
-		buffer.Format(format, nID);
-		systemScreenMessage(winAnsiFromWide(buffer));
+		systemScreenMessageRes(formatId, (int)nID);
 
 		int lastSlot = theApp.currentSlot;
 
@@ -283,7 +267,6 @@ BOOL MainWnd::OnFileLoadSlot(UINT nID)
 
 void MainWnd::OnFileSave()
 {
-	theApp.winCheckFullscreen();
 
 	LPCTSTR exts[] = { _T(".sgm"), NULL };
 	CString filter = winResLoadFilter(IDS_FILTER_SGM);
@@ -301,7 +284,7 @@ void MainWnd::OnFileSave()
 		bool res = winWriteSaveGame(dlg.GetPathName());
 		if (res)
 		{
-			systemScreenMessage(winAnsiFromWide(winResLoadString(IDS_WROTE_STATE)));
+			systemScreenMessageRes(IDS_WROTE_STATE);
 
 			CallRegisteredLuaFunctions(LUACALL_AFTERSTATESAVE);
 		}
@@ -328,11 +311,7 @@ BOOL MainWnd::OnFileSaveSlot(UINT nID)
 
 	if (res)
 	{
-		CString format = winResLoadString(IDS_WROTE_STATE_N);
-		CString buffer;
-		buffer.Format(format, nID);
-
-		systemScreenMessage(winAnsiFromWide(buffer));
+		systemScreenMessageRes(IDS_WROTE_STATE_N, (int)nID);
 
 		CallRegisteredLuaFunctions(LUACALL_AFTERSTATESAVE);
 	}
@@ -354,7 +333,6 @@ BOOL MainWnd::OnSelectSlot(UINT nID)
 
 void MainWnd::OnFileImportBatteryfile()
 {
-	theApp.winCheckFullscreen();
 
 	LPCTSTR exts[] = { _T(".sav"), NULL };
 	CString filter = winResLoadFilter(IDS_FILTER_SAV);
@@ -404,7 +382,6 @@ void MainWnd::OnUpdateFileImportBatteryfile(CCmdUI *pCmdUI)
 
 void MainWnd::OnFileImportGamesharkcodefile()
 {
-	theApp.winCheckFullscreen();
 
 	LPCTSTR exts[] = { NULL };
 	CString filter = systemCartridgeType == IMAGE_GBA ? winResLoadFilter(IDS_FILTER_SPC) : winResLoadFilter(IDS_FILTER_GCF);
@@ -435,7 +412,6 @@ void MainWnd::OnUpdateFileImportGamesharkcodefile(CCmdUI *pCmdUI)
 
 void MainWnd::OnFileImportGamesharksnapshot()
 {
-	theApp.winCheckFullscreen();
 
 	LPCTSTR exts[] = { NULL };
 	CString filter = systemCartridgeType == 1 ? winResLoadFilter(IDS_FILTER_GBS) : winResLoadFilter(IDS_FILTER_SPS);
@@ -468,7 +444,6 @@ void MainWnd::OnUpdateFileImportGamesharksnapshot(CCmdUI *pCmdUI)
 
 void MainWnd::OnFileExportBatteryfile()
 {
-	theApp.winCheckFullscreen();
 
 	LPCTSTR exts[] = { _T(".sav"), _T(".dat"), NULL };
 	CString filter = winResLoadFilter(IDS_FILTER_SAV);
@@ -505,7 +480,6 @@ void MainWnd::OnUpdateFileExportBatteryfile(CCmdUI *pCmdUI)
 
 void MainWnd::OnFileExportGamesharksnapshot()
 {
-	theApp.winCheckFullscreen();
 	if (eepromInUse)
 	{
 		systemMessage(IDS_EEPROM_NOT_SUPPORTED, "EEPROM saves cannot be exported");
@@ -545,7 +519,6 @@ void MainWnd::OnFileQuickScreencapture()
 
 void MainWnd::OnFileScreencapture()
 {
-	theApp.winCheckFullscreen();
 
 	CString captureName = winGetDestFilename(theApp.gameFilename, IDS_CAPTURE_DIR, imageCaptureExtension());
 	CString captureDir  = winGetDestDir(IDS_CAPTURE_DIR);
@@ -561,7 +534,7 @@ void MainWnd::OnFileScreencapture()
 	if (!winWriteScreenshotFile(captureName))
 		return;
 
-	systemScreenMessage(winAnsiFromWide(winResLoadString(IDS_SCREEN_CAPTURE)));
+	systemScreenMessageRes(IDS_SCREEN_CAPTURE);
 }
 
 void MainWnd::OnUpdateFileScreencapture(CCmdUI *pCmdUI)
@@ -572,7 +545,6 @@ void MainWnd::OnUpdateFileScreencapture(CCmdUI *pCmdUI)
 
 void MainWnd::OnFileRominformation()
 {
-	theApp.winCheckFullscreen();
 	if (systemCartridgeType == IMAGE_GBA)
 	{
 		RomInfoGBA dlg(rom);
@@ -595,20 +567,15 @@ void MainWnd::OnFileTogglemenu()
 	theApp.menuToggle = !theApp.menuToggle;
 
 	if (theApp.menuToggle)
-	{
 		SetMenu(&theApp.m_menu);
-		if (isFullscreenOption(theApp.videoOption) && theApp.tripleBuffering)
-		{
-			if (theApp.display)
-				theApp.display->renderMenu();
-		}
-	}
 	else
-	{
 		SetMenu(NULL);
-	}
 
-	theApp.adjustDestRect();
+	// The menu bar is part of the window frame, so adding or removing it
+	// moves the client area and with it the area the picture is fitted into.
+	// Full screen is where this matters: there the window is as large as the
+	// monitor either way, and the picture has to be re-centred.
+	layoutNow();
 }
 
 void MainWnd::OnUpdateFileTogglemenu(CCmdUI *pCmdUI)
@@ -944,7 +911,6 @@ void MainWnd::OnUpdateFileSlotDisplayModificationTime(CCmdUI *pCmdUI)
 
 void MainWnd::OnFileLuaOpen()
 {
-	theApp.winCheckFullscreen();
 
 	if (!LuaConsoleHWnd)
 	{
@@ -982,7 +948,6 @@ void MainWnd::OnFileLuaStop()
 
 void MainWnd::OnFileRamSearch()
 {
-	theApp.winCheckFullscreen();
 
 	if (!RamSearchHWnd)
 	{
@@ -1007,7 +972,6 @@ void MainWnd::OnUpdateFileRamSearch(CCmdUI *pCmdUI)
 
 void MainWnd::OnFileRamWatch()
 {
-	theApp.winCheckFullscreen();
 
 	if (!RamWatchHWnd)
 	{

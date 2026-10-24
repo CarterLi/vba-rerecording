@@ -375,7 +375,6 @@ void MainWnd::OnUpdateToolsNextInputDisplay(CCmdUI *pCmdUI)
 
 void MainWnd::OnToolsDebugGdb()
 {
-	theApp.winCheckFullscreen();
 	GDBPortDlg dlg;
 
 	if (dlg.DoModal())
@@ -414,7 +413,6 @@ void MainWnd::OnUpdateToolsDebugGdb(CCmdUI *pCmdUI)
 
 void MainWnd::OnToolsDebugLoadandwait()
 {
-	theApp.winCheckFullscreen();
 	if (winFileOpenSelect(0))
 	{
 		if (winFileRun())
@@ -487,7 +485,6 @@ void MainWnd::OnToolsSoundRecording()
 
 void MainWnd::OnToolsSoundStartrecording()
 {
-	theApp.winCheckFullscreen();
 
 	CString wavName = theApp.gameFilename;
 
@@ -554,7 +551,6 @@ void MainWnd::OnToolsAVIRecording()
 
 void MainWnd::OnToolsStartAVIRecording()
 {
-	theApp.winCheckFullscreen();
 
 	CString aviName = theApp.gameFilename;
 

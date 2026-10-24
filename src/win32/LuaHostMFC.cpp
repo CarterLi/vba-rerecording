@@ -114,7 +114,6 @@ namespace lua_host
 
 	void checkFullscreen()
 	{
-		theApp.winCheckFullscreen();
 	}
 
 	int filterWidth()

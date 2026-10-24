@@ -23,7 +23,6 @@ extern u32 RGB_LOW_BITS_MASK;
 extern int systemSpeed;
 extern int Init_2xSaI(u32);
 extern void directXMessage(const char *);
-extern int winVideoModeSelect(CWnd *, GUID * *);
 
 class DirectDrawDisplay : public IDisplay
 {
@@ -32,7 +31,6 @@ private:
 	LPDIRECTDRAW7        pDirectDraw;
 	LPDIRECTDRAWSURFACE7 ddsPrimary;
 	LPDIRECTDRAWSURFACE7 ddsOffscreen;
-	LPDIRECTDRAWSURFACE7 ddsFlip;
 	LPDIRECTDRAWCLIPPER  ddsClipper;
 	int  width;
 	int  height;
@@ -46,37 +44,11 @@ public:
 	virtual bool initialize();
 	virtual void cleanup();
 	virtual void render();
-	virtual void checkFullScreen();
-	virtual void renderMenu();
 	virtual void clear();
 	virtual bool changeRenderSize(int w, int h);
 	virtual DISPLAY_TYPE getType() { return DIRECT_DRAW; };
 	virtual void setOption(const char *, int) {}
-	virtual int selectFullScreenMode(GUID * *);
 };
-
-static HRESULT WINAPI checkModesAvailable(LPDDSURFACEDESC2 surf, LPVOID lpContext)
-{
-	if (surf->dwWidth == 320 &&
-	    surf->dwHeight == 240 &&
-	    surf->ddpfPixelFormat.dwRGBBitCount == 16)
-	{
-		theApp.mode320Available = TRUE;
-	}
-	if (surf->dwWidth == 640 &&
-	    surf->dwHeight == 480 &&
-	    surf->ddpfPixelFormat.dwRGBBitCount == 16)
-	{
-		theApp.mode640Available = TRUE;
-	}
-	if (surf->dwWidth == 800 &&
-	    surf->dwHeight == 600 &&
-	    surf->ddpfPixelFormat.dwRGBBitCount == 16)
-	{
-		theApp.mode800Available = TRUE;
-	}
-	return DDENUMRET_OK;
-}
 
 static int ffs(UINT mask)
 {
@@ -97,7 +69,6 @@ DirectDrawDisplay::DirectDrawDisplay()
 	pDirectDraw  = NULL;
 	ddsPrimary   = NULL;
 	ddsOffscreen = NULL;
-	ddsFlip      = NULL;
 	ddsClipper   = NULL;
 	ddrawDLL     = NULL;
 	width        = 0;
@@ -118,12 +89,6 @@ void DirectDrawDisplay::cleanup()
 		{
 			ddsClipper->Release();
 			ddsClipper = NULL;
-		}
-
-		if (ddsFlip != NULL)
-		{
-			ddsFlip->Release();
-			ddsFlip = NULL;
 		}
 
 		if (ddsOffscreen != NULL)
@@ -153,7 +118,21 @@ void DirectDrawDisplay::cleanup()
 
 bool DirectDrawDisplay::initialize()
 {
-	CWnd *pWnd = theApp.m_pMainWnd;
+	// DirectDraw blits to the primary surface and lets a clipper decide where
+	// the pixels are allowed to land, so the clipper follows the picture child
+	// and the blit lands where the child is - which is also the rectangle the
+	// window layout computed for the frame, see theApp.dest.
+	CWnd *pWnd = theApp.winRenderWnd();
+
+	// The cooperative level, unlike the clipper, has to be the application's
+	// top level window: a child handle is refused there.
+	CWnd *pTopWnd = theApp.m_pMainWnd;
+
+	if (pWnd == NULL || pTopWnd == NULL || pTopWnd->GetSafeHwnd() == NULL)
+	{
+		winlog(_T("DirectDraw: no window to draw into\n"));
+		return FALSE;
+	}
 
 	GUID *guid = NULL;
 	if (theApp.ddrawEmulationOnly)
@@ -180,8 +159,6 @@ bool DirectDrawDisplay::initialize()
 		directXMessage("DDRAW.DLL");
 		return FALSE;
 	}
-
-	theApp.ddrawUsingEmulationOnly = theApp.ddrawEmulationOnly;
 
 	HRESULT hret = DDrawCreateEx(guid,
 	                             (void * *)&pDirectDraw,
@@ -218,22 +195,10 @@ bool DirectDrawDisplay::initialize()
 			winlog(_T("HEL CAPS %2d: %08x\n"), i>>2, *p++);
 	}
 
-	theApp.mode320Available = false;
-	theApp.mode640Available = false;
-	theApp.mode800Available = false;
-
-	// check for available fullscreen modes
-	pDirectDraw->EnumDisplayModes(DDEDM_STANDARDVGAMODES, NULL, NULL, checkModesAvailable);
-
-	DWORD flags = DDSCL_NORMAL;
-
-	if (isFullscreenOption(theApp.videoOption))
-		flags = DDSCL_ALLOWMODEX |
-		        DDSCL_ALLOWREBOOT |
-		        DDSCL_EXCLUSIVE |
-		        DDSCL_FULLSCREEN;
-
-	hret = pDirectDraw->SetCooperativeLevel(pWnd->m_hWnd, flags);
+	// Both modes are windowed: full screen is the borderless window the other
+	// renderers use, so the cooperative level never takes the display over and
+	// the desktop keeps its mode.
+	hret = pDirectDraw->SetCooperativeLevel(pTopWnd->GetSafeHwnd(), DDSCL_NORMAL);
 
 	if (hret != DD_OK)
 	{
@@ -242,34 +207,11 @@ bool DirectDrawDisplay::initialize()
 		return FALSE;
 	}
 
-	if (isFullscreenOption(theApp.videoOption))
-	{
-		hret = pDirectDraw->SetDisplayMode(theApp.fsWidth,
-		                                   theApp.fsHeight,
-		                                   theApp.fsColorDepth,
-		                                   0,
-		                                   0);
-		if (hret != DD_OK)
-		{
-			winlog(_T("Error SetDisplayMode %08x\n"), hret);
-			//      errorMessage(myLoadString(IDS_ERROR_DISP_DRAWSET), hret);
-			return FALSE;
-		}
-	}
-
 	DDSURFACEDESC2 ddsd;
 	ZeroMemory(&ddsd, sizeof(ddsd));
 	ddsd.dwSize         = sizeof(ddsd);
 	ddsd.dwFlags        = DDSD_CAPS;
 	ddsd.ddsCaps.dwCaps = DDSCAPS_PRIMARYSURFACE;
-
-	if (isFullscreenOption(theApp.videoOption) && theApp.tripleBuffering)
-	{
-		// setup triple buffering
-		ddsd.dwFlags		  |= DDSD_BACKBUFFERCOUNT;
-		ddsd.ddsCaps.dwCaps   |= DDSCAPS_COMPLEX | DDSCAPS_FLIP;
-		ddsd.dwBackBufferCount = 2;
-	}
 
 	hret = pDirectDraw->CreateSurface(&ddsd, &ddsPrimary, NULL);
 	if (hret != DD_OK)
@@ -291,42 +233,16 @@ bool DirectDrawDisplay::initialize()
 		winlog(_T("Primary CAPS 4: %08x\n"), caps.dwCaps4);
 	}
 
-	if (isFullscreenOption(theApp.videoOption) && theApp.tripleBuffering)
-	{
-		DDSCAPS2 caps;
-		ZeroMemory(&caps, sizeof(caps));
-		// this gets the third surface. The front one is the primary,
-		// the second is the backbuffer and the third is the flip
-		// surface
-		caps.dwCaps = DDSCAPS_BACKBUFFER;
-
-		hret = ddsPrimary->GetAttachedSurface(&caps, &ddsFlip);
-		if (hret != DD_OK)
-		{
-			winlog(_T("Failed to get attached surface %08x"), hret);
-			return FALSE;
-		}
-		ddsFlip->AddRef();
-		clear();
-	}
-
-	// create clipper in all modes to avoid paint problems
-	//  if(!isFullscreenOption(videoOption)) {
+	// The clipper is what confines the blit to the picture, so it is attached
+	// to the primary surface in both modes.
 	hret = pDirectDraw->CreateClipper(0, &ddsClipper, NULL);
 	if (hret == DD_OK)
 	{
-		ddsClipper->SetHWnd(0, pWnd->m_hWnd);
-		if (isFullscreenOption(theApp.videoOption))
-		{
-			if (theApp.tripleBuffering)
-				ddsFlip->SetClipper(ddsClipper);
-			else
-				ddsPrimary->SetClipper(ddsClipper);
-		}
-		else
-			ddsPrimary->SetClipper(ddsClipper);
+		ddsClipper->SetHWnd(0, pWnd->GetSafeHwnd());
+		ddsPrimary->SetClipper(ddsClipper);
 	}
-	//  }
+	else
+		winlog(_T("Error CreateClipper %08x\n"), hret);
 
 	DDPIXELFORMAT px;
 
@@ -360,7 +276,7 @@ bool DirectDrawDisplay::initialize()
 	if (failed)
 		return false;
 
-	pWnd->DragAcceptFiles(TRUE);
+	pTopWnd->DragAcceptFiles(TRUE);
 
 	return true;
 }
@@ -528,33 +444,20 @@ bool DirectDrawDisplay::initializeOffscreen(int w, int h)
 	return true;
 }
 
+// A windowed blit has no back buffer to clear, so the picture area on the
+// primary surface is filled black instead.  The clipper keeps that inside the
+// picture child, which is the same rectangle the frames are blitted to.
 void DirectDrawDisplay::clear()
 {
-	if (!isFullscreenOption(theApp.videoOption) || !theApp.tripleBuffering || ddsFlip == NULL)
+	if (ddsPrimary == NULL)
 		return;
 
 	DDBLTFX fx;
 	ZeroMemory(&fx, sizeof(fx));
 	fx.dwSize      = sizeof(fx);
 	fx.dwFillColor = 0;
-	ddsFlip->Blt(NULL, NULL, NULL, DDBLT_COLORFILL | DDBLT_WAIT, &fx);
-	ddsPrimary->Flip(NULL, 0);
-	ddsFlip->Blt(NULL, NULL, NULL, DDBLT_COLORFILL | DDBLT_WAIT, &fx);
-	ddsPrimary->Flip(NULL, 0);
-	ddsFlip->Blt(NULL, NULL, NULL, DDBLT_COLORFILL | DDBLT_WAIT, &fx);
-	ddsPrimary->Flip(NULL, 0);
-}
 
-void DirectDrawDisplay::renderMenu()
-{
-	checkFullScreen();
-	theApp.m_pMainWnd->DrawMenuBar();
-}
-
-void DirectDrawDisplay::checkFullScreen()
-{
-	if (theApp.tripleBuffering)
-		pDirectDraw->FlipToGDISurface();
+	ddsPrimary->Blt(&theApp.dest, NULL, NULL, DDBLT_COLORFILL | DDBLT_WAIT, &fx);
 }
 
 void DirectDrawDisplay::render()
@@ -696,38 +599,18 @@ void DirectDrawDisplay::render()
 		}
 
 		ddsOffscreen->PageLock(0);
-		if (theApp.tripleBuffering && isFullscreenOption(theApp.videoOption))
+
+		// The whole frame is stretched into the picture rectangle, so the
+		// scaling mode only decides what that rectangle is.
+		hret = ddsPrimary->Blt(&theApp.dest, ddsOffscreen, NULL, DDBLT_ASYNC, NULL);
+
+		if (hret == DDERR_SURFACELOST)
 		{
-			hret = ddsFlip->Blt(&theApp.dest, ddsOffscreen, NULL, DDBLT_WAIT, NULL);
+			hret = ddsPrimary->Restore();
+
 			if (hret == DD_OK)
 			{
-				if (theApp.menuToggle || !theApp.active)
-				{
-					pDirectDraw->FlipToGDISurface();
-					ddsPrimary->SetClipper(ddsClipper);
-					hret = ddsPrimary->Blt(&theApp.dest, ddsFlip, NULL, DDBLT_ASYNC, NULL);
-					// if using emulation only, then we have to redraw the menu
-					// everytime. It seems like a bug in DirectDraw to me as we not
-					// overwritting the menu area at all.
-					if (theApp.ddrawUsingEmulationOnly)
-						theApp.m_pMainWnd->DrawMenuBar();
-				}
-				else
-					hret = ddsPrimary->Flip(NULL, 0);
-			}
-		}
-		else
-		{
-			hret = ddsPrimary->Blt(&theApp.dest, ddsOffscreen, NULL, DDBLT_ASYNC, NULL);
-
-			if (hret == DDERR_SURFACELOST)
-			{
-				hret = ddsPrimary->Restore();
-
-				if (hret == DD_OK)
-				{
-					hret = ddsPrimary->Blt(&theApp.dest, ddsOffscreen, NULL, DDBLT_ASYNC, NULL);
-				}
+				hret = ddsPrimary->Blt(&theApp.dest, ddsOffscreen, NULL, DDBLT_ASYNC, NULL);
 			}
 		}
 		ddsOffscreen->PageUnlock(0);
@@ -737,7 +620,7 @@ void DirectDrawDisplay::render()
 
 	bool textMessageStarted = false;
 
-	if (textMethod == 2)
+	if (textMethod == 2 && !theApp.statusBarActive())
 	{
 		HDC hdc;
 		HFONT font    = NULL;
@@ -840,11 +723,6 @@ void DirectDrawDisplay::render()
 		if (theApp.ddrawDebug)
 			winlog(_T("Error on update screen: %08x\n"), hret);
 	}
-}
-
-int DirectDrawDisplay::selectFullScreenMode(GUID **pGUID)
-{
-	return winVideoModeSelect(theApp.m_pMainWnd, pGUID);
 }
 
 IDisplay *newDirectDrawDisplay()

@@ -261,8 +261,6 @@
 #define IDD_LOGGING                     537
 #define IDD_EXPORT_SPS                  538
 #define IDD_ADDR_SIZE                   539
-#define IDD_MODES                       540
-#define IDD_DRIVERS                     542
 #define IDD_THROTTLE                    543
 #define IDD_GB_DISASSEMBLE              544
 #define IDD_GB_OAM_VIEW                 545
@@ -497,8 +495,6 @@
 #define IDC_NOTES                       1236
 #define IDC_LOAD                        1238
 #define IDC_SIZE_CONTROL                1239
-#define IDC_MODES                       1240
-#define IDC_DRIVERS                     1241
 #define IDC_THROTTLE                    1242
 #define IDC_H                           1243
 #define IDC_OAP                         1244
@@ -772,7 +768,6 @@
 #define ID_OPTIONS_JOYPAD_AUTOFIRE_B_OLD 40086
 #define ID_OPTIONS_JOYPAD_AUTOFIRE_L_OLD 40087
 #define ID_OPTIONS_JOYPAD_AUTOFIRE_R_OLD 40088
-#define ID_OPTIONS_VIDEO_FULLSCREENSTRETCHTOFIT 40089
 #define ID_OPTIONS_EMULATOR_ASSOCIATE   40091
 #define ID_OPTIONS_1X                   40096
 #define ID_OPTIONS_2X                   40097
@@ -863,7 +858,6 @@
 #define ID_OPTIONS_FILTER_INTERFRAMEBLENDING_MOTIONBLUR 40189
 #define ID_OPTIONS_FILTER_INTERFRAMEBLENDING_SMART 40190
 #define ID_OPTIONS_VIDEO_FULLSCREEN     40191
-#define ID_OPTIONS_VIDEO_TRIPLEBUFFERING 40192
 #define ID_OPTIONS_FRAMESKIP_AUTOMATIC  40194
 #define ID_OPTIONS_EMULATOR_SHOWSPEED_NONE 40195
 #define ID_OPTIONS_EMULATOR_SHOWSPEED_PERCENTAGE 40196
@@ -1199,6 +1193,12 @@
 #define ID_TOOLS_EXTRACOUNTER           42413
 #define ID_TOOLS_EXTRACOUNTERRESET      42415
 #define ID_TOOLS_NEXTINPUTDISPLAY       42416
+#define ID_TOOLS_STATUSBAR              42422
+// The three screen scaling modes, in the order of the SCREEN_SCALING_*
+// values in VBA.h: MainWndOptions.cpp works the setting out from the id.
+#define ID_OPTIONS_VIDEO_SCALING_STRETCH 42460
+#define ID_OPTIONS_VIDEO_SCALING_ASPECT  42461
+#define ID_OPTIONS_VIDEO_SCALING_INTEGER 42462
 #define ID_MOVIE_TOOL_EDIT_MODE_PREV    42440
 #define ID_MOVIE_TOOL_EDIT_MODE_NEXT    42441
 #define ID_MOVIE_TOOL_EDIT_MODE_DISCARD 42442
@@ -1227,6 +1227,8 @@
 #define IDC_TEXT_APPLY                  43419
 #define IDC_TEXT_MARGIN_LEFT_SPIN       43420
 #define IDC_TEXT_MARGIN_BOTTOM_SPIN     43421
+#define IDC_RENDER_WND                  43422
+#define IDC_STATUS_BAR                  43423
 
 // Embedded 7z.dll (see 7zip/7zapi.cpp and the RCDATA entry in VBA.rc)
 #define IDR_SEVENZ_DLL                  310
@@ -1236,7 +1238,7 @@
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
 #define _APS_NEXT_RESOURCE_VALUE        193
-#define _APS_NEXT_COMMAND_VALUE         42460
+#define _APS_NEXT_COMMAND_VALUE         42463
 #define _APS_NEXT_CONTROL_VALUE         1501
 #define _APS_NEXT_SYMED_VALUE           43513
 #endif

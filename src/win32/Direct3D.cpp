@@ -87,14 +87,11 @@ public:
 	virtual bool initialize();
 	virtual void cleanup();
 	virtual void render();
-	virtual void checkFullScreen();
-	virtual void renderMenu();
 	virtual void clear();
 	virtual bool changeRenderSize(int w, int h);
 	virtual void resize(int w, int h);
 	virtual DISPLAY_TYPE getType() { return DIRECT_3D; };
 	virtual void setOption(const char *, int);
-	virtual int selectFullScreenMode(GUID * *);
 	// Trilinear is the one that needs something of its own, the mip chain the
 	// device makes for pMipTexture, so it stays unselectable where that
 	// texture could not be made.
@@ -232,7 +229,7 @@ void Direct3DDisplay::cleanup()
 
 bool Direct3DDisplay::initialize()
 {
-	CWnd *pWnd = theApp.m_pMainWnd;
+	CWnd *pWnd = theApp.winRenderWnd();
 
 	d3dDLL = LoadLibrary(_T("D3D9.DLL"));
 	if (d3dDLL == NULL)
@@ -269,9 +266,6 @@ bool Direct3DDisplay::initialize()
 		}
 	}
 
-	theApp.mode320Available = false;
-	theApp.mode640Available = false;
-	theApp.mode800Available = false;
 
 	D3DDISPLAYMODE mode;
 	pD3D->GetAdapterDisplayMode(D3DADAPTER_DEFAULT, &mode);
@@ -598,19 +592,6 @@ void Direct3DDisplay::restoreDeviceObjects()
 void Direct3DDisplay::clear()
 {}
 
-void Direct3DDisplay::renderMenu()
-{
-	checkFullScreen();
-	if (theApp.m_pMainWnd)
-		theApp.m_pMainWnd->DrawMenuBar();
-}
-
-void Direct3DDisplay::checkFullScreen()
-{
-	//  if(tripleBuffering)
-	//    pDirect3D->FlipToGDISurface();
-}
-
 void Direct3DDisplay::calculateVertices()
 {
 	// color
@@ -896,6 +877,12 @@ void Direct3DDisplay::resize(int w, int h)
 {
 	if (pDevice && w > 0 && h > 0)
 	{
+		// The window layout calls this whenever the picture area changes,
+		// and a reset to the size the swap chain already has would cost a
+		// frame and flash the picture black.
+		if ((int)dpp.BackBufferWidth == w && (int)dpp.BackBufferHeight == h)
+			return;
+
 		dpp.BackBufferWidth  = w;
 		dpp.BackBufferHeight = h;
 		HRESULT hr;
@@ -971,20 +958,6 @@ void Direct3DDisplay::setOption(const char *option, int value)
 {
 	if (!strcmp(option, "d3dFilter"))
 		updateFiltering(value);
-}
-
-int Direct3DDisplay::selectFullScreenMode(GUID * *)
-{
-	HWND wnd = GetDesktopWindow();
-	RECT r;
-	GetWindowRect(wnd, &r);
-	int w  = (r.right - r.left) & 4095;
-	int h  = (r.bottom - r.top) & 4095;
-	HDC dc = GetDC(wnd);
-	int c  = GetDeviceCaps(dc, BITSPIXEL);
-	ReleaseDC(wnd, dc);
-
-	return (c << 24) | (w << 12) | h;
 }
 
 IDisplay *newDirect3DDisplay()

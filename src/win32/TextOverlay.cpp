@@ -325,6 +325,17 @@ bool TextOverlay::update()
 	if (dc == NULL || dibBits == NULL)
 		return false;
 
+	// The status bar owns the messages while it is showing.  Dropping the
+	// signature makes the first update after it is switched off rebuild the
+	// DIB instead of reusing whatever it held before.
+	if (theApp.statusBarActive())
+	{
+		anyVisible     = false;
+		contentChanged = false;
+		haveSignature  = false;
+		return false;
+	}
+
 	// Which slots are still visible, and what they say, is all the overlay is
 	// made of, so a signature of that says whether the DIB already holds the
 	// right picture.  While it does, nothing is rendered: the DIB is the size

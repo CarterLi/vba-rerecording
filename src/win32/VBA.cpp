@@ -61,9 +61,9 @@ extern bool wgpuLibraryAvailable();
 #endif
 
 // The renderer a build with no stored settings starts on.  A build that
-// targets Windows XP keeps DirectDraw, which is the renderer it always
-// started on; every other build starts on Direct3D 11.  Direct3D 9 is the
-// step below DirectDraw when the DirectDraw backend is not built either.
+// targets Windows XP starts on Direct3D 9, which every machine that runs XP
+// has, and keeps DirectDraw only when that backend is built; every other
+// build starts on Direct3D 11.
 static DISPLAY_TYPE defaultRenderMethod()
 {
 #if defined(WINXP)
@@ -100,6 +100,23 @@ int	 pauseAfterTime = -1;
 
 // nowhere good to put them to
 
+// True when the text has a character the built-in 8x8 font cannot draw.  That
+// font is a fixed table of 8x8 bitmaps, one per printable ASCII code, and it
+// has nothing beyond them.
+static bool hasNonAscii(const wchar_t *text)
+{
+	if (text == NULL)
+		return false;
+
+	for (const wchar_t *p = text; *p != 0; p++)
+	{
+		if ((unsigned)*p > 0x7F)
+			return true;
+	}
+
+	return false;
+}
+
 void DrawTextMessages(u8 *dest, int pitch, int left, int bottom)
 {
 	// The In Game and On Game modes can use a system raster font instead of
@@ -127,6 +144,7 @@ void DrawTextMessages(u8 *dest, int pitch, int left, int bottom)
 	// text moves and stretches with the picture just like the frame does.
 	const int x = left + theApp.textMarginLeft;
 	const int textBottom = bottom - theApp.textMarginBottom;
+	const bool onStatusBar = theApp.statusBarActive();
 
 	for (int slot = 0; slot < SCREEN_MESSAGE_SLOTS; slot++)
 	{
@@ -136,6 +154,18 @@ void DrawTextMessages(u8 *dest, int pitch, int left, int bottom)
 			     (int)(GetTickCount() - theApp.screenMessageTime[slot]) < theApp.screenMessageDuration[slot]) &&
 			    (!theApp.disableStatusMessage || slot == 1 || slot == 2))
 			{
+				if (onStatusBar)
+					continue;
+
+				// The built-in font is ASCII by design, and these two modes
+				// draw into the frame with it.  A message that came from the
+				// string table has an English rendering of its own, which is
+				// what these modes show; anything the core wrote is kept out
+				// rather than drawn as so many Latin letters, and the status
+				// bar and the On Screen mode have a font that can draw it.
+				if (gameLineHeight == 0 && hasNonAscii(theApp.screenMessageAsciiBuffer[slot]))
+					continue;
+
 				const int y = textBottom - lineHeight * (slot + 1);
 
 				if (gameLineHeight > 0)
@@ -145,20 +175,17 @@ void DrawTextMessages(u8 *dest, int pitch, int left, int bottom)
 					             x,
 					             y,
 					             bottom,
-					             theApp.screenMessageBuffer[slot],
+					             theApp.screenMessageAsciiBuffer[slot],
 					             winAnsiFromWide(theApp.screenMessageColorBuffer[slot]),
 					             gameSize);
 				}
 				else
 				{
-					// The built-in font is ASCII by design: characters
-					// outside the code page show as '?', which is what the
-					// font can draw.
 					drawText(dest,
 					         pitch,
 					         x,
 					         y,
-					         winAnsiFromWide(theApp.screenMessageBuffer[slot]),
+					         winAnsiFromWide(theApp.screenMessageAsciiBuffer[slot]),
 					         winAnsiFromWide(theApp.screenMessageColorBuffer[slot]),
 					         percent);
 				}
@@ -403,32 +430,6 @@ static void debugSystemScreenMessage2(const char *msg)
 	systemScreenMessage(msg, 4);
 }
 
-typedef BOOL (WINAPI * GETMENUBARINFO)(HWND, LONG, LONG, PMENUBARINFO);
-
-static int winGetMenuBarHeight()
-{
-	HINSTANCE hinstDll = /**/ ::LoadLibrary(_T("USER32.DLL"));
-
-	if (hinstDll)
-	{
-		GETMENUBARINFO func = (GETMENUBARINFO)GetProcAddress(hinstDll, "GetMenuBarInfo");
-
-		if (func)
-		{
-			MENUBARINFO info;
-			info.cbSize = sizeof(info);
-
-			func(AfxGetMainWnd()->GetSafeHwnd(), OBJID_MENU, 0, &info);
-
-			/**/ ::FreeLibrary(hinstDll);
-
-			return info.rcBar.bottom - info.rcBar.top + 1;
-		}
-	}
-
-	return GetSystemMetrics(SM_CYMENU);
-}
-
 /////////////////////////////////////////////////////////////////////////////
 // VBA
 
@@ -469,9 +470,6 @@ VBA::VBA() : emulator(::theEmulator)
 	// trace; the message box only points at it.
 	imageWriteSetLogger(winImageWriteLog);
 
-	mode320Available	 = false;
-	mode640Available	 = false;
-	mode800Available	 = false;
 	windowPositionX		 = 0;
 	windowPositionY		 = 0;
 	filterFunction		 = NULL;
@@ -493,7 +491,7 @@ VBA::VBA() : emulator(::theEmulator)
 	sizeY				 = 0;
 	scale				 = 1.0;
 	videoOption			 = 0;
-	fullScreenStretch	 = false;
+	screenScaling		 = SCREEN_SCALING_ASPECT;
 	disableStatusMessage = false;
 	screenTextFont		 = _T("Consolas");
 	gameTextFont		 = GAME_TEXT_FONT_BUILTIN;
@@ -540,7 +538,6 @@ VBA::VBA() : emulator(::theEmulator)
 	rewindCount		  = 0;
 	rewindSaveNeeded  = false;
 	rewindTimer		  = 0;
-	tripleBuffering	  = true;
 	autoHideMenu	  = false;
 	throttle		  = 100;
 	throttleLastTime  = 0;
@@ -552,7 +549,6 @@ VBA::VBA() : emulator(::theEmulator)
 	renderMethod	  = defaultRenderMethod();
 	iconic = false;
 	ddrawEmulationOnly		= false;
-	ddrawUsingEmulationOnly = false;
 	ddrawDebug				= false;
 	ddrawUseVideoMemory		= false;
 	d3dFilter				= 0;
@@ -991,7 +987,6 @@ invalidArgument:
 					            L"-logToFile \t tells logging to use fopen/fclose of args, if logging is enabled\n"
 					            L"-logDebug  \t tells logging to output debug info to screen, if logging is enabled\n"
 					       );
-					theApp.winCheckFullscreen();
 					AfxGetApp()->m_pMainWnd->MessageBox(str, _T("Commandline Help"), MB_OK | MB_ICONINFORMATION);
 					exit(0);
 				}
@@ -1030,49 +1025,117 @@ invalidArgument:
 	return TRUE;
 }
 
+CWnd *VBA::winRenderWnd()
+{
+	// The picture is the child in both modes.  Full screen used to draw into
+	// the main window itself, which made it impossible to leave anything of
+	// the screen unused; the child is sized and centred there just like it
+	// is windowed, and the main window around it stays black.
+	if (m_pMainWnd != NULL)
+	{
+		RenderWnd *render = ((MainWnd *)m_pMainWnd)->renderWnd();
+		if (render != NULL && render->GetSafeHwnd() != NULL)
+			return render;
+	}
+
+	return m_pMainWnd;
+}
+
+bool VBA::statusBarActive() const
+{
+	// Fullscreen has no status bar; the on screen display comes back there.
+	return statusBarHud && !isFullscreenOption(videoOption);
+}
+
+void VBA::updateStatusBar()
+{
+	if (m_pMainWnd != NULL)
+		((MainWnd *)m_pMainWnd)->updateStatusBar();
+}
+
 void VBA::adjustDestRect()
 {
 	POINT point;
 
+	CWnd *pWnd = winRenderWnd();
+	if (pWnd == NULL)
+		return;
+
 	point.x = 0;
 	point.y = 0;
 
-	m_pMainWnd->ClientToScreen(&point);
+	pWnd->ClientToScreen(&point);
 	dest.top  = point.y;
 	dest.left = point.x;
 
 	point.x = surfaceSizeX;
 	point.y = surfaceSizeY;
 
-	m_pMainWnd->ClientToScreen(&point);
+	pWnd->ClientToScreen(&point);
 	dest.bottom = point.y;
 	dest.right	= point.x;
+}
 
-	if (isFullscreenOption(videoOption))
+// Size of the picture for the area it is given.  The aspect ratio comes from
+// the emulated frame and not from theApp.rect: a pixel filter can make the
+// texture larger than the frame, and the picture would then be fitted to the
+// filter's extra rows.
+void VBA::fitSurfaceTo(int width, int height, bool fullscreen)
+{
+	if (width < 1)
+		width = 1;
+	if (height < 1)
+		height = 1;
+
+	if (sizeX < 1 || sizeY < 1)
 	{
-		int menuSkip = 0;
-		if (menuToggle)
-		{
-			menuSkip = winGetMenuBarHeight();
-		}
-
-		if (fullScreenStretch)
-		{
-			dest.top	= menuSkip;
-			dest.left	= 0;
-			dest.right	= fsWidth;
-			dest.bottom = fsHeight;
-		}
-		else
-		{
-			int top	 = (fsHeight - surfaceSizeY) / 2;
-			int left = (fsWidth - surfaceSizeX) / 2;
-			dest.top	+= top - menuSkip * 2;
-			dest.bottom += top;
-			dest.left	+= left;
-			dest.right	+= left;
-		}
+		scale		 = 1.0;
+		surfaceSizeX = width;
+		surfaceSizeY = height;
+		return;
 	}
+
+	if (screenScaling == SCREEN_SCALING_STRETCH)
+	{
+		scale		 = (double)width / (double)sizeX;
+		surfaceSizeX = width;
+		surfaceSizeY = height;
+		return;
+	}
+
+	const double fitX = (double)width / (double)sizeX;
+	const double fitY = (double)height / (double)sizeY;
+	double		 fit  = fitX < fitY ? fitX : fitY;
+
+	// The full screen maximum scale is a cap on the picture and not a size,
+	// so it belongs to the two modes that choose their own scale.
+	if (fullscreen && fsMaxScale > 0 && fit > fsMaxScale)
+		fit = fsMaxScale;
+
+	if (screenScaling == SCREEN_SCALING_INTEGER)
+	{
+		// Whole multiples only, and an area too small for one is fitted
+		// exactly instead, which is better than a picture that is cropped.
+		const int whole = (int)(fit + 1e-6);
+		if (whole >= 1)
+			fit = whole;
+	}
+
+	if (fit <= 0.0)
+		fit = 1.0;
+
+	scale = fit;
+
+	// Rounded rather than truncated: an area that matches the aspect ratio
+	// exactly works out to a whole number of pixels, and truncating the
+	// smallest error of the division would leave a black line on two sides.
+	surfaceSizeX = (int)(sizeX * fit + 0.5);
+	surfaceSizeY = (int)(sizeY * fit + 0.5);
+
+	if (surfaceSizeX < 1)
+		surfaceSizeX = 1;
+	if (surfaceSizeY < 1)
+		surfaceSizeY = 1;
 }
 
 void VBA::updateIFB()
@@ -1784,23 +1847,11 @@ void VBA::updateWindowSize(int value)
 	case VIDEO_640x480:
 	case VIDEO_800x600:
 	case VIDEO_OTHER:
-		// Need to fix this code later. For now, Fullscreen takes the whole screen.
-		if (fullScreenStretch)
-		{
-			surfaceSizeX = fsWidth;
-			surfaceSizeY = fsHeight;
-		}
-		else
-		{
-			double scaleX	= (double)fsWidth / (double)sizeX;
-			double scaleY	= (double)fsHeight / (double)sizeY;
-			double scaleMin = scaleX < scaleY ? scaleX : scaleY;
-			if (fsMaxScale)
-				scaleMin = scaleMin > fsMaxScale ? fsMaxScale : scaleMin;
-			scale = scaleMin;
-			surfaceSizeX = (int)(scaleMin * sizeX);
-			surfaceSizeY = (int)(scaleMin * sizeY);
-		}
+		// The window covers the whole monitor and the picture is fitted
+		// into it; MainWnd::layoutRenderArea() repeats this once the
+		// window is up, with the part of the client area that is really on
+		// the screen.
+		fitSurfaceTo(fsWidth, fsHeight, true);
 		break;
 	}
 
@@ -1814,7 +1865,7 @@ void VBA::updateWindowSize(int value)
 	int x		 = 0;
 	int y		 = 0;
 
-	DWORD style	  = WS_POPUP | WS_VISIBLE;
+	DWORD style	  = WS_POPUP | WS_VISIBLE | WS_CLIPCHILDREN;
 	DWORD styleEx = alwaysOnTop ? WS_EX_TOPMOST : 0;
 
 	if (!isFullscreenOption(videoOption))
@@ -1880,15 +1931,23 @@ void VBA::updateWindowSize(int value)
 								 SWP_NOMOVE | SWP_SHOWWINDOW);
 	}
 
-	updateMenuBar(); // add menubar first of all, or winGetMenuBarHeight() will get random height.
+	// The menu bar is part of the window frame, so it has to be there before
+	// the size below is corrected to the client area the picture needs.
+	updateMenuBar();
 	winAccelMgr.UpdateMenu(menu);
 
 	if (!isFullscreenOption(videoOption))
 	{
 		RECT clientRect;
 		m_pMainWnd->GetClientRect(&clientRect);
+
+		// The status bar is below the picture, so the window has to be that
+		// much taller for the render area to keep its size.
+		const int statusHeight = statusBarActive() ?
+		                             ((MainWnd *)m_pMainWnd)->statusBarHeight() : 0;
+
 		winSizeX += int(sizeX * scale) - clientRect.right;
-		winSizeY += int(sizeY * scale) - clientRect.bottom;
+		winSizeY += int(sizeY * scale) - clientRect.bottom + statusHeight;
 	}
 
 	m_pMainWnd->SetWindowPos(0, //HWND_TOPMOST,
@@ -1921,7 +1980,7 @@ void VBA::updateWindowSize(int value)
 	m_pMainWnd->RedrawWindow(NULL, NULL, RDW_INVALIDATE | RDW_ERASE | RDW_ALLCHILDREN);
 }
 
-bool VBA::initDisplay()
+bool VBA::initDisplay(bool resizeWindow)
 {
 	if (display)
 	{
@@ -1936,10 +1995,14 @@ bool VBA::initDisplay()
 		// Rebuilding the window makes the whole frame flash on every render
 		// method switch, even when no game is running.  Only the frame style
 		// differs between windowed and fullscreen, so the window is kept when
-		// the switch does not cross that line.
+		// the switch does not cross that line.  A windowed window carries both
+		// WS_POPUP and WS_OVERLAPPEDWINDOW (it is created that way further
+		// down), so it is the overlapped bits, not the popup one, that tell
+		// the two styles apart.
 		CWnd *pWnd   = m_pMainWnd;
 		bool  rebuild = pWnd == NULL ||
-		                ((pWnd->GetStyle() & WS_POPUP) != 0) != isFullscreenOption(videoOption);
+		                ((pWnd->GetStyle() & WS_OVERLAPPEDWINDOW) == 0) !=
+		                     isFullscreenOption(videoOption);
 
 		if (pWnd != NULL)
 		{
@@ -1954,11 +2017,47 @@ bool VBA::initDisplay()
 		}
 
 		display = NULL;
+
+		// A renderer that presents through a swap chain in the flip model -
+		// Direct3D 11 and Direct3D 9Ex both do - hands its frames straight to
+		// the desktop window manager instead of drawing into the window, and
+		// the last frame it presented keeps covering that window once the
+		// chain is released.  GDI and DirectDraw paint into the window, so
+		// everything they draw would stay hidden behind that frame and the
+		// picture would look frozen from the moment of the switch.  Painting
+		// the window black once takes it back out of that mode; the renderer
+		// that comes next fills it with the frame a moment later.
+		const bool paintsIntoWindow = renderMethod == GDI
+#if VBA_ENABLE_DDRAW
+		                              || renderMethod == DIRECT_DRAW
+#endif
+		                              ;
+
+		if (!rebuild && paintsIntoWindow && pWnd != NULL)
+		{
+			RenderWnd *render = ((MainWnd *)pWnd)->renderWnd();
+			CRect      area;
+
+			render->GetClientRect(&area);
+
+			if (render->GetSafeHwnd() != NULL && !area.IsRectEmpty())
+			{
+				CClientDC dc(render);
+				dc.FillSolidRect(&area, RGB(0, 0, 0));
+				render->RedrawWindow(NULL, NULL,
+				                     RDW_INVALIDATE | RDW_ERASE | RDW_UPDATENOW);
+			}
+		}
 	}
 
 	if (display == NULL)
 	{
-		updateWindowSize(videoOption);
+		// A render method change keeps the window as it is: resizing and
+		// repainting it here is what made the whole frame flash.  The first
+		// display of the session still has to create it, so that case is
+		// covered even when the caller asked for no resize.
+		if (resizeWindow || m_pMainWnd == NULL)
+			updateWindowSize(videoOption);
 
 		switch (renderMethod)
 		{
@@ -2011,6 +2110,16 @@ bool VBA::initDisplay()
 			input->checkKeys();
 
 			changingVideoSize = false;
+
+			// A window built during this call was sized while video changes
+			// were in progress, so OnSize skipped the layout: the picture
+			// area and the status bar would stay at their creation size.  A
+			// window that was kept can be stale the same way, since its
+			// WM_SIZE arrived while the display it belongs to was being
+			// replaced.  Laying out now covers both, and costs nothing when
+			// the geometry did not change.
+			if (m_pMainWnd != NULL)
+				((MainWnd *)m_pMainWnd)->layoutNow();
 		}
 		else
 		{
@@ -2036,7 +2145,7 @@ bool VBA::updateRenderMethod(bool force)
 	bool res = true;
 	if (force || (display && display->getType() != renderMethod))
 	{
-		res = initDisplay();
+		res = initDisplay(false);
 
 		while (!res && renderMethod > 0)
 		{
@@ -2048,8 +2157,10 @@ bool VBA::updateRenderMethod(bool force)
 			// either of them falls back to the renderer below them in one
 			// step.  The same goes for the WebGPU renderer, so that a
 			// setting left over from a build that had it does not send the
-			// loop around again and again.  DirectDraw and GDI are skipped
-			// the same way when their backends are not built.
+			// loop around again and again.  GDI and DirectDraw are skipped
+			// the same way when their backends are not built, and GDI comes
+			// first: it is the one that still starts where Direct3D does not,
+			// which is the whole point of the last step of the chain.
 			if (renderMethod == OPENGL33)
 			{
 #if VBA_ENABLE_OPENGL
@@ -2066,12 +2177,12 @@ bool VBA::updateRenderMethod(bool force)
 				renderMethod = DIRECT_3D;
 			else if (renderMethod == DIRECT_3D)
 			{
-#if VBA_ENABLE_DDRAW
-				renderMethod = DIRECT_DRAW;
-#elif VBA_ENABLE_GDI
+#if VBA_ENABLE_GDI
 				renderMethod = GDI;
+#elif VBA_ENABLE_DDRAW
+				renderMethod = DIRECT_DRAW;
 #else
-				// Neither DirectDraw nor GDI is built, so there is nothing
+				// Neither GDI nor DirectDraw is built, so there is nothing
 				// below Direct3D to try and the chain ends here.
 				winlog(_T("VBA: no renderer is left to try\n"));
 				break;
@@ -2092,7 +2203,7 @@ bool VBA::updateRenderMethod(bool force)
 
 			winlog(_T("VBA: render method %d did not start, trying %d\n"), failed, renderMethod);
 
-			res = initDisplay();
+			res = initDisplay(false);
 		}
 
 		// The upscalers are shaders, and which ones a backend runs is up to it:
@@ -2113,20 +2224,17 @@ bool VBA::updateRenderMethod(bool force)
 	updateIFB();
 	updateFilter();
 
-	m_pMainWnd->RedrawWindow(NULL, NULL, RDW_INVALIDATE | RDW_ERASE | RDW_ALLCHILDREN);
+	// Only the picture changes when the renderer does.  Repainting the main
+	// window as well was what made the menu area and the frame flash.
+	CWnd *pRedraw = winRenderWnd();
+	if (pRedraw != NULL)
+		pRedraw->RedrawWindow(NULL, NULL, RDW_INVALIDATE | RDW_ERASE);
+
+	updateStatusBar();
 
 	regSetDwordValue(_T("renderMethod"), renderMethod);
 
 	return res;
-}
-
-void VBA::winCheckFullscreen()
-{
-	if (isFullscreenOption(videoOption) && tripleBuffering)
-	{
-		if (display)
-			display->checkFullScreen();
-	}
 }
 
 void VBA::shutdownDisplay()
@@ -2408,7 +2516,18 @@ void VBA::loadSettings()
 	fsHeight = regQueryDwordValue(_T("fsHeight"), 0);
 	fsColorDepth	  = regQueryDwordValue(_T("fsColorDepth"), 0);
 	fsMaxScale		  = regQueryDwordValue(_T("fsMaxScale"), 0);
-	fullScreenStretch = regQueryDwordValue(_T("stretch"), 0) ? true : false;
+
+	// The three scaling modes replaced the full screen "ignore ratio"
+	// switch, which was a boolean and only applied to full screen.  A
+	// settings file written by an older build still has that key, and its
+	// two values are the two ends of the new setting; without either the
+	// picture keeps its aspect ratio.
+	const DWORD stretch = regQueryDwordValue(_T("stretch"), 0xFFFFFFFF);
+	screenScaling = (stretch == 0xFFFFFFFF || stretch == 0) ?
+	                    SCREEN_SCALING_ASPECT : SCREEN_SCALING_STRETCH;
+	screenScaling = regQueryDwordValue(_T("screenScaling"), screenScaling);
+	if (screenScaling < SCREEN_SCALING_STRETCH || screenScaling > SCREEN_SCALING_LAST)
+		screenScaling = SCREEN_SCALING_ASPECT;
 
 	renderMethod = (DISPLAY_TYPE)regQueryDwordValue(_T("renderMethod"), defaultMethod);
 	if (renderMethod < GDI || renderMethod > WGPU)
@@ -2426,7 +2545,6 @@ void VBA::loadSettings()
 
 	ddrawEmulationOnly	= regQueryDwordValue(_T("ddrawEmulationOnly"), false) ? true : false;
 	ddrawUseVideoMemory = regQueryDwordValue(_T("ddrawUseVideoMemory"), false) ? true : false;
-	tripleBuffering		= regQueryDwordValue(_T("tripleBuffering"), true) ? true : false;
 	vsync = regQueryDwordValue(_T("vsync"), false) ? true : false;
 
 	d3dFilter = regQueryDwordValue(_T("d3dFilter"), 0);
@@ -2629,6 +2747,7 @@ void VBA::loadSettings()
 	inputDisplay		 = regQueryDwordValue(_T("inputDisplay"), false) ? true : false;
 	nextInputDisplay	 = regQueryDwordValue(_T("nextInputDisplay"), false) ? true : false;
 	disableStatusMessage = regQueryDwordValue(_T("disableStatus"), 0) ? true : false;
+	statusBarHud			 = regQueryDwordValue(_T("statusBarHud"), 0) ? true : false;
 
 	// UI
 	windowPositionX = regQueryDwordValue(_T("windowX"), -32000);
@@ -2751,13 +2870,12 @@ void VBA::saveSettings()
 	regSetDwordValue(_T("fsColorDepth"), fsColorDepth);
 	regSetDwordValue(_T("fsMaxScale"), fsMaxScale);
 
-	regSetDwordValue(_T("stretch"), fullScreenStretch);
+	regSetDwordValue(_T("screenScaling"), screenScaling);
 
 	regSetDwordValue(_T("renderMethod"), renderMethod);
 
 	regSetDwordValue(_T("ddrawEmulationOnly"), ddrawEmulationOnly);
 	regSetDwordValue(_T("ddrawUseVideoMemory"), ddrawUseVideoMemory);
-	regSetDwordValue(_T("tripleBuffering"), tripleBuffering);
 	regSetDwordValue(_T("vsync"), vsync);
 
 	regSetDwordValue(_T("d3dFilter"), d3dFilter);
@@ -2862,6 +2980,7 @@ void VBA::saveSettings()
 	regSetDwordValue(_T("inputDisplay"), inputDisplay);
 	regSetDwordValue(_T("nextInputDisplay"), nextInputDisplay);
 	regSetDwordValue(_T("disableStatus"), disableStatusMessage);
+	regSetDwordValue(_T("statusBarHud"), statusBarHud);
 
 	// UI
 	regSetDwordValue(_T("windowX"), windowPositionX);

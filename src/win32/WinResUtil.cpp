@@ -106,6 +106,28 @@ CString winResLoadFilter(UINT id)
 	return res;
 }
 
+// The string as the executable carries it, which is English.  Used where a
+// translation must not be shown: the built-in 8x8 font of the "in game" and
+// "on game" text modes is a table of ASCII bitmaps and nothing else, so a
+// translated string would come out as the bytes of the code page.  The trace
+// log reads it too, so a log stays readable whatever language the UI is in.
+//
+// The status bar, the message box and the "on screen" text mode have a Windows
+// font that can draw anything, so they use winResLoadString and show the
+// translation.  Both renderings of a screen message are prepared together by
+// systemScreenMessageRes, which is what most callers want.
+CString winResLoadOsdString(UINT id)
+{
+	CString res;
+
+	// AfxGetInstanceHandle() is the executable; AfxGetResourceHandle() is the
+	// language module, once one is loaded.
+	if (!res.LoadString(AfxGetInstanceHandle(), id))
+		res = _T("");
+
+	return res;
+}
+
 CString winImageSaveDlg(CWnd *parent, const CString &initialName,
                         const CString &initialDir, const CString &title)
 {

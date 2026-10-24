@@ -787,14 +787,11 @@ public:
 	virtual bool initialize();
 	virtual void cleanup();
 	virtual void render();
-	virtual void checkFullScreen();
-	virtual void renderMenu();
 	virtual void clear();
 	virtual bool changeRenderSize(int w, int h);
 	virtual void resize(int w, int h);
 	virtual DISPLAY_TYPE getType() { return WGPU; };
 	virtual void setOption(const char *, int);
-	virtual int selectFullScreenMode(GUID * *);
 	// The upscalers this renderer has a WGSL port of, plus Off.  One whose
 	// WGSL did not compile on this device is left out, the way the other two
 	// renderers leave out theirs.
@@ -1805,11 +1802,11 @@ bool WgpuDisplay::initialize()
 		return false;
 	}
 
-	CWnd *pWnd = theApp.m_pMainWnd;
+	CWnd *pWnd = theApp.winRenderWnd();
 
 	if (pWnd == NULL || pWnd->GetSafeHwnd() == NULL)
 	{
-		winlog(_T("wgpu: no main window to draw into\n"));
+		winlog(_T("wgpu: no window to draw into\n"));
 		return false;
 	}
 
@@ -1817,9 +1814,6 @@ bool WgpuDisplay::initialize()
 	backWidth  = theApp.surfaceSizeX;
 	backHeight = theApp.surfaceSizeY;
 
-	theApp.mode320Available = false;
-	theApp.mode640Available = false;
-	theApp.mode800Available = false;
 
 	// Pick the emulator pixel format from the desktop mode, like the
 	// Direct3D backends do.
@@ -1934,17 +1928,6 @@ void WgpuDisplay::resize(int w, int h)
 	calculateVertices();
 }
 
-void WgpuDisplay::checkFullScreen()
-{
-}
-
-void WgpuDisplay::renderMenu()
-{
-	checkFullScreen();
-	if (theApp.m_pMainWnd)
-		theApp.m_pMainWnd->DrawMenuBar();
-}
-
 bool WgpuDisplay::calculateVertices()
 {
 	if (width <= 0 || height <= 0 || backWidth <= 0 || backHeight <= 0)
@@ -1993,20 +1976,6 @@ void WgpuDisplay::setOption(const char *option, int value)
 		else
 			winlog(_T("wgpu: upscaler %d picked, the chain is built with the next frame\n"), value);
 	}
-}
-
-int WgpuDisplay::selectFullScreenMode(GUID * *)
-{
-	HWND wnd = GetDesktopWindow();
-	RECT r;
-	GetWindowRect(wnd, &r);
-	int w  = (r.right - r.left) & 4095;
-	int h  = (r.bottom - r.top) & 4095;
-	HDC dc = GetDC(wnd);
-	int c  = GetDeviceCaps(dc, BITSPIXEL);
-	ReleaseDC(wnd, dc);
-
-	return (c << 24) | (w << 12) | h;
 }
 
 // Writes the frame the core side made into the texture the quad samples: the

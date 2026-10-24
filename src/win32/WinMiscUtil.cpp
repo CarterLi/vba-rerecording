@@ -72,6 +72,25 @@ extern const TCHAR *IDS_def_tbl[] = {
 // these could be made VBA members, but  the VBA class is already oversized too much
 //
 
+// The mode "Other Full Screen..." picks.  There is no display mode to change
+// to: every renderer draws into a borderless window the size of the monitor,
+// so the desktop's own resolution is the only one there is.
+int displayDesktopMode()
+{
+	RECT desktop;
+	GetWindowRect(GetDesktopWindow(), &desktop);
+
+	HDC dc = GetDC(NULL);
+	int depth = dc != NULL ? GetDeviceCaps(dc, BITSPIXEL) : 32;
+	if (dc != NULL)
+		ReleaseDC(NULL, dc);
+
+	const int width  = (desktop.right - desktop.left) & 4095;
+	const int height = (desktop.bottom - desktop.top) & 4095;
+
+	return (depth << 24) | (width << 12) | height;
+}
+
 bool winFileExists(const CString &filename)
 {
 	FILE *f = _wfopen(filename, L"rb");
@@ -369,7 +388,7 @@ int winScreenCapture(int captureNumber)
 	if (!winWriteScreenshotFile(captureName))
 		return captureNumber;
 
-	systemScreenMessage(winAnsiFromWide(winResLoadString(IDS_SCREEN_CAPTURE)));
+	systemScreenMessageRes(IDS_SCREEN_CAPTURE);
 
 	return captureNumber;
 }
@@ -447,7 +466,7 @@ void winLoadCheatList(LPCTSTR name)
 		res = gbCheatsLoadCheatList(winAnsiFromWide(name));
 
 	if (res)
-		systemScreenMessage(winAnsiFromWide(winResLoadString(IDS_LOADED_CHEATS)));
+		systemScreenMessageRes(IDS_LOADED_CHEATS);
 }
 
 void winSaveCheatList(LPCTSTR name)
@@ -482,7 +501,7 @@ bool winReadBatteryFile()
 		res = theApp.emulator.emuReadBattery(winAnsiFromWide(batteryName));
 
 	if (res)
-		systemScreenMessage(winAnsiFromWide(winResLoadString(IDS_LOADED_BATTERY)));
+		systemScreenMessageRes(IDS_LOADED_BATTERY);
 
 	return res;
 }

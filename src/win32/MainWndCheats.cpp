@@ -19,7 +19,6 @@ GBCheatSearch  gbDlg;
 
 void MainWnd::OnCheatsSearchforcheats()
 {
-	theApp.winCheckFullscreen();
 
 	if (theApp.modelessCheatDialogIsOpen)
 	{
@@ -67,7 +66,6 @@ void MainWnd::OnUpdateCheatsSearchforcheats(CCmdUI*pCmdUI)
 
 void MainWnd::OnCheatsCheatlist()
 {
-	theApp.winCheckFullscreen();
 	if (systemCartridgeType == IMAGE_GBA)
 	{
 		GBACheatList dlg;
@@ -107,7 +105,6 @@ void MainWnd::OnUpdateCheatsPauseDuringCheatSearch(CCmdUI*pCmdUI)
 
 void MainWnd::OnCheatsLoadcheatlist()
 {
-	theApp.winCheckFullscreen();
 
 	LPCTSTR exts[] = { _T(".clt"), NULL };
 	CString filter = winResLoadFilter(IDS_FILTER_CHEAT_LIST);
@@ -131,7 +128,6 @@ void MainWnd::OnUpdateCheatsLoadcheatlist(CCmdUI*pCmdUI)
 
 void MainWnd::OnCheatsSavecheatlist()
 {
-	theApp.winCheckFullscreen();
 
 	LPCTSTR exts[] = { _T(".clt"), NULL };
 	CString filter = winResLoadFilter(IDS_FILTER_CHEAT_LIST);

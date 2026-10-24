@@ -526,6 +526,10 @@ void systemRenderFrame()
 	VBAUpdateFrameCountDisplay();
 	VBAUpdateButtonPressDisplay();
 
+	// The status bar is the only place the counters and messages show while it
+	// is enabled, and this is its refresh clock.
+	theApp.updateStatusBar();
+
 	// avi dump
 	int copyX, copyY;
 	systemGetLCDResolution(copyX, copyY);
@@ -585,7 +589,6 @@ int systemScreenCapture(int captureNumber)
 
 static void winShowSystemMessage(const CString &text)
 {
-	theApp.winCheckFullscreen();
 	systemSoundClearBuffer();
 	AfxGetApp()->m_pMainWnd->MessageBox(text, winResLoadString(IDS_ERROR), MB_OK | MB_ICONERROR);
 }
@@ -631,23 +634,76 @@ void systemMessage(int number, const char *defaultMsg, ...)
 	winShowSystemMessage(message);
 }
 
-void systemScreenMessage(const char *msg, int slot, int duration, const char *colorList)
+// The single place a message is stored, in both of its renderings.  See the
+// comment on the buffers in VBA.h for why there are two.
+static void storeScreenMessage(int slot, int duration, const char *colorList,
+                               const CString &asciiText, const CString &localizedText)
 {
-	if (slot < 0 || slot > SCREEN_MESSAGE_SLOTS)
+	if (slot < 0 || slot >= SCREEN_MESSAGE_SLOTS)
 		return;
 
 	theApp.screenMessage[slot] = true;
 	theApp.screenMessageTime[slot]		  = GetTickCount();
 	theApp.screenMessageDuration[slot]	  = duration;
-	theApp.screenMessageBuffer[slot]	  = winWideFromAnsi(msg);
+	theApp.screenMessageBuffer[slot]	  = localizedText;
+	theApp.screenMessageAsciiBuffer[slot] = asciiText;
 	theApp.screenMessageColorBuffer[slot] = winWideFromAnsi(colorList);
 
+	// 40 characters is what a row of the picture has room for.  The status
+	// bar ellipsises on its own, but it reads the same buffer.
 	if (theApp.screenMessageBuffer[slot].GetLength() > 40)
 		theApp.screenMessageBuffer[slot] = theApp.screenMessageBuffer[slot].Left(40);
+	if (theApp.screenMessageAsciiBuffer[slot].GetLength() > 40)
+		theApp.screenMessageAsciiBuffer[slot] = theApp.screenMessageAsciiBuffer[slot].Left(40);
 
 	// update the display when a main slot message appears while the game is paused
 	if (slot == 0 && (theApp.paused || (theApp.frameSearching)))
 		systemRefreshScreen();
+
+	// A paused status bar has no frame to wait for either.
+	theApp.updateStatusBar();
+}
+
+void systemScreenMessage(const char *msg, int slot, int duration, const char *colorList)
+{
+	// Text the emulation core assembled itself: there is no translation for
+	// it, so both renderings are the same string.
+	const CString text = winWideFromAnsi(msg);
+
+	storeScreenMessage(slot, duration, colorList, text, text);
+}
+
+// A message whose text lives in the string table.  It is resolved twice: the
+// executable's copy is English and goes to the two modes that draw the frame
+// with the built-in ASCII font, the language module's copy goes to "on screen"
+// and to the status bar.
+//
+// The arguments are formatted twice, once per string.  They have to match the
+// specifiers of both, which is the same requirement a translation of anything
+// else in the tree has to meet.
+void systemScreenMessageRes(UINT id, ...)
+{
+	const CString ascii	  = winResLoadOsdString(id);
+	const CString localized = winResLoadString(id);
+
+	// A string the translation left out falls back to the English one, and a
+	// missing executable string - which should not happen - to the other.
+	const CString &asciiFormat	  = ascii.IsEmpty() ? localized : ascii;
+	const CString &localizedFormat = localized.IsEmpty() ? ascii : localized;
+
+	va_list args;
+	va_start(args, id);
+	va_list copy;
+	va_copy(copy, args);
+
+	CString asciiText, localizedText;
+	asciiText.FormatV(asciiFormat, args);
+	va_end(args);
+
+	localizedText.FormatV(localizedFormat, copy);
+	va_end(copy);
+
+	storeScreenMessage(0, 3000, NULL, asciiText, localizedText);
 }
 
 void systemShowSpeed(int speed)

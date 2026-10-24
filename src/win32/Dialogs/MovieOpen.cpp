@@ -101,7 +101,6 @@ static bool shouldReopenBrowse = false;
 
 void MovieOpen::OnBnClickedBrowse()
 {
-	theApp.winCheckFullscreen();    // FIXME: necessary or not?
 
 	LPCTSTR exts[] = { _T(".vbm"), NULL };
 

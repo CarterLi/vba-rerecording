@@ -39,6 +39,8 @@
 
 #define VBA_CONFIRM_MODE WM_APP + 100
 
+extern int systemSpeed;
+
 /////////////////////////////////////////////////////////////////////////////
 // MainWnd
 
@@ -46,6 +48,9 @@ MainWnd::MainWnd()
 {
 	m_hAccelTable = NULL;
 	arrow		  = LoadCursor(NULL, IDC_ARROW);
+	m_statusBarReady = false;
+	m_statusBarHeight = 0;
+	m_statusBarLayoutKey = -1;
 
 	InitDecoder();
 }
@@ -55,8 +60,206 @@ MainWnd::~MainWnd()
 	CleanupDecoder();
 }
 
+/////////////////////////////////////////////////////////////////////////////
+// RenderWnd
+
+RenderWnd::RenderWnd()
+{
+}
+
+BEGIN_MESSAGE_MAP(RenderWnd, CWnd)
+	ON_WM_PAINT()
+	ON_WM_ERASEBKGND()
+	ON_WM_MOUSEMOVE()
+	ON_WM_CONTEXTMENU()
+	ON_WM_DROPFILES()
+END_MESSAGE_MAP()
+
+void RenderWnd::OnPaint()
+{
+	CPaintDC dc(this);
+
+	if (emulating && (!theApp.active || theApp.paused))
+	{
+		systemRedrawScreen();
+	}
+	else if (!emulating && theApp.display)
+	{
+		theApp.display->clear();
+	}
+	else
+	{
+		// The child covers the main window's client area, so it owns the
+		// black background the main window used to paint.
+		CRect rc;
+		GetClientRect(&rc);
+		dc.FillSolidRect(&rc, RGB(0, 0, 0));
+	}
+}
+
+BOOL RenderWnd::OnEraseBkgnd(CDC *pDC)
+{
+	CRect rc;
+	GetClientRect(&rc);
+	pDC->FillSolidRect(&rc, RGB(0, 0, 0));
+	return TRUE;
+}
+
+void RenderWnd::OnMouseMove(UINT nFlags, CPoint point)
+{
+	// The main window owns the arrow and the fullscreen mouse counter; a
+	// child has no separate cursor of its own.
+	MainWnd *main = (MainWnd *)GetParent();
+	if (main != NULL)
+		main->winMouseOn();
+
+	CWnd::OnMouseMove(nFlags, point);
+}
+
+void RenderWnd::OnContextMenu(CWnd *pWnd, CPoint point)
+{
+	MainWnd *main = (MainWnd *)GetParent();
+	if (main != NULL)
+		main->winMouseOn();
+}
+
+void RenderWnd::OnDropFiles(HDROP hDropInfo)
+{
+	// The main window owns the drop handling; the picture child is the part
+	// of it a file is normally dropped on.
+	CWnd *main = GetParent();
+	if (main != NULL)
+		main->SendMessage(WM_DROPFILES, (WPARAM)hDropInfo, 0);
+	else
+		DragFinish(hDropInfo);
+}
+
+/////////////////////////////////////////////////////////////////////////////
+// HudStatusBar
+
+HudStatusBar::HudStatusBar()
+{
+}
+
+BEGIN_MESSAGE_MAP(HudStatusBar, CStatusBarCtrl)
+	ON_WM_PAINT()
+	ON_WM_ERASEBKGND()
+	ON_MESSAGE(WM_PRINTCLIENT, OnPrintClient)
+END_MESSAGE_MAP()
+
+void HudStatusBar::setText(int part, const CString &text)
+{
+	if (part < 0 || part > 2)
+		return;
+
+	if (!darkMode::enabled())
+	{
+		CStatusBarCtrl::SetText(text, part, 0);
+		return;
+	}
+
+	if (m_text[part] == text)
+		return;
+
+	m_text[part] = text;
+	Invalidate(FALSE);
+}
+
+void HudStatusBar::setPartEdges(const int edges[3])
+{
+	CRect rc;
+	GetClientRect(&rc);
+
+	m_part[0] = CRect(0, rc.top, edges[0], rc.bottom);
+	m_part[1] = CRect(edges[0], rc.top, edges[1], rc.bottom);
+	m_part[2] = CRect(edges[1], rc.top, rc.right, rc.bottom);
+
+	// The parts moved, so the text has to be drawn again at its new place.
+	if (darkMode::enabled())
+		Invalidate(FALSE);
+}
+
+void HudStatusBar::paint(CDC &dc)
+{
+	CRect rc;
+	GetClientRect(&rc);
+
+	// Filling the whole control is what removes the native separators and
+	// edges: the parts drawn by the control are inset, so anything they leave
+	// unpainted would otherwise show the light theme underneath.
+	dc.FillSolidRect(&rc, darkMode::panelColor());
+
+	CFont *font = GetFont();
+	CFont *oldFont = font != NULL ? dc.SelectObject(font) : NULL;
+
+	dc.SetBkMode(TRANSPARENT);
+	dc.SetTextColor(darkMode::panelTextColor());
+
+	for (int part = 0; part < 3; part++)
+	{
+		if (m_text[part].IsEmpty())
+			continue;
+
+		CRect textRc(m_part[part]);
+		textRc.left += 6;
+		textRc.right -= 4;
+
+		if (textRc.right <= textRc.left)
+			continue;
+
+		// The speed sits at the right edge, as it does in the title bar; the
+		// counters and the messages read from the left.
+		const UINT format = part == 2
+			? DT_RIGHT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS | DT_NOPREFIX
+			: DT_LEFT | DT_VCENTER | DT_SINGLELINE | DT_END_ELLIPSIS | DT_NOPREFIX;
+
+		dc.DrawText(m_text[part], &textRc, format);
+	}
+
+	if (oldFont != NULL)
+		dc.SelectObject(oldFont);
+}
+
+void HudStatusBar::OnPaint()
+{
+	if (!darkMode::enabled())
+	{
+		CStatusBarCtrl::OnPaint();
+		return;
+	}
+
+	CPaintDC dc(this);
+	paint(dc);
+}
+
+BOOL HudStatusBar::OnEraseBkgnd(CDC *pDC)
+{
+	if (!darkMode::enabled())
+		return CStatusBarCtrl::OnEraseBkgnd(pDC);
+
+	// OnPaint() fills the bar as well; this only keeps the area from flashing
+	// the light background between the erase and the paint.
+	CRect rc;
+	GetClientRect(&rc);
+	pDC->FillSolidRect(&rc, darkMode::panelColor());
+	return TRUE;
+}
+
+LRESULT HudStatusBar::OnPrintClient(WPARAM wParam, LPARAM)
+{
+	if (!darkMode::enabled())
+		return Default();
+
+	CDC dc;
+	dc.Attach((HDC)wParam);
+	paint(dc);
+	dc.Detach();
+	return 0;
+}
+
 BEGIN_MESSAGE_MAP(MainWnd, CWnd)
 //{{AFX_MSG_MAP(MainWnd)
+ON_WM_CREATE()
 ON_WM_MOVE()
 ON_WM_SIZE()
 ON_WM_CLOSE()
@@ -175,8 +378,8 @@ ON_COMMAND(ID_OPTIONS_VIDEO_FULLSCREEN, OnOptionsVideoFullscreen)
 ON_UPDATE_COMMAND_UI(ID_OPTIONS_VIDEO_FULLSCREEN, OnUpdateOptionsVideoFullscreen)
 ON_COMMAND(ID_OPTIONS_VIDEO_DISABLESFX, OnOptionsVideoDisablesfx)
 ON_UPDATE_COMMAND_UI(ID_OPTIONS_VIDEO_DISABLESFX, OnUpdateOptionsVideoDisablesfx)
-ON_COMMAND(ID_OPTIONS_VIDEO_FULLSCREENSTRETCHTOFIT, OnOptionsVideoFullscreenstretchtofit)
-ON_UPDATE_COMMAND_UI(ID_OPTIONS_VIDEO_FULLSCREENSTRETCHTOFIT, OnUpdateOptionsVideoFullscreenstretchtofit)
+ON_COMMAND_RANGE(ID_OPTIONS_VIDEO_SCALING_STRETCH, ID_OPTIONS_VIDEO_SCALING_INTEGER, OnOptionsVideoScreenScaling)
+ON_UPDATE_COMMAND_UI_RANGE(ID_OPTIONS_VIDEO_SCALING_STRETCH, ID_OPTIONS_VIDEO_SCALING_INTEGER, OnUpdateOptionsVideoScreenScaling)
 #if VBA_ENABLE_GDI
 ON_COMMAND(ID_OPTIONS_VIDEO_RENDERMETHOD_GDI, OnOptionsVideoRendermethodGdi)
 ON_UPDATE_COMMAND_UI(ID_OPTIONS_VIDEO_RENDERMETHOD_GDI, OnUpdateOptionsVideoRendermethodGdi)
@@ -202,8 +405,6 @@ ON_COMMAND_RANGE(ID_OPTIONS_VIDEO_WGPUBACKEND_AUTO, ID_OPTIONS_VIDEO_WGPUBACKEND
 ON_UPDATE_COMMAND_UI_RANGE(ID_OPTIONS_VIDEO_WGPUBACKEND_AUTO, ID_OPTIONS_VIDEO_WGPUBACKEND_OPENGL, OnUpdateOptionsVideoWgpubackend)
 #endif
 #if VBA_ENABLE_DDRAW
-ON_COMMAND(ID_OPTIONS_VIDEO_TRIPLEBUFFERING, OnOptionsVideoTriplebuffering)
-ON_UPDATE_COMMAND_UI(ID_OPTIONS_VIDEO_TRIPLEBUFFERING, OnUpdateOptionsVideoTriplebuffering)
 ON_COMMAND(ID_OPTIONS_VIDEO_DDRAWEMULATIONONLY, OnOptionsVideoDdrawemulationonly)
 ON_UPDATE_COMMAND_UI(ID_OPTIONS_VIDEO_DDRAWEMULATIONONLY, OnUpdateOptionsVideoDdrawemulationonly)
 ON_COMMAND(ID_OPTIONS_VIDEO_DDRAWUSEVIDEOMEMORY, OnOptionsVideoDdrawusevideomemory)
@@ -614,6 +815,8 @@ ON_MESSAGE(VBA_CONFIRM_MODE, OnConfirmMode)
 ON_MESSAGE(WM_SYSCOMMAND, OnMySysCommand)
 ON_COMMAND(ID_OPTIONS_VIDEO_TEXTDISPLAYOPTIONS, OnOptionsVideoTextdisplayoptions)
 ON_UPDATE_COMMAND_UI(ID_OPTIONS_VIDEO_TEXTDISPLAYOPTIONS, OnUpdateOptionsVideoTextdisplayoptions)
+ON_COMMAND(ID_TOOLS_STATUSBAR, OnToolsStatusbar)
+ON_UPDATE_COMMAND_UI(ID_TOOLS_STATUSBAR, OnUpdateToolsStatusbar)
 
 ON_COMMAND(ID_FILE_LUA_OPEN, OnFileLuaOpen)
 ON_UPDATE_COMMAND_UI(ID_FILE_LUA_OPEN, OnUpdateFileLuaOpen)
@@ -631,6 +834,407 @@ END_MESSAGE_MAP()
 
 /////////////////////////////////////////////////////////////////////////////
 // MainWnd message handlers
+
+int winStatusBarHeight()
+{
+	// The status bar has one line of the system UI font and a small border
+	// above and below it.  Measuring the font instead of asking the control
+	// keeps the height the same before the control exists, which is what
+	// updateWindowSize() needs.
+	HFONT font = uiFont::message();
+	int   textHeight = 0;
+
+	HDC dc = ::GetDC(NULL);
+	if (dc != NULL)
+	{
+		HGDIOBJ old = ::SelectObject(dc, font);
+		TEXTMETRIC tm;
+		if (::GetTextMetrics(dc, &tm))
+			textHeight = tm.tmHeight;
+		::SelectObject(dc, old);
+		::ReleaseDC(NULL, dc);
+	}
+
+	if (textHeight <= 0)
+		textHeight = 15;
+
+	// The status bar common control adds its own edge and border to the font
+	// height, and both grow with the DPI.  A fixed allowance is what made the
+	// bar a few pixels taller than the window had reserved for it.
+	int borderHeight = ::GetSystemMetrics(SM_CYEDGE) * 2 +
+	                   ::GetSystemMetrics(SM_CYBORDER) * 2;
+	if (borderHeight < 1)
+		borderHeight = 6;
+
+	return textHeight + borderHeight;
+}
+
+int MainWnd::OnCreate(LPCREATESTRUCT lpCreateStruct)
+{
+	if (CWnd::OnCreate(lpCreateStruct) == -1)
+		return -1;
+
+	m_statusBarReady = false;
+
+	// The picture area is a child of the main window so that the status bar
+	// can be its sibling and the main window can grow without stretching the
+	// emulated frame.
+	LPCTSTR renderClass = AfxRegisterWndClass(CS_HREDRAW | CS_VREDRAW,
+	                                          LoadCursor(NULL, IDC_ARROW),
+	                                          (HBRUSH)GetStockObject(BLACK_BRUSH),
+	                                          NULL);
+
+	if (!m_renderWnd.CreateEx(0, renderClass, _T(""),
+	                          WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | WS_CLIPCHILDREN,
+	                          CRect(0, 0, 1, 1), this, IDC_RENDER_WND))
+		return -1;
+
+	m_renderWnd.DragAcceptFiles(TRUE);
+
+	if (!m_statusBar.Create(WS_CHILD | WS_CLIPSIBLINGS | CCS_BOTTOM,
+	                        CRect(0, 0, 1, 1), this, IDC_STATUS_BAR))
+		return -1;
+
+	m_statusBarReady = true;
+	m_statusBar.SendMessage(WM_SETFONT, (WPARAM)uiFont::message(), TRUE);
+
+	// Give the bar a height and let it settle: the control grows itself to
+	// fit the font, and that final height is the one the window has to
+	// reserve, or the bar would cover the last few rows of the picture.
+	m_statusBar.SetWindowPos(NULL, 0, 0, 100, winStatusBarHeight(),
+	                         SWP_NOZORDER | SWP_NOACTIVATE);
+	CRect barRect;
+	m_statusBar.GetWindowRect(&barRect);
+	if (barRect.Height() > 0)
+		m_statusBarHeight = barRect.Height();
+
+	// Files can also be dropped on the menu bar area of the main window.
+	DragAcceptFiles(TRUE);
+
+	return 0;
+}
+
+int MainWnd::statusBarVisible() const
+{
+	return theApp.statusBarHud && !isFullscreenOption(theApp.videoOption) ? 1 : 0;
+}
+
+int MainWnd::statusBarHeight() const
+{
+	return m_statusBarHeight > 0 ? m_statusBarHeight : winStatusBarHeight();
+}
+
+void MainWnd::layoutNow()
+{
+	CRect client;
+	GetClientRect(&client);
+	layoutRenderArea(client.Width(), client.Height());
+}
+
+void MainWnd::updateStatusBar()
+{
+	if (!m_statusBarReady || !statusBarVisible())
+		return;
+
+	// An input display that was just turned on or off, or a change of the
+	// speed verbosity, changes the width the other parts take, so the parts
+	// are rebuilt when that happens.
+	const int layoutKey = ((theApp.inputDisplay || theApp.nextInputDisplay) ? 1 : 0)
+	                    | (theApp.showSpeed << 1);
+	if (m_statusBarLayoutKey != layoutKey)
+	{
+		CRect client;
+		GetClientRect(&client);
+		layoutStatusBarParts(client.Width());
+	}
+
+	// Timed messages are normally removed by the HUD drawing paths, which do
+	// not run while the status bar owns the display.
+	const DWORD now = GetTickCount();
+	for (int slot = 0; slot < SCREEN_MESSAGE_SLOTS; slot++)
+	{
+		if (theApp.screenMessage[slot] &&
+		    theApp.screenMessageDuration[slot] >= 0 &&
+		    (int)(now - theApp.screenMessageTime[slot]) >= theApp.screenMessageDuration[slot])
+			theApp.screenMessage[slot] = false;
+	}
+
+	// Left part: the counters and any status message.  Slot 1 is the frame
+	// counter; the other non-input slots are the transient messages.
+	CString left;
+	if (theApp.screenMessage[1])
+		left = theApp.screenMessageBuffer[1];
+
+	if (!theApp.disableStatusMessage)
+	{
+		for (int slot = 0; slot < SCREEN_MESSAGE_SLOTS; slot++)
+		{
+			if (slot == 1 || slot == 2 || slot == 3)
+				continue;
+			if (!theApp.screenMessage[slot])
+				continue;
+
+			CString text = theApp.screenMessageBuffer[slot];
+			text.Trim();
+			if (text.IsEmpty())
+				continue;
+
+			if (!left.IsEmpty())
+				left += _T("  |  ");
+			left += text;
+		}
+	}
+
+	// Middle part: current input, then the next frame's input.
+	CString input;
+	if (theApp.inputDisplay && theApp.screenMessage[2])
+	{
+		input = theApp.screenMessageBuffer[2];
+		input.Trim();
+	}
+	if (theApp.nextInputDisplay && theApp.screenMessage[3])
+	{
+		CString next = theApp.screenMessageBuffer[3];
+		next.Trim();
+		if (!next.IsEmpty())
+		{
+			if (!input.IsEmpty())
+				input += _T("  >  ");
+			input += next;
+		}
+	}
+
+	// Right part: the same speed text the windowed title used to carry.
+	CString speed;
+	if (theApp.showSpeed == 1)
+		speed.Format(_T("%3d%%"), systemSpeed);
+	else if (theApp.showSpeed >= 2)
+		speed.Format(_T("%3d%% (%d fps | %d skipped)"),
+		             systemSpeed,
+		             theApp.showRenderedFrames,
+		             systemFrameSkip);
+
+	if (left != m_statusBarLeft)
+	{
+		m_statusBarLeft = left;
+		setStatusBarText(0, left);
+	}
+	if (input != m_statusBarInput)
+	{
+		m_statusBarInput = input;
+		setStatusBarText(1, input);
+	}
+	if (speed != m_statusBarSpeed)
+	{
+		m_statusBarSpeed = speed;
+		setStatusBarText(2, speed);
+	}
+}
+
+void MainWnd::setStatusBarText(int part, const CString &text)
+{
+	m_statusBar.setText(part, text);
+}
+
+void MainWnd::layoutStatusBarParts(int width)
+{
+	if (!m_statusBarReady)
+		return;
+
+	HDC dc = ::GetDC(m_statusBar.GetSafeHwnd());
+	if (dc == NULL)
+		return;
+
+	HGDIOBJ old = ::SelectObject(dc, uiFont::message());
+
+	// The samples are the longest text each part normally carries.  The speed
+	// depends on the verbosity, though: at the default one it is "%3d%%", not
+	// the detailed form, and reserving the detailed width for it is what left
+	// the counters and the messages so little room that a third digit in the
+	// frame counter pushed a character out.
+	const TCHAR inputSample[] = _T("A B s S> <^ vRL !?{}v^     A B s S> <^ vRL !?{}v^");
+	const TCHAR shortSpeedSample[] = _T("100%");
+	const TCHAR detailedSpeedSample[] = _T("100% (60 fps | 60 skipped)");
+
+	const TCHAR *speedSample = NULL;
+	if (theApp.showSpeed == 1)
+		speedSample = shortSpeedSample;
+	else if (theApp.showSpeed >= 2)
+		speedSample = detailedSpeedSample;
+
+	SIZE inputSize, speedSize;
+	::GetTextExtentPoint32(dc, inputSample, (int)_tcslen(inputSample), &inputSize);
+	speedSize.cx = 0;
+	speedSize.cy = 0;
+	if (speedSample != NULL)
+		::GetTextExtentPoint32(dc, speedSample, (int)_tcslen(speedSample), &speedSize);
+
+	::SelectObject(dc, old);
+	::ReleaseDC(m_statusBar.GetSafeHwnd(), dc);
+
+	const int border = ::GetSystemMetrics(SM_CXBORDER) * 4 + 8;
+	int inputWidth = inputSize.cx + border;
+	int speedWidth = speedSample != NULL ? speedSize.cx + border : 0;
+
+	// The middle part shows the input, so it only earns its width while one of
+	// the input displays is on.  Reserving half the bar for an empty part is
+	// what ellipsised the counters and the messages away in a narrow window.
+	const bool inputReserved = theApp.inputDisplay || theApp.nextInputDisplay;
+
+	// Everything besides the bar's own width that the parts depend on, so
+	// updateStatusBar() can tell when they have to be worked out again.
+	m_statusBarLayoutKey = (inputReserved ? 1 : 0) | (theApp.showSpeed << 1);
+
+	if (!inputReserved)
+		inputWidth = 0;
+
+	if (inputWidth > width / 2)
+		inputWidth = width / 2;
+	if (speedWidth > width / 3)
+		speedWidth = width / 3;
+
+	int leftWidth = width - inputWidth - speedWidth;
+	if (leftWidth < 0)
+		leftWidth = 0;
+
+	int parts[3];
+	parts[0] = leftWidth;
+	parts[1] = leftWidth + inputWidth;
+	parts[2] = -1;
+
+	m_statusBar.SetParts(3, parts);
+
+	// The dark bar paints the parts itself; the light one keeps the native
+	// text, which SetParts has just cleared, so make updateStatusBar() fill it
+	// in again.
+	const int edges[3] = { parts[0], parts[1], width };
+	m_statusBar.setPartEdges(edges);
+	if (!darkMode::enabled())
+	{
+		m_statusBarLeft.Empty();
+		m_statusBarInput.Empty();
+		m_statusBarSpeed.Empty();
+	}
+}
+
+void MainWnd::layoutRenderArea(int cx, int cy)
+{
+	if (!m_renderWnd.GetSafeHwnd())
+		return;
+
+	const bool fullscreen = isFullscreenOption(theApp.videoOption) != 0;
+	const bool status	  = statusBarVisible() != 0;
+	const int  statusHeight = status ? statusBarHeight() : 0;
+
+	// The area the picture may use, in client coordinates.  The picture is
+	// the child window, so whatever the scaling mode leaves of this area
+	// unused is the black background of this window: that is the letterbox,
+	// and it is why the bars cost nothing to draw.
+	CRect area(0, 0, cx, cy - statusHeight);
+
+	if (fullscreen)
+	{
+		// A full screen window is as large as the monitor, but a menu bar
+		// at the top of it pushes the client area down by its height, so
+		// the bottom of the client sits below the screen.  Clipping the
+		// client area to the monitor is what keeps the picture inside the
+		// part of the screen the user can actually see; centring it in the
+		// unclipped client area is what used to move it down and cut the
+		// bottom of it off.
+		MONITORINFO info;
+		info.cbSize		= sizeof(info);
+		HMONITOR monitor = ::MonitorFromWindow(GetSafeHwnd(), MONITOR_DEFAULTTONEAREST);
+
+		if (monitor != NULL && ::GetMonitorInfo(monitor, &info))
+		{
+			POINT origin = { 0, 0 };
+			ClientToScreen(&origin);
+
+			CRect onScreen(origin.x, origin.y, origin.x + cx, origin.y + area.bottom);
+			CRect visible;
+
+			// A window that is not on the monitor at all leaves the area as
+			// it was, rather than an empty rectangle the fit cannot use.
+			if (visible.IntersectRect(&onScreen, &info.rcMonitor))
+			{
+				area.SetRect(visible.left - origin.x, visible.top - origin.y,
+				             visible.right - origin.x, visible.bottom - origin.y);
+			}
+		}
+	}
+
+	if (area.right < 1)
+		area.right = 1;
+	if (area.bottom < 1)
+		area.bottom = 1;
+
+	theApp.fitSurfaceTo(area.Width(), area.Height(), fullscreen);
+
+	const int width	 = theApp.surfaceSizeX;
+	const int height = theApp.surfaceSizeY;
+	const int x		 = area.left + (area.Width() - width) / 2;
+	const int y		 = area.top + (area.Height() - height) / 2;
+
+	CRect target(x, y, x + width, y + height);
+
+	// Compared in screen coordinates, since that is what the window manager
+	// gives back.  Every move of the child makes this window repaint the
+	// area it uncovers, and this runs on every WM_SIZE.
+	CRect current;
+	m_renderWnd.GetWindowRect(&current);
+
+	CRect targetOnScreen(target);
+	ClientToScreen(&targetOnScreen);
+
+	const bool changed = current != targetOnScreen;
+
+	if (changed)
+	{
+		m_renderWnd.SetWindowPos(NULL, target.left, target.top, width, height,
+		                         SWP_NOZORDER | SWP_NOACTIVATE);
+	}
+
+	// The child is the picture in both modes now.  Full screen used to draw
+	// into this window, which is why it stayed hidden there.
+	m_renderWnd.ShowWindow(SW_SHOW);
+
+	if (m_statusBarReady)
+	{
+		if (status)
+		{
+			m_statusBar.SetWindowPos(NULL, 0, area.bottom, cx, statusHeight,
+			                         SWP_NOZORDER | SWP_NOACTIVATE);
+			layoutStatusBarParts(cx);
+			m_statusBar.ShowWindow(SW_SHOW);
+		}
+		else
+		{
+			m_statusBar.ShowWindow(SW_HIDE);
+		}
+	}
+
+	if (changed)
+	{
+		theApp.adjustDestRect();
+
+		// A display that is being replaced has already been shut down, so
+		// only the one that is running is resized.
+		if (!theApp.changingVideoSize && theApp.display)
+		{
+			theApp.display->resize(width, height);
+		}
+	}
+
+	if (changed)
+	{
+		// The strip around the picture belongs to this window and nothing
+		// else paints it, and the class has no CS_HREDRAW that would.  The
+		// child is left alone: it repaints itself, or the display does.
+		RedrawWindow(NULL, NULL, RDW_INVALIDATE | RDW_ERASE);
+	}
+
+	updateStatusBar();
+}
 
 bool vbaShuttingDown = false;
 
@@ -697,15 +1301,9 @@ void MainWnd::OnSize(UINT nType, int cx, int cy)
 	{
 		if (this)
 		{
+			layoutRenderArea(cx, cy);
 			if (!isFullscreenOption(theApp.videoOption))
-			{
-				theApp.surfaceSizeX = cx;
-				theApp.surfaceSizeY = cy;
-				theApp.adjustDestRect();
-				if (theApp.display)
-					theApp.display->resize(theApp.dest.right - theApp.dest.left, theApp.dest.bottom - theApp.dest.top);
 				systemRefreshScreen();  // useful when shrinking
-			}
 		}
 	}
 }
@@ -1118,15 +1716,6 @@ void MainWnd::OnActivateApp(BOOL bActive, DWORD hTask)
 #endif
 {
 	CWnd::OnActivateApp(bActive, hTask);
-
-	if (theApp.tripleBuffering && isFullscreenOption(theApp.videoOption))
-	{
-		if (bActive)
-		{
-			if (theApp.display)
-				theApp.display->clear();
-		}
-	}
 }
 
 LRESULT MainWnd::OnMySysCommand(WPARAM wParam, LPARAM lParam)
@@ -1158,7 +1747,6 @@ void MainWnd::OnDropFiles(HDROP hDropInfo)
 		{
 			if (!emulating)
 			{
-				theApp.winCheckFullscreen();
 
 				// FIXME: should give the user choices
 				int cartType = 0;
@@ -1197,7 +1785,6 @@ void MainWnd::OnDropFiles(HDROP hDropInfo)
 			int cartType = movieInfo.header.typeFlags & 1 ? 0 : 1;
 			if (!emulating)
 			{
-				theApp.winCheckFullscreen();
 
 				if (winFileOpenSelect(cartType))
 				{
@@ -1293,7 +1880,6 @@ void MainWnd::OnDropFiles(HDROP hDropInfo)
 				case IDABORT:
 					return;
 				case IDRETRY:
-					theApp.winCheckFullscreen();
 					if (winFileOpenSelect(cartType))
 					{
 						if (VBAMovieIsActive())
@@ -1379,7 +1965,6 @@ void MainWnd::winConfirmMode()
 {
 	if (theApp.renderMethod == DIRECT_DRAW && isFullscreenOption(theApp.videoOption))
 	{
-		theApp.winCheckFullscreen();
 		ModeConfirm dlg(this);
 
 		if (!dlg.DoModal())
@@ -1696,7 +2281,6 @@ bool MainWnd::winFileRun(bool reopening)
 		}
 	}
 
-	theApp.winCheckFullscreen();
 	ReopenRamWindows();
 
 	// the LCD color filter depends on whether a GBA or GB/GBC cart is running

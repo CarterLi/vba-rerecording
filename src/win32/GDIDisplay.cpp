@@ -33,12 +33,9 @@ public:
 	virtual bool initialize();
 	virtual void cleanup();
 	virtual void render();
-	virtual void checkFullScreen();
-	virtual void renderMenu();
 	virtual void clear();
 	virtual DISPLAY_TYPE getType() { return GDI; };
 	virtual void setOption(const char *, int) {}
-	virtual int selectFullScreenMode(GUID * *);
 };
 
 // Coarse "is there a picture at all" probe: samples a 16x16 grid of the source
@@ -101,10 +98,6 @@ void GDIDisplay::cleanup()
 bool GDIDisplay::initialize()
 {
 	CWnd *pWnd = theApp.m_pMainWnd;
-
-	theApp.mode320Available = false;
-	theApp.mode640Available = false;
-	theApp.mode800Available = false;
 
 	HDC         dc  = GetDC(NULL);
 	HBITMAP     hbm = CreateCompatibleBitmap(dc, 1, 1);
@@ -169,15 +162,6 @@ bool GDIDisplay::initialize()
 }
 
 void GDIDisplay::clear()
-{}
-
-void GDIDisplay::renderMenu()
-{
-	checkFullScreen();
-	theApp.m_pMainWnd->DrawMenuBar();
-}
-
-void GDIDisplay::checkFullScreen()
 {}
 
 void GDIDisplay::render()
@@ -252,10 +236,17 @@ void GDIDisplay::render()
 		DrawTextMessages((u8 *)source, sourcePitch, theApp.rect.left, theApp.rect.bottom);
 	}
 
+	// The picture child is what every renderer draws into, and it covers the
+	// main window's client area: a blit to the main window's DC would end up
+	// underneath it and never be seen.  Full screen uses the same child, so
+	// this one path covers both cases.
+	CWnd *pWnd = theApp.winRenderWnd();
+	if (pWnd == NULL)
+		return;
+
 	POINT p;
 	p.x = theApp.dest.left;
 	p.y = theApp.dest.top;
-	CWnd *pWnd = theApp.m_pMainWnd;
 	pWnd->ScreenToClient(&p);
 	POINT p2;
 	p2.x = theApp.dest.right;
@@ -263,6 +254,8 @@ void GDIDisplay::render()
 	pWnd->ScreenToClient(&p2);
 
 	CDC *dc = pWnd->GetDC();
+	if (dc == NULL)
+		return;
 
 	BITMAPINFO *bi = (BITMAPINFO *)info;
 	bi->bmiHeader.biWidth = sourceDibWidth;
@@ -297,7 +290,9 @@ void GDIDisplay::render()
 	if (copied <= 0)
 		winlog(_T("GDI: StretchDIBits failed with %d, GetLastError %lu"), copied, GetLastError());
 
-	if (textMethod == 2)
+	// The status bar carries the messages while it is shown, so drawing them
+	// here as well would print every line twice.
+	if (textMethod == 2 && !theApp.statusBarActive())
 	{
 		HFONT font = createScreenTextFont();
 		HFONT oldFont = (HFONT)dc->SelectObject(font);
@@ -365,20 +360,6 @@ void GDIDisplay::render()
 	}
 
 	pWnd->ReleaseDC(dc);
-}
-
-int GDIDisplay::selectFullScreenMode(GUID * *)
-{
-	HWND wnd = GetDesktopWindow();
-	RECT r;
-	GetWindowRect(wnd, &r);
-	int w  = (r.right - r.left) & 4095;
-	int h  = (r.bottom - r.top) & 4095;
-	HDC dc = GetDC(wnd);
-	int c  = GetDeviceCaps(dc, BITSPIXEL);
-	ReleaseDC(wnd, dc);
-
-	return (c << 24) | (w << 12) | h;
 }
 
 IDisplay *newGDIDisplay()
