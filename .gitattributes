@@ -1,0 +1,13 @@
+# Both line endings live in this tree on purpose: 479 files are LF and 80 are
+# CRLF (some sources, the shaders, the changelog, the project files), each one
+# stored exactly as it is on disk.  Nothing here converts anything - a
+# `text=auto` would rewrite all 80 of them the next time they are touched, for
+# no gain.  If a file's line endings are ever to be unified, that is a separate
+# change with its own diff.
+* -text
+
+# A CR in front of the LF is part of the line ending, not trailing whitespace.
+# Without this `git diff --check` reports every line added to a CRLF file, which
+# is what the top of documentation/VBArr-modernized-changelog.txt is written
+# in.  Genuine trailing spaces in an LF file are still reported.
+* whitespace=cr-at-eol
