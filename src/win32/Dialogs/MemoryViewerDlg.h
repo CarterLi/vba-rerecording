@@ -27,6 +27,10 @@ class MemoryViewerDlg : public ResizeDlg, IUpdateListener, IMemoryViewerDlg
 	// Construction
 public:
 	void setCurrentAddress(u32 address);
+	// Move the view to address and switch the data size to dataSize (0, 1 or 2
+	// for 8, 16 or 32 bits, -1 to keep the current one).  Call it once the
+	// dialog exists, i.e. after Create.
+	void showAddress(u32 address, int dataSize);
 	int autoUpdate;
 	int decimalDisplay;
 	int align;
@@ -70,6 +74,10 @@ protected:
 	//}}AFX_MSG
 	DECLARE_MESSAGE_MAP()
 };
+
+// Open a fresh memory viewer showing the given address, with the data size the
+// caller picked (0 = 8 bits, 1 = 16 bits, 2 = 32 bits, -1 = last used).
+void winOpenMemoryViewer(u32 address, int dataSize);
 
 //{{AFX_INSERT_LOCATION}}
 // Microsoft Visual C++ will insert additional declarations immediately before the previous line.

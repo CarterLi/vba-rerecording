@@ -33,6 +33,7 @@
 	#include "BaseTsd.h"
 	#include "GBACheatsDlg.h"
 	#include "GBCheatsDlg.h"
+	#include "MemoryViewerDlg.h"
 typedef INT_PTR intptr_t;
 #else
 	#include "stdint.h"
@@ -1225,6 +1226,7 @@ void RefreshRamListSelectedCountControlStatus(HWND hDlg)
 		{
 			EnableWindow(GetDlgItem(hDlg, IDC_C_WATCH), (WatchCount < MAX_WATCH_COUNT) ? TRUE : FALSE);
 			EnableWindow(GetDlgItem(hDlg, IDC_C_ADDCHEAT), (selCount >= 1) ? TRUE : FALSE);
+			EnableWindow(GetDlgItem(hDlg, IDC_C_VIEWMEMORY), (selCount >= 1) ? TRUE : FALSE);
 			EnableWindow(GetDlgItem(hDlg, IDC_C_ELIMINATE), (selCount >= 1) ? TRUE : FALSE);
 		}
 		s_prevSelCount = selCount;
@@ -1831,6 +1833,25 @@ LRESULT CALLBACK RamSearchProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lPara
 			if (!SelectingByKeyboard())
 				SelectEditControl(IDC_EDIT_COMPARECHANGES);
 		}   { rv = true; break; }
+		case IDC_C_VIEWMEMORY:
+		{
+			HWND ramListControl = GetDlgItem(hDlg, IDC_RAMLIST);
+			int	 watchItemIndex = ListView_GetNextItem(ramListControl, -1, LVNI_SELECTED);
+
+			if (watchItemIndex >= 0)
+			{
+				unsigned long address = CALL_WITH_T_SIZE_TYPES_1(GetHardwareAddressFromItemIndex, rs_type_size, rs_t == 's', noMisalign, watchItemIndex);
+
+				int dataSize = 0;
+				if (rs_type_size == 'w')
+					dataSize = 1;
+				else if (rs_type_size == 'd')
+					dataSize = 2;
+
+				winOpenMemoryViewer(address, dataSize);
+			}
+			{ rv = true; break; }
+		}
 		case IDC_C_ADDCHEAT:
 		{
 			HWND ramListControl = GetDlgItem(hDlg, IDC_RAMLIST);

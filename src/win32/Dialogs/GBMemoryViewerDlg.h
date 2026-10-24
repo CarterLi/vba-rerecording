@@ -29,6 +29,10 @@ class GBMemoryViewerDlg : public ResizeDlg, IUpdateListener, IMemoryViewerDlg
 	// Construction
 public:
 	void setCurrentAddress(u32 address);
+	// Move the view to address and switch the data size to dataSize (0, 1 or 2
+	// for 8, 16 or 32 bits, -1 to keep the current one).  Call it once the
+	// dialog exists, i.e. after Create.
+	void showAddress(u32 address, int dataSize);
 	GBMemoryViewerDlg(CWnd*pParent = NULL);  // standard constructor
 
 	virtual void update();

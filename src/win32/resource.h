@@ -1154,6 +1154,7 @@
 #define IDC_HEX                         41151
 #define IDC_C_UNDO                      41152
 #define IDC_C_RESET_CHANGES             41153
+#define IDC_C_VIEWMEMORY                41159
 #define IDC_PREVIOUSVALUE               42147
 #define IDC_SPECIFICVALUE               42148
 #define IDC_CHEATEDITVALUE              42156

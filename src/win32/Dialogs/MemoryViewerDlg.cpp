@@ -4,6 +4,7 @@
 #include "../stdafx.h"
 #include "../resource.h"
 #include "MemoryViewerDlg.h"
+#include "GBMemoryViewerDlg.h"
 #include "FileDlg.h"
 #include "MemoryViewerAddressSize.h"
 #include "../Reg.h"
@@ -322,6 +323,49 @@ void MemoryViewerDlg::setCurrentAddress(u32 address)
 
 	buffer.Format(_T("0x%08X"), address);
 	m_current.SetWindowText(buffer);
+}
+
+void MemoryViewerDlg::showAddress(u32 address, int dataSize)
+{
+	if (dataSize >= 0 && dataSize <= 2)
+	{
+		m_size = dataSize;
+		m_viewer.setSize(m_size);
+		UpdateData(FALSE);
+	}
+
+	CString buffer;
+	buffer.Format(_T("%08X"), address);
+	m_address.SetWindowText(buffer);
+	OnGo();
+}
+
+void winOpenMemoryViewer(u32 address, int dataSize)
+{
+	CWnd *parent = AfxGetMainWnd();
+
+	if (systemCartridgeType == IMAGE_GBA)
+	{
+		MemoryViewerDlg *dlg = new MemoryViewerDlg;
+		if (!dlg->Create(IDD_MEM_VIEWER, parent))
+		{
+			delete dlg;
+			return;
+		}
+		dlg->ShowWindow(SW_SHOW);
+		dlg->showAddress(address, dataSize);
+	}
+	else
+	{
+		GBMemoryViewerDlg *dlg = new GBMemoryViewerDlg;
+		if (!dlg->Create(IDD_MEM_VIEWER, parent))
+		{
+			delete dlg;
+			return;
+		}
+		dlg->ShowWindow(SW_SHOW);
+		dlg->showAddress(address, dataSize);
+	}
 }
 
 void MemoryViewerDlg::OnSave()

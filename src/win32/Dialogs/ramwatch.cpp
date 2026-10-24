@@ -5,6 +5,7 @@
 #include "../WinResUtil.h"
 #include "GBACheatsDlg.h"
 #include "GBCheatsDlg.h"
+#include "MemoryViewerDlg.h"
 #include "ram_search.h"
 #include "ramwatch.h"
 #include "ModernFileDialog.h"
@@ -830,6 +831,7 @@ void RefreshWatchListSelectedCountControlStatus(HWND hDlg)
 			RamWatchEnableCommand(hDlg, ramwatchmenu, IDC_C_WATCH, WatchCount < MAX_WATCH_COUNT);
 			RamWatchEnableCommand(hDlg, ramwatchmenu, IDC_C_WATCH_DUPLICATE, selCount == 1 && WatchCount < MAX_WATCH_COUNT);
 			RamWatchEnableCommand(hDlg, ramwatchmenu, IDC_C_ADDCHEAT, selCount == 1);
+			RamWatchEnableCommand(hDlg, ramwatchmenu, IDC_C_VIEWMEMORY, selCount >= 1);
 			RamWatchEnableCommand(hDlg, ramwatchmenu, ID_WATCHES_UPDOWN, selCount == 1);
 		}
 		s_prevSelCount = selCount;
@@ -1147,6 +1149,27 @@ LRESULT CALLBACK RamWatchProc(HWND hDlg, UINT uMsg, WPARAM wParam, LPARAM lParam
 					regSetDwordValue(RWSAVEPOS, RWSaveWindowPos);
 					break;
 				}
+				case IDC_C_VIEWMEMORY:
+				{
+					watchIndex = ListView_GetSelectionMark(GetDlgItem(hDlg,IDC_WATCHLIST));
+					if(watchIndex < 0)
+						watchIndex = ListView_GetNextItem(GetDlgItem(hDlg,IDC_WATCHLIST), -1, LVNI_ALL | LVNI_SELECTED);
+					if(watchIndex >= 0)
+					{
+						// a separator row has no address to look at
+						int dataSize = -1;
+						if(rswatches[watchIndex].Size == 'b')
+							dataSize = 0;
+						else if(rswatches[watchIndex].Size == 'w')
+							dataSize = 1;
+						else if(rswatches[watchIndex].Size == 'd')
+							dataSize = 2;
+
+						if(dataSize >= 0)
+							winOpenMemoryViewer(rswatches[watchIndex].Address, dataSize);
+					}
+				}
+				break;
 				case IDC_C_ADDCHEAT:
 				{
 					watchIndex = ListView_GetSelectionMark(GetDlgItem(hDlg,IDC_WATCHLIST));

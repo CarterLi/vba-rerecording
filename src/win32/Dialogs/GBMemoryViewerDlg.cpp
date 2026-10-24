@@ -336,6 +336,21 @@ void GBMemoryViewerDlg::setCurrentAddress(u32 address)
 	m_current.SetWindowText(buffer);
 }
 
+void GBMemoryViewerDlg::showAddress(u32 address, int dataSize)
+{
+	if (dataSize >= 0 && dataSize <= 2)
+	{
+		m_size = dataSize;
+		m_viewer.setSize(m_size);
+		UpdateData(FALSE);
+	}
+
+	CString buffer;
+	buffer.Format(_T("%04X"), address & 0xFFFF);
+	m_address.SetWindowText(buffer);
+	OnGo();
+}
+
 void GBMemoryViewerDlg::OnSave()
 {
 	MemoryViewerAddressSize dlg;
