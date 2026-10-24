@@ -121,6 +121,13 @@ public:
 	void layoutNow();
 	void updateStatusBar();
 	RenderWnd *renderWnd() { return &m_renderWnd; }
+	// The picture window the renderers draw into.  It lives with the game:
+	// made when a ROM is opened, destroyed when the game is closed, and made
+	// again for every renderer.  See recreateRenderWnd() for why the last one
+	// is the only way a render method switch works.
+	bool createRenderWnd();
+	void recreateRenderWnd();
+	void destroyRenderWnd();
 	afx_msg void OnOptionsEmulatorSelectbiosfile();
 	void winFileClose(bool reopening = false);
 	bool winFileRun(bool reopening = false);

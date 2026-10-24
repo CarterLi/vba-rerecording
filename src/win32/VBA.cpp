@@ -754,21 +754,11 @@ BOOL VBA::InitInstance()
 	if (!initInput())
 		return FALSE;
 
-	// The render method the settings ask for may be one this machine cannot
-	// start - a WebGPU build on a machine whose only adapter is software, for
-	// one - and the fallback chain in updateRenderMethod() is what the menu
-	// already goes through, so the first display is made the same way rather
-	// than the emulator quitting before the window is up.
-	if (!updateRenderMethod(true))
-	{
-		if (isFullscreenOption(videoOption))
-		{
-			regSetDwordValue(_T("video"), VIDEO_1X);
-			if (pVideoDriverGUID)
-				regSetDwordValue(_T("defaultVideoDriver"), TRUE);
-		}
-		return FALSE;
-	}
+	// The renderer lives with the game: nothing is started here, only the
+	// window is sized for the frame the settings ask for.  The render method
+	// is started when a ROM is opened (MainWnd::winFileRun), on a picture
+	// window made for it, and let go of again when the game is closed.
+	updateWindowSize(videoOption);
 
 	hAccel = LoadAccelerators(AfxGetInstanceHandle(), MAKEINTRESOURCE(IDR_ACCELERATOR));
 
@@ -2058,6 +2048,14 @@ bool VBA::initDisplay(bool resizeWindow)
 		// covered even when the caller asked for no resize.
 		if (resizeWindow || m_pMainWnd == NULL)
 			updateWindowSize(videoOption);
+
+		// Every renderer gets a picture window of its own.  What a renderer
+		// leaves on the window it drew into - a GL context, the last frame of
+		// a flip model swap chain - is what makes the next one either refuse
+		// the window or paint behind that frame, and neither can be undone on
+		// the window itself.  See MainWnd::recreateRenderWnd().
+		if (m_pMainWnd != NULL)
+			((MainWnd *)m_pMainWnd)->recreateRenderWnd();
 
 		switch (renderMethod)
 		{

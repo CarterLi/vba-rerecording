@@ -869,16 +869,10 @@ int winStatusBarHeight()
 	return textHeight + borderHeight;
 }
 
-int MainWnd::OnCreate(LPCREATESTRUCT lpCreateStruct)
+// The window the renderers draw into: a child that takes the client area only,
+// black behind whatever a renderer does not paint.
+bool MainWnd::createRenderWnd()
 {
-	if (CWnd::OnCreate(lpCreateStruct) == -1)
-		return -1;
-
-	m_statusBarReady = false;
-
-	// The picture area is a child of the main window so that the status bar
-	// can be its sibling and the main window can grow without stretching the
-	// emulated frame.
 	LPCTSTR renderClass = AfxRegisterWndClass(CS_HREDRAW | CS_VREDRAW,
 	                                          LoadCursor(NULL, IDC_ARROW),
 	                                          (HBRUSH)GetStockObject(BLACK_BRUSH),
@@ -887,9 +881,58 @@ int MainWnd::OnCreate(LPCREATESTRUCT lpCreateStruct)
 	if (!m_renderWnd.CreateEx(0, renderClass, _T(""),
 	                          WS_CHILD | WS_VISIBLE | WS_CLIPSIBLINGS | WS_CLIPCHILDREN,
 	                          CRect(0, 0, 1, 1), this, IDC_RENDER_WND))
-		return -1;
+		return false;
 
 	m_renderWnd.DragAcceptFiles(TRUE);
+	return true;
+}
+
+// A renderer leaves the window it drew into in a state the next one cannot
+// always take.  A GL context on a window makes the Vulkan backend refuse a
+// swap chain on that same window outright - VK_ERROR_NATIVE_WINDOW_IN_USE_KHR,
+// which wgpu reports as "Native window is in use" and then throws out of
+// wgpuSurfaceConfigure - and the last frame of a flip model swap chain stays
+// composed over the window after the chain is gone, which is the picture of
+// the old renderer showing in front of the new one.  Neither can be undone on
+// a window that has them, so every renderer is given a window of its own: a
+// render method switch is rare enough to afford it, and nothing outside the
+// renderer holds on to the window.
+void MainWnd::recreateRenderWnd()
+{
+	if (m_renderWnd.GetSafeHwnd() != NULL)
+		m_renderWnd.DestroyWindow();
+
+	if (!createRenderWnd())
+	{
+		winlog(_T("MainWnd: the picture window cannot be made again\n"));
+		return;
+	}
+
+	// The new window is 1x1 until it is laid out, and the renderers take the
+	// size they draw at from it.
+	layoutNow();
+}
+
+// With no game running the picture area has nothing to show, so the window the
+// renderers draw into is not kept either.  It is made again, fresh, when the
+// next ROM is opened.
+void MainWnd::destroyRenderWnd()
+{
+	if (m_renderWnd.GetSafeHwnd() != NULL)
+		m_renderWnd.DestroyWindow();
+}
+
+int MainWnd::OnCreate(LPCREATESTRUCT lpCreateStruct)
+{
+	if (CWnd::OnCreate(lpCreateStruct) == -1)
+		return -1;
+
+	m_statusBarReady = false;
+
+	// The picture window is not made here: it lives with the game, made by
+	// VBA::initDisplay() when a ROM is opened and destroyed by winFileClose()
+	// when it is closed.  Before that there is nothing to draw into, and the
+	// main window's own background is what shows.
 
 	if (!m_statusBar.Create(WS_CHILD | WS_CLIPSIBLINGS | CCS_BOTTOM,
 	                        CRect(0, 0, 1, 1), this, IDC_STATUS_BAR))
@@ -2069,6 +2112,15 @@ void MainWnd::winFileClose(bool reopening)
 	if (theApp.display)
 		theApp.display->clear();
 
+	// The renderer lives with the game: with no game running there is nothing
+	// for it to draw, and leaving it up keeps a GL context, a device and a
+	// swap chain on the window for nobody.  The window it drew into goes with
+	// it; winFileRun() makes both again for the next ROM.
+	theApp.shutdownDisplay();
+
+	if (GetSafeHwnd() != NULL)
+		destroyRenderWnd();
+
 	if (this)
 		RedrawWindow(NULL, NULL, RDW_INVALIDATE | RDW_ERASE | RDW_ALLCHILDREN);
 	systemSetTitle(_T(VBA_NAME_AND_VERSION));
@@ -2223,6 +2275,14 @@ bool MainWnd::winFileRun(bool reopening)
 		theApp.addRecentFile(logicalName);
 
 	theApp.updateWindowSize(theApp.videoOption);
+
+	// The renderer starts here, with the game, on a picture window made for it
+	// - winFileClose() let the last one go, so this is a window no renderer
+	// has touched.  The fallback chain inside updateRenderMethod() is what
+	// keeps a machine that cannot start the method the settings ask for from
+	// running without a picture.
+	if (!theApp.updateRenderMethod(true))
+		systemMessage(0, "No render method could be started");
 
 	theApp.updateFrameSkip();
 
