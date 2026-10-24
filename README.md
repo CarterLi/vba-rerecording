@@ -161,6 +161,14 @@ something they would rather keep using.
   (`VBA_ENABLE_OPENGL` in `OpenGLConfig.h`), so a build without them leaves
   their entries out of the Video menu and keeps the GLSL upscaler shaders out
   of the executable.  Disabled by default.
+* **The legacy OpenGL renderer now draws the on screen display through the
+  renderer**, the way every other backend does: GDI rasterises the messages
+  into the same `TextOverlay` the Direct3D renderers use, and the renderer
+  composites it over the picture as a texture.  Painting the text onto the
+  window with GDI cannot work beside a flip swap chain - what the desktop
+  composes is the chain, not the surface GDI would write to - which is why the
+  messages used to show for a single frame and then disappear.  The glyphs,
+  colours, outline and margins are still GDI's and unchanged.
 * **WebGPU** - a renderer through `wgpu-native`, which lets the same build run
   on Direct3D 12, Vulkan, Metal or OpenGL.  The backend can be picked from the
   Video menu, the entry names the one that is really in use, and the library

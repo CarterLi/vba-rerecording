@@ -5,6 +5,18 @@
 
 #include <gl/GL.h>
 
+// The headers the Windows SDK ships stop at OpenGL 1.1; these two constants
+// come from later revisions.  The overlay is blitted one to one onto a picture
+// that may not be a power of two, so it needs the edge clamp, and the DIB GDI
+// fills is BGRA.
+#ifndef GL_CLAMP_TO_EDGE
+#define GL_CLAMP_TO_EDGE 0x812F
+#endif
+
+#ifndef GL_BGRA_EXT
+#define GL_BGRA_EXT 0x80E1
+#endif
+
 #include "resource.h"
 #include "MainWnd.h"
 #include "Reg.h"
@@ -33,8 +45,20 @@ private:
 	u8 *   filterData;
 	bool   failed;
 
+	// The on screen display: GDI rasterises the messages into this DIB and the
+	// renderer composites it over the picture, the same TextOverlay the D3D
+	// backends use.
+	TextOverlay overlay;
+	GLuint      overlayTexture;
+	int         overlayWidth;
+	int         overlayHeight;
+
 	bool initializeTexture(int w, int h);
 	void updateFiltering(int);
+
+	bool createOverlayTexture(int w, int h);
+	void destroyOverlayTexture();
+	void drawOverlay();
 public:
 	OpenGLDisplay();
 	virtual ~OpenGLDisplay();
@@ -65,6 +89,10 @@ OpenGLDisplay::OpenGLDisplay()
 	size       = 0.0f;
 	filterData = (u8 *)malloc(4*16*256*256); // sufficient for 4x filters @ 32bit color depth
 	failed     = false;
+
+	overlayTexture = 0;
+	overlayWidth   = 0;
+	overlayHeight  = 0;
 }
 
 OpenGLDisplay::~OpenGLDisplay()
@@ -79,10 +107,14 @@ void OpenGLDisplay::cleanup()
 		glDeleteTextures(1, &texture);
 		texture = 0;
 	}
+	destroyOverlayTexture();
 	if (hglrc != NULL)
 	{
-		wglDeleteContext(hglrc);
+		// The context is let go of before it is deleted: deleting one that is
+		// still current on the thread fails, and the context would then stay
+		// alive with the window's device context still tied to it.
 		wglMakeCurrent(NULL, NULL);
+		wglDeleteContext(hglrc);
 		hglrc = NULL;
 	}
 	if (hDC != NULL)
@@ -306,6 +338,10 @@ void OpenGLDisplay::render()
 		glPixelStorei(GL_UNPACK_ROW_LENGTH, theApp.sizeX + 1);
 	}
 
+	// The picture is drawn from whichever texture is current, so it is named
+	// here rather than left to be whatever the last call happened to bind.
+	glBindTexture(GL_TEXTURE_2D, texture);
+
 	glTexSubImage2D(GL_TEXTURE_2D, 0,
 					theApp.rect.left, theApp.rect.top, rectWidth, dataHeight,
 	                GL_RGBA, GL_UNSIGNED_BYTE, data);
@@ -329,81 +365,121 @@ void OpenGLDisplay::render()
 		glEnd();
 	}
 
+	// The messages are rasterised by GDI into a DIB and drawn as a texture,
+	// which is the way every other renderer carries them: D3D9, D3D11 and
+	// WebGPU all fill a TextOverlay and composite it over the picture.  GDI
+	// straight onto this window's device context cannot work here, because the
+	// picture is presented through a flip swap chain and what the desktop
+	// composes is that swap chain - not the surface GDI would be writing to.
+	// The glyphs are still GDI's; only the last step belongs to the renderer.
+	if (textMethod == 2)
+		drawOverlay();
+
 	CDC *dc = theApp.winRenderWnd()->GetDC();
-
-	HFONT font    = NULL;
-	HFONT oldFont = NULL;
-	const int lineHeight = screenTextLineHeight();
-
-	if (textMethod == 2 && !theApp.statusBarActive())
-	{
-		font    = createScreenTextFont();
-		oldFont = (HFONT)dc->SelectObject(font);
-
-		const int textLeft   = 10 + theApp.textMarginLeft;
-		const int textBottom = theApp.surfaceSizeY - theApp.textMarginBottom;
-
-		for (int slot = 0; slot < SCREEN_MESSAGE_SLOTS; slot++)
-		{
-			if (theApp.screenMessage[slot])
-			{
-				if ((theApp.screenMessageDuration[slot] < 0 || 
-					(int)(GetTickCount() - theApp.screenMessageTime[slot]) < theApp.screenMessageDuration[slot]) &&
-				    (!theApp.disableStatusMessage || slot == 1 || slot == 2))
-				{
-					dc->SetBkMode(TRANSPARENT);
-
-					if (outlinedText)
-					{
-						dc->SetTextColor(textColor != 7 ? RGB(0, 0, 0) : RGB(255, 255, 255));
-						// draw black outline
-						const static int xd [8] = {-1, 0, 1, 1, 1, 0, -1, -1};
-						const static int yd [8] = {-1, -1, -1, 0, 1, 1, 1, 0};
-						for (int i = 0; i < 8; i++)
-						{
-							dc->TextOut(textLeft+xd[i], textBottom - lineHeight*(slot+1)+yd[i], theApp.screenMessageBuffer[slot]);
-						}
-					}
-
-					COLORREF color;
-					switch (textColor)
-					{
-					case 0:
-						color = RGB(255, 255, 255); break;
-					case 1:
-						color = RGB(255, 0, 0); break;
-					case 2:
-						color = RGB(255, 255, 0); break;
-					case 3:
-						color = RGB(0, 255, 0); break;
-					case 4:
-						color = RGB(0, 255, 255); break;
-					case 5:
-						color = RGB(0, 0, 255); break;
-					case 6:
-						color = RGB(255, 0, 255); break;
-					case 7:
-						color = RGB(0, 0, 0); break;
-					}
-					dc->SetTextColor(color);
-
-					// draw center text
-					dc->TextOut(textLeft, textBottom - lineHeight*(slot+1), theApp.screenMessageBuffer[slot]);
-				}
-				else
-				{
-					theApp.screenMessage[slot] = false;
-				}
-			}
-		}
-
-		dc->SelectObject(oldFont);
-		DeleteObject(font);
-	}
+	if (dc == NULL)
+		return;
 
 	SwapBuffers(dc->GetSafeHdc());
 
 	theApp.winRenderWnd()->ReleaseDC(dc);
+}
+
+// The overlay is a texture the size of the picture area, and it is written
+// again only when a message appears, expires or says something else.
+bool OpenGLDisplay::createOverlayTexture(int w, int h)
+{
+	destroyOverlayTexture();
+
+	if (!overlay.create(w, h))
+	{
+		winlog(_T("OpenGL: the on screen display cannot be allocated\n"));
+		return false;
+	}
+
+	glGenTextures(1, &overlayTexture);
+	glBindTexture(GL_TEXTURE_2D, overlayTexture);
+
+	// GL_TEXTURE_MIN_FILTER defaults to the trilinear mipmap filter, and a
+	// texture that has no mip chain is incomplete, which draws as white.  The
+	// overlay is blitted one to one, so point sampling keeps the glyphs as
+	// sharp as GDI rasterised them.
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_BGRA_EXT,
+	             GL_UNSIGNED_BYTE, NULL);
+
+	overlayWidth  = w;
+	overlayHeight = h;
+
+	return true;
+}
+
+void OpenGLDisplay::destroyOverlayTexture()
+{
+	if (overlayTexture != 0)
+	{
+		glDeleteTextures(1, &overlayTexture);
+		overlayTexture = 0;
+	}
+
+	overlay.destroy();
+
+	overlayWidth  = 0;
+	overlayHeight = 0;
+}
+
+void OpenGLDisplay::drawOverlay()
+{
+	// The size comes from the same two numbers the picture vertices are placed
+	// with, so the overlay can never end up a different shape than the surface
+	// and be rebuilt on every frame.
+	const int w = theApp.surfaceSizeX;
+	const int h = theApp.surfaceSizeY;
+
+	if (w <= 0 || h <= 0)
+		return;
+
+	if (overlayTexture == 0 || overlayWidth != w || overlayHeight != h)
+	{
+		if (!createOverlayTexture(w, h))
+			return;
+	}
+
+	// False while the status bar owns the messages, and once the last one has
+	// expired.
+	if (!overlay.update())
+		return;
+
+	if (overlay.changed())
+	{
+		// A top-down DIB into a projection with y growing downwards: row 0 of
+		// the texture is row 0 of the picture, with no flip on either side.
+		glBindTexture(GL_TEXTURE_2D, overlayTexture);
+
+		glPixelStorei(GL_UNPACK_ALIGNMENT, 4);
+		glPixelStorei(GL_UNPACK_ROW_LENGTH, overlay.pitch() / 4);
+		glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0,
+		                overlay.width(), overlay.height(),
+		                GL_BGRA_EXT, GL_UNSIGNED_BYTE, overlay.pixels());
+		glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+	}
+
+	glEnable(GL_BLEND);
+	glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+	glBindTexture(GL_TEXTURE_2D, overlayTexture);
+	glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+
+	glBegin(GL_QUADS);
+	glTexCoord2f(0.0f, 0.0f); glVertex3i(0, 0, 0);
+	glTexCoord2f(1.0f, 0.0f); glVertex3i(w, 0, 0);
+	glTexCoord2f(1.0f, 1.0f); glVertex3i(w, h, 0);
+	glTexCoord2f(0.0f, 1.0f); glVertex3i(0, h, 0);
+	glEnd();
+
+	glDisable(GL_BLEND);
 }
 
 void OpenGLDisplay::resize(int w, int h)
