@@ -370,6 +370,20 @@ never in a release and no user ever saw them.
   the executable.
 * The RAM Watch and RAM Search columns did not fill their control.
 
+**Lua scripting**
+
+* A script that did not load said nothing at all.  The console window belongs
+  to the loader, and it was created *after* the file had been read, so the
+  error `luaL_loadfile()` returned was handed to a print sink that did not
+  exist yet and went to `stderr` - which a windowed program has nowhere to put.
+  A file that was missing, one that did not parse and one that had been saved
+  as UTF-16 all looked exactly like a script that does nothing: no window, no
+  message, the Run button still saying "Run".  The console now exists before
+  the file is opened, so the error names the file and the line - `cannot open
+  my.lua`, or `my.lua:12: '=' expected near ...`.
+* Pressing **Run** with no game loaded was the other silent click: it did
+  nothing, and said nothing.  It now says so in the console.
+
 **Emulation correctness**
 
 These five touch the emulation itself, so they are worth spelling out: what
@@ -602,6 +616,9 @@ one.
 ### Links
 
 * [Lua Scripting Functions](https://tasvideos.org/EmulatorResources/VBA/LuaScriptingFunctions)
+* [Lua scripting notes for this branch](documentation/lua-scripting.md)
+  - where a script's output actually goes, why it has to advance frames, and
+  what a load error looks like
 * [VBM movie file format](https://tasvideos.org/EmulatorResources/VBA/VBM)
 * [Sync History](https://tasvideos.org/EmulatorResources/VBA/SyncHistory)
 

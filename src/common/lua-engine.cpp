@@ -5034,6 +5034,25 @@ int VBALoadLuaCode(const char *filename)
 		}
 	}
 
+	// The console has to be in place before the file is read, not after.
+	// A file that cannot be opened or does not compile is reported through
+	// info_print, and with the console not created yet that report went to
+	// stderr - which a windowed program has nowhere to put, so a broken
+	// script looked exactly like a script that does nothing.  The console
+	// must also survive the failure, so info_onstart() (which clears it) is
+	// still only called once the script has loaded.
+#ifdef WIN32
+	lua_host::ConsoleSinks console = lua_host::consoleSinks();
+	info_print = console.print;
+	info_onstart = console.onStart;
+	info_onstop = console.onStop;
+	info_uid = lua_host::openConsole();
+#else
+	info_print = NULL;
+	info_onstart = NULL;
+	info_onstop = NULL;
+#endif
+
 	// We make our thread NOW because we want it at the bottom of the stack.
 	// If all goes wrong, we let the garbage collector remove it.
 	lua_State *thread = lua_newthread(LUA);
@@ -5043,12 +5062,8 @@ int VBALoadLuaCode(const char *filename)
 
 	if (result)
 	{
-		//#if (defined(WIN32) && !defined(SDL))
-		//		info_print(info_uid, lua_tostring(LUA, -1)); //Clear_Sound_Buffer();
-		// AfxGetApp()->m_pMainWnd->MessageBox(lua_tostring(LUA, -1), "Lua load error", MB_OK | MB_ICONSTOP);
-		//#else
-		//		fprintf(stderr, "Failed to compile file: %s\n", lua_tostring(LUA, -1));
-		//#endif
+		// The message names the file and the line, or says that the file
+		// could not be opened at all.
 		printerror(LUA, -1);
 
 		// Wipe the stack. Our thread
@@ -5079,17 +5094,6 @@ int VBALoadLuaCode(const char *filename)
 	// Set up our protection hook to be executed once every 10,000 bytecode instructions.
 	lua_sethook(thread, VBALuaHookFunction, LUA_MASKCOUNT, 10000);
 
-#ifdef WIN32
-	lua_host::ConsoleSinks console = lua_host::consoleSinks();
-	info_print = console.print;
-	info_onstart = console.onStart;
-	info_onstop = console.onStop;
-	info_uid = lua_host::openConsole();
-#else
-	info_print = NULL;
-	info_onstart = NULL;
-	info_onstop = NULL;
-#endif
 	if (info_onstart)
 		info_onstart(info_uid);
 

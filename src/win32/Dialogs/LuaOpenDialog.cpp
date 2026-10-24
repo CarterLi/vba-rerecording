@@ -254,6 +254,14 @@ INT_PTR CALLBACK DlgLuaScriptDialog(HWND hDlg, UINT msg, WPARAM wParam, LPARAM l
 					GetDlgItemText(hDlg, IDC_EDIT_LUAPATH, filename, MAX_PATH);
 					VBALoadLuaCode(winAnsiFromWide(filename));
 				}
+				else
+				{
+					// The engine needs a game to run against, and refusing
+					// here used to be the other silent click: nothing ran and
+					// nothing said why.
+					PrintToWindowConsole((std::intptr_t)hDlg,
+					                     "No game is running - load a ROM first.\r\n");
+				}
 			}	break;
 
 			case IDC_BUTTON_LUASTOP:
