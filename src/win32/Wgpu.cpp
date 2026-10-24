@@ -125,7 +125,11 @@ extern int Init_2xSaI(u32);
 	X(wgpuBindGroupRelease) \
 	X(wgpuCommandEncoderRelease) \
 	X(wgpuRenderPassEncoderRelease) \
-	X(wgpuCommandBufferRelease)
+	X(wgpuCommandBufferRelease) \
+	X(wgpuGetVersion) \
+	X(wgpuSetLogCallback) \
+	X(wgpuSetLogLevel) \
+	X(wgpuDevicePoll)
 
 #define WGPU_FUNCTION(name) static decltype(&name) name##_fn = NULL;
 	WGPU_FUNCTIONS(WGPU_FUNCTION)
@@ -151,6 +155,114 @@ static void *const g_wgpuFunctionTargets[WGPU_FUNCTION_COUNT] =
 static HINSTANCE wgpuModule = NULL;
 static bool      wgpuProbed = false;
 
+// ---------------------------------------------------------------------------
+// What the library says about itself, and what it writes while it runs.
+//
+// A panic inside the library leaves it as a C++ exception, so the caller sees
+// that something was thrown but never why: the reason went to the standard
+// error stream, and a window program has none.  The stream is given a file
+// before the library is loaded, so the message of a panic reads back afterwards
+// the way a console build would print it.  The rest of what the library has to
+// say - the errors it reports on the device it was asked for, the warnings a
+// driver earns - arrives through the log callback and goes into the trace
+// instead, because those are answers the renderer is meant to live with.
+
+static void redirectStdErr(const char *fileName)
+{
+	HANDLE file = CreateFileA(fileName, GENERIC_WRITE, FILE_SHARE_READ | FILE_SHARE_WRITE,
+	                          NULL, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, NULL);
+
+	if (file == INVALID_HANDLE_VALUE)
+		return;
+
+	SetStdHandle(STD_ERROR_HANDLE, file);
+}
+
+static const char *wgpuLogLevelName(int level)
+{
+	switch (level)
+	{
+	case WGPULogLevel_Error: return "error";
+	case WGPULogLevel_Warn:  return "warn";
+	case WGPULogLevel_Info:  return "info";
+	case WGPULogLevel_Debug: return "debug";
+	case WGPULogLevel_Trace: return "trace";
+	default:                 return "log";
+	}
+}
+
+// The messages are UTF-8 and the trace is TCHAR, so they are converted rather
+// than handed to %hs, which would read them as the ANSI code page.
+static void wgpuLogCallback(WGPULogLevel level, WGPUStringView message, void *)
+{
+	if (message.data == NULL)
+		return;
+
+	int length = message.length == WGPU_STRLEN ? (int)strlen(message.data)
+	                                           : (int)message.length;
+	if (length <= 0)
+		return;
+
+	wchar_t wide[2048];
+	int wideLength = MultiByteToWideChar(CP_UTF8, 0, message.data, length,
+	                                     wide, (int)(sizeof(wide) / sizeof(wide[0])) - 1);
+	if (wideLength <= 0)
+		return;
+	wide[wideLength] = 0;
+
+	winlog(_T("wgpu %hs: %ls\n"), wgpuLogLevelName((int)level), wide);
+}
+
+// The release of wgpu-native the headers in wgpu/ were taken from, as
+// wgpuGetVersion() spells it: the four bytes most significant first, so
+// 0x1D000101 is 29.0.1.1.
+//
+// Those headers are a contract, not a description: every struct this file
+// hands to the library is read there at the offsets the header lays out, and a
+// release that adds, moves or removes a field reads the same bytes as
+// something else entirely - the call then fails inside the library, or panics
+// in it, with nothing on the way in to say why.  The version the library
+// reports is compared with this one before it is used for anything, and a
+// library from another release is turned down the way one that is not there
+// at all is.
+#define WGPU_HEADERS_VERSION 0x1D000101u
+
+static void wgpuVersionText(unsigned version, TCHAR *text, int length)
+{
+	_sntprintf(text, length, _T("%u.%u.%u.%u"),
+	           (version >> 24) & 0xFF, (version >> 16) & 0xFF,
+	           (version >> 8) & 0xFF, version & 0xFF);
+}
+
+// Major and minor are what a struct layout moves on; a patch release of the
+// library fixes the inside of the same interface and is taken as it is.
+static bool wgpuVersionMatches(unsigned library)
+{
+	return (library >> 16) == (WGPU_HEADERS_VERSION >> 16);
+}
+
+// Installs the log callback and states which build of the library answered.
+// The level comes from the registry so that a run that is being chased can ask
+// for the trace level without a rebuild.
+static void hookWgpuLog()
+{
+	int level = (int)regQueryDwordValue(_T("wgpuLog"), WGPULogLevel_Warn);
+
+	if (level < WGPULogLevel_Off || level > WGPULogLevel_Trace)
+		level = WGPULogLevel_Warn;
+
+	TCHAR version[32];
+	wgpuVersionText(wgpuGetVersion_fn(), version, sizeof(version) / sizeof(version[0]));
+
+	winlog(_T("wgpu: wgpu_native.dll %s, %d entry points, log level %hs\n"),
+	       version, (int)WGPU_FUNCTION_COUNT, wgpuLogLevelName(level));
+
+	wgpuSetLogLevel_fn((WGPULogLevel)level);
+
+	if (level != WGPULogLevel_Off)
+		wgpuSetLogCallback_fn(wgpuLogCallback, NULL);
+}
+
 // Resolves the DLL once.  Silent, because the render method menu uses the
 // outcome and a message box per menu would be absurd.
 static bool loadWgpuLibrary()
@@ -159,6 +271,10 @@ static bool loadWgpuLibrary()
 		return wgpuModule != NULL;
 
 	wgpuProbed = true;
+
+	// Before the library runs a line of its own, or a panic inside it would
+	// have nowhere to write the reason.
+	redirectStdErr("wgpu-stderr.log");
 
 	wgpuModule = LoadLibrary(_T("wgpu_native.dll"));
 	if (wgpuModule == NULL)
@@ -180,7 +296,29 @@ static bool loadWgpuLibrary()
 		memcpy(g_wgpuFunctionTargets[i], &resolved, sizeof(resolved));
 	}
 
-	winlog(_T("wgpu: wgpu_native.dll, %d entry points\n"), (int)WGPU_FUNCTION_COUNT);
+	// Before anything of the library is called: a struct this build lays out
+	// one way and the library reads another way is a crash inside it, with no
+	// way back to the reason.  The settings then fall back to Direct3D 11 the
+	// way they do on a machine without WebGPU, and the menu does not offer it.
+	unsigned version = wgpuGetVersion_fn();
+
+	if (!wgpuVersionMatches(version))
+	{
+		TCHAR library[32], headers[32];
+
+		wgpuVersionText(version, library, sizeof(library) / sizeof(library[0]));
+		wgpuVersionText(WGPU_HEADERS_VERSION, headers, sizeof(headers) / sizeof(headers[0]));
+
+		winlog(_T("wgpu: wgpu_native.dll is %s, the headers this build was made with are %s "
+		          "- the renderer is not started\n"), library, headers);
+
+		FreeLibrary(wgpuModule);
+		wgpuModule = NULL;
+		wgpuProbed = true;
+		return false;
+	}
+
+	hookWgpuLog();
 	return true;
 }
 
@@ -1019,6 +1157,13 @@ void WgpuDisplay::cleanup()
 		device = NULL;
 	}
 
+	// The instance is kept for the life of the program, so what the library
+	// still holds queued for the window - the destruction of the swap chain
+	// above all - is given a chance to run here rather than inside the next
+	// renderer's surface.
+	if (wgpuInstance != NULL)
+		wgpuInstanceProcessEvents_fn(wgpuInstance);
+
 	if (adapter)
 	{
 		wgpuAdapterRelease_fn(adapter);
@@ -1039,6 +1184,17 @@ void WgpuDisplay::releaseSurface()
 	if (surface != NULL)
 	{
 		wgpuSurfaceUnconfigure_fn(surface);
+
+		// The swap chain behind the surface belongs to the window, and a
+		// window is held by one swap chain at a time.  The frames that were
+		// drawn on its images keep it alive until the device has run them,
+		// so the device is waited on here, while it is still there to be
+		// asked: the next surface on this window then gets the window from a
+		// renderer that has really let go of it, instead of being answered
+		// with "Native window is in use" (VK_ERROR_NATIVE_WINDOW_IN_USE_KHR).
+		if (device != NULL)
+			wgpuDevicePoll_fn(device, true, NULL);
+
 		wgpuSurfaceRelease_fn(surface);
 	}
 	surface      = NULL;
@@ -1438,7 +1594,28 @@ bool WgpuDisplay::setPresentMode(bool withVsync)
 	configuration.alphaMode   = WGPUCompositeAlphaMode_Auto;
 	configuration.presentMode = wanted;
 
-	wgpuSurfaceConfigure_fn(surface, &configuration);
+	bool configured = true;
+
+	try
+	{
+		wgpuSurfaceConfigure_fn(surface, &configuration);
+	}
+	catch (...)
+	{
+		// A surface the library cannot take - the window still held by the
+		// swap chain of a renderer that has not let go of it, a device that
+		// was lost - is reported to the log callback and then thrown out as
+		// a C++ exception.  What has to come out of that is a render method
+		// that does not start, not the process: the caller falls back to the
+		// next one in the menu, and the trace already carries the reason.
+		configured = false;
+	}
+
+	if (!configured)
+	{
+		winlog(_T("wgpu: the surface cannot be configured here\n"));
+		return false;
+	}
 
 	presentMode = wanted;
 
@@ -1849,6 +2026,7 @@ bool WgpuDisplay::initialize()
 		systemMessage(0, "Failed to create the wgpu surface");
 		return false;
 	}
+
 	if (!createDevice())
 	{
 		// A software adapter is not something to put a message box in front of:
@@ -1858,6 +2036,7 @@ bool WgpuDisplay::initialize()
 			systemMessage(0, "Failed to create the wgpu device");
 		return false;
 	}
+
 	if (!readSurfaceCapabilities())
 	{
 		systemMessage(0, "Failed to read the wgpu surface capabilities");
@@ -1873,7 +2052,14 @@ bool WgpuDisplay::initialize()
 	// for every size and every VSync change from there on.
 	surfaceWidth  = backWidth > 0 ? backWidth : 1;
 	surfaceHeight = backHeight > 0 ? backHeight : 1;
-	setPresentMode(theApp.vsync);
+
+	if (!setPresentMode(theApp.vsync))
+	{
+		// The window was not taken.  That is what a render method that did not
+		// start looks like, and the settings fall back to the next one on
+		// their own; the trace carries the reason, so no dialog goes up.
+		return false;
+	}
 
 	if (backWidth > 0 && backHeight > 0)
 		makeOverlayTexture(backWidth, backHeight);
