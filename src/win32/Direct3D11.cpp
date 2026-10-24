@@ -626,11 +626,24 @@ void Direct3D11Display::releaseAll()
 	if (pLayout)       { pLayout->Release();       pLayout = NULL; }
 	if (pPS)           { pPS->Release();           pPS = NULL; }
 	if (pVS)           { pVS->Release();           pVS = NULL; }
-	if (pSwapChain)    { pSwapChain->Release();    pSwapChain = NULL; }
+	if (pSwapChain)
+	{
+		// A swap chain that something else still holds keeps the window it was
+		// made for: the next renderer then either paints behind the last frame
+		// or cannot take the window at all.  The count left over says whether
+		// that is what happened.
+		ULONG left = pSwapChain->Release();
+		pSwapChain = NULL;
+
+		if (left != 0)
+			winlog(_T("D3D11: the swap chain is still held by %u reference(s)\n"), left);
+	}
 	flipModel = false;
 	currentSwapEffect = -1;
-	if (pContext)      { pContext->Release();      pContext = NULL; }
-	if (pDevice)       { pDevice->Release();       pDevice = NULL; }
+	if (pContext)      { ULONG left = pContext->Release(); pContext = NULL;
+		if (left != 0) winlog(_T("D3D11: the context is still held by %u reference(s)\n"), left); }
+	if (pDevice)       { ULONG left = pDevice->Release();  pDevice = NULL;
+		if (left != 0) winlog(_T("D3D11: the device is still held by %u reference(s)\n"), left); }
 }
 
 void Direct3D11Display::releaseFrameTexture()
