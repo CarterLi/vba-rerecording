@@ -319,6 +319,18 @@ later ship with.  Everything else in this branch degrades.
   remove.  Batch input is validated before it is applied.
 * The grouping is **optional**, and both checkboxes have tooltips that explain
   what they do.
+* **A pasted code can explain itself.**  With one row selected, **Explain**
+  opens a window that says what the code does, line by line: which address gets
+  which value, which key has to be held, and which condition has to hold for
+  the lines below it to run.  A selected group is explained line by line as a
+  whole, with the family and the line count at the top and the cheat's own
+  description under it, when it has one.  Nothing is decrypted a second time -
+  the engine already decoded the code when it was added, and the wording
+  follows its own interpreter, so all 116 instruction types are covered.  A
+  line that carries the *data* of the instruction above it - the second line of
+  a slide, a ROM patch, a group write, a super code - is shown as data instead
+  of being read as an instruction of its own.  The window is translated like
+  the rest of the shell.
 
 ### Movies
 
