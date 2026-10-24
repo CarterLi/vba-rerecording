@@ -2946,6 +2946,8 @@ STRINGTABLE
 BEGIN
     IDS_RAM_SEARCH_TITLE    " RAM Search"
     IDS_RAM_SEARCH_RESULTS  "%d result(s) (%d region(s))"
+    IDS_RAM_SEARCH_UNDO     "&Undo"
+    IDS_RAM_SEARCH_REDO     "&Redo"
 END
 
 /////////////////////////////////////////////////////////////////////////////

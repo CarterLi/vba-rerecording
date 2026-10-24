@@ -223,3 +223,4 @@ Notes	备注
 # The window title of RAM Search is composed at run time; its first half is
 # the same literal as the dialog caption, so that part is glossed in dialog.tsv.
 %d result(s) (%d region(s))	%d 个结果（%d 个区域）
+&Redo	重做(&R)

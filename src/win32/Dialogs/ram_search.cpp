@@ -2185,7 +2185,13 @@ void SetRamSearchUndoType(HWND hDlg, int type)
 	if (s_undoType != type)
 	{
 		if ((s_undoType != 2 && s_undoType != -1) != (type != 2 && type != -1))
-			SendDlgItemMessage(hDlg, IDC_C_UNDO, WM_SETTEXT, 0, (LPARAM)((type == 2 || type == -1) ? "Redo" : "Undo"));
+		{
+			// The caption changes with the state, so it comes from the resources
+			// too.  It used to be an ANSI literal handed to a Unicode control.
+			CString caption = winResLoadString((type == 2 || type == -1)
+			                                   ? IDS_RAM_SEARCH_REDO : IDS_RAM_SEARCH_UNDO);
+			SendDlgItemMessage(hDlg, IDC_C_UNDO, WM_SETTEXT, 0, (LPARAM)(LPCTSTR)caption);
+		}
 		if ((s_undoType > 0) != (type > 0))
 			EnableWindow(GetDlgItem(hDlg, IDC_C_UNDO), type > 0);
 		s_undoType = type;

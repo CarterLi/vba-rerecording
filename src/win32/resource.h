@@ -225,6 +225,8 @@
 #define IDS_TEXT_MARGIN_BOTTOM_TIP      220
 #define IDS_RAM_SEARCH_TITLE            221
 #define IDS_RAM_SEARCH_RESULTS          222
+#define IDS_RAM_SEARCH_UNDO             223
+#define IDS_RAM_SEARCH_REDO             224
 #define IDR_MENU                        401
 #define IDR_ACCELERATOR                 405
 #define IDR_GB_PRINTER                  406
