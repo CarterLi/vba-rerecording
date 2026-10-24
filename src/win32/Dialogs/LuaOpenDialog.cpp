@@ -8,6 +8,7 @@
 #include "../MainWnd.h"
 #include "../WinResUtil.h"
 #include "../WinMiscUtil.h"
+#include "../WinText.h"
 #include "../VBA.h"
 #include "../Sound.h"
 
@@ -61,7 +62,7 @@ void PrintToWindowConsole(std::intptr_t hDlgAsInt, const char* str)
 	{
 		// discard first half of text if it's getting too long
 		SendMessage(hConsole, EM_SETSEL, 0, length/2);
-		SendMessage(hConsole, EM_REPLACESEL, false, (LPARAM)"");
+		SendMessage(hConsole, EM_REPLACESEL, false, (LPARAM)_T(""));
 		length = GetWindowTextLength(hConsole);
 	}
 	SendMessage(hConsole, EM_SETSEL, length, length);
@@ -69,7 +70,12 @@ void PrintToWindowConsole(std::intptr_t hDlgAsInt, const char* str)
 	//LuaPerWindowInfo& info = LuaWindowInfo[hDlg];
 
 	{
-		SendMessage(hConsole, EM_REPLACESEL, false, (LPARAM)str);
+		// The console is a Unicode control while the Lua core, like the rest of
+		// the emulation code, works with char strings in the ANSI code page.
+		// Handing those bytes to EM_REPLACESEL directly made the control read
+		// them as UTF-16, which turned every line into garbage.
+		CString text = winWideFromAnsi(str);
+		SendMessage(hConsole, EM_REPLACESEL, false, (LPARAM)(LPCTSTR)text);
 	}
 }
 
